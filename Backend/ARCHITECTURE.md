@@ -32,9 +32,30 @@ Infrastructure/            Implements ports. Depends on Application (+Domain)
   DependencyInjection.cs   AddInfrastructure(config): cache, repositories, services
 Middleware/                ErrorHandling, RequestResponseLogging, ResponseWrapper
 WebAPI/Controllers/        Thin controllers: UserController, PaymentIntent (Stripe), ValuesController
-Tests/                     e2e/, integration/, GoldenRule.md (testing philosophy)
+Tests/                     CommonService.Tests.csproj (xUnit), e2e/, integration/, GoldenRule.md (testing philosophy)
 Properties/launchSettings.json
 ```
+
+### 2.1 Module folder convention (MVP5, 12 modules)
+Modules: `Identity, Customers, Booking, Payments, Dispatch, Workers, Agencies, Skills, Ratings, Disputes, Payouts, Admin`.
+Each module owns exactly these four folders (exclusive: nobody else edits them):
+
+| Layer | Path |
+|---|---|
+| Application (commands/queries/handlers/validators) | `Application/Features/<Module>/` |
+| Controllers (thin) | `WebAPI/Controllers/<Module>/` |
+| Infrastructure (EF config, repos, adapters) | `Infrastructure/Modules/<Module>/` |
+| Tests | `Tests/<Module>/` |
+
+Domain behaviour of a module is added as `partial class` files named `Domain/Entities/<Entity>.<Module>.cs`.
+Frontend/Mobile counterparts: `Frontend/src/features/<module>/`, `Mobile/lib/features/<module>/`.
+Empty folders are kept with a `.gitkeep` (delete it when the first real file lands). The demo `Application/Features/Users` is template code, removed by BASE-09.
+Plan and ownership: `.spec/plan/00-overview.md` section 3.
+
+### 2.2 Frozen shared files
+After gate G0 these are **not edited by hand** by anyone except the M1 owner (modules self-register through `IModule`, BASE-02):
+`Program.cs`, `Application/DependencyInjection.cs`, `Infrastructure/DependencyInjection.cs`, the DbContext, `Migrations/**`, `appsettings*.json`, `Mobile/lib/app/**`, `Frontend/src/app/**`.
+Schema changes are made only by M1 (open a "Scope exception" issue). Modules talk to each other only through ports or domain events defined by M1 (BASE-03/04).
 
 Layer docs already exist: `Domain/Domain.md`, `Application/Application.md`, `Application/Features/Features.md`, `Infrastructure/Infrastructure.md`, `Middleware/Middleware.md`, `Tests/GoldenRule.md`, `BasicIntegrationTemplate.md` (template excluded from compile, see csproj), `document.md`.
 
@@ -85,12 +106,12 @@ HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → Respon
 dotnet restore
 dotnet build
 dotnet run            # http://localhost:5004 , Swagger at /swagger (Development)
-dotnet test
+dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonService.csproj excludes Tests/** from compilation
 ```
 CI: `../.github/workflows/dotnet.yml (repo root, working-directory: Backend)` (restore → build → test on push/PR to `main`, .NET 10).
 
 ## 8. Known gaps / TODO
 - No database/EF Core yet; repositories are in-memory/stub.
 - `PaymentIntent` controller creates a fixed-amount Stripe intent (demo); route has typo `create-paymen-intent`.
-- No authentication (`UseAuthorization` only); no test project yet (only docs under `Tests/`).
+- No authentication (`UseAuthorization` only).
 

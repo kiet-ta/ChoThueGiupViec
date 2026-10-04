@@ -18,4 +18,12 @@
     <Compile Remove="BasicIntegrationTemplate.cs" />
   </ItemGroup>
 
+  <!-- Test project lives under Tests/ and has its own csproj: keep it out of this project -->
+  <ItemGroup>
+    <Compile Remove="Tests/**" />
+    <Content Remove="Tests/**" />
+    <EmbeddedResource Remove="Tests/**" />
+    <None Remove="Tests/**" />
+  </ItemGroup>
+
 </Project>
