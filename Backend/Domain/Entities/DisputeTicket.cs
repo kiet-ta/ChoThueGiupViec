@@ -29,8 +29,8 @@ public partial class DisputeTicket
     /// <summary>dispute_ticket.dispute_status VARCHAR(12)</summary>
     public string DisputeStatus { get; set; } = string.Empty;
 
-    /// <summary>dispute_ticket.fault_party VARCHAR(12) NULL</summary>
-    public string? FaultParty { get; set; }
+    /// <summary>dispute_ticket.fault_party VARCHAR(12) NULL. Null = nobody at fault (dispute dismissed). Decision D3.</summary>
+    public FaultParty? FaultParty { get; set; }
 
     /// <summary>dispute_ticket.compensation_amount DECIMAL(18,2) NULL</summary>
     public decimal? CompensationAmount { get; set; }

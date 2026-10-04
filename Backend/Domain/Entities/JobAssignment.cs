@@ -56,8 +56,8 @@ public partial class JobAssignment
     /// <summary>job_assignment.absence_fee_amount DECIMAL(18,2) NULL</summary>
     public decimal? AbsenceFeeAmount { get; set; }
 
-    /// <summary>job_assignment.accepted_at DATETIME2</summary>
-    public DateTime AcceptedAt { get; set; }
+    /// <summary>job_assignment.accepted_at DATETIME2 NULL. Null while OFFERED (decision D1 / SC-9: offers are persisted).</summary>
+    public DateTime? AcceptedAt { get; set; }
 
     /// <summary>job_assignment.started_at DATETIME2 NULL</summary>
     public DateTime? StartedAt { get; set; }

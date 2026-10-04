@@ -11,7 +11,7 @@ public class DomainModelTests
         // 22 tables of Backend/GiupViec_Physical_DB_MVP5.drawio
         "Customer", "CustomerAddress", "FavoriteWorker", "JobOrder", "JobOrderExtension", "PaymentTransaction",
         "JobAssignment", "CheckInLog", "IncidentLog", "JobPhoto", "Worker", "BookingSlot", "TwoWayRating", "DisputeTicket",
-        "PartnerAgency", "PartnerSubscription", "SubscriptionPackage", "Skill", "WorkerSkill", "Admin", "PayoutBatch", "PayoutItem",
+        "PartnerAgency", "PartnerSubscription", "SubscriptionPackage", "Skill", "WorkerSkill", "AdminAccount", "PayoutBatch", "PayoutItem",
         // 5 tables added by decisions section 3 (SC-2, SC-3, SC-4, SC-6, SC-7)
         "PriceRule", "AdminAuditLog", "EscrowTransaction", "OtpCode", "RefreshToken",
     ];
@@ -115,6 +115,7 @@ public class DomainModelTests
     [InlineData(typeof(JobOrderStatus), 20)]
     [InlineData(typeof(JobAssignmentStatus), 20)]
     [InlineData(typeof(WorkStatus), 10)]
+    [InlineData(typeof(FaultParty), 12)]
     public void Every_enum_value_fits_its_varchar_column(Type enumType, int columnLength)
     {
         foreach (var value in Enum.GetValues(enumType))

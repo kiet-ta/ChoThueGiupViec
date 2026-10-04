@@ -2,8 +2,9 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Domain.Entities;
 
-/// <remarks>Table ADMIN. Foreign keys are plain ids on purpose (no navigation properties: 0-JOIN queries, PRD 5.2).</remarks>
-public partial class Admin
+/// <remarks>Table ADMIN. Named AdminAccount (decision D4) so it does not clash with the module namespace CommonService.*.Admin.
+/// Foreign keys are plain ids on purpose (no navigation properties: 0-JOIN queries, PRD 5.2).</remarks>
+public partial class AdminAccount
 {
     /// <summary>admin.admin_id INT (PK)</summary>
     public int AdminId { get; set; }

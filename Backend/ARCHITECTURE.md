@@ -61,16 +61,20 @@ Plan and ownership: `.spec/plan/00-overview.md` section 3.
 - Enum members are PascalCase; the database spelling is UPPER_SNAKE_CASE (`CheckedIn` -> `CHECKED_IN`) through `DbEnum`, which the EF value converters of BASE-07 must use. A test checks that every enum value fits its `VARCHAR(n)` column.
 
 **Columns left as `string` on purpose.** The PRD, the drawio and `decisions.md` do not list their values, and inventing them is forbidden (AGENTS.md rule 5). The owning module pins the values in its `*-00` contract, then turns the column into an enum:
-`PRICE_RULE.area_bracket`, `JOB_ORDER.shift_code`, `BOOKING_SLOT.shift_code/slot_source/slot_status`, `JOB_ORDER_EXTENSION.worker_decision/ext_status`, `PAYMENT_TRANSACTION.gateway`, `CHECK_IN_LOG.fallback_method`, `JOB_PHOTO.photo_phase`, `TWO_WAY_RATING.rater_role`, `INCIDENT_LOG.incident_type/redispatch_status`, `DISPUTE_TICKET.raised_by/category/dispute_status/fault_party`, `WORKER.kyc_status`, `PARTNER_AGENCY.agency_status`, `PARTNER_SUBSCRIPTION.sub_status`, `SUBSCRIPTION_PACKAGE.tier/billing_cycle`, `PAYOUT_BATCH.batch_status`, `PAYOUT_ITEM.item_status`, `ADMIN.admin_role`, `SKILL.category`.
+`PRICE_RULE.area_bracket`, `JOB_ORDER.shift_code`, `BOOKING_SLOT.shift_code/slot_source/slot_status`, `JOB_ORDER_EXTENSION.worker_decision/ext_status`, `PAYMENT_TRANSACTION.gateway`, `CHECK_IN_LOG.fallback_method`, `JOB_PHOTO.photo_phase`, `TWO_WAY_RATING.rater_role`, `INCIDENT_LOG.incident_type/redispatch_status`, `DISPUTE_TICKET.raised_by/category/dispute_status`, `WORKER.kyc_status`, `PARTNER_AGENCY.agency_status`, `PARTNER_SUBSCRIPTION.sub_status`, `SUBSCRIPTION_PACKAGE.tier/billing_cycle`, `PAYOUT_BATCH.batch_status`, `PAYOUT_ITEM.item_status`, `ADMIN.admin_role` (entity `AdminAccount`), `SKILL.category`.
 
-**Enum values that are M1 proposals** (not stated verbatim by the sources; the owning module may rename them in its contract before any code uses them): `WorkStatus.Pending/Busy/Locked` (only `IDLE` is in the PRD), `PaymentPurpose.Order`, and every transition of the three machines beyond the paths quoted in the XML comments of the machine classes.
+**Enum values that are M1 proposals** (not stated verbatim by the sources; the owning module may rename them in its contract before any code uses them): `WorkStatus.Pending/Locked` (only `IDLE` is in the PRD; `BUSY` is defined by D6), `PaymentPurpose.Order`, and every transition of the three machines beyond the paths quoted in the XML comments of the machine classes.
 
-**Conflicts between sources, for the leader (not resolved here):**
-1. `JOB_ASSIGNMENT.accepted_at` is `NOT NULL` in the drawio, but overview section 6 lists an `OFFERED` assignment state (an offer exists before anyone accepts). Either `accepted_at` becomes nullable or `OFFERED` is never persisted.
-2. The drawio unique index `Job_Assignment(slot_id) WHERE assignment_status NOT IN ('CANCELLED','REASSIGNED')` does not mention the new `CANCELLED_BY_WORKER` (decisions Q15); BASE-07 must add it to the filter or a cancelled-by-worker slot stays blocked.
-3. `DISPUTE_TICKET.fault_party` is `FREELANCER | AGENCY` in the drawio notes but `WORKER` in decisions Q10/Q12.
-4. `Money` and `Address` (existing value objects) are **not** reused: `Address` has only street/city while `CUSTOMER_ADDRESS` has line/district/city, and `Money` carries a currency string where the schema is VND-only. Entity money fields are `decimal`.
-5. The drawio CHECKs on `PAYMENT_TRANSACTION` (exactly one of order/extension/subscription) and `PAYOUT_ITEM` (payee type vs worker/agency) are persistence constraints: BASE-07 adds them as database CHECKs.
+**Decisions of 2026-10-04 (D1-D7, recorded in `.spec/decisions.md` by DECISIONS-02):**
+- D1 Offers are persisted: an assignment is created as `OFFERED` and `JOB_ASSIGNMENT.accepted_at` is nullable (SC-9).
+- D2 The unique index `Job_Assignment(slot_id)` excludes `CANCELLED`, `CANCELLED_BY_WORKER` and `REASSIGNED` (a worker who cancels gets the slot back; the violation still counts, Q15). Built in BASE-07.
+- D3 `DISPUTE_TICKET.fault_party` is the enum `FaultParty` = `FREELANCER | AGENCY | CUSTOMER`, null = nobody at fault. "WORKER" in decisions Q10/Q12 means FREELANCER or AGENCY.
+- D4 The ADMIN table is the entity `AdminAccount` (avoids the clash with the module namespace `...Admin`).
+- D5 Money stays `decimal` in entities; **all rounding goes through `Domain/ValueObjects/Vnd.cs`** (`Vnd.Round`, `Vnd.Commission`, `Vnd.Net`, decisions G-2). The template `Money` and `Address` value objects are not used and are deleted by BASE-09.
+- D6 `WorkStatus.Busy` = on site, from check-in until the assignment is COMPLETED or an absence is approved. A future assignment does not change `work_status`; double booking is prevented by the slot UNIQUE.
+- D7 The order status follows its assignments through `JobOrder.SyncWithAssignments`: ASSIGNED when `required_workers` assignments are accepted, COMPLETED when that many are COMPLETED, back to DISPATCHING when a seat is lost (only the missing seat is re-dispatched). ABSENT is left to the Admin approval flow. Tests: `Backend/Tests/Domain/JobOrderProgressTests.cs`.
+
+**Still persistence work for BASE-07:** the drawio CHECKs on `PAYMENT_TRANSACTION` (exactly one of order/extension/subscription) and `PAYOUT_ITEM` (payee type vs worker/agency) become database CHECK constraints; `DbEnum` value converters; UTC enforcement on every `DateTime` (G-3).
 
 The demo template classes (`User`, `Order`, `OrderItem`, `BankAccount`) stay until BASE-09; the empty demo `Customer` was replaced by the real entity.
 
