@@ -1,10 +1,10 @@
 # Contract: Customers (module `Customers`, owner M1)
 
-> Status: **DRAFT, awaiting leader approval** (ticket BE-M1-00, issue #21).
+> Status: **leader answers of 2026-10-04 applied (section 4); awaiting final approval** (ticket BE-M1-00, issue #21).
 > Sources: `.spec/spec.md` §1.1 (S_total), §1.3, §4.1 step 1 · `.spec/decisions.md` G-2/G-3/G-7, Q16 · `Backend/GiupViec_Physical_DB_MVP5.drawio` tables `CUSTOMER`, `CUSTOMER_ADDRESS`, `FAVORITE_WORKER`.
 > Implements tickets: BE-M1-04 (profile), BE-M1-05 (addresses), BE-M1-06 (favorite workers).
 > Conventions (envelope, camelCase, UTC, status codes, roles, policies, 404-for-not-owned) are defined in `identity.md` §1 and apply here unchanged. Customer login: `identity.md` §2.1-2.2.
-> **OPEN Ox** = not decided by the PRD or `decisions.md`; a recommended default is given, the leader answers in issue #21.
+> **Cx** = questions not covered by the PRD or `decisions.md`; answered in section 4. Schema additions of the Identity contract (`OTP_CODE`, `REFRESH_TOKEN`, lockout columns) do not touch the customer tables.
 
 All endpoints require `Authorization: Bearer <accessToken>` with policy **`CustomerOnly`**. `401` if missing/invalid, `403` if the role is not `Customer`. A customer can only read or change **their own** data; the id always comes from the token (`ICurrentUser.Id`), never from the body or URL.
 
@@ -48,9 +48,16 @@ All endpoints require `Authorization: Bearer <accessToken>` with policy **`Custo
 
 `FavoriteWorker`
 ```json
-{ "workerId": 0, "addedAt": "ISO-8601 UTC" }
+{
+  "workerId": 0,
+  "fullName": "string",
+  "ratingAvg": 0.0,
+  "completedJobs": 0,
+  "workStatus": "string",
+  "addedAt": "ISO-8601 UTC"
+}
 ```
-(`FAVORITE_WORKER`: composite key `customer_id + worker_id`, `created_at`. Display fields such as name and rating: see C3.)
+(`FAVORITE_WORKER`: composite key `customer_id + worker_id`, `created_at` -> `addedAt`. The worker fields come from the read port `IWorkerProfileQuery` (decision C3); the Customers module never reads `WORKER` directly.)
 
 ## 2. Endpoints
 
@@ -58,7 +65,7 @@ All endpoints require `Authorization: Bearer <accessToken>` with policy **`Custo
 
 **`GET /api/customers/me`** -> 200 `data: CustomerProfile`. 404 only if the row was removed (should not happen).
 
-A `CUSTOMER` row is created by the first successful OTP login (`identity.md` §2.2) with: `phone_number` from the login, `full_name` empty string until the customer sets it (see C1), `email` null, `otp_verified_at = now`, `trust_score` = C2, `account_status` = `ACTIVE` (`identity.md` O6), `created_at = updated_at = now (UTC)`.
+A `CUSTOMER` row is created by the first successful OTP login (`identity.md` §2.2) with: `phone_number` from the login, `full_name` empty string until the customer sets it (C1), `email` null, `otp_verified_at = now`, `trust_score` = `Customer.InitialTrustScore` (C2), `account_status` = `ACTIVE` (`identity.md` O6), `created_at = updated_at = now (UTC)`.
 
 **`PUT /api/customers/me`** (full replace of the editable fields)
 ```json
@@ -103,9 +110,9 @@ Validation (all failures -> 400):
 | `label` | required, 1-50 chars | `NVARCHAR(50)` |
 | `addressLine` | required, 1-255 chars | `NVARCHAR(255)` |
 | `district`, `city` | required, 1-100 chars | `NVARCHAR(100)` |
-| `housingType` | one of `APARTMENT`, `HOUSE`, `ROOM` (C4) | PRD §1.1 lists 3 housing types; `VARCHAR(12)` |
-| `floorAreaM2` | > 0 and <= 9999.99 | `DECIMAL(6,2)` |
-| `numFloors` | integer 1-255 | `TINYINT`; PRD §1.1 (apartment = 1 flat floor); tighter bounds are C4 |
+| `housingType` | one of `APARTMENT`, `HOUSE`, `ROOM` | PRD §1.1 lists 3 housing types; `VARCHAR(12)` |
+| `floorAreaM2` | > 0 and <= 9999.99; `ROOM` also <= `Address.RoomMaxAreaM2` | `DECIMAL(6,2)`; PRD §1.1 (room <= 30 m2) |
+| `numFloors` | integer 1-255 (DB), then by type (C4): `APARTMENT` and `ROOM` must be 1; `HOUSE` 1 to `Address.HouseMaxFloors` | `TINYINT`; PRD §1.1 |
 | `bedrooms`, `bathrooms` | optional, integer 0-255 | `TINYINT NULL` |
 | `latitude` | -90 to 90 | GPS; `DECIMAL(9,6)` |
 | `longitude` | -180 to 180 | GPS; `DECIMAL(9,6)` |
@@ -126,7 +133,7 @@ Default address rules: the customer's **first** address becomes default automati
 
 | Status | Condition |
 |---|---|
-| 404 | no `WORKER` with that id (existence check goes through a port, C3) |
+| 404 | no `WORKER` with that id (existence check through `IWorkerProfileQuery`, C3) |
 
 **`DELETE /api/customers/me/favorite-workers/{workerId}`** -> 200 `data: null`. Idempotent: removing a worker that is not in the list is still 200.
 
@@ -135,12 +142,12 @@ Default address rules: the customer's **first** address becomes default automati
 - Worker profile data shown in the favorites list: M4 owns `WORKER` (C3).
 - Phone privacy for workers (Q17) and ratings of customers (Q14, M6): not part of this module.
 
-## 4. OPEN questions (leader decides; recommendation first)
+## 4. Decisions (leader, 2026-10-04: "if not affected, just implement" = recommended defaults applied)
 
-| # | Question | Recommended default | Why it matters |
-|---|---|---|---|
-| **C1** | `full_name` is `NOT NULL` but a new customer only gave a phone. | Insert an empty string at first login; the app asks the customer to complete the profile before the first booking (client rule, not enforced by Customers). | Avoids blocking login on a name the PRD does not ask for at login. |
-| **C2** | Initial `trust_score` (`DECIMAL(3,2)`) and who changes it. The PRD says only "điểm tin cậy" (§1.3, §5.3); neither the PRD nor decisions give a scale or a start value. | No default proposed: the leader picks the scale (for example 0.00-5.00 like ratings) and the initial value. In this ticket the field is read-only and written only when the row is created. | A guessed default silently becomes business data. |
-| **C3** | The favorites list needs the worker's name/rating (MOB-M1-03), but `WORKER` belongs to M4 and modules cannot read each other's tables. | Add one read port `IWorkerProfileQuery` (implementer M4, Fake first) at BASE-03, returning `workerId, fullName, ratingAvg, completedJobs, workStatus` and an existence check; extend `FavoriteWorker` with those fields. Until the port exists the endpoint returns only `workerId, addedAt`. | Needs a port added to overview §4 (M1 owns ports). |
-| **C4** | Bounds beyond the DB types: allowed `numFloors` per `housingType` and max `floorAreaM2`. PRD: apartment = 1 flat floor; room <= 30 m2; house = multi-floor. | `APARTMENT` and `ROOM`: `numFloors = 1`. `ROOM`: `floorAreaM2 <= 30`. `HOUSE`: `numFloors` 1-10 (my suggestion, not PRD). The wire code for housing type is `APARTMENT/HOUSE/ROOM` because `VARCHAR(12)` must fit them. | Prevents impossible areas feeding the price bracket (decisions Q01 uses `total_area_m2`). |
-| **C5** | Deleting an address that old orders reference. No `is_deleted` column exists and schema is M1-only. | Reject with 409 as written in §2.2 (the FK would fail anyway). If the leader wants "hide but keep", add a column through a schema change (SC-6). | Without a rule the DB error would surface as a 500. |
+| # | Question | Decision |
+|---|---|---|
+| **C1** | `full_name` is `NOT NULL` but a new customer only gave a phone. | Insert an empty string at first login; the app asks the customer to complete the profile before the first booking (client rule, not enforced by Customers). |
+| **C2** | Initial `trust_score` and who changes it (PRD gives no scale). | Provisional, not a business decision: config `Customer.InitialTrustScore` default `0.00` on the same 0.00-5.00 scale as ratings (Q14; fits `DECIMAL(3,2)`). Nothing in the MVP reads or changes it, so it blocks nothing; the leader can set the real scale later without code changes. |
+| **C3** | Favorites list needs worker name/rating but `WORKER` belongs to M4. | New read port `IWorkerProfileQuery` (implementer M4, Fake first) added at BASE-03: returns `workerId, fullName, ratingAvg, completedJobs, workStatus` and an existence check. Overview section 4 gets the new row via ticket DECISIONS-01. |
+| **C4** | Bounds beyond DB types. | `APARTMENT`/`ROOM`: `numFloors = 1`. `ROOM`: `floorAreaM2 <= Address.RoomMaxAreaM2` (30, PRD section 1.1). `HOUSE`: `numFloors` 1 to `Address.HouseMaxFloors` (10, **my suggestion, not in the PRD**). Both are config keys in `BusinessRules`. |
+| **C5** | Deleting an address referenced by orders. | `409` as in section 2.2 (the `JOB_ORDER.address_id` foreign key forbids it anyway); no soft delete, no schema change. |
