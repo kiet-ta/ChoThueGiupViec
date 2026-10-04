@@ -1,0 +1,18 @@
+# Protected paths: a ticket may touch these ONLY if its `allowed` list contains the pattern
+# below literally (a bare `**` is not enough). One glob per line.
+harness/**
+.husky/**
+Backend/.husky/**
+Frontend/.husky/**
+.github/**
+.claude/**
+.spec/tasks.md
+.gitignore
+.gitattributes
+package.json
+package-lock.json
+AGENTS.md
+**/AGENTS.md
+.env*
+**/.env*
+Backend/appsettings*.json

@@ -1,0 +1,2 @@
+# L2: compile / type-check (per folder), evidence logged by verify
+sh harness/verify.sh L2 || exit 1

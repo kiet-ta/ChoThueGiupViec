@@ -1,0 +1,20 @@
+name: Scope exception
+description: Request a path/command/package outside a ticket's scope. The only legal way to widen scope.
+title: "[scope] "
+labels: ["scope-exception"]
+body:
+  - type: input
+    id: ticket
+    attributes: { label: Original ticket (#N) }
+    validations: { required: true }
+  - type: textarea
+    id: needed
+    attributes:
+      label: What is needed (exact paths / package / command)
+    validations: { required: true }
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence why it is required
+      description: Failing output, file:line, link to evidence log. No evidence = request rejected.
+    validations: { required: true }
