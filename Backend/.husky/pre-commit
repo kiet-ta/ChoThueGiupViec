@@ -1,0 +1,8 @@
+# Backend L1: format check of staged C# files
+cd "$(git rev-parse --show-toplevel)/Backend" || exit 1
+FILES=$(git diff --cached --name-only --diff-filter=ACMR -- . | grep -E '\.cs$' | sed 's#^Backend/##')
+if [ -n "$FILES" ]; then
+  echo "[backend] dotnet format (staged files)"
+  dotnet format CommonService.sln whitespace --verify-no-changes --include $FILES || {
+    echo "Fix: cd Backend && dotnet format whitespace --include <files>"; exit 1; }
+fi

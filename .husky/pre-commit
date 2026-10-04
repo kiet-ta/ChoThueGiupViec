@@ -1,0 +1,7 @@
+# 1) hard scope guard  2) per-folder L1 checks (format/lint on staged files)
+sh harness/scope-check.sh || exit 1
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+if echo "$STAGED" | grep -q '^Frontend/'; then sh Frontend/.husky/pre-commit || exit 1; fi
+if echo "$STAGED" | grep -q '^Backend/.*\.\(cs\|csproj\|sln\)$'; then sh Backend/.husky/pre-commit || exit 1; fi
+if echo "$STAGED" | grep -Eq '^(\.agents/|\.claude/|\.codex/|CLAUDE\.md|AGENTS\.md)'; then sh harness/check-agent-config.sh || exit 1; fi

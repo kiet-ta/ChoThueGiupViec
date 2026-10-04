@@ -1,0 +1,35 @@
+# M2 — Đặt đơn & Thanh toán
+
+> **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
+> Module backend: **Booking**, **Payments**. Thực thể: JOB_ORDER, JOB_ORDER_EXTENSION, PAYMENT_TRANSACTION (hành vi qua partial class của bạn).
+> Tổng quan/gate/port/event: [00-overview.md](00-overview.md) · Spec: [../spec.md](../spec.md) §1.2, §2.5, §4.1, BR-01/02/08.
+> Bạn **implement** `IPaymentGateway`, `IRefundService`; bạn **dùng** `IAgencyCapacityService` (M5, tạm Fake). Bạn **phát** `OrderPaid`, `OrderCancelled`, `OrderRefunded`, `ExtensionPaid`; **nghe** `AssignmentFailed`, `CustomerAbsentApproved`, `DisputeResolved`.
+
+**Allowed mặc định:** `Backend/Application/Features/{Booking,Payments}/**`, `Backend/WebAPI/Controllers/{Booking,Payments}/**`, `Backend/Infrastructure/Modules/{Booking,Payments}/**`, `Backend/Tests/{Booking,Payments}/**`, `Backend/Domain/Entities/*.{Booking,Payments}.cs`, `Mobile/lib/features/{booking,payments}/**`, `Mobile/test/features/{booking,payments}/**`, `Frontend/src/features/{booking,payments}/**`, `.spec/plan/M2-*.md`, `.spec/contracts/{booking,payments}.md`.
+
+## Wave 0 — làm ngay (không cần base)
+- [ ] **BE-M2-00** Contract Booking + Payments → `.spec/contracts/booking.md`, `payments.md` (tạo đơn, chọn phân khúc/slot/dịch vụ/ghi chú, QR, IPN, trạng thái đơn, Làm lần 2, lịch sử). Liệt kê trạng thái đơn dùng chung với M1.
+
+## Wave 1 — Backend (sau G0, dùng Fake; chuyển sang EF sau G1)
+- [ ] **BE-M2-01** Quy tắc ca (BR-01/BR-02): ≤80 m² → 1 Worker, ca ≤4 h; >80 m² → yêu cầu 2 Job Assignment song song (phối hợp M3 BE-M3-08); hàm thuần + test biên 80 m² · *needs:* G0.
+- [ ] **BE-M2-02** Tính giá từ bảng `PRICE_RULE` (đơn giá / thợ / ca theo tier × nhóm diện tích; tổng = đơn giá × số thợ; **chốt giá vào `JOB_ORDER.total_amount` lúc tạo đơn**); đơn giá mặc định seed ở BASE-10 · *needs:* G0 · *decisions:* Q01 · *done:* test 6 tổ hợp tier×nhóm + biên 30/80 m².
+- [ ] **BE-M2-02a** Admin sửa giá `PRICE_RULE`: bắt buộc `reason`, ghi `ADMIN_AUDIT_LOG` qua `IAuditLog` **cùng transaction**, chỉ áp dụng cho đơn mới, có endpoint xem lịch sử thay đổi (chỉ đọc) · *needs:* BE-M2-02, BE-M6-09 (Fake trước) · *decisions:* Q01, G-5.
+- [ ] **BE-M2-03** Tạo `JobOrder` Economy/Premium: validate địa chỉ thuộc khách, Block Slot hợp lệ (Sáng 08–12 / Chiều 13–17 / Tối 17:30–20:30), Premium đặt trước tối thiểu 4 giờ (*decisions:* Q13); Premium gọi `IAgencyCapacityService` kiểm công suất **nguyên tử** và khoá vị trí khi thanh toán (Pha 1, §2.5) · *needs:* G0, BE-M2-01.
+- [ ] **BE-M2-04** Tạo QR thanh toán động + `PaymentTransaction` (Pay-per-Job 100 %) qua `IPaymentGateway` · *needs:* BE-M2-03.
+- [ ] **BE-M2-05** Webhook IPN: xác thực chữ ký, **idempotent** (replay cùng mã giao dịch không cộng/đổi trạng thái hai lần), đơn → `PAID`, phát `OrderPaid` · *needs:* BE-M2-04 · *done:* test replay + sai chữ ký.
+- [ ] **BE-M2-05a** Job đối soát: mỗi 60 s quét giao dịch `PENDING` quá 3 phút, hỏi MoMo trạng thái và cập nhật; QR quá 15 phút → `EXPIRED` + huỷ đơn không tính tiền; tiền giữ tới `COMPLETED` (không tự chi) · *needs:* BE-M2-05 · *decisions:* Q04 · *done:* test IPN bị mất vẫn đồng bộ được.
+- [ ] **BE-M2-06** Gateway **MoMo sandbox** thay Fake (không tiền thật; VietQR hoãn = Q04b) · *needs:* BE-M2-05; leader cấp khoá sandbox qua user-secrets · *decisions:* Q04, G-1, G-7 (đọc tài liệu MoMo chính thức, không đoán trường/chữ ký).
+- [ ] **BE-M2-07** Hoàn tiền 100 % (`IRefundService`): xử lý `AssignmentFailed` (hết thợ >10 km, BR-03), sự cố không tìm được thợ (BR-10), phán quyết tranh chấp · *needs:* BE-M2-05.
+- [ ] **BE-M2-08** Nối ca "Làm lần 2" (BR-08): tạo `JobOrderExtension` + QR mới, khi thanh toán phát `ExtensionPaid` (M4 xử lý thợ đồng ý/từ chối) · *needs:* BE-M2-05.
+- [ ] **BE-M2-09** Khách huỷ đơn trước khi có thợ · *needs:* BE-M2-07 · *decisions:* Q15 (>2 giờ hoàn 100 %, ≤2 giờ tính 40 %, thợ huỷ → hoàn 100 % + điều thợ khác).
+- [ ] **BE-M2-10** Truy vấn: tiến độ đơn (`JOB_ASSIGNMENT WHERE order_id`), lịch sử khách (`WHERE customer_id`) — **0 JOIN** theo §5.2 · *needs:* G1.
+- [ ] **BE-M2-11** Test: IPN replay, đua khoá slot Premium (2 khách cùng vị trí cuối), giá biên 80 m² · *needs:* BE-M2-01..10.
+
+## Wave 3 — Mobile (Flutter, khách hàng) · *needs:* MOB-BASE-01..03 (M3) + G3/G4
+- [ ] **MOB-M2-01** Chọn phân khúc Economy/Premium (§2.1).
+- [ ] **MOB-M2-02** Luồng đặt đơn: địa chỉ → khung ca → dịch vụ + ghi chú → hiển thị giá cố định trước khi trả (lấy từ `PRICE_RULE`, Q01).
+- [ ] **MOB-M2-03** Màn QR thanh toán, cập nhật PAID realtime (SignalR, polling dự phòng), **banner "SANDBOX – no real money"** (Q04).
+- [ ] **MOB-M2-04** Theo dõi ca (ASSIGNED… COMPLETED).
+- [ ] **MOB-M2-05** Nút "Làm lần 2" + QR mới (BR-08).
+- [ ] **MOB-M2-06** Lịch sử đơn.
+- [ ] **WEB-M2-01** Admin: màn sửa bảng giá + xem lịch sử thay đổi (ai, khi nào, giá cũ/mới, lý do) · *needs:* WEB-BASE-01..04 (M6), BE-M2-02a, G4.

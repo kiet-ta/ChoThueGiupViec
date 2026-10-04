@@ -1,0 +1,33 @@
+name: Ticket
+description: One unit of agent work. Scope below is enforced by harness/scope-check.
+title: "[ticket] "
+labels: ["ticket", "ready"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [backend, frontend, shared]
+    validations: { required: true }
+  - type: textarea
+    id: blocked
+    attributes:
+      label: Blocked by
+      description: Issue numbers, one per line (leave empty if none)
+  - type: textarea
+    id: allowed
+    attributes:
+      label: Allowed paths
+      description: Glob list, one per line (e.g. Backend/Application/Features/Users/**). Anything else is rejected.
+    validations: { required: true }
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Verifiable statements. Each must be provable with evidence (test, log, file:line).
+    validations: { required: true }
+  - type: dropdown
+    id: slice
+    attributes:
+      label: Slice
+      options: [tracer-bullet (thin end-to-end), widening]
