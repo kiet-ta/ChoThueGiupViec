@@ -104,7 +104,7 @@ Cột/khoá/quan hệ do **M1** quản (BASE-06/07). Hành vi domain thêm bằn
 | M5 | PARTNER_AGENCY (+cột mới SC-1), SUBSCRIPTION_PACKAGE, PARTNER_SUBSCRIPTION, SKILL, WORKER_SKILL, BOOKING_SLOT (Shift Roster Agency), **ESCROW_TRANSACTION** (mới, SC-4) |
 | M6 | DISPUTE_TICKET, TWO_WAY_RATING (+UNIQUE SC-5), ADMIN, PAYOUT_BATCH, PAYOUT_ITEM, **ADMIN_AUDIT_LOG** (mới, SC-3) |
 
-`JOB_ASSIGNMENT` là nút giao phẳng dùng chung: **M1 định nghĩa toàn bộ state machine ở BASE-06** (OFFERED→ASSIGNED→CHECKED_IN→IN_PROGRESS→AWAITING_ACCEPTANCE→COMPLETED + CANCELLED/ABSENT/INCIDENT — tên trạng thái M1 chốt từ PRD), M3/M4 chỉ gọi phương thức chuyển trạng thái → không ai sửa chung một file.
+`JOB_ASSIGNMENT` là nút giao phẳng dùng chung: **M1 định nghĩa toàn bộ state machine ở BASE-06** (OFFERED→ASSIGNED→CHECKED_IN→IN_PROGRESS→AWAITING_ACCEPTANCE→COMPLETED + CANCELLED/CANCELLED_BY_WORKER/ABSENT/INCIDENT/REASSIGNED; offer được lưu, decisions Q22), M3/M4 chỉ gọi phương thức chuyển trạng thái → không ai sửa chung một file.
 
 ## 7. Phase 2 — E2E liên module (sau khi các BE module xong; mỗi dòng 1 ticket `shared`, chạy riêng)
 - [ ] **E2E-01** Economy: đặt đơn → thanh toán IPN → PAID → offer 30 s → ASSIGNED (M2+M3)
@@ -140,6 +140,7 @@ Agent chỉ coi một `Q#` là đã chốt khi cột đầu có `✅`. Dòng `�
 | ✅ Q19 | Bảo lãnh: Agency ký (upload PDF) trước khi import thợ |
 | ✅ Q20 | Identity: thợ mới nhận registration token và phải hoàn thiện hồ sơ; OTP/refresh/khoá đăng nhập lưu trong DB (SC-6..8, 27 bảng); token 15 phút / 30 ngày |
 | ✅ Q21 | Customer: C1–C5 theo mặc định của contract (`trust_score` tạm thời, port `IWorkerProfileQuery`) |
+| ✅ Q22 | Domain (review BASE-06): lưu offer + `accepted_at` NULL (SC-9), slot giải phóng khi thợ tự huỷ, `fault_party` FREELANCER/AGENCY/CUSTOMER, entity `AdminAccount`, helper `Vnd`, `BUSY` = đang ở hiện trường, trạng thái đơn theo các ca |
 | ⏳ Q04b | VietQR / tiền thật — HOÃN |
 | ⏳ Q05b | Nhà cung cấp eKYC thật — HOÃN (chặn BE-M4-03) |
 | ⏳ Q06b | Nhà cung cấp SMS thật — HOÃN |
