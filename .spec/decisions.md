@@ -137,6 +137,22 @@ This is a **platform**. The parties that pay are the priority: **Customers** (pa
 ### Q19 Agency guarantee
 - The agency must have `PARTNER_AGENCY.guarantee_signed_at` set **before** it can import workers; otherwise the import API rejects with a clear error. MVP flow: the legal representative uploads the signed guarantee PDF (stored via `IFileStorage`, file name includes the document version); the system records `guarantee_signed_at` and `guarantee_file_url` (SC-1).
 
+### Q20 Identity details (leader, 2026-10-04; contract `.spec/contracts/identity.md`)
+- **New freelancer (O1):** after OTP verification a phone with no `WORKER` row gets **no access token**; the API returns `isNewUser = true` and a single-purpose `registrationToken` that only the M4 registration endpoint accepts. The person must complete a profile (then eKYC, Q05) before logging in normally.
+- **OTP, refresh and lockout state live in the database (O3)**, not in a cache: tables `OTP_CODE` (SC-6) and `REFRESH_TOKEN` (SC-7), lockout columns on `ADMIN` and `PARTNER_AGENCY` (SC-8). Only a keyed HMAC of the OTP code is stored (the key comes from user-secrets/environment, G-6). Resend cooldown and the per-phone/per-IP hourly limits (Q06) are computed from `OTP_CODE` rows. Refresh tokens are opaque, stored hashed, rotated on every use; reuse of a rotated token revokes the whole family. SC-7 and the lockout columns extend the leader's answer in the same direction; the leader may overrule.
+- **Token lifetimes (O2):** access 15 min, refresh 30 days, registration token 30 min (the registration token value is a suggestion, not a leader decision). All in `BusinessRules` (section 4).
+- **Phone (O4):** Vietnamese mobile numbers only, normalized to digits in national form `0XXXXXXXXX` (strip spaces, `+84` -> `0`); anything else is rejected with 400.
+- **Validation errors (O5):** HTTP 400, envelope `success = false`, `data = { "errors": { "<field>": ["<message>"] } }`.
+- **Account states (O6):** customers `ACTIVE` / `LOCKED` (LOCKED cannot log in, 403). A Partner can log in even when `SUSPENDED` (Q09); only Admin deactivation (`ADMIN.is_active = 0`) blocks an Admin.
+
+### Q21 Customer details (leader, 2026-10-04; contract `.spec/contracts/customers.md`)
+The leader's instruction was "if not affected, just implement", so these are the contract's recommended defaults:
+- **C1** `CUSTOMER.full_name` is an empty string until the customer completes the profile; the app asks before the first booking.
+- **C2** `trust_score` is provisional: `Customer.InitialTrustScore` (0.00) on the 0.00-5.00 scale of Q14. Nothing in the MVP reads or changes it. The leader sets the real meaning later.
+- **C3** New read port `IWorkerProfileQuery` (implementer M4): worker display fields (`fullName, ratingAvg, completedJobs, workStatus`) and an existence check for the favorite-workers list.
+- **C4** `APARTMENT` and `ROOM`: 1 floor. `ROOM`: area <= `Address.RoomMaxAreaM2` (30, PRD section 1.1). `HOUSE`: 1 to `Address.HouseMaxFloors` (10, a suggestion, not in the PRD).
+- **C5** Deleting an address that an order references is rejected with 409; no soft delete.
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery.
 
@@ -146,7 +162,10 @@ This is a **platform**. The parties that pay are the priority: **Customers** (pa
 - **SC-3** New table `ADMIN_AUDIT_LOG` (append-only): `log_id BIGINT IDENTITY PK`, `actor_type VARCHAR(10)` (`ADMIN`|`SYSTEM`), `admin_id INT NULL FK ADMIN`, `entity_type VARCHAR(30)`, `entity_id VARCHAR(40)`, `field_name VARCHAR(50)`, `old_value NVARCHAR(500) NULL`, `new_value NVARCHAR(500) NULL`, `reason NVARCHAR(255) NULL`, `changed_at DATETIME2`.
 - **SC-4** New table `ESCROW_TRANSACTION` (append-only): `escrow_txn_id BIGINT IDENTITY PK`, `agency_id INT FK`, `txn_type VARCHAR(10)` (`DEPOSIT`|`PENALTY`|`REVERSAL`), `amount DECIMAL(18,2)`, `balance_after DECIMAL(18,2)`, `sla_points_delta DECIMAL(5,2) NULL`, `order_id BIGINT NULL FK`, `dispute_id INT NULL FK`, `payment_id BIGINT NULL FK`, `reason NVARCHAR(255)`, `created_by_admin_id INT NULL FK ADMIN`, `created_at DATETIME2`.
 - **SC-5** `TWO_WAY_RATING`: add `UNIQUE(assignment_id, rater_role)`.
-- Table count becomes 25 (22 + `PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`). Owners: `PRICE_RULE` -> M2, `ESCROW_TRANSACTION` -> M5, `ADMIN_AUDIT_LOG` -> M6 (others write to it through the `IAuditLog` port).
+- **SC-6** New table `OTP_CODE`: `otp_id BIGINT IDENTITY PK`, `phone_number VARCHAR(15)`, `role VARCHAR(10)` (`Customer`|`Worker`), `code_hash VARCHAR(255)` (keyed HMAC-SHA256, never the code), `attempt_count TINYINT`, `requested_ip VARCHAR(45)`, `created_at DATETIME2`, `expires_at DATETIME2`, `consumed_at DATETIME2 NULL`; indexes `(phone_number, role, created_at)` and `(requested_ip, created_at)`. (Q20)
+- **SC-7** New table `REFRESH_TOKEN`: `refresh_token_id BIGINT IDENTITY PK`, `token_hash VARCHAR(128) UNIQUE`, `subject_role VARCHAR(10)`, `subject_id INT`, `family_id UNIQUEIDENTIFIER`, `created_at DATETIME2`, `expires_at DATETIME2`, `revoked_at DATETIME2 NULL`, `replaced_by_id BIGINT NULL`. (Q20)
+- **SC-8** `ADMIN` and `PARTNER_AGENCY`: add `failed_login_count TINYINT NOT NULL DEFAULT 0` and `locked_until DATETIME2 NULL`. (Q20, Q16 lockout)
+- Table count becomes **27** (22 + `PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN`; it was 25 before SC-6/SC-7). Owners: `PRICE_RULE` -> M2, `ESCROW_TRANSACTION` -> M5, `ADMIN_AUDIT_LOG` -> M6 (others write to it through the `IAuditLog` port), `OTP_CODE` and `REFRESH_TOKEN` -> M1.
 
 ## 4. Configuration keys and DEFAULT values (single source for `BusinessRules`)
 | Key | DEFAULT | Source |
@@ -172,3 +191,8 @@ This is a **platform**. The parties that pay are the priority: **Customers** (pa
 | `Cancel.FullRefundHoursBefore` / `LateFeeRate` / `WorkerCancelLockCount` / `WorkerCancelWindowDays` | 2 / 0.40 / 3 / 30 | Q15 |
 | `Auth.MinPasswordLength` / `LockoutFailures` / `LockoutMinutes` | 10 / 5 / 15 | Q16 |
 | `Privacy.PhoneVisibleBeforeMinutes` / `PhoneVisibleAfterMinutes` | 60 / 60 | Q17 |
+| `Auth.AccessTokenMinutes` / `Auth.RefreshTokenDays` | 15 / 30 | Q20 (leader accepted the default) |
+| `Auth.RegistrationTokenMinutes` | 30 | Q20 (**suggestion**, not decided by the leader) |
+| `Customer.InitialTrustScore` | 0.00 | Q21 (**provisional**, nothing reads it in the MVP) |
+| `Address.RoomMaxAreaM2` | 30 | Q21, PRD section 1.1 |
+| `Address.HouseMaxFloors` | 10 | Q21 (**suggestion**, not in the PRD) |

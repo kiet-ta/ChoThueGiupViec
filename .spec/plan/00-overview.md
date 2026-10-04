@@ -1,6 +1,6 @@
 # Kế hoạch triển khai MVP5 — 6 người song song
 
-> Nguồn: `.spec/spec.md` (PRD-MVP5-FINAL) · **Quyết định đã chốt (tiếng Anh, bắt buộc tuân theo): `.spec/decisions.md`** · ERD vật lý: `Backend/GiupViec_Physical_DB_MVP5.drawio` (22 bảng) + 3 bảng bổ sung (`decisions.md` §3).
+> Nguồn: `.spec/spec.md` (PRD-MVP5-FINAL) · **Quyết định đã chốt (tiếng Anh, bắt buộc tuân theo): `.spec/decisions.md`** · ERD vật lý: `Backend/GiupViec_Physical_DB_MVP5.drawio` (22 bảng) + 5 bảng bổ sung (`decisions.md` §3) = 27.
 > Trạng thái: **DRAFT** — chờ người điều phối duyệt (checkpoint 2 trong HARNESS.md §6). Chưa có ticket GitHub nào cho các task bên dưới.
 > Lệnh cho agent: nói **"phân tích dự án"** → agent hỏi tên → in checklist của bạn (xem `AGENTS.md`).
 
@@ -27,7 +27,7 @@ Vì sao tách như vậy: **backend base là đường găng duy nhất → ch�
 | Gate | Nghĩa là | Mở khoá cho | Done |
 |---|---|---|---|
 | **G0 Skeleton** | cấu trúc module, project test, auto-đăng ký module, port + DTO + Fake, event catalog, `BusinessRules` options | M2–M6 code backend theo **port/fake**, không cần DB thật | [ ] |
-| **G1 Data** | 25 bảng (22 + 3 bổ sung, decisions §3) + EF config + DbContext + migration đầu + repo/UoW | M2–M6 thay fake bằng repo EF, integration test | [ ] |
+| **G1 Data** | 27 bảng (22 + 5 bổ sung, decisions §3) + EF config + DbContext + migration đầu + repo/UoW | M2–M6 thay fake bằng repo EF, integration test | [ ] |
 | **G2 Auth** | OTP + JWT + role/policy + `ICurrentUser` thật | endpoint có phân quyền thật; mobile/web login thật | [ ] |
 | **G3 Contract** | contract từng module trong `.spec/contracts/` được duyệt | Web/Mobile code song song với backend bằng mock | [ ] |
 | **G4 OpenAPI** | swagger.json xuất ổn định + sinh client TS/Dart chạy được | Web/Mobile thay mock bằng API thật | [ ] |
@@ -86,17 +86,18 @@ Ticket `BASE-*` (chỉ M1): `Backend/**`, `.spec/plan/**`, và liệt kê **nguy
 | `IEkycProvider` (OCR CCCD + Face Matching) | M4 | M4 | nhà cung cấp (Q5) |
 | `IImageQualityService` (VoL) | M4 | M4 | ngưỡng (Q3) |
 | `IFileStorage` | M1 | M4, M6 | ảnh Before/After, bằng chứng |
+| `IWorkerProfileQuery` (tên/rating/số ca/trạng thái của thợ + kiểm tra tồn tại) | M4 | M1 | danh sách Thợ quen (decisions Q21 C3); tạm Fake |
 | `IClock`, `ICurrentUser`, `IGeoService` | M1 | tất cả | test xác định (timeout 30 s) |
 
 ## 5. Domain event (MediatR notification; M1 tạo ở BASE-04)
 `OrderPaid` (M2→M3) · `OrderCancelled`/`OrderRefunded` (M2) · `JobAssigned` (M3) · `AssignmentFailed` (M3→M2 hoàn tiền) · `WorkerCheckedIn` (M3) · `CustomerAbsentReported` (M3→M6) · `CustomerAbsentApproved` (M6→M2,M3,M4) · `IncidentReported` (M3) · `JobCompleted` (M4→M6,M5) · `ExtensionPaid` (M2→M4) · `ExtensionDeclined` (M4→M3) · `SubscriptionActivated` (M5) · `DisputeResolved` (M6→M5,M2) · `RatingSubmitted` (M6) · `PayoutBatchClosed` (M6).
 
-## 6. Sở hữu thực thể (22 bảng từ Physical drawio + 3 bảng bổ sung = 25)
+## 6. Sở hữu thực thể (22 bảng từ Physical drawio + 5 bảng bổ sung = 27)
 Cột/khoá/quan hệ do **M1** quản (BASE-06/07). Hành vi domain thêm bằng partial class của module.
 
 | Module | Entity |
 |---|---|
-| M1 | CUSTOMER, CUSTOMER_ADDRESS, FAVORITE_WORKER |
+| M1 | CUSTOMER, CUSTOMER_ADDRESS, FAVORITE_WORKER, **OTP_CODE** (mới, SC-6), **REFRESH_TOKEN** (mới, SC-7), cột khoá đăng nhập trên ADMIN/PARTNER_AGENCY (SC-8) |
 | M2 | JOB_ORDER, JOB_ORDER_EXTENSION, PAYMENT_TRANSACTION, **PRICE_RULE** (mới, SC-2) |
 | M3 | INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in) |
 | M4 | WORKER (STI `worker_type`/`agency_id`), JOB_PHOTO, BOOKING_SLOT (freelancer Block Slots), JOB_ASSIGNMENT (vòng đời thi công/nghiệm thu/hoàn tất) |
@@ -137,6 +138,8 @@ Agent chỉ coi một `Q#` là đã chốt khi cột đầu có `✅`. Dòng `�
 | ✅ Q17 | Gọi: đếm `call_attempts`, ẩn SĐT khách ngoài khung giờ ca |
 | ✅ Q18 | Import `.xlsx` dry-run rồi commit all-or-nothing; xuất payout `.xlsx` |
 | ✅ Q19 | Bảo lãnh: Agency ký (upload PDF) trước khi import thợ |
+| ✅ Q20 | Identity: thợ mới nhận registration token và phải hoàn thiện hồ sơ; OTP/refresh/khoá đăng nhập lưu trong DB (SC-6..8, 27 bảng); token 15 phút / 30 ngày |
+| ✅ Q21 | Customer: C1–C5 theo mặc định của contract (`trust_score` tạm thời, port `IWorkerProfileQuery`) |
 | ⏳ Q04b | VietQR / tiền thật — HOÃN |
 | ⏳ Q05b | Nhà cung cấp eKYC thật — HOÃN (chặn BE-M4-03) |
 | ⏳ Q06b | Nhà cung cấp SMS thật — HOÃN |
