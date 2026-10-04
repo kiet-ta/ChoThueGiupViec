@@ -20,6 +20,9 @@ Regenerate: `node harness/sync-issues.mjs`
   - package.json
   - package-lock.json
   - AGENTS.md
+  - CLAUDE.md
+  - .agents/**
+  - .codex/**
   - **/AGENTS.md
   - .env*
   - **/.env*

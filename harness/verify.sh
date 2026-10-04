@@ -31,6 +31,7 @@ step() { # $1=name $2=dir $3...=command
 }
 
 # ---- L1 -------------------------------------------------------------------
+step "agent config"   .       sh harness/check-agent-config.sh
 step "backend format" Backend dotnet format CommonService.sln whitespace --verify-no-changes
 step "frontend lint"  Frontend npx --no-install oxlint
 

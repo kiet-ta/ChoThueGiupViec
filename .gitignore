@@ -5,10 +5,13 @@ dist/
 .env.*
 !.env.example
 .vs/
-.claude/*
-!.claude/settings.json
+# Agent config is SHARED (tracked): .claude/ (settings, launch, skills mirror), .agents/skills, .codex/rules.
+# Only machine-local / credential / runtime files are ignored:
+.claude/settings.local.json
+.claude/worktrees/
+.codex/*
+!.codex/rules/
 .harness/
-.codex/
 .gemini/
 *.pfx
 *.pem

@@ -35,5 +35,13 @@ Khi người dùng nói **"phân tích dự án"** (không phân biệt hoa/thư
 5. **Sau khi làm xong task** (trong chính PR của ticket): đổi `[ ]`→`[x]` + `— evidence: <log|PR#>` ở file checklist **của mình** (file này luôn nằm trong `allowed`). Không bao giờ sửa checklist của slot khác; cần port/schema/contract của người khác → "Scope exception".
 6. Thay đổi giữa chừng (gate mở, Q# được chốt) do người điều phối/M1 cập nhật `00-overview.md`; agent chỉ báo lại khi được hỏi "phân tích dự án" lần nữa.
 
+## Skills and agent config (shared by every agent, checked by the harness)
+- **Skills source of truth: `.agents/skills/<name>/SKILL.md`** (Codex / Antigravity read it). `.claude/skills/` is a **generated mirror** for Claude Code: never edit it by hand and never put Claude-only skills there.
+- **Command rules:** Claude = hook in `.claude/settings.json` -> `harness/guard-command.sh`. Codex = `.codex/rules/default.rules`. Both mirror the same bans (force push, push to main, hard reset, `--no-verify`, recursive force delete, DB drop).
+- `CLAUDE.md` only imports `AGENTS.md`; the rules live here.
+- Add or change a skill/rule only through a ticket whose `allowed` lists **literally** `.agents/**`, `.claude/**`, `.codex/**` or `CLAUDE.md` (protected paths). After editing `.agents/skills`, run `node harness/sync-agent-skills.mjs`.
+- `sh harness/check-agent-config.sh` (also in `verify` L1, pre-commit and CI) fails on: missing rule/skill files, a skill without `name`/`description`, a drifted `.claude/skills` mirror, a removed guard hook, a weakened permission mode, or tracked credentials (`.codex/auth.json`, `.claude/settings.local.json`).
+- Never copy `~/.codex` or `~/.claude` wholesale into the repo (they contain credentials and session data).
+
 ## Verification (run before saying "done")
 `sh harness/verify.sh L1|L2|L3` (PowerShell: `./harness/run.ps1 verify L3`). Paste the final line and log path in the PR (template enforces it).

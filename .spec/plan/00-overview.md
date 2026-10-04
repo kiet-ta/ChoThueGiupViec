@@ -50,6 +50,9 @@ Phụ thuộc chéo giữa người (vd. `needs: BE-M4-01`) chỉ chặn bước
 9. **`.spec/decisions.md` thắng mọi chỗ PRD để trống** (giá trị, quy tắc, schema bổ sung SC-1..SC-5). Thứ tự ưu tiên: `spec.md` > `decisions.md` > `plan/*.md`. Không có trong cả ba → dừng và hỏi leader trong issue, không đoán.
 10. **Tài khoản Admin dev tự tạo** (không cần làm tay để test): xem §10. Mọi agent/dev dùng tài khoản này để kiểm tra API/Web; không tự tạo admin kiểu khác.
 
+### Cấu hình agent dùng chung (đã vào repo, harness kiểm tra)
+`.agents/skills` (nguồn) → `.claude/skills` (bản sao sinh tự động) · `.claude/settings.json` (hook chặn lệnh nguy hiểm) · `.codex/rules` (luật lệnh Codex) · `CLAUDE.md` → `AGENTS.md`. Sửa chúng cần ticket liệt kê nguyên văn `.agents/**`, `.claude/**`, `.codex/**`, `CLAUDE.md`; chi tiết ở mục "Skills and agent config" của `AGENTS.md`.
+
 ### Allowed paths mặc định của một ticket module (dán vào issue; thêm đúng file cần thêm)
 ```
 Backend/Application/Features/<Module>/**

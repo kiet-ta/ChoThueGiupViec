@@ -1,0 +1,16 @@
+# Codex command rules for this repo. Mirrors harness/guard-command.sh (the authoritative gate).
+# prefix_rule matches the START of a command only, so this is best-effort; hooks, scope-check and CI still enforce.
+# Do not edit without a ticket that lists `.codex/**` literally (protected path).
+prefix_rule(pattern=["git", "push", "--force"], decision="forbidden", justification="Force push is forbidden (AGENTS.md rule 7).")
+prefix_rule(pattern=["git", "push", "-f"], decision="forbidden", justification="Force push is forbidden (AGENTS.md rule 7).")
+prefix_rule(pattern=["git", "push", "--force-with-lease"], decision="forbidden", justification="Force push is forbidden (AGENTS.md rule 7).")
+prefix_rule(pattern=["git", "push", "origin", "main"], decision="forbidden", justification="No direct push to main (AGENTS.md rule 7).")
+prefix_rule(pattern=["git", "reset", "--hard"], decision="forbidden", justification="Hard reset destroys work (guard-command).")
+prefix_rule(pattern=["git", "clean", "-f"], decision="forbidden", justification="git clean -f deletes untracked files (guard-command).")
+prefix_rule(pattern=["git", "clean", "-fd"], decision="forbidden", justification="git clean deletes untracked files (guard-command).")
+prefix_rule(pattern=["git", "clean", "-fdx"], decision="forbidden", justification="git clean deletes untracked files (guard-command).")
+prefix_rule(pattern=["git", "commit", "--no-verify"], decision="forbidden", justification="Never bypass hooks (AGENTS.md rule 7).")
+prefix_rule(pattern=["git", "config", "core.hooksPath"], decision="forbidden", justification="Do not change the hooks path (guard-command).")
+prefix_rule(pattern=["rm", "-rf"], decision="forbidden", justification="Recursive force delete is blocked (guard-command).")
+prefix_rule(pattern=["rm", "-fr"], decision="forbidden", justification="Recursive force delete is blocked (guard-command).")
+prefix_rule(pattern=["dotnet", "ef", "database", "drop"], decision="forbidden", justification="Destructive database command (guard-command).")

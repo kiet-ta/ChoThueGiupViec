@@ -16,3 +16,6 @@ AGENTS.md
 .env*
 **/.env*
 Backend/appsettings*.json
+.agents/**
+.codex/**
+CLAUDE.md
