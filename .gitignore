@@ -12,6 +12,8 @@ dist/
 .codex/*
 !.codex/rules/
 .harness/
+# Generated from GitHub Issues (harness/sync-issues.mjs; start-ticket and CI regenerate it). Never commit it.
+.spec/tasks.md
 .gemini/
 *.pfx
 *.pem

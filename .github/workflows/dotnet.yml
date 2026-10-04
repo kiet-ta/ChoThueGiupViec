@@ -10,10 +10,20 @@ jobs:
   scope:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+    - name: Regenerate .spec/tasks.md from GitHub Issues (source of truth, never the PR's own copy)
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: node harness/sync-issues.mjs
     - name: Scope check (hard fail)
       env:
         HARNESS_BRANCH: ${{ github.head_ref }}

@@ -102,3 +102,8 @@ Integration with existing setup: Husky `pre-commit` calls `harness/verify L1` (r
 
 ## 9. Status
 Implemented: `harness/` (verify, scope-check, guard-command, protected-paths, sync-issues, run.ps1), Husky pre-commit/pre-push, CI (scope + verify L3), issue/PR templates, `.claude/settings.json` command gate.
+
+### 9.1 Ticket start and generated tasks.md (HARNESS-01, issue #3)
+- `node harness/start-ticket.mjs <issue#>` (PowerShell: `./harness/run.ps1 start-ticket <issue#>`) is the only way to start a ticket. It validates the Issue (open, label `ticket`, not `blocked`/`review`, every blocker closed), creates or resumes `ticket/<issue#>-<slug>` from a freshly fetched `origin/main`, sets `in-progress`, regenerates `.spec/tasks.md` and runs `scope-check`.
+- `.spec/tasks.md` is GENERATED from GitHub Issues and NOT tracked (no merge conflicts between members). CI regenerates it before `scope-check` (job `scope`), so a PR cannot widen its own scope by editing its own copy.
+- Still manual (GitHub Settings, leader): branch protection on `main` requiring the checks `scope` and `verify-l3`.
