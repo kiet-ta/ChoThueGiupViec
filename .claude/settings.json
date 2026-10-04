@@ -3,7 +3,7 @@
     "PreToolUse": [
       {
         "matcher": "Bash|PowerShell",
-        "hooks": [{ "type": "command", "command": "sh harness/guard-command.sh" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PROJECT_DIR:-.}/harness/guard-command.sh\"" }]
       }
     ]
   }
