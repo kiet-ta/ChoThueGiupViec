@@ -29,7 +29,7 @@ Khi người dùng nói **"phân tích dự án"** (không phân biệt hoa/thư
    - Dòng đầu: `Tên — Slot — vai trò — module sở hữu`.
    - Bảng gate G0–G4: ✅/⏳ + bằng chứng.
    - Checklist đầy đủ của slot theo Wave, mỗi task một trạng thái: `✅ xong` · `▶ SẴN SÀNG` (gate + mọi `needs` đã xong, mọi `Q#` liên quan đã `✅`) · `⏳ CHỜ <gate/task>` · `❓ CẦN QUYẾT ĐỊNH Q#`.
-   - **Việc nên làm tiếp (tối đa 3)**: ưu tiên `▶` theo Wave 0 → Backend → Web/Mobile; nếu đang chờ gate thì nêu việc Wave 0 làm được ngay (contract `*-00`, hàm thuần, nền Web/Mobile).
+   - **Việc nên làm tiếp (tối đa 3)**: CHỈ liệt kê task đang `▶`, ưu tiên Wave 0 → Backend → Web/Mobile. Không có task `▶` thì ghi đúng "chưa có việc ▶" và nêu gate/task đang chờ. Không gợi ý viết code khi chưa có ticket `in-progress` (rule 2); Wave 0 như contract `*-00` hay nền Web/Mobile vẫn phải qua ticket.
    - Cách bắt đầu một task: tạo GitHub Issue theo template **Ticket** (title có mã task, ví dụ `[ticket] BE-M2-05 …`; *Allowed paths* = "Allowed mặc định" ở đầu file checklist + file cần thêm; *Blocked by*/*Acceptance* lấy từ task), gắn nhãn `in-progress`, chạy `node harness/sync-issues.mjs`, rồi tạo nhánh `ticket/<issue#>-<slug>`. Chỉ làm khi người dùng đồng ý chọn task đó.
    - Câu hỏi mở `Q#` liên quan tới slot đang chưa `✅`.
 5. **Sau khi làm xong task** (trong chính PR của ticket): đổi `[ ]`→`[x]` + `— evidence: <log|PR#>` ở file checklist **của mình** (file này luôn nằm trong `allowed`). Không bao giờ sửa checklist của slot khác; cần port/schema/contract của người khác → "Scope exception".
