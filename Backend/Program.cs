@@ -1,5 +1,6 @@
 using CommonService.Application;
 using CommonService.Infrastructure;
+using CommonService.Infrastructure.Modularity;
 using CommonService.Middleware;
 
 namespace CommonService
@@ -43,6 +44,7 @@ namespace CommonService
 
 
             app.MapControllers();
+            app.MapModuleEndpoints();
 
             app.Run();
         }

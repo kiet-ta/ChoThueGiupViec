@@ -52,6 +52,15 @@ Frontend/Mobile counterparts: `Frontend/src/features/<module>/`, `Mobile/lib/fea
 Empty folders are kept with a `.gitkeep` (delete it when the first real file lands). The demo `Application/Features/Users` is template code, removed by BASE-09.
 Plan and ownership: `.spec/plan/00-overview.md` section 3.
 
+### 2.3 Module registration (`IModule`)
+Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInjection.cs`:
+- A module is a **public** class with a public parameterless constructor implementing `CommonService.Infrastructure.Modularity.IModule`. Convention: `Infrastructure/Modules/<Module>/<Module>Module.cs`.
+- `ConfigureServices(services, configuration)`: register the module's services, options, hosted/startup tasks (for example the dev admin seeder) and, later, its EF configurations. `MapEndpoints(endpoints)` (optional): map non-controller endpoints such as a SignalR hub.
+- `Infrastructure/DependencyInjection.cs` calls `AddModules(configuration, <this assembly>)` once, **last**; `Program.cs` calls `MapModuleEndpoints()` once after `MapControllers()`. Both calls are written once in BASE-02 and are frozen.
+- The scan finds public, concrete `IModule` types only. Modules are applied in ordinal name order (deterministic); a duplicate `Name` or a missing public parameterless constructor fails at startup with a clear message.
+- Already automatic, nothing to register: **controllers** (MVC scans the application assembly), **MediatR handlers** (`AddMediatR` scans the assembly in `Application/DependencyInjection.cs`), **validators** (`ValidationBehavior` validates the DataAnnotations on each request; there is no validator class to register).
+- Tests: `Backend/Tests/Modularity/ModuleLoaderTests.cs` (a fake module in the test assembly resolves its service without touching `Program.cs`).
+
 ### 2.2 Frozen shared files
 After gate G0 these are **not edited by hand** by anyone except the M1 owner (modules self-register through `IModule`, BASE-02):
 `Program.cs`, `Application/DependencyInjection.cs`, `Infrastructure/DependencyInjection.cs`, the DbContext, `Migrations/**`, `appsettings*.json`, `Mobile/lib/app/**`, `Frontend/src/app/**`.
