@@ -87,6 +87,31 @@ Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInje
 
 The demo template classes (`User`, `Order`, `OrderItem`, `BankAccount`) stay until BASE-09; the empty demo `Customer` was replaced by the real entity.
 
+### 2.5 Cross-module ports (BASE-03)
+Modules never call each other: they use a **port** (interface + DTOs in `Application/Interfaces/Ports/`, namespace `CommonService.Application.Interfaces.Ports`) or a domain event. Every port has an in-memory **Fake** in `Infrastructure/Fakes/` registered by `AddFakePorts()` with `TryAdd`. `Infrastructure/DependencyInjection.cs` calls `AddModules(...)` first and `AddFakePorts()` **last**, so a real implementation registered by a module (`IModule.ConfigureServices`) wins and a port nobody implemented yet falls back to its Fake. Changing a port needs a "Scope exception" issue for M1.
+
+| Port | Implementer (real) | Consumers | Fake |
+|---|---|---|---|
+| `IPaymentGateway` (QR, verify IPN, query status, refund) | M2 (MoMo sandbox, Q04) | M2, M5 | `FakePaymentGateway` (IPN keys `gatewayTxnRef`, `amount`, `status`, `signature=valid`) |
+| `IRefundService` | M2 | M3 | `FakeRefundService` |
+| `IAgencyCapacityService` (check, atomic reserve, release) | M5 | M2, M3 | `FakeAgencyCapacityService` |
+| `ISlaPenaltyService` (SLA points + escrow, Q09) | M5 | M3, M6 | `FakeSlaPenaltyService` |
+| `IWorkerAvailabilityQuery` | M4 | M3 | `FakeWorkerAvailabilityQuery` |
+| `IWorkerReputation` | M6 | M3 | `FakeWorkerReputation` |
+| `IWorkerProfileQuery` (Q21 C3) | M4 | M1 (favorite workers) | `FakeWorkerProfileQuery` |
+| `IAuditLog` (append-only, G-5) | M6 | M2, M5, M6 | `FakeAuditLog` |
+| `IEkycProvider` (Fake only, Q05) | M4 | M4 | `FakeEkycProvider` (confidence 92.00) |
+| `IImageQualityService` (VoL, Q03) | M4 | M4 | `FakeImageQualityService` |
+| `INotificationService` (SignalR, Q07) | M1 (BASE-12) | all | `FakeNotificationService` |
+| `IOtpSender` (Q06) | M1 (SMS deferred, Q06b) | M1 | `FakeOtpSender` (**refused outside Development**: constructor throws, and `OtpSenderStartupGuard` resolves it at host start so the startup fails) |
+| `IPasswordHasher` | M1 (BASE-10) | M1 | `FakePasswordHasher` (unsalted SHA-256, tests only) |
+| `IFileStorage` | M1 (BASE-11) | M4, M6 | `FakeFileStorage` |
+| `IClock` (single UTC <-> Asia/Ho_Chi_Minh conversion, G-3) | M1 (BASE-11) | all | `FakeClock` (UTC+7, pinnable) |
+| `ICurrentUser` | M1 (BE-M1-02) | all | `FakeCurrentUser` |
+| `IGeoService` | M1 (BASE-11) | all | `FakeGeoService` (haversine) |
+
+Tests: `Backend/Tests/Ports/FakePortTests.cs`.
+
 ### 2.2 Frozen shared files
 After gate G0 these are **not edited by hand** by anyone except the M1 owner (modules self-register through `IModule`, BASE-02):
 `Program.cs`, `Application/DependencyInjection.cs`, `Infrastructure/DependencyInjection.cs`, the DbContext, `Migrations/**`, `appsettings*.json`, `Mobile/lib/app/**`, `Frontend/src/app/**`.

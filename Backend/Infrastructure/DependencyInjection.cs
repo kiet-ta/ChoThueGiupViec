@@ -1,6 +1,7 @@
-﻿using CommonService.Application.Interfaces.IRepositories;
+using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.IServices;
 using CommonService.Application.Services;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modularity;
 using CommonService.Infrastructure.Persistance;
 using CommonService.Infrastructure.Services;
@@ -28,9 +29,12 @@ public static class DependencyInjection
         // services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnection));
         // services.AddScoped<ICacheService, RedisCacheService>();
 
-        // Business modules register themselves (IModule). Keep this call LAST so a module's real
-        // implementation wins over anything registered above; do not add per-module lines here.
+        // Business modules register themselves (IModule). Do not add per-module lines here.
         services.AddModules(configuration, typeof(DependencyInjection).Assembly);
+
+        // Keep this call LAST: Fakes use TryAdd, so a real port implementation registered by a module
+        // above wins and only a port nobody implemented yet falls back to its in-memory Fake (BASE-03).
+        services.AddFakePorts();
 
         return services;
     }
