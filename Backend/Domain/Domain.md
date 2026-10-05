@@ -1,4 +1,4 @@
-﻿# Golden Rule
+# Golden Rule
 
 - Framework-independent (ASP.NET, EF Core).
 
@@ -26,7 +26,7 @@ In a real-world project, the **Domain Layer** usually includes:
 
 ## Domain Services (if needed)
 - Hold complex business logic that doesn’t fit inside a single entity or value object.
-- Example: calculating shipping fees based on `Order` and `Address`.
+- Example: calculating matching scores or geo-dispatching across workers.
 
 ## Domain Events (for large systems)
 - Notify that “something happened” in the domain.
@@ -41,24 +41,24 @@ Absolutely! Here's your content translated into clear, simple English and format
 ## Entity
 - Use when the object needs to be tracked by **ID**.
 - Has identity and can change over time.
-- **Examples**: `Customer`, `Order`, `Product`
+- **Examples**: `Customer`, `Worker`, `JobOrder`
 
 ## Value Object
 - Use when the object is only important for its **value**, not identity.
 - Immutable and interchangeable if values are the same.
-- **Examples**: `Money`, `Email`, `Address`
+- **Examples**: `Email`, `Vnd`
 
 ## Aggregate Root
 - Use when you need to group related entities and value objects into a **consistent unit**.
 - Acts as the **main access point** to the group.
-- **Example**: `Order` manages multiple `OrderItem`s
+- **Example**: `JobOrder` manages its state and assignments
 
 ## Domain Service
 - Use when business logic involves **multiple entities** but doesn’t belong to any single one.
 - Keeps logic clean and reusable.
-- **Example**: `ShippingCalculator`
 
 ## Domain Event
 - Use when you want the system to **react to something that happened** in the domain.
 - Helps trigger actions (like sending emails) without mixing external logic into domain models.
-- **Example**: `OrderCreatedEvent`
+- **Example**: `OrderPaid`, `JobAssigned`
+

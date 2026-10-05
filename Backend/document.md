@@ -243,10 +243,9 @@ var app = builder.Build();
         "whsec_xxx" // Webhook secret từ Stripe Dashboard
     );
 
-    if (stripeEvent.Type == Events.PaymentIntentSucceeded)
+    if (stripeEvent.Type == "payment_intent.succeeded")
     {
-        var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
-        Console.WriteLine($"Payment success: {paymentIntent.Id}");
+        Console.WriteLine($"Payment success for event: {stripeEvent.Id}");
     }
 
     return Results.Ok();

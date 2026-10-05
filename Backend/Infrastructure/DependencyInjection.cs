@@ -30,9 +30,6 @@ public static class DependencyInjection
         });
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        // Repositories
-        services.AddScoped<IUserRepository, CommonService.Infrastructure.Persistance.UserRepository>();
-
         // Services
         services.AddScoped<IEmailService, EmailService>();
 

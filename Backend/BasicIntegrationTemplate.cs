@@ -1,6 +1,4 @@
-using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.IServices;
-using CommonService.Infrastructure.Persistance;
 using CommonService.Application.Services;
 using CommonService.Middleware;
 
@@ -12,7 +10,6 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Register CommonService dependencies
-builder.Services.AddScoped<IUserRepository, UserRepository>();
 //builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 

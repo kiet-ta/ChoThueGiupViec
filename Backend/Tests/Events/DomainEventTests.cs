@@ -61,8 +61,7 @@ public class DomainEventTests
             typeof(SubscriptionActivated),
             typeof(DisputeResolved),
             typeof(RatingSubmitted),
-            typeof(PayoutBatchClosed),
-            typeof(OrderCreatedEvent)
+            typeof(PayoutBatchClosed)
         };
 
         foreach (var type in expectedEventTypes)
