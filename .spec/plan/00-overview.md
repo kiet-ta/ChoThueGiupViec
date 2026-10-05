@@ -28,7 +28,7 @@ Vì sao tách như vậy: **backend base là đường găng duy nhất → ch�
 |---|---|---|---|
 | **G0 Skeleton** | cấu trúc module, project test, auto-đăng ký module, port + DTO + Fake, event catalog, `BusinessRules` options | M2–M6 code backend theo **port/fake**, không cần DB thật | [x] PR #1, #25, #29, #30, #31 |
 | **G1 Data** | 27 bảng (22 + 5 bổ sung, decisions §3) + EF config + DbContext + migration đầu + repo/UoW | M2–M6 thay fake bằng repo EF, integration test | [x] PR #25 (BASE-06), PR #33 (BASE-07 migration 20261005133811_InitialCreate on SQL Server), PR #34 (BASE-08 repo/UoW) |
-| **G2 Auth** | OTP + JWT + role/policy + `ICurrentUser` thật | endpoint có phân quyền thật; mobile/web login thật | [ ] |
+| **G2 Auth** | OTP + JWT + role/policy + `ICurrentUser` thật | endpoint có phân quyền thật; mobile/web login thật | [x] PR #42 (BE-M1-01), PR #44 (BE-M1-02) |
 | **G3 Contract** | contract từng module trong `.spec/contracts/` được duyệt | Web/Mobile code song song với backend bằng mock | [ ] |
 | **G4 OpenAPI** | swagger.json xuất ổn định + sinh client TS/Dart chạy được | Web/Mobile thay mock bằng API thật | [ ] |
 

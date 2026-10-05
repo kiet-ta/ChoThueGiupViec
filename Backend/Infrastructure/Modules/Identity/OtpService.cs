@@ -16,7 +16,7 @@ using Microsoft.Extensions.Options;
 namespace CommonService.Infrastructure.Modules.Identity;
 
 /// <summary>
-/// Implements OTP request and verification for Customer/Worker per contract identity.md (§2.1, §2.2) and decisions Q06, Q20.
+/// Implements OTP and Refresh token flows per contract identity.md (§2.1, §2.2, §2.4, §2.5) and decisions Q06, Q16, Q20, SC-7.
 /// </summary>
 public sealed class OtpService : IOtpService
 {
@@ -289,14 +289,29 @@ public sealed class OtpService : IOtpService
             }
 
             var (accessToken, accessExpiry) = _tokenService.GenerateAccessToken(customer.CustomerId, "Customer");
-            var refreshToken = _tokenService.GenerateRefreshToken();
+            var rawRefreshToken = _tokenService.GenerateRefreshToken();
+            var tokenHash = _tokenService.HashRefreshToken(rawRefreshToken);
+
+            var refreshTokenRecord = new RefreshToken
+            {
+                TokenHash = tokenHash,
+                SubjectRole = UserRole.Customer,
+                SubjectId = customer.CustomerId,
+                FamilyId = Guid.NewGuid(),
+                CreatedAt = now,
+                ExpiresAt = now.AddDays(_rules.Auth.RefreshTokenDays),
+                RevokedAt = null,
+                ReplacedById = null
+            };
+            _db.RefreshTokens.Add(refreshTokenRecord);
+            await _db.SaveChangesAsync(ct);
 
             return OtpVerifyResult.Ok(new AuthResultDto
             {
                 TokenType = "Bearer",
                 AccessToken = accessToken,
                 AccessTokenExpiresInSeconds = accessExpiry,
-                RefreshToken = refreshToken,
+                RefreshToken = rawRefreshToken,
                 User = new AuthUserDto
                 {
                     Id = customer.CustomerId,
@@ -324,14 +339,29 @@ public sealed class OtpService : IOtpService
 
         await _db.SaveChangesAsync(ct);
         var (workerAccessToken, workerAccessExpiry) = _tokenService.GenerateAccessToken(worker.WorkerId, "Worker");
-        var workerRefreshToken = _tokenService.GenerateRefreshToken();
+        var rawWorkerRefreshToken = _tokenService.GenerateRefreshToken();
+        var workerTokenHash = _tokenService.HashRefreshToken(rawWorkerRefreshToken);
+
+        var workerRefreshTokenRecord = new RefreshToken
+        {
+            TokenHash = workerTokenHash,
+            SubjectRole = UserRole.Worker,
+            SubjectId = worker.WorkerId,
+            FamilyId = Guid.NewGuid(),
+            CreatedAt = now,
+            ExpiresAt = now.AddDays(_rules.Auth.RefreshTokenDays),
+            RevokedAt = null,
+            ReplacedById = null
+        };
+        _db.RefreshTokens.Add(workerRefreshTokenRecord);
+        await _db.SaveChangesAsync(ct);
 
         return OtpVerifyResult.Ok(new AuthResultDto
         {
             TokenType = "Bearer",
             AccessToken = workerAccessToken,
             AccessTokenExpiresInSeconds = workerAccessExpiry,
-            RefreshToken = workerRefreshToken,
+            RefreshToken = rawWorkerRefreshToken,
             User = new AuthUserDto
             {
                 Id = worker.WorkerId,
@@ -339,6 +369,107 @@ public sealed class OtpService : IOtpService
                 IsNewUser = false
             }
         });
+    }
+
+    public async Task<RefreshResult> RefreshTokenAsync(string refreshToken, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return RefreshResult.BadRequest("Refresh token is required.");
+        }
+
+        var hash = _tokenService.HashRefreshToken(refreshToken);
+        var tokenRecord = await _db.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == hash, ct);
+
+        if (tokenRecord == null)
+        {
+            return RefreshResult.Unauthorized("Invalid or expired refresh token.");
+        }
+
+        var now = _clock.UtcNow;
+
+        if (tokenRecord.ExpiresAt < now)
+        {
+            return RefreshResult.Unauthorized("Refresh token has expired.");
+        }
+
+        // REUSE DETECTION: if token was already replaced, revoke the entire family!
+        if (tokenRecord.ReplacedById != null)
+        {
+            _logger.LogWarning("Refresh token reuse detected for family {FamilyId}. Revoking entire family chain.", tokenRecord.FamilyId);
+            var familyTokens = await _db.RefreshTokens
+                .Where(x => x.FamilyId == tokenRecord.FamilyId && x.RevokedAt == null)
+                .ToListAsync(ct);
+
+            foreach (var t in familyTokens)
+            {
+                t.RevokedAt = now;
+            }
+            await _db.SaveChangesAsync(ct);
+            return RefreshResult.Unauthorized("Refresh token reuse detected. Token family has been revoked.");
+        }
+
+        if (tokenRecord.RevokedAt != null)
+        {
+            return RefreshResult.Unauthorized("Refresh token has been revoked.");
+        }
+
+        // Valid rotation: issue new access token and new refresh token with same family_id
+        var (newAccessToken, accessExpiry) = _tokenService.GenerateAccessToken(
+            tokenRecord.SubjectId, tokenRecord.SubjectRole.ToString());
+
+        var newRawRefreshToken = _tokenService.GenerateRefreshToken();
+        var newTokenHash = _tokenService.HashRefreshToken(newRawRefreshToken);
+
+        var newTokenRecord = new RefreshToken
+        {
+            TokenHash = newTokenHash,
+            SubjectRole = tokenRecord.SubjectRole,
+            SubjectId = tokenRecord.SubjectId,
+            FamilyId = tokenRecord.FamilyId,
+            CreatedAt = now,
+            ExpiresAt = now.AddDays(_rules.Auth.RefreshTokenDays),
+            RevokedAt = null,
+            ReplacedById = null
+        };
+        _db.RefreshTokens.Add(newTokenRecord);
+        await _db.SaveChangesAsync(ct);
+
+        // Mark current token replaced and revoked
+        tokenRecord.RevokedAt = now;
+        tokenRecord.ReplacedById = newTokenRecord.RefreshTokenId;
+        await _db.SaveChangesAsync(ct);
+
+        return RefreshResult.Ok(new AuthResultDto
+        {
+            TokenType = "Bearer",
+            AccessToken = newAccessToken,
+            AccessTokenExpiresInSeconds = accessExpiry,
+            RefreshToken = newRawRefreshToken,
+            User = new AuthUserDto
+            {
+                Id = tokenRecord.SubjectId,
+                Role = tokenRecord.SubjectRole.ToString(),
+                IsNewUser = false
+            }
+        });
+    }
+
+    public async Task LogoutAsync(string refreshToken, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return;
+        }
+
+        var hash = _tokenService.HashRefreshToken(refreshToken);
+        var tokenRecord = await _db.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == hash, ct);
+
+        if (tokenRecord != null && tokenRecord.RevokedAt == null)
+        {
+            tokenRecord.RevokedAt = _clock.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
     }
 
     private string ComputeHmacHash(string code)
