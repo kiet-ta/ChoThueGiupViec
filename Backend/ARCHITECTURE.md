@@ -224,6 +224,19 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   - 4 sample `SKILL` rows (catalog standard `CLEAN_BASIC`, `DEEP_CLEAN`, `IRONING`, `COOKING`)
 - `DatabaseSeederHostedService` (`Infrastructure/Modules/Identity/DatabaseSeederHostedService.cs`): registers as `IHostedService` in `IdentityModule` to execute the seeders on startup without touching `Program.cs`. Tests: `Tests/Persistence/DatabaseSeederTests.cs` and `Tests/Identity/Pbkdf2PasswordHasherTests.cs`.
 
+### 7.3 Shared infrastructure and helpers (BASE-11)
+- `SystemClock` (`Infrastructure/Services/SystemClock.cs`): implements `IClock` (decisions G-3), converting UTC to/from Asia/Ho_Chi_Minh (UTC+7) across both Windows and IANA timezone providers.
+- `ClaimsCurrentUser` (`Infrastructure/Services/ClaimsCurrentUser.cs`): implements `ICurrentUser`, resolving authenticated `UserId` and `UserRole` (`Customer`, `Worker`, `Partner`, `Admin`) from HttpContext claims.
+- `HaversineGeoService` (`Infrastructure/Services/HaversineGeoService.cs`): implements `IGeoService` calculating great-circle distances in meters (Earth radius 6,371,000 m).
+- `LocalFileStorage` (`Infrastructure/Services/LocalFileStorage.cs`): implements `IFileStorage` storing uploaded binaries locally with path traversal protection.
+- `PaginatedList<T>` (`Application/Common/Helpers/PaginatedList.cs`): reusable pagination collection and factory.
+- `ProblemDetailsHelper` (`Application/Common/Helpers/ProblemDetailsHelper.cs`): RFC 7807 problem details generator and bidirectional conversion to/from `ApiResponse`.
+- `CacheIdempotencyService` (`Infrastructure/Services/CacheIdempotencyService.cs`) and `IdempotencyHelper` (`Application/Common/Helpers/IdempotencyHelper.cs`): implements `IIdempotencyService` backed by `ICacheService` to prevent double-click and webhook replay attacks.
+- Middleware:
+  - `ErrorHandlingMiddleware`: maps exceptions (`ValidationException` -> 400 with field errors, `NotFoundException` -> 404, `ForbiddenAccessException` -> 403, `BusinessRuleViolationException` -> 409, unhandled -> 500 with sanitized message) to camelCase `ApiResponse<object>` or RFC 7807 `application/problem+json` when requested.
+  - `ResponseWrapperMiddleware`: wraps 2xx responses into `ApiResponse<T>.Ok`, non-2xx responses into `ApiResponse<T>.Fail`, normalizes to camelCase, skips Swagger/health/hubs, and prevents double-wrapping.
+- Tests: `Tests/Infrastructure/*Tests.cs` (567 total tests passing).
+
 ## 8. Known gaps / TODO
 - No authentication (`UseAuthorization` only, until Identity module BE-M1-02).
 
