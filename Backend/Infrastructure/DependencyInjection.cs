@@ -1,3 +1,4 @@
+using CommonService.Application.Common.Options;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.IServices;
 using CommonService.Application.Services;
@@ -5,6 +6,7 @@ using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modularity;
 using CommonService.Infrastructure.Persistance;
 using CommonService.Infrastructure.Services;
+using Microsoft.Extensions.Options;
 
 namespace CommonService.Infrastructure;
 
@@ -28,6 +30,10 @@ public static class DependencyInjection
         // var redisConnection = config.GetConnectionString("Redis");
         // services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnection));
         // services.AddScoped<ICacheService, RedisCacheService>();
+
+        // Business rules options (BASE-05, decisions.md section 4)
+        services.Configure<BusinessRules>(configuration.GetSection(BusinessRules.SectionName));
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<BusinessRules>>().Value);
 
         // Business modules register themselves (IModule). Do not add per-module lines here.
         services.AddModules(configuration, typeof(DependencyInjection).Assembly);
