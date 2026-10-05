@@ -1,23 +1,27 @@
 using CommonService.Application.Common.Models;
 using CommonService.Application.Features.Identity.Dtos;
 using CommonService.Application.Features.Identity.Services;
+using CommonService.Application.Interfaces.Ports;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CommonService.WebAPI.Controllers.Identity;
 
 /// <summary>
-/// Authentication controller handling OTP login flows (contract identity.md §2.1, §2.2).
+/// Authentication controller handling OTP login, token refresh, logout, and current user info (contract identity.md §2).
 /// </summary>
 [ApiController]
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
     private readonly IOtpService _otpService;
+    private readonly ICurrentUser _currentUser;
 
-    public AuthController(IOtpService otpService)
+    public AuthController(IOtpService otpService, ICurrentUser currentUser)
     {
         _otpService = otpService;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -107,6 +111,74 @@ public class AuthController : ControllerBase
 
             _ => StatusCode(result.StatusCode, ApiResponse<object>.Fail(result.ErrorMessage ?? "Request failed.", null))
         };
+    }
+
+    /// <summary>
+    /// Rotates an existing refresh token: returns a new access token and rotated refresh token (contract §2.4).
+    /// </summary>
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(ApiResponse<AuthResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshRequestDto request, CancellationToken ct)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return BadRequest(ApiResponse<object>.Fail("Refresh token is required.", null));
+        }
+
+        var result = await _otpService.RefreshTokenAsync(request.RefreshToken, ct);
+
+        if (result.Success && result.Data != null)
+        {
+            return Ok(ApiResponse<AuthResultDto>.Ok(result.Data, "Token refreshed successfully."));
+        }
+
+        if (result.StatusCode == StatusCodes.Status400BadRequest)
+        {
+            return BadRequest(ApiResponse<object>.Fail(result.ErrorMessage ?? "Validation failed.", null));
+        }
+
+        return StatusCode(StatusCodes.Status401Unauthorized,
+            ApiResponse<object>.Fail(result.ErrorMessage ?? "Invalid, expired, or revoked refresh token.", null));
+    }
+
+    /// <summary>
+    /// Revokes the specified refresh token upon user logout (contract §2.5).
+    /// </summary>
+    [HttpPost("logout")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequestDto request, CancellationToken ct)
+    {
+        if (request != null && !string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            await _otpService.LogoutAsync(request.RefreshToken, ct);
+        }
+
+        return Ok(ApiResponse<object?>.Ok(null, "Logged out successfully."));
+    }
+
+    /// <summary>
+    /// Returns current authenticated user information from token claims (contract §2.6).
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<CurrentUserDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public IActionResult GetCurrentUser()
+    {
+        if (!_currentUser.IsAuthenticated || _currentUser.UserId == null || _currentUser.Role == null)
+        {
+            return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
+        }
+
+        return Ok(ApiResponse<CurrentUserDto>.Ok(new CurrentUserDto
+        {
+            Id = _currentUser.UserId.Value,
+            Role = _currentUser.Role.Value.ToString()
+        }, "Current user retrieved."));
     }
 
     private IActionResult SetRetryAfterAndReturn(int retryAfterSeconds, string message)

@@ -89,3 +89,33 @@ public sealed class OtpVerifyResult
         RetryAfterSeconds = retryAfterSeconds
     };
 }
+
+public sealed class RefreshResult
+{
+    public bool Success { get; init; }
+    public int StatusCode { get; init; }
+    public string? ErrorMessage { get; init; }
+    public AuthResultDto? Data { get; init; }
+
+    public static RefreshResult Ok(AuthResultDto data) => new()
+    {
+        Success = true,
+        StatusCode = 200,
+        Data = data
+    };
+
+    public static RefreshResult BadRequest(string message = "Missing or invalid refresh token.") => new()
+    {
+        Success = false,
+        StatusCode = 400,
+        ErrorMessage = message
+    };
+
+    public static RefreshResult Unauthorized(string message = "Invalid, expired, or revoked refresh token.") => new()
+    {
+        Success = false,
+        StatusCode = 401,
+        ErrorMessage = message
+    };
+}
+
