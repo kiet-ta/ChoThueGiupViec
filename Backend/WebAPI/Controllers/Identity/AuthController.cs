@@ -114,6 +114,58 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Logs in an Admin or Partner Agency with email and password (contract §2.3, decisions Q16).
+    /// </summary>
+    [HttpPost("password/login")]
+    [ProducesResponseType(typeof(ApiResponse<AuthResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status423Locked)]
+    public async Task<IActionResult> PasswordLogin(
+        [FromBody] PasswordLoginDto request,
+        [FromServices] IPasswordLoginService passwordLoginService,
+        CancellationToken ct)
+    {
+        if (request == null)
+        {
+            return BadRequest(ApiResponse<object>.Fail("Request body is required.", null));
+        }
+
+        var result = await passwordLoginService.LoginAsync(request.Email, request.Password, request.Role, ct);
+
+        if (result.Success && result.Data != null)
+        {
+            return Ok(ApiResponse<AuthResultDto>.Ok(result.Data, "Authentication successful."));
+        }
+
+        switch (result.StatusCode)
+        {
+            case StatusCodes.Status400BadRequest:
+                return BadRequest(ApiResponse<object>.Fail(
+                    result.ErrorMessage ?? "Validation failed",
+                    result.ValidationErrors != null ? new { errors = result.ValidationErrors } : null));
+
+            case StatusCodes.Status403Forbidden:
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    ApiResponse<object>.Fail(result.ErrorMessage ?? "Account is disabled.", null));
+
+            case StatusCodes.Status423Locked:
+                if (result.RetryAfterSeconds.HasValue)
+                {
+                    Response.Headers["Retry-After"] = result.RetryAfterSeconds.Value.ToString();
+                }
+
+                return StatusCode(StatusCodes.Status423Locked,
+                    ApiResponse<object>.Fail(result.ErrorMessage ?? "Account is temporarily locked.", null));
+
+            default:
+                return StatusCode(StatusCodes.Status401Unauthorized,
+                    ApiResponse<object>.Fail(result.ErrorMessage ?? "Invalid email or password.", null));
+        }
+    }
+
+    /// <summary>
     /// Rotates an existing refresh token: returns a new access token and rotated refresh token (contract §2.4).
     /// </summary>
     [HttpPost("refresh")]
