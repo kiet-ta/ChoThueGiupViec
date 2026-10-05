@@ -1,6 +1,7 @@
 using CommonService.Application.Common.Options;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.IServices;
+using CommonService.Application.Interfaces.Ports;
 using CommonService.Application.Services;
 using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modularity;
@@ -32,6 +33,14 @@ public static class DependencyInjection
 
         // Services
         services.AddScoped<IEmailService, EmailService>();
+
+        // Shared Infrastructure & Cross-cutting Ports (BASE-11)
+        services.AddHttpContextAccessor();
+        services.AddSingleton<IClock, SystemClock>();
+        services.AddScoped<ICurrentUser, ClaimsCurrentUser>();
+        services.AddSingleton<IGeoService, HaversineGeoService>();
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddScoped<IIdempotencyService, CacheIdempotencyService>();
 
         // Nếu muốn Redis
         // var redisConnection = config.GetConnectionString("Redis");

@@ -1,5 +1,6 @@
-﻿using MediatR;
+using MediatR;
 using System.ComponentModel.DataAnnotations;
+using ApplicationValidationException = CommonService.Application.Exceptions.ValidationException;
 
 namespace CommonService.Application.Behaviors;
 
@@ -17,14 +18,32 @@ public class ValidationBehavior<TRequest, TResponse>
 
         if (!Validator.TryValidateObject(request, context, results, true))
         {
-            var errors = results.Select(r => r.ErrorMessage).ToList();
-            throw new ValidationException(
-                $"Validation failed: {string.Join(", ", errors)}"
-            );
+            var errors = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var result in results)
+            {
+                var members = result.MemberNames.Any() ? result.MemberNames : new[] { string.Empty };
+                var message = result.ErrorMessage ?? "Validation error occurred.";
+
+                foreach (var member in members)
+                {
+                    if (!errors.TryGetValue(member, out var list))
+                    {
+                        list = new List<string>();
+                        errors[member] = list;
+                    }
+                    list.Add(message);
+                }
+            }
+
+            var mappedErrors = errors.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+
+            throw new ApplicationValidationException(mappedErrors);
         }
 
         return await next();
     }
 }
-
-
