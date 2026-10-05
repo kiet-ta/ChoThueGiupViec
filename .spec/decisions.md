@@ -95,13 +95,13 @@ This is a **platform**. The parties that pay are the priority: **Customers** (pa
 - Admin may approve only when **all** hold: (a) the check-in GPS was verified, (b) `CHECK_IN_LOG.call_attempts >= Absence.MinCallAttempts` (2), (c) at least `Absence.MinWaitMinutes` (15) passed since `checked_in_at`, (d) the worker set `customer_absent_at`. The system refuses approval otherwise.
 - On approval, per affected assignment: customer is charged **exactly 40%** (`Absence.FeeRate`) of that assignment's `gross_amount` and the other 60% is refunded to the original payment method. The worker receives that 40% as `JOB_ASSIGNMENT.absence_fee_amount` and returns to `IDLE`. The platform keeps nothing from this fee.
 - The customer is notified immediately and has `Absence.CustomerDisputeHours` (24) to open a dispute. If the customer wins, refund the 40% and deduct it from the worker's next payout (`PAYOUT_ITEM.penalty_amount`).
-- A false absence claim is recorded as an upheld dispute with `fault_party = WORKER`.
+- A false absence claim is recorded as an upheld dispute with `fault_party` = the worker's side (`FREELANCER` or `AGENCY`, Q22 D3).
 
 ### Q11 Commission
 - Freelancer: 20% (`Commission.Freelancer` = 0.200; PRD). Agency: the `commission_rate` of its active package (FREE 0.200, PRO 0.000). The rate is copied into `JOB_ASSIGNMENT.commission_rate` when the assignment is created and never changes afterwards.
 
 ### Q12 Super-Freelancer
-- `WORKER.is_super_freelancer` can be set **only by an Admin**, and only if: `rating_avg >= 4.80`, `completed_jobs >= 50`, KYC approved, and no upheld dispute with `fault_party = WORKER` in the last 180 days.
+- `WORKER.is_super_freelancer` can be set **only by an Admin**, and only if: `rating_avg >= 4.80`, `completed_jobs >= 50`, KYC approved, and no upheld dispute with `fault_party = FREELANCER` (Q22 D3) in the last 180 days.
 - Automatic revoke when `rating_avg < 4.70` (written to `ADMIN_AUDIT_LOG` with `actor_type = SYSTEM`).
 - Super-Freelancers are used only for Premium emergency rescue (PRD 2.5).
 
@@ -153,6 +153,15 @@ The leader's instruction was "if not affected, just implement", so these are the
 - **C4** `APARTMENT` and `ROOM`: 1 floor. `ROOM`: area <= `Address.RoomMaxAreaM2` (30, PRD section 1.1). `HOUSE`: 1 to `Address.HouseMaxFloors` (10, a suggestion, not in the PRD).
 - **C5** Deleting an address that an order references is rejected with 409; no soft delete.
 
+### Q22 Domain review decisions (leader, 2026-10-04; applied in BASE-06, PR #26)
+- **D1 Offers are persisted.** A dispatch offer creates a `JOB_ASSIGNMENT` row in `OFFERED`; accepting moves it to `ASSIGNED`, an expired/declined offer to `CANCELLED`. `JOB_ASSIGNMENT.accepted_at` becomes nullable (SC-9). Reason: offers survive a restart, Admin can see who was offered, and the slot UNIQUE prevents double assignment.
+- **D2 Slot uniqueness.** The unique index `JOB_ASSIGNMENT(slot_id)` is filtered on `assignment_status NOT IN ('CANCELLED','CANCELLED_BY_WORKER','REASSIGNED')`: a worker who cancels gets the slot back; the violation still counts (Q15).
+- **D3 `DISPUTE_TICKET.fault_party`** = `FREELANCER` | `AGENCY` | `CUSTOMER`; null = nobody at fault (dismissed). The value selects the penalty: FREELANCER -> payout deduction / lock, AGENCY -> SLA points + escrow (Q09).
+- **D4** The `ADMIN` table maps to the C# entity `AdminAccount` (avoids a clash with the `Admin` module namespace). Table name unchanged.
+- **D5 Money rounding** has one implementation, `Vnd` in the Domain (`Vnd.Round`, `Vnd.Commission`, `Vnd.Net`), following G-2. Every module uses it. The template value objects `Money` and `Address` are deleted by BASE-09.
+- **D6 `WORKER.work_status = BUSY`** means on site: from check-in until the assignment is `COMPLETED` or an absence is approved. Accepting a future assignment does not change `work_status`; double booking is prevented by the slot UNIQUE. Dispatch offers jobs only to `IDLE` workers with a free slot.
+- **D7 Order status follows its assignments.** `ASSIGNED` when `required_workers` assignments are accepted; `COMPLETED` when that many are `COMPLETED`; back to `DISPATCHING` when a seat is lost (worker cancel, incident, reassignment): only the missing seat is re-dispatched. An `ABSENT` assignment is decided by the Admin approval flow (Q10). The BR-02 fallback (one worker, two consecutive shifts) is two assignments of the same worker.
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery.
 
@@ -165,6 +174,7 @@ The leader's instruction was "if not affected, just implement", so these are the
 - **SC-6** New table `OTP_CODE`: `otp_id BIGINT IDENTITY PK`, `phone_number VARCHAR(15)`, `role VARCHAR(10)` (`Customer`|`Worker`), `code_hash VARCHAR(255)` (keyed HMAC-SHA256, never the code), `attempt_count TINYINT`, `requested_ip VARCHAR(45)`, `created_at DATETIME2`, `expires_at DATETIME2`, `consumed_at DATETIME2 NULL`; indexes `(phone_number, role, created_at)` and `(requested_ip, created_at)`. (Q20)
 - **SC-7** New table `REFRESH_TOKEN`: `refresh_token_id BIGINT IDENTITY PK`, `token_hash VARCHAR(128) UNIQUE`, `subject_role VARCHAR(10)`, `subject_id INT`, `family_id UNIQUEIDENTIFIER`, `created_at DATETIME2`, `expires_at DATETIME2`, `revoked_at DATETIME2 NULL`, `replaced_by_id BIGINT NULL`. (Q20)
 - **SC-8** `ADMIN` and `PARTNER_AGENCY`: add `failed_login_count TINYINT NOT NULL DEFAULT 0` and `locked_until DATETIME2 NULL`. (Q20, Q16 lockout)
+- **SC-9** `JOB_ASSIGNMENT.accepted_at` becomes `DATETIME2 NULL` (null while `OFFERED`, Q22 D1). The unique index on `slot_id` excludes `CANCELLED`, `CANCELLED_BY_WORKER`, `REASSIGNED` (Q22 D2).
 - Table count becomes **27** (22 + `PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN`; it was 25 before SC-6/SC-7). Owners: `PRICE_RULE` -> M2, `ESCROW_TRANSACTION` -> M5, `ADMIN_AUDIT_LOG` -> M6 (others write to it through the `IAuditLog` port), `OTP_CODE` and `REFRESH_TOKEN` -> M1.
 
 ## 4. Configuration keys and DEFAULT values (single source for `BusinessRules`)

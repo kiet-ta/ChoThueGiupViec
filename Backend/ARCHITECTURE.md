@@ -52,6 +52,15 @@ Frontend/Mobile counterparts: `Frontend/src/features/<module>/`, `Mobile/lib/fea
 Empty folders are kept with a `.gitkeep` (delete it when the first real file lands). The demo `Application/Features/Users` is template code, removed by BASE-09.
 Plan and ownership: `.spec/plan/00-overview.md` section 3.
 
+### 2.3 Module registration (`IModule`)
+Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInjection.cs`:
+- A module is a **public** class with a public parameterless constructor implementing `CommonService.Infrastructure.Modularity.IModule`. Convention: `Infrastructure/Modules/<Module>/<Module>Module.cs`.
+- `ConfigureServices(services, configuration)`: register the module's services, options, hosted/startup tasks (for example the dev admin seeder) and, later, its EF configurations. `MapEndpoints(endpoints)` (optional): map non-controller endpoints such as a SignalR hub.
+- `Infrastructure/DependencyInjection.cs` calls `AddModules(configuration, <this assembly>)` once, **last**; `Program.cs` calls `MapModuleEndpoints()` once after `MapControllers()`. Both calls are written once in BASE-02 and are frozen.
+- The scan finds public, concrete `IModule` types only. Modules are applied in ordinal name order (deterministic); a duplicate `Name` or a missing public parameterless constructor fails at startup with a clear message.
+- Already automatic, nothing to register: **controllers** (MVC scans the application assembly), **MediatR handlers** (`AddMediatR` scans the assembly in `Application/DependencyInjection.cs`), **validators** (`ValidationBehavior` validates the DataAnnotations on each request; there is no validator class to register).
+- Tests: `Backend/Tests/Modularity/ModuleLoaderTests.cs` (a fake module in the test assembly resolves its service without touching `Program.cs`).
+
 ### 2.4 Domain model (BASE-06): 27 entities, 3 state machines
 - **27 tables** = 22 of `GiupViec_Physical_DB_MVP5.drawio` + 5 of `.spec/decisions.md` section 3 (`PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN`), plus the added columns of SC-1 (`PARTNER_AGENCY` password/guarantee) and SC-8 (`failed_login_count`, `locked_until` on `ADMIN` and `PARTNER_AGENCY`). `TWO_WAY_RATING` UNIQUE (SC-5) is a persistence rule for BASE-07. The drawio title says "20 bảng" but the file contains 22 table cells (counted by script); the plan says 22.
 - `Domain/Entities/<Entity>.cs`: `public partial class`, one scalar property per column (generated once from the drawio, then maintained by hand). **No navigation properties** (0-JOIN queries, PRD 5.2). Behaviour of a module is added in `<Entity>.<Module>.cs` partial files.
