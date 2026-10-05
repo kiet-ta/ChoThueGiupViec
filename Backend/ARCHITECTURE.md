@@ -215,6 +215,15 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   ```
 - Persistence tests: `Tests/Persistence/AppDbContextModelTests.cs` (EF Core model metadata & conventions) and `Tests/Persistence/SqlServerPersistenceTests.cs` (live SQL Server schema, unique constraints, filtered indexes, CHECK constraints, UTC DateTime converter).
 
+### 7.2 Data seeding and password hashing (BASE-10)
+- `Pbkdf2PasswordHasher` (`Infrastructure/Modules/Identity/Pbkdf2PasswordHasher.cs`) implements `IPasswordHasher` using PBKDF2 with HMAC-SHA256 (100,000 iterations, 16-byte salt, 32-byte subkey, format `pbkdf2$sha256$...`). Registered via `IdentityModule : IModule` and takes precedence over `FakePasswordHasher`.
+- `AdminSeeder` (`Infrastructure/Modules/Identity/AdminSeeder.cs`): runs on application startup strictly in **Development** only (overview §10). Seeds dev admin (`admin@dev.local`, role `SUPER_ADMIN`) from `Seed:Admin:*` config with hashed password (never logged). Idempotent: does nothing if account exists.
+- `DefaultDataSeeder` (`Infrastructure/Persistence/DefaultDataSeeder.cs`): seeds required reference data in **all** environments:
+  - 6 `PRICE_RULE` rows (`decisions.md` §2 Q01)
+  - 3 `SUBSCRIPTION_PACKAGE` rows (`FREE`, `PRO_MONTHLY`, `PRO_QUARTERLY`, `decisions.md` §2 Q08)
+  - 4 sample `SKILL` rows (catalog standard `CLEAN_BASIC`, `DEEP_CLEAN`, `IRONING`, `COOKING`)
+- `DatabaseSeederHostedService` (`Infrastructure/Modules/Identity/DatabaseSeederHostedService.cs`): registers as `IHostedService` in `IdentityModule` to execute the seeders on startup without touching `Program.cs`. Tests: `Tests/Persistence/DatabaseSeederTests.cs` and `Tests/Identity/Pbkdf2PasswordHasherTests.cs`.
+
 ## 8. Known gaps / TODO
 - No authentication (`UseAuthorization` only, until Identity module BE-M1-02).
 
