@@ -26,7 +26,7 @@ Vì sao tách như vậy: **backend base là đường găng duy nhất → ch�
 
 | Gate | Nghĩa là | Mở khoá cho | Done |
 |---|---|---|---|
-| **G0 Skeleton** | cấu trúc module, project test, auto-đăng ký module, port + DTO + Fake, event catalog, `BusinessRules` options | M2–M6 code backend theo **port/fake**, không cần DB thật | [ ] |
+| **G0 Skeleton** | cấu trúc module, project test, auto-đăng ký module, port + DTO + Fake, event catalog, `BusinessRules` options | M2–M6 code backend theo **port/fake**, không cần DB thật | [x] PR #1, #25, #29, #30, #31 |
 | **G1 Data** | 27 bảng (22 + 5 bổ sung, decisions §3) + EF config + DbContext + migration đầu + repo/UoW | M2–M6 thay fake bằng repo EF, integration test | [ ] |
 | **G2 Auth** | OTP + JWT + role/policy + `ICurrentUser` thật | endpoint có phân quyền thật; mobile/web login thật | [ ] |
 | **G3 Contract** | contract từng module trong `.spec/contracts/` được duyệt | Web/Mobile code song song với backend bằng mock | [ ] |
