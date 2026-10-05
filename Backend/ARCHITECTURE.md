@@ -192,10 +192,24 @@ dotnet build
 dotnet run            # http://localhost:5004 , Swagger at /swagger (Development)
 dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonService.csproj excludes Tests/** from compilation
 ```
-CI: `../.github/workflows/dotnet.yml (repo root, working-directory: Backend)` (restore → build → test on push/PR to `main`, .NET 10).
+### 7.1 Local database (SQL Server, BASE-07)
+- Provider: Microsoft SQL Server (Windows default instance: `localhost`, database: `ChoThueGiupViec`).
+- `AppDbContext` (`Infrastructure/Persistence/AppDbContext.cs`) implements all 27 tables of the MVP schema with `IEntityTypeConfiguration<T>` per entity.
+- Connection string in `appsettings.Development.json`:
+  `Server=localhost;Database=ChoThueGiupViec;Integrated Security=True;TrustServerCertificate=True;`
+- Connection string placeholder in `appsettings.json`:
+  `Server=YOUR_SERVER;Database=ChoThueGiupViec;Trusted_Connection=True;TrustServerCertificate=True;`
+- EF Core CLI commands inside `Backend/`:
+  ```bash
+  dotnet ef database update
+  dotnet ef migrations add <MigrationName> --output-dir Infrastructure/Persistence/Migrations
+  dotnet ef migrations remove
+  ```
+- Persistence tests: `Tests/Persistence/AppDbContextModelTests.cs` (EF Core model metadata & conventions) and `Tests/Persistence/SqlServerPersistenceTests.cs` (live SQL Server schema, unique constraints, filtered indexes, CHECK constraints, UTC DateTime converter).
 
 ## 8. Known gaps / TODO
-- No database/EF Core yet; repositories are in-memory/stub.
+- Repository / UnitOfWork conventions against EF Core to be established (BASE-08).
 - `PaymentIntent` controller creates a fixed-amount Stripe intent (demo); route has typo `create-paymen-intent`.
 - No authentication (`UseAuthorization` only).
+
 

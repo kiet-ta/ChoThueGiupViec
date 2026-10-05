@@ -51,5 +51,11 @@ public partial class CustomerAddress
     public DateTime CreatedAt { get; set; }
 
     /// <summary>S_total = S_floor x N_floors (PRD 1.1). Computed column in the database (total_area_m2); computed here for the domain.</summary>
-    public decimal TotalAreaM2 => FloorAreaM2 * NumFloors;
+    public decimal TotalAreaM2
+    {
+        get => _totalAreaM2 != 0 ? _totalAreaM2 : FloorAreaM2 * NumFloors;
+        internal set => _totalAreaM2 = value;
+    }
+    private decimal _totalAreaM2;
 }
+
