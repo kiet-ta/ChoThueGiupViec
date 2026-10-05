@@ -1,3 +1,4 @@
+using CommonService.Application.Features.Identity.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using CommonService.Infrastructure.Persistence;
@@ -18,6 +19,10 @@ public sealed class IdentityModule : IModule
     {
         // Real password hasher wins over FakePasswordHasher registered later with TryAdd (BASE-03 / BASE-10)
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+
+        // Token & OTP Services (BE-M1-01)
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IOtpService, OtpService>();
 
         // Seeders
         services.AddScoped<AdminSeeder>();
