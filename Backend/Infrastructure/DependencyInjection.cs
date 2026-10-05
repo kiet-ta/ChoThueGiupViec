@@ -28,6 +28,7 @@ public static class DependencyInjection
         {
             options.UseSqlServer(connectionString);
         });
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Repositories
         services.AddScoped<IUserRepository, CommonService.Infrastructure.Persistance.UserRepository>();

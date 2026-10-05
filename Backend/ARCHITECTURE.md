@@ -177,6 +177,14 @@ HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → Respon
 - Tests: follow `Tests/GoldenRule.md` — use cases are tested with mocks/stubs, never real DB/external APIs; don't test across domains.
 - Namespaces mirror folders (`CommonService.Application.Features...`). Keep new code consistent with existing style; preserve existing comments/docs.
 
+### 5.1 Repository and UnitOfWork conventions (BASE-08)
+- **Unit of Work**: `IUnitOfWork` (`Application/Interfaces/IRepositories/IUnitOfWork.cs`) encapsulates atomic transaction boundaries and `SaveChangesAsync`. Implemented by `UnitOfWork` (`Infrastructure/Persistence/UnitOfWork.cs`) backed by `AppDbContext`.
+- **Repository abstraction**: `IRepository<TEntity, TId>` (`Application/Interfaces/IRepositories/IRepository.cs`) provides aggregate root data access primitives (`GetByIdAsync`, `ListAllAsync`, `AddAsync`, `Update`, `Delete`). Base implementation `EfRepository<TEntity, TId>` lives in `Infrastructure/Persistence/Repositories/EfRepository.cs`.
+- **Module repositories**: Modules declare custom aggregate repository interfaces inside their own feature folder (`Application/Features/<Module>/`), implement them inside their own infrastructure folder (`Infrastructure/Modules/<Module>/`), and register them in their own `IModule.ConfigureServices`. Shared files are not modified.
+  - Example: `ICustomerRepository` in `Application/Features/Customers/ICustomerRepository.cs`, implemented by `CustomerRepository` in `Infrastructure/Modules/Customers/CustomerRepository.cs`, registered by `CustomersModule`.
+- **Atomicity**: Changes across one or multiple repositories are saved atomically via `IUnitOfWork.SaveChangesAsync()` or transaction blocks via `IUnitOfWork.ExecuteInTransactionAsync()` / `BeginTransactionAsync()` / `CommitTransactionAsync()`.
+- Tests: `Backend/Tests/Persistence/RepositoryAndUnitOfWorkTests.cs`.
+
 ## 6. Configuration & secrets (IMPORTANT)
 - `appsettings.json` contains **placeholders only** (`Stripe:PublishableKey = pk_test_xxx`, `Stripe:SecretKey = sk_test_xxx`). **Never commit real keys.**
 - Provide real values via:
@@ -208,7 +216,7 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - Persistence tests: `Tests/Persistence/AppDbContextModelTests.cs` (EF Core model metadata & conventions) and `Tests/Persistence/SqlServerPersistenceTests.cs` (live SQL Server schema, unique constraints, filtered indexes, CHECK constraints, UTC DateTime converter).
 
 ## 8. Known gaps / TODO
-- Repository / UnitOfWork conventions against EF Core to be established (BASE-08).
+- Demo template code (`User`, `Order`, `BankAccount`, etc.) still present until BASE-09.
 - `PaymentIntent` controller creates a fixed-amount Stripe intent (demo); route has typo `create-paymen-intent`.
 - No authentication (`UseAuthorization` only).
 
