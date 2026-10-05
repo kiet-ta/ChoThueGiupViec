@@ -237,6 +237,22 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   - `ResponseWrapperMiddleware`: wraps 2xx responses into `ApiResponse<T>.Ok`, non-2xx responses into `ApiResponse<T>.Fail`, normalizes to camelCase, skips Swagger/health/hubs, and prevents double-wrapping.
 - Tests: `Tests/Infrastructure/*Tests.cs` (567 total tests passing).
 
+### 7.4 Realtime and notification channel (SignalR, BASE-12, decisions Q07)
+- **SignalR Hub** (`Infrastructure/Realtime/NotificationHub.cs`): mapped at `/hubs/notifications` via `RealtimeModule : IModule`.
+  - Strong-typed client: `INotificationClient.ReceiveNotification(NotificationMessageDto notification)`.
+  - Group naming:
+    - User group: `{role}:{userId}` (e.g. `customer:101`, `worker:55`, `admin:1`). Connections automatically join their group on connect when authenticated via JWT claims (`sub`, `role`).
+    - Topic group: `topic:{topic}` (e.g. `topic:payment.status`, `topic:job.tracking`). Clients join via `JoinTopic(topic)`.
+  - Hub methods: `JoinUserGroup(role, userId)`, `LeaveUserGroup(role, userId)`, `JoinTopic(topic)`, `LeaveTopic(topic)`.
+- **Service** (`Infrastructure/Realtime/SignalRNotificationService.cs`): implements `INotificationService` (dispatches to user and topic groups, and records into `INotificationStore`). Registered via `RealtimeModule` and takes precedence over `FakeNotificationService`.
+- **Polling Fallback Contract** (`WebAPI/Controllers/NotificationsController.cs`):
+  - `GET /api/notifications/poll`:
+    - Query params: `role` (optional if authenticated), `userId` (optional if authenticated), `since` (ISO-8601 UTC timestamp, optional), `limit` (1-100, default 50).
+    - Response 200: `ApiResponse<IReadOnlyList<NotificationMessageDto>>`.
+    - Response 400: missing `role`/`userId` when unauthenticated.
+- **FCM Push Notification**: DEFERRED per decision Q07b (not implemented in MVP).
+- Tests: `Tests/Infrastructure/SignalRNotificationTests.cs` (574 total tests passing).
+
 ## 8. Known gaps / TODO
 - No authentication (`UseAuthorization` only, until Identity module BE-M1-02).
 
