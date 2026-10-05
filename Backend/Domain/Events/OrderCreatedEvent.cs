@@ -1,8 +1,9 @@
-﻿using CommonService.Domain.Entities;
+using CommonService.Domain.Entities;
+using MediatR;
 
 namespace CommonService.Domain.Events;
 
-public class OrderCreatedEvent
+public class OrderCreatedEvent : INotification
 {
     public Order Order { get; }
 

@@ -112,6 +112,30 @@ Modules never call each other: they use a **port** (interface + DTOs in `Applica
 
 Tests: `Backend/Tests/Ports/FakePortTests.cs`.
 
+### 2.6 Domain events catalog (BASE-04)
+Cross-module asynchronous communication and side effects go through MediatR notifications (`Domain/Events/`, namespace `CommonService.Domain.Events`). Handlers are discovered automatically via MediatR assembly scanning (`Application/DependencyInjection.cs`). Modules communicate without direct references:
+
+| Event | Producer | Consumers | Payload Fields | Description |
+|---|---|---|---|---|
+| `OrderPaid` | M2 | M3 | `long OrderId`, `int CustomerId`, `decimal Amount`, `string ShiftCode`, `DateTime ScheduledDate`, `int RequiredWorkers` | Order paid; begins matching. |
+| `OrderCancelled` | M2 | M2 | `long OrderId`, `int CustomerId`, `string Reason`, `DateTime CancelledAtUtc` | Order cancelled. |
+| `OrderRefunded` | M2 | M2 | `long OrderId`, `int CustomerId`, `decimal Amount`, `string Reason`, `DateTime RefundedAtUtc` | Customer refunded. |
+| `JobAssigned` | M3 | M3 | `long AssignmentId`, `long OrderId`, `int WorkerId`, `int? AgencyId`, `int SlotId`, `DateTime AssignedAtUtc` | Worker assigned to job seat. |
+| `AssignmentFailed` | M3 | M2 | `long OrderId`, `string Reason`, `DateTime FailedAtUtc` | Dispatch exhausted; triggers 100% refund. |
+| `WorkerCheckedIn` | M3 | M3 | `long AssignmentId`, `long OrderId`, `int WorkerId`, `DateTime CheckedInAtUtc`, `double DistanceMeters` | Worker GPS check-in verified. |
+| `CustomerAbsentReported` | M3 | M6 | `long AssignmentId`, `long OrderId`, `int WorkerId`, `DateTime ReportedAtUtc` | Worker reported customer absent after 15m. |
+| `CustomerAbsentApproved` | M6 | M2, M3, M4 | `long AssignmentId`, `long OrderId`, `int WorkerId`, `decimal CompensationAmount`, `decimal RefundAmount`, `DateTime ApprovedAtUtc` | Admin approved absence (worker 40%, customer refunded 60%). |
+| `IncidentReported` | M3 | M3 | `long IncidentId`, `long AssignmentId`, `long OrderId`, `int WorkerId`, `string IncidentType`, `string Description`, `DateTime ReportedAtUtc` | On-site incident reported. |
+| `JobCompleted` | M4 | M6, M5 | `long AssignmentId`, `long OrderId`, `int WorkerId`, `int? AgencyId`, `decimal PayoutAmount`, `DateTime CompletedAtUtc` | Work accepted; opens rating window & payout item. |
+| `ExtensionPaid` | M2 | M4 | `long ExtensionId`, `long OrderId`, `int WorkerId`, `int ExtraHours`, `decimal ExtraAmount`, `DateTime PaidAtUtc` | Extra time paid by customer. |
+| `ExtensionDeclined` | M4 | M3 | `long ExtensionId`, `long OrderId`, `int WorkerId`, `string Reason`, `DateTime DeclinedAtUtc` | Worker declined extension. |
+| `SubscriptionActivated` | M5 | M5 | `long SubId`, `int AgencyId`, `int PackageId`, `string PackageCode`, `DateTime StartDateUtc`, `DateTime EndDateUtc` | Agency subscription activated. |
+| `DisputeResolved` | M6 | M5, M2 | `int DisputeId`, `long AssignmentId`, `FaultParty? FaultParty`, `decimal CustomerRefundAmount`, `string ResolutionNotes`, `DateTime ResolvedAtUtc` | Dispute ticket resolved. |
+| `RatingSubmitted` | M6 | M6 | `long RatingId`, `long AssignmentId`, `string RaterRole`, `int Stars`, `DateTime CreatedAtUtc` | 2-way rating submitted. |
+| `PayoutBatchClosed` | M6 | M6 | `int BatchId`, `string PeriodMonth`, `decimal TotalAmount`, `int ItemCount`, `DateTime ClosedAtUtc` | Monthly payout batch closed. |
+
+Tests: `Backend/Tests/Events/DomainEventTests.cs`.
+
 ### 2.2 Frozen shared files
 After gate G0 these are **not edited by hand** by anyone except the M1 owner (modules self-register through `IModule`, BASE-02):
 `Program.cs`, `Application/DependencyInjection.cs`, `Infrastructure/DependencyInjection.cs`, the DbContext, `Migrations/**`, `appsettings*.json`, `Mobile/lib/app/**`, `Frontend/src/app/**`.
