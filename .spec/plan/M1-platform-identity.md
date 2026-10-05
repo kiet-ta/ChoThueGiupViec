@@ -24,7 +24,7 @@ Ticket module: Identity, Customers theo mẫu ở overview §3 (+ `Mobile/lib/fe
 - [ ] **BASE-12** Kênh realtime/thông báo — *needs:* BASE-03 · SignalR đã chốt (*decisions:* Q07); hiện thực `INotificationService` (khách: trạng thái thanh toán + theo dõi ca realtime trước; FCM hoãn = Q07b, KHÔNG làm).
 - [ ] **BASE-13** OpenAPI — *needs:* BASE-02 · Swagger ổn định (operationId nhất quán, bearer), xuất snapshot vào `.spec/contracts/openapi.json`. **→ mở G4** khi Web/Mobile sinh client chạy được.
 - [x] **BASE-14 (G0)** Thông báo gate G0 (Skeleton) — evidence: PR #1, PR #25, PR #29, PR #30, PR #31 (G0 Skeleton mở: M2–M6 code backend theo port/fake)
-- [ ] **BASE-14 (G1)** Thông báo gate G1 (Data) — *needs:* BASE-06..08 · Tick G1 ở `00-overview.md` (kèm evidence) và báo nhóm. *allowed:* `.spec/plan/00-overview.md`.
+- [x] **BASE-14 (G1)** Thông báo gate G1 (Data) — evidence: PR #25 (BASE-06), PR #33 (BASE-07 SQL Server migration `20261005133811_InitialCreate`), PR #34 (BASE-08 repo/UoW) (G1 Data mở: 27 bảng EF Core trên SQL Server, migration đầu, repo/UoW sẵn sàng cho M2–M6)
 
 ## Wave 1 — Identity & Customer (backend)
 - [x] **BE-M1-00** Contract Identity + Customers → `.spec/contracts/identity.md`, `customers.md` (endpoint, DTO, lỗi) · *needs:* — (làm ngay, không cần base) · *done:* người điều phối duyệt → G3 phần M1. — evidence: PR #22 merged (leader approval), contracts `.spec/contracts/identity.md`, `.spec/contracts/customers.md`; decisions recorded by PR #24
