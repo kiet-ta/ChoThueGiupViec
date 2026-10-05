@@ -28,6 +28,9 @@ public sealed class IdentityModule : IModule
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IOtpService, OtpService>();
 
+        // Admin / Partner email + password login with lockout (BE-M1-03)
+        services.AddScoped<IPasswordLoginService, PasswordLoginService>();
+
         // Real ICurrentUser (ClaimsCurrentUser) wins over FakeCurrentUser registered later with TryAdd (BE-M1-02)
         services.AddScoped<ICurrentUser, ClaimsCurrentUser>();
 
