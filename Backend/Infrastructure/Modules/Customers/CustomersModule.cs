@@ -16,5 +16,7 @@ public class CustomersModule : IModule
         services.AddScoped<ICustomerProfileService, CustomerProfileService>();
         services.AddScoped<ICustomerAddressRepository, CustomerAddressRepository>();
         services.AddScoped<ICustomerAddressService, CustomerAddressService>();
+        services.AddScoped<IFavoriteWorkerRepository, FavoriteWorkerRepository>();
+        services.AddScoped<ICustomerFavoriteWorkerService, CustomerFavoriteWorkerService>();
     }
 }
