@@ -1,0 +1,184 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Cho Thue Giup Viec API",
+    "description": "Cho Thue Giup Viec multi-module platform API (PRN232).",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/notifications/poll": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "Notifications_Poll",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationMessageDtoIReadOnlyListApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationMessageDtoIReadOnlyListApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationMessageDtoIReadOnlyListApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "NotificationMessageDto": {
+        "type": "object",
+        "properties": {
+          "recipientRole": {
+            "type": "string",
+            "nullable": true
+          },
+          "recipientId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "timestampUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NotificationMessageDtoIReadOnlyListApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationMessageDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ObjectApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "JWT Authorization header using the Bearer scheme. Enter token without Bearer prefix or \u0027Bearer {token}\u0027.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "Bearer": []
+    }
+  ]
+}

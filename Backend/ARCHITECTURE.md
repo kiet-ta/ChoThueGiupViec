@@ -253,6 +253,19 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **FCM Push Notification**: DEFERRED per decision Q07b (not implemented in MVP).
 - Tests: `Tests/Infrastructure/SignalRNotificationTests.cs` (574 total tests passing).
 
+### 7.5 OpenAPI and Swagger snapshot (BASE-13)
+- **Configuration** (`Infrastructure/Swagger/SwaggerConfiguration.cs`):
+  - Deterministic `operationId` format: `{Controller}_{Action}` for code generators.
+  - Bearer JWT security scheme: header `Authorization: Bearer <token>`.
+  - API Info: Cho Thue Giup Viec API (v1).
+- **Snapshot Contract** (`.spec/contracts/openapi.json`): exported static snapshot used by Web/Mobile clients to generate API SDKs.
+- **Contract Verification Test** (`Tests/Contracts/OpenApiSnapshotTests.cs`):
+  - Verifies live OpenAPI document matches `.spec/contracts/openapi.json`.
+  - Verifies all operations possess valid operationIds.
+  - Verifies Bearer security scheme definition.
+  - Fails whenever the live document drifts from the contract snapshot.
+- Tests: `Tests/Contracts/OpenApiSnapshotTests.cs` (577 total tests passing).
+
 ## 8. Known gaps / TODO
 - No authentication (`UseAuthorization` only, until Identity module BE-M1-02).
 

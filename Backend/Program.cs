@@ -1,6 +1,7 @@
 using CommonService.Application;
 using CommonService.Infrastructure;
 using CommonService.Infrastructure.Modularity;
+using CommonService.Infrastructure.Swagger;
 using CommonService.Middleware;
 
 namespace CommonService
@@ -20,9 +21,8 @@ namespace CommonService
             // Register Infrastructure Layer (Repositories, Cache, etc.)
             builder.Services.AddInfrastructure(builder.Configuration);
 
-            //BindingAddress Swagger/OpenAPI
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            // Swagger/OpenAPI (BASE-13)
+            builder.Services.AddConfiguredSwagger();
 
             var app = builder.Build();
 
