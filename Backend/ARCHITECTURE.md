@@ -14,24 +14,24 @@
 ```
 Program.cs                 Composition root: AddControllers, AddApplication, AddInfrastructure, Swagger, middleware
 Domain/                    Pure business model. NO dependency on other layers
-  Entities/                User, Customer, Order, OrderItem, BankAccount
-  ValueObjects/            Address, Email, Money (immutable, validated)
-  Events/                  Domain events (OrderCreatedEvent)
-  Services/                Domain services (ShippingCalculator) - logic spanning multiple entities
+  Entities/                Customer, Worker, JobOrder, JobAssignment, etc. (27 domain entities)
+  ValueObjects/            Email, Vnd (immutable, validated)
+  Events/                  Domain events (OrderPaid, JobAssigned, etc.)
+  Services/                Domain services - logic spanning multiple entities
 Application/               Use cases. Depends on Domain only
-  Features/<Feature>/      Commands/, Queries/, Handlers/ (MediatR) e.g. Users/CreateUserCommand
+  Features/<Feature>/      Commands/, Queries/, Handlers/ (MediatR) e.g. Features/<Module>/
   Behaviors/               MediatR pipeline: Validation, Logging, Performance
-  Interfaces/              IRepositories/ (IUserRepository), IServices/ (ICacheService, IEmailService)  -> ports
+  Interfaces/              IRepositories/ (IRepository, IUnitOfWork), IServices/ (ICacheService, IEmailService), Ports/
   Services/                Application services (EmailService)
   Common/                  Models (ApiResponse<T>), Helpers (PaginatedList), Constants
   Exceptions/              NotFound, Validation, ForbiddenAccess, BusinessRuleViolation
   DependencyInjection.cs   AddApplication(): MediatR + ValidationBehavior
 Infrastructure/            Implements ports. Depends on Application (+Domain)
-  Persistances/            UserRepository, OrderRepository  (folder name has this spelling)
+  Persistence/             AppDbContext, UnitOfWork, Repositories/EfRepository
   Services/                InMemoryCacheService (default), RedisCacheService (optional)
-  DependencyInjection.cs   AddInfrastructure(config): cache, repositories, services
+  DependencyInjection.cs   AddInfrastructure(config): db, cache, unit of work, modules, fakes
 Middleware/                ErrorHandling, RequestResponseLogging, ResponseWrapper
-WebAPI/Controllers/        Thin controllers: UserController, PaymentIntent (Stripe), ValuesController
+WebAPI/Controllers/        Thin controllers: ValuesController, module controllers
 Tests/                     CommonService.Tests.csproj (xUnit), e2e/, integration/, GoldenRule.md (testing philosophy)
 Properties/launchSettings.json
 ```
@@ -79,13 +79,13 @@ Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInje
 - D2 The unique index `Job_Assignment(slot_id)` excludes `CANCELLED`, `CANCELLED_BY_WORKER` and `REASSIGNED` (a worker who cancels gets the slot back; the violation still counts, Q15). Built in BASE-07.
 - D3 `DISPUTE_TICKET.fault_party` is the enum `FaultParty` = `FREELANCER | AGENCY | CUSTOMER`, null = nobody at fault. "WORKER" in decisions Q10/Q12 means FREELANCER or AGENCY.
 - D4 The ADMIN table is the entity `AdminAccount` (avoids the clash with the module namespace `...Admin`).
-- D5 Money stays `decimal` in entities; **all rounding goes through `Domain/ValueObjects/Vnd.cs`** (`Vnd.Round`, `Vnd.Commission`, `Vnd.Net`, decisions G-2). The template `Money` and `Address` value objects are not used and are deleted by BASE-09.
+- D5 Currency amounts stay `decimal` in entities; **all rounding goes through `Domain/ValueObjects/Vnd.cs`** (`Vnd.Round`, `Vnd.Commission`, `Vnd.Net`, decisions G-2). The template demo value objects were removed in BASE-09.
 - D6 `WorkStatus.Busy` = on site, from check-in until the assignment is COMPLETED or an absence is approved. A future assignment does not change `work_status`; double booking is prevented by the slot UNIQUE.
 - D7 The order status follows its assignments through `JobOrder.SyncWithAssignments`: ASSIGNED when `required_workers` assignments are accepted, COMPLETED when that many are COMPLETED, back to DISPATCHING when a seat is lost (only the missing seat is re-dispatched). ABSENT is left to the Admin approval flow. Tests: `Backend/Tests/Domain/JobOrderProgressTests.cs`.
 
 **Still persistence work for BASE-07:** the drawio CHECKs on `PAYMENT_TRANSACTION` (exactly one of order/extension/subscription) and `PAYOUT_ITEM` (payee type vs worker/agency) become database CHECK constraints; `DbEnum` value converters; UTC enforcement on every `DateTime` (G-3).
 
-The demo template classes (`User`, `Order`, `OrderItem`, `BankAccount`) stay until BASE-09; the empty demo `Customer` was replaced by the real entity.
+The demo template classes were removed in BASE-09; all domain logic uses the 27 real MVP5 entities and modules.
 
 ### 2.5 Cross-module ports (BASE-03)
 Modules never call each other: they use a **port** (interface + DTOs in `Application/Interfaces/Ports/`, namespace `CommonService.Application.Interfaces.Ports`) or a domain event. Every port has an in-memory **Fake** in `Infrastructure/Fakes/` registered by `AddFakePorts()` with `TryAdd`. `Infrastructure/DependencyInjection.cs` calls `AddModules(...)` first and `AddFakePorts()` **last**, so a real implementation registered by a module (`IModule.ConfigureServices`) wins and a port nobody implemented yet falls back to its Fake. Changing a port needs a "Scope exception" issue for M1.
@@ -171,7 +171,7 @@ HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → Respon
 
 **Rules**
 - Don't reference Infrastructure from Application/Domain.
-- Use value objects (`Money`, `Email`, `Address`) instead of primitives for domain concepts.
+- Use value objects (e.g. `Email`, `Vnd`) instead of primitives for domain concepts.
 - Throw Application exceptions (`NotFoundException`, ...) rather than returning status codes from handlers.
 - Cache via `ICacheService` (swap InMemory ↔ Redis in Infrastructure DI; Redis needs `ConnectionStrings:Redis`).
 - Tests: follow `Tests/GoldenRule.md` — use cases are tested with mocks/stubs, never real DB/external APIs; don't test across domains.
@@ -216,8 +216,6 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - Persistence tests: `Tests/Persistence/AppDbContextModelTests.cs` (EF Core model metadata & conventions) and `Tests/Persistence/SqlServerPersistenceTests.cs` (live SQL Server schema, unique constraints, filtered indexes, CHECK constraints, UTC DateTime converter).
 
 ## 8. Known gaps / TODO
-- Demo template code (`User`, `Order`, `BankAccount`, etc.) still present until BASE-09.
-- `PaymentIntent` controller creates a fixed-amount Stripe intent (demo); route has typo `create-paymen-intent`.
-- No authentication (`UseAuthorization` only).
+- No authentication (`UseAuthorization` only, until Identity module BE-M1-02).
 
 

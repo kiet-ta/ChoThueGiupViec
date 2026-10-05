@@ -106,48 +106,49 @@ flowchart LR
 
 ### 1. Adding a new Command
 ```csharp
-public class CreateUserCommand : IRequest<User>
+public class CreateCustomerCommand : IRequest<Customer>
 {
-    public string Username { get; set; }
-    public string Password { get; set; }
+    public string PhoneNumber { get; set; } = string.Empty;
 }
 
-public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, User>
+public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, Customer>
 {
-    private readonly IUserRepository _repository;
+    private readonly ICustomerRepository _repository;
     
-    public CreateUserCommandHandler(IUserRepository repository)
+    public CreateCustomerCommandHandler(ICustomerRepository repository)
     {
         _repository = repository;
     }
     
-    public async Task<User> Handle(CreateUserCommand request, CancellationToken cancellationToken)
+    public async Task<Customer> Handle(CreateCustomerCommand request, CancellationToken cancellationToken)
     {
-        var user = new User { Username = request.Username, Password = request.Password };
-        return await _repository.AddAsync(user);
+        var customer = new Customer { PhoneNumber = request.PhoneNumber };
+        await _repository.AddAsync(customer, cancellationToken);
+        return customer;
     }
 }
 ```
 
 ### 2. Using Cache Service
 ```csharp
-public class UserService
+public class CustomerService
 {
     private readonly ICacheService _cache;
-    private readonly IUserRepository _repository;
+    private readonly ICustomerRepository _repository;
     
-    public async Task<User> GetUserAsync(int id)
+    public async Task<Customer?> GetCustomerAsync(int id, CancellationToken ct)
     {
-        var cacheKey = $"user_{id}";
-        var cachedUser = await _cache.GetAsync<User>(cacheKey);
+        var cacheKey = $"customer_{id}";
+        var cached = await _cache.GetAsync<Customer>(cacheKey);
         
-        if (cachedUser != null)
-            return cachedUser;
+        if (cached != null)
+            return cached;
             
-        var user = await _repository.GetByIdAsync(id);
-        await _cache.SetAsync(cacheKey, user, TimeSpan.FromMinutes(30));
+        var customer = await _repository.GetByIdAsync(id, ct);
+        if (customer != null)
+            await _cache.SetAsync(cacheKey, customer, TimeSpan.FromMinutes(30));
         
-        return user;
+        return customer;
     }
 }
 ```

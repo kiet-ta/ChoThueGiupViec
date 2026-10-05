@@ -1,4 +1,4 @@
-﻿## 🧩 Value Object là gì?
+## 🧩 Value Object là gì?
 
 **Value Object** là một kiểu đối tượng trong domain model dùng để biểu diễn các khái niệm **không cần định danh (ID)**. Thay vì quan tâm đến "đối tượng nào", bạn chỉ quan tâm đến **giá trị bên trong** của nó.
 
@@ -16,8 +16,7 @@
 ### 📦 Ví dụ thực tế
 
 - `Email`: bạn không cần biết đây là email số mấy, chỉ cần biết nó có hợp lệ hay không.
-- `Money`: biểu diễn số tiền, đơn vị tiền tệ.
-- `Address`: địa chỉ giao hàng, không cần ID.
+- `Vnd`: logic tính toán và làm tròn tiền tệ VND (không lẻ hào, xu).
 
 ---
 
@@ -72,7 +71,7 @@ Ví dụ: bạn **không thể tạo Email mà không có ký tự @**.
 
 ### 🔁 Giảm duplication logic
 
-Nếu bạn **không dùng VO**, mỗi chỗ nhập Email, Address… lại phải validate.
+Nếu bạn **không dùng VO**, mỗi chỗ nhập Email… lại phải validate.
 
 Dùng VO → **chỉ validate một lần duy nhất khi tạo**, sau đó **tái sử dụng ở mọi nơi**.
 
