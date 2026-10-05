@@ -4,8 +4,9 @@ using CommonService.Application.Interfaces.IServices;
 using CommonService.Application.Services;
 using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modularity;
-using CommonService.Infrastructure.Persistance;
+using CommonService.Infrastructure.Persistence;
 using CommonService.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace CommonService.Infrastructure;
@@ -20,8 +21,16 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddScoped<ICacheService, InMemoryCacheService>();
 
+        // Persistence (BASE-07, SQL Server)
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? "Server=localhost;Database=ChoThueGiupViec;Integrated Security=True;TrustServerCertificate=True;";
+        services.AddDbContext<AppDbContext>(options =>
+        {
+            options.UseSqlServer(connectionString);
+        });
+
         // Repositories
-        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserRepository, CommonService.Infrastructure.Persistance.UserRepository>();
 
         // Services
         services.AddScoped<IEmailService, EmailService>();
