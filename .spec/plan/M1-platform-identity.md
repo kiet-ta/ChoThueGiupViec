@@ -37,7 +37,7 @@ Ticket module: Identity, Customers theo mẫu ở overview §3 (+ `Mobile/lib/fe
 - [x] **BE-M1-07** Test module Identity + Customers (OTP hết hạn/quá số lần, S_total, quyền sở hữu địa chỉ) · *needs:* BE-M1-01..06. — evidence: `.harness/evidence/20261006-012033-L3.log` (L3 PASSED; `Passed! Failed: 0, Passed: 808, Total: 808`; new tests `Backend/Tests/Identity/OtpLifecycleTests.cs` (OTP TTL boundary and expiry, single use, attempt limit, role separation, keyed hash, replacement by a newer code) and `Backend/Tests/Customers/IdentityToCustomersFlowTests.cs` (OTP login -> token id -> profile, addresses, favorites); S_total and address ownership were already covered by `CustomerAddressTests` (PR #50); no production code changed)
 
 ## Wave 3 — Mobile (Flutter) · *needs:* nền Mobile của M3 (MOB-BASE-01..03) + G3/G4
-- [ ] **MOB-M1-01** Đăng nhập OTP + lưu token.
+- [x] **MOB-M1-01** Đăng nhập OTP + lưu token. — evidence: Flutter test suite 21/21 passed (widget tests for PhoneInputScreen and OtpVerifyScreen, unit tests for AuthService and TokenStorage; PR #72)
 - [ ] **MOB-M1-02** Sổ địa chỉ (chọn vị trí GPS, nhập diện tích/tầng, hiển thị S_total).
 - [ ] **MOB-M1-03** Danh sách thợ quen · **MOB-M1-04** Hồ sơ.
 
