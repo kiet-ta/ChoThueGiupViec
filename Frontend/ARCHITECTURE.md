@@ -19,6 +19,19 @@ Frontend/
   .env.example       VITE_API_PROXY_TARGET, VITE_API_BASE_URL
 ```
 
+## API client (WEB-BASE-03)
+- Always call the backend through `apiClient` from `src/services/api.ts`, with paths relative to `/api` (no leading `/api`):
+  ```ts
+  import { apiClient, ApiError } from '@/services/api'
+  const items = await apiClient.get<Dispute[]>('/admin/disputes', { query: { status: 'OPEN', page: 1 } })
+  try { await apiClient.post<Dispute>('/workers/me/disputes', body) }
+  catch (e) { if (e instanceof ApiError && e.status === 400) show(e.fieldErrors) }
+  ```
+- A call returns `data` of a 2xx envelope, otherwise throws `ApiError { status, message, data, fieldErrors, retryAfterSeconds }`. `fieldErrors` is the `data.errors` map of a 400 (decision O5); `retryAfterSeconds` comes from `Retry-After` (423, 429). A non-JSON or empty body becomes an `ApiError` with the HTTP status; a network failure is status `0`.
+- Auth hook for WEB-BASE-02: `configureApi({ getAccessToken, onUnauthorized })`. The Bearer header is sent only when a token exists; `onUnauthorized` runs once for a 401 on such a request (an anonymous 401, e.g. wrong password, does not trigger it). Features never call `configureApi`.
+- Types are hand-written per feature from the approved contracts in `.spec/contracts/` until gate G4 (OpenAPI client generation needs a package that no ticket has added). Until the backend of a module exists, a feature keeps its mock data in its own folder and swaps to `apiClient` later.
+- Tests: `npm test` (`node --test`, no extra package) runs `tests/**/*.test.ts`; the pure core in `src/services/client.ts` has no `import.meta`, so it runs outside Vite.
+
 ## Conventions
 - Import via alias: `import { Button } from '@/components/ui/button'`.
 - Call the API only through `src/services/api.ts` using relative `/api/...` paths (proxied in dev).
