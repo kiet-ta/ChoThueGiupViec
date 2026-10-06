@@ -371,4 +371,40 @@ public class DispatchOfferEngineTests
         Assert.Equal(601, activeOffer.OrderId);
         Assert.Equal(106, activeOffer.WorkerId);
     }
+
+    [Fact]
+    public async Task StartDispatchForOrder_exhausts_over_10km_and_publishes_AssignmentFailed()
+    {
+        var startTime = new DateTime(2026, 10, 15, 8, 0, 0, DateTimeKind.Utc);
+        var clock = new FakeClock();
+        clock.Set(startTime);
+        var fakeQuery = new FakeWorkerAvailabilityQuery();
+        // Worker is at 15.0 km (outside 10 km maximum stepped radius)
+        fakeQuery.Workers.Add(new AvailableWorker(WorkerId: 107, SlotId: 70, DistanceKm: 15.0));
+
+        var scanner = new SteppedRadiusDispatchScanner(fakeQuery, MicrosoftOptions.Create(new BusinessRules()));
+        var repo = new InMemoryDispatchRepository();
+        var store = new InMemoryOfferStore();
+        var mediator = new TestMediator();
+
+        var engine = new DispatchOfferEngine(scanner, repo, store, clock, mediator, MicrosoftOptions.Create(new BusinessRules()));
+
+        var offer = await engine.StartDispatchForOrderAsync(
+            orderId: 701,
+            customerId: 401,
+            serviceTier: ServiceTier.Economy,
+            date: new DateOnly(2026, 10, 15),
+            shiftCode: "SANG",
+            location: new GeoPoint(10.762622, 106.660172),
+            grossAmount: 260000m
+        );
+
+        Assert.Null(offer);
+        // Verify AssignmentFailed domain event was published to trigger 100% customer refund
+        Assert.Single(mediator.PublishedEvents);
+        var failedEvent = Assert.IsType<AssignmentFailed>(mediator.PublishedEvents[0]);
+        Assert.Equal(701, failedEvent.OrderId);
+        Assert.Contains("10 km", failedEvent.Reason);
+        Assert.Equal(startTime, failedEvent.FailedAtUtc);
+    }
 }
