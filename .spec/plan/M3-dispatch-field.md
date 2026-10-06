@@ -27,7 +27,7 @@ Ticket `MOB-BASE-*`: `Mobile/**`, `.spec/plan/M3-*.md`; riêng `MOB-BASE-05` là
 - [ ] **BE-M3-07** Failover theo mốc (Pha 2, §2.5): báo >2 h → cửa sổ 30 phút để Agency tự đổi thợ; ≤2 h hoặc hết 30 phút → "Cứu hộ Khẩn cấp" thu hồi đơn, điều sang Agency khác / Super-Freelancer (*decisions:* Q12), phạt qua `ISlaPenaltyService` · *needs:* BE-M3-05.
 - [ ] **BE-M3-08** Nhà >80 m² (BR-02): tách **2 JobAssignment song song** (ảnh + checklist độc lập); thiếu thợ → 1 thợ làm 2 ca liên tiếp sau khi khách xác nhận · *needs:* BE-M3-03, BE-M2-01.
 - [ ] **BE-M3-09** Sự cố bất khả kháng (BR-10): báo kèm ảnh + GPS → `IncidentLog`; Auto Re-dispatch **5 phút**; có thợ mới → cập nhật giờ đến cho khách; không có/khách từ chối → huỷ + hoàn 100 %, thợ gặp nạn **miễn phạt** · *needs:* BE-M3-03.
-- [ ] **BE-M3-10** Check-in hiện trường (BR-04): GPS lệch ≤100 m so với địa chỉ đơn, ghi `CheckInLog`; lệch → khách xác nhận trên giao diện hoặc thợ chụp biển số nhà · *needs:* G1.
+- [x] **BE-M3-10** Check-in hiện trường (BR-04): GPS lệch ≤100 m so với địa chỉ đơn, ghi `CheckInLog`; lệch → khách xác nhận trên giao diện hoặc thợ chụp biển số nhà · *needs:* G1. — evidence: `.harness/evidence/20261006-220646-L3.log` (L3 PASSED; FieldCheckInService verifies GPS <= 100m tolerance to transition JobAssignment to CHECKED_IN, records CheckInLog, handles PLATE_PHOTO and CUSTOMER_CONFIRMATION fallbacks, 858 backend tests pass)
 - [ ] **BE-M3-11** Test: không double-assign, timeout 30 s, thang bán kính, Agency bị loại khỏi Economy, miễn phạt sự cố · *needs:* BE-M3-01..10.
 
 ## Wave 3 — Mobile (Worker) & Web (Admin)
