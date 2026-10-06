@@ -13,7 +13,7 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 - [ ] **WEB-BASE-01** Router + layout theo role: Admin & Partner (desktop 1440×900); **tự nạp route** từ `src/features/*/routes.tsx` (`import.meta.glob`) để không ai sửa `src/app/**`; tạo sẵn thư mục feature (agencies, skills, workers, dispatch, ratings, disputes, payouts, admin). Cập nhật `Frontend/ARCHITECTURE.md`. *done:* thêm feature giả không sửa file chung vẫn hiện route; `npm run lint` + `tsc -b` PASS (log).
 - [ ] **WEB-BASE-02** Đăng nhập + lưu token + role guard (theo contract Identity, mock cho tới G2).
 - [ ] **WEB-BASE-03** API client theo envelope `ApiResponse<T>` + kiểu sinh từ OpenAPI (sau G4; trước đó mock theo contract) — dùng `src/services/api.ts`, đường dẫn tương đối `/api/...`.
-- [ ] **WEB-BASE-04** Bảng dữ liệu dùng chung (nhiều cột, lọc, phân trang, xuất file) + **trình xem chuỗi ảnh Before/After** (so sánh) dùng cho Dispute/eKYC/Agency.
+- [x] **WEB-BASE-04** Bảng dữ liệu dùng chung (nhiều cột, lọc, phân trang, xuất file) + **trình xem chuỗi ảnh Before/After** (so sánh) dùng cho Dispute/eKYC/Agency. — evidence: `.harness/evidence/20261006-155451-L3.log` (L3 PASSED, run with DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1); `npm test` 9/9 pass (Frontend/tests/components.test.ts); table states and viewer checked on the dev server (see PR)
 - [ ] **BE-M6-00** Contract Ratings + Disputes + Payouts + Admin → `.spec/contracts/*.md`.
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
