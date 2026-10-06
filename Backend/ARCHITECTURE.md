@@ -266,6 +266,18 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   - Fails whenever the live document drifts from the contract snapshot.
 - Tests: `Tests/Contracts/OpenApiSnapshotTests.cs` (577 total tests passing).
 
+### 7.6 Audit log (`IAuditLog`, BE-M6-09a, decisions G-5 / SC-3)
+- The real implementation is `Infrastructure/Modules/Admin/EfAuditLog.cs`, registered by `AdminModule` (`IModule`), so it wins over `FakeAuditLog`. The port is unchanged: `Task WriteAsync(AuditEntry entry, CancellationToken ct)`.
+- **Same unit of work:** `WriteAsync` only adds the `ADMIN_AUDIT_LOG` row to the scoped `AppDbContext`; it never calls `SaveChanges`. A module therefore calls it **before** its own `SaveChangesAsync` / `IUnitOfWork` commit (inside `ExecuteInTransactionAsync` when it has one), and the change and its audit row commit or roll back together.
+  ```csharp
+  await _audit.WriteAsync(new AuditEntry(AuditActorType.Admin, adminId, "PRICE_RULE", rule.RuleId.ToString(),
+      "unit_price", oldPrice.ToString(), newPrice.ToString(), reason), ct);
+  await _uow.SaveChangesAsync(ct);   // saves the price change and the audit row together
+  ```
+- **Append-only:** the port and the class have no update/delete method (a test checks the method names). The database itself still allows an UPDATE/DELETE by SQL; blocking that needs a schema-level rule (trigger or permissions), which is an M1 schema change and not part of this ticket.
+- **Rules enforced:** `changed_at` comes from `IClock` (UTC); `entityType` <= 30, `entityId` <= 40, `fieldName` <= 50, `oldValue`/`newValue` <= 500, `reason` <= 255 characters, rejected with `ArgumentException` instead of being truncated; an `ADMIN` entry needs `adminId` and a non-blank `reason`; a `SYSTEM` entry must have `adminId = null`.
+- Tests: `Tests/Admin/EfAuditLogTests.cs`; the transaction test (commit keeps the row, rollback leaves none) runs only when the local SQL Server database exists (`dotnet ef database update`, section 7.1).
+
 ## 8. Known gaps / TODO
 - No authentication (`UseAuthorization` only, until Identity module BE-M1-02).
 
