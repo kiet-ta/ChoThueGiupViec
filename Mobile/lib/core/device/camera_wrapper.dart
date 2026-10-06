@@ -30,7 +30,7 @@ abstract class ICameraWrapper {
 class CameraWrapper implements ICameraWrapper {
   CapturedImage? _mockImage;
 
-  CameraWrapper({CapturedImage? mockImage}) : _mockImage = mockImage;
+  CameraWrapper({this._mockImage});
 
   /// Injects mock image for automated testing.
   void setMockImage(CapturedImage? image) {

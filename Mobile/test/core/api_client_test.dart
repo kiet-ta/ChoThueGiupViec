@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/auth/token_storage.dart';
 import 'package:mobile/core/network/api_client.dart';
