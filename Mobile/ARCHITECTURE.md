@@ -19,27 +19,41 @@ The visual identity follows the team design skill (`.agents/skills/project-team-
   - Pill buttons (`rounded-full` / `StadiumBorder`).
   - Double-bezel white cards with 1px hairline borders (`#E5E7EB`) and soft 16px corner radii.
 
-## 3. Directory Structure
+## 3. Directory Structure & Feature Module Registration
 ```
 Mobile/
 ├── lib/
-│   ├── app/                 # App lifecycle, MaterialApp, routes
+│   ├── app/                 # App lifecycle, MaterialApp, routes (FROZEN after MOB-BASE-02)
 │   │   ├── app.dart
-│   │   └── routes.dart
+│   │   ├── feature_module.dart   # FeatureModule abstraction
+│   │   ├── feature_registry.dart # Aggregates modules from all 6 slots
+│   │   └── routes.dart           # Central route constants & delegate
 │   ├── core/                # Shared theme, widgets, network, models
 │   │   ├── models/
 │   │   ├── theme/
 │   │   └── widgets/
 │   ├── features/            # Isolated vertical features per module
-│   │   ├── home/
-│   │   ├── identity/
-│   │   ├── customers/
-│   │   ├── booking/
-│   │   ├── dispatch/
-│   │   └── workers/
+│   │   ├── home/            # Welcome & persona selection
+│   │   ├── identity/        # M1: Phone OTP & Auth tokens
+│   │   ├── customers/       # M1: Profile, address book, favorite workers
+│   │   ├── booking/         # M2: Booking flow & shift selection
+│   │   ├── payments/        # M2: MoMo sandbox QR & transactions
+│   │   ├── dispatch/        # M3: 30s offers, GPS check-in, incidents
+│   │   ├── workers/         # M4: eKYC, Block Slots, Before/After VoL
+│   │   ├── agencies/        # M5: Shift Roster & agency profile
+│   │   ├── ratings/         # M6: Two-way ratings (48h window)
+│   │   ├── disputes/        # M6: Dispute tickets & claims
+│   │   └── payouts/         # M6: Worker earnings & payout history
 │   └── main.dart            # Flutter entrypoint
 └── test/                    # Unit, widget, and golden tests
 ```
+
+### Feature Module Conventions (`MOB-BASE-02`)
+To prevent merge conflicts across the 6 team members:
+1. `Mobile/lib/app/**` is **frozen**. Members must not edit `app.dart` or `feature_registry.dart`.
+2. Each feature module owns its directory `Mobile/lib/features/<module>/` exclusively.
+3. Every feature defines its own `routes.dart` containing a class implementing `FeatureModule`.
+4. Route names are exposed through static constants in the feature's `routes.dart` and registered in its module's `routes` map or `onGenerateRoute` factory.
 
 ## 4. Verification
 - `cd Mobile && flutter analyze`: Static linting and code quality.
