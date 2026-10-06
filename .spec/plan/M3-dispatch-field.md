@@ -15,7 +15,7 @@ Ticket `MOB-BASE-*`: `Mobile/**`, `.spec/plan/M3-*.md`; riêng `MOB-BASE-05` là
 - [ ] **MOB-BASE-03** API client + auth: bọc envelope `ApiResponse<T>{success,message,data}`, lưu token an toàn, interceptor refresh, sinh client từ OpenAPI khi G4 (trước đó dùng mock theo contract). Wrapper camera / vị trí / quyền (cho M4, M3).
 - [ ] **MOB-BASE-04** UI kit dùng chung: nút/form/ô nhập, đồng hồ đếm ngược, bản đồ nhỏ, trạng thái lỗi/tải.
 - [ ] **MOB-BASE-05** (`shared`) Thêm Mobile vào harness: `verify.sh/run.ps1` (L1 `flutter analyze`/format, L2 build, L3 test), Husky `Mobile/.husky`, CI, `protected-paths` · *allowed:* nguyên văn `harness/**`, `.husky/**`, `.github/**`, `Mobile/.husky/**` · chạy một mình, cần người điều phối duyệt.
-- [ ] **BE-M3-00** Contract Dispatch → `.spec/contracts/dispatch.md` (offer, nhận/từ chối, check-in, báo vắng mặt, báo sự cố, trạng thái điều phối).
+- [x] **BE-M3-00** Contract Dispatch → `.spec/contracts/dispatch.md` (offer, nhận/từ chối, check-in, báo vắng mặt, báo sự cố, trạng thái điều phối). — evidence: `.harness/evidence/20261006-204219-L3.log` (L3 PASSED; .spec/contracts/dispatch.md created with offer 30s, check-in GPS <=100m, absent review 40/60, force majeure incidents, SignalR hub events)
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
 - [ ] **BE-M3-01** `MatchingScore` (khoảng cách, rating, lịch sử ca thành công) hàm thuần, trọng số qua options · *needs:* G0.
