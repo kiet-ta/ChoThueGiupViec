@@ -1,9 +1,12 @@
-import 'dart:convert';
 import 'dart:io';
+import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_profile.dart';
 
 /// Service managing customer profile matching .spec/contracts/customers.md §2.1.
+///
+/// [isMock] (only when a caller, a test, passes it): in-memory profile, no network.
+/// Off (the default, the real app): server or network errors are thrown as [ApiException], never hidden.
 class CustomerProfileService {
   final String baseUrl;
   final HttpClient _httpClient;
@@ -36,27 +39,20 @@ class CustomerProfileService {
     _mockProfile = profile;
   }
 
+  Future<Map<String, dynamic>> _call(String method, String fallbackMessage, {Object? body}) => apiRequest(
+        _httpClient,
+        method,
+        Uri.parse('$baseUrl/api/customers/me'),
+        bearerToken: _tokenStorage.accessToken,
+        body: body,
+        fallbackMessage: fallbackMessage,
+      );
+
   /// GET /api/customers/me
   Future<CustomerProfile> getProfile() async {
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me');
-        final request = await _httpClient.getUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-        if (response.statusCode == 200) {
-          final body = await response.transform(utf8.decoder).join();
-          final map = jsonDecode(body) as Map<String, dynamic>;
-          final data = map['data'] as Map<String, dynamic>?;
-          if (data != null) {
-            _mockProfile = CustomerProfile.fromJson(data);
-            return _mockProfile;
-          }
-        }
-      } catch (_) {
-        // Fall back to mock profile on network or server offline in tests/dev
-      }
+      final envelope = await _call('GET', 'Không tải được hồ sơ.');
+      return CustomerProfile.fromJson(envelope['data'] as Map<String, dynamic>);
     }
     return _mockProfile;
   }
@@ -88,32 +84,12 @@ class CustomerProfileService {
     final sanitizedEmail = (trimmedEmail != null && trimmedEmail.isNotEmpty) ? trimmedEmail : null;
 
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me');
-        final request = await _httpClient.putUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-        request.headers.contentType = ContentType.json;
-
-        final payload = jsonEncode({
-          'fullName': trimmedName,
-          'email': sanitizedEmail,
-        });
-        request.write(payload);
-
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-        if (response.statusCode == 200) {
-          final body = await response.transform(utf8.decoder).join();
-          final map = jsonDecode(body) as Map<String, dynamic>;
-          final data = map['data'] as Map<String, dynamic>?;
-          if (data != null) {
-            _mockProfile = CustomerProfile.fromJson(data);
-            return _mockProfile;
-          }
-        }
-      } catch (e) {
-        if (e is ArgumentError) rethrow;
-        // Fall back to updating mock store
-      }
+      final envelope = await _call(
+        'PUT',
+        'Cập nhật hồ sơ thất bại.',
+        body: {'fullName': trimmedName, 'email': sanitizedEmail},
+      );
+      return CustomerProfile.fromJson(envelope['data'] as Map<String, dynamic>);
     }
 
     _mockProfile = _mockProfile.copyWith(
@@ -121,12 +97,5 @@ class CustomerProfileService {
       email: sanitizedEmail,
     );
     return _mockProfile;
-  }
-
-  void _setAuthHeader(HttpClientRequest request) {
-    final token = _tokenStorage.accessToken;
-    if (token != null && token.isNotEmpty) {
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-    }
   }
 }

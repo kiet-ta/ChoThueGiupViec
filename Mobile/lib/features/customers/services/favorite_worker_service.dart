@@ -1,15 +1,19 @@
-import 'dart:convert';
 import 'dart:io';
+import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/favorite_worker.dart';
 
 /// Service managing customer favorite workers matching .spec/contracts/customers.md §2.3.
+///
+/// [isMock] (only when a caller, a test, passes it): in-memory store, no network.
+/// Off (the default, the real app): server or network errors are thrown as [ApiException], never hidden.
 class FavoriteWorkerService {
   final String baseUrl;
   final HttpClient _httpClient;
   final TokenStorage _tokenStorage;
   final bool isMock;
 
+  // In-memory store, used only in mock mode
   final List<FavoriteWorker> _mockStore = [];
 
   FavoriteWorkerService({
@@ -20,7 +24,7 @@ class FavoriteWorkerService {
   })  : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
         _httpClient = httpClient ?? HttpClient(),
         _tokenStorage = tokenStorage ?? TokenStorage() {
-    _seedDefaultMockData();
+    if (isMock) _seedDefaultMockData();
   }
 
   void _seedDefaultMockData() {
@@ -58,26 +62,20 @@ class FavoriteWorkerService {
     _mockStore.clear();
   }
 
+  Future<Map<String, dynamic>> _call(String method, String path, String fallbackMessage) => apiRequest(
+        _httpClient,
+        method,
+        Uri.parse('$baseUrl/api/customers/me/favorite-workers$path'),
+        bearerToken: _tokenStorage.accessToken,
+        fallbackMessage: fallbackMessage,
+      );
+
   /// GET /api/customers/me/favorite-workers
   Future<List<FavoriteWorker>> getFavoriteWorkers() async {
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me/favorite-workers');
-        final request = await _httpClient.getUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-        if (response.statusCode == 200) {
-          final body = await response.transform(utf8.decoder).join();
-          final map = jsonDecode(body) as Map<String, dynamic>;
-          final data = map['data'] as List<dynamic>? ?? [];
-          return data
-              .map((item) => FavoriteWorker.fromJson(item as Map<String, dynamic>))
-              .toList();
-        }
-      } catch (_) {
-        // Fallback
-      }
+      final envelope = await _call('GET', '', 'Không tải được danh sách thợ quen.');
+      final data = envelope['data'] as List<dynamic>? ?? [];
+      return data.map((item) => FavoriteWorker.fromJson(item as Map<String, dynamic>)).toList();
     }
 
     // Sort by addedAt descending
@@ -89,23 +87,8 @@ class FavoriteWorkerService {
   /// PUT /api/customers/me/favorite-workers/{workerId} (Idempotent)
   Future<FavoriteWorker> addFavoriteWorker(int workerId) async {
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me/favorite-workers/$workerId');
-        final request = await _httpClient.putUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-        if (response.statusCode == 200) {
-          final body = await response.transform(utf8.decoder).join();
-          final map = jsonDecode(body) as Map<String, dynamic>;
-          final data = map['data'] as Map<String, dynamic>;
-          final worker = FavoriteWorker.fromJson(data);
-          _upsertMockWorker(worker);
-          return worker;
-        }
-      } catch (_) {
-        // Fallback
-      }
+      final envelope = await _call('PUT', '/$workerId', 'Thêm thợ quen thất bại.');
+      return FavoriteWorker.fromJson(envelope['data'] as Map<String, dynamic>);
     }
 
     // Mock addition
@@ -127,37 +110,10 @@ class FavoriteWorkerService {
   /// DELETE /api/customers/me/favorite-workers/{workerId} (Idempotent)
   Future<void> removeFavoriteWorker(int workerId) async {
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me/favorite-workers/$workerId');
-        final request = await _httpClient.deleteUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-        if (response.statusCode != 200 && response.statusCode != 204) {
-          final body = await response.transform(utf8.decoder).join();
-          throw HttpException('Bỏ yêu thích thất bại: $body');
-        }
-      } catch (e) {
-        if (e is HttpException) rethrow;
-      }
+      await _call('DELETE', '/$workerId', 'Bỏ yêu thích thất bại.');
+      return;
     }
 
     _mockStore.removeWhere((w) => w.workerId == workerId);
-  }
-
-  void _upsertMockWorker(FavoriteWorker worker) {
-    final idx = _mockStore.indexWhere((w) => w.workerId == worker.workerId);
-    if (idx != -1) {
-      _mockStore[idx] = worker;
-    } else {
-      _mockStore.insert(0, worker);
-    }
-  }
-
-  void _setAuthHeader(HttpClientRequest request) {
-    final token = _tokenStorage.accessToken;
-    if (token != null && token.isNotEmpty) {
-      request.headers.set('Authorization', 'Bearer $token');
-    }
   }
 }

@@ -1,16 +1,20 @@
-import 'dart:convert';
 import 'dart:io';
+import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_address.dart';
 
 /// Service managing customer address book matching .spec/contracts/customers.md §2.2.
+///
+/// [isMock] (only when a caller, a test, passes it): in-memory store, no network.
+/// Off (the default, the real app): every call goes to the backend and a server or network error is thrown as
+/// [ApiException]; it is never replaced by mock data.
 class CustomerAddressService {
   final String baseUrl;
   final HttpClient _httpClient;
   final TokenStorage _tokenStorage;
   final bool isMock;
 
-  // In-memory mock storage used as fallback when backend is unreachable or in tests
+  // In-memory store, used only in mock mode
   final List<CustomerAddress> _mockStore = [];
   int _mockIdCounter = 100;
 
@@ -22,7 +26,7 @@ class CustomerAddressService {
   })  : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
         _httpClient = httpClient ?? HttpClient(),
         _tokenStorage = tokenStorage ?? TokenStorage() {
-    _seedDefaultMockData();
+    if (isMock) _seedDefaultMockData();
   }
 
   void _seedDefaultMockData() {
@@ -77,26 +81,22 @@ class CustomerAddressService {
     _mockStore.add(address);
   }
 
+  Future<Map<String, dynamic>> _call(String method, String path, String fallbackMessage, {Object? body}) =>
+      apiRequest(
+        _httpClient,
+        method,
+        Uri.parse('$baseUrl/api/customers/me/addresses$path'),
+        bearerToken: _tokenStorage.accessToken,
+        body: body,
+        fallbackMessage: fallbackMessage,
+      );
+
   /// GET /api/customers/me/addresses
   Future<List<CustomerAddress>> getAddresses() async {
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me/addresses');
-        final request = await _httpClient.getUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-        if (response.statusCode == 200) {
-          final body = await response.transform(utf8.decoder).join();
-          final map = jsonDecode(body) as Map<String, dynamic>;
-          final data = map['data'] as List<dynamic>? ?? [];
-          return data
-              .map((item) => CustomerAddress.fromJson(item as Map<String, dynamic>))
-              .toList();
-        }
-      } catch (_) {
-        // Fallback to mock store
-      }
+      final envelope = await _call('GET', '', 'Không tải được sổ địa chỉ.');
+      final data = envelope['data'] as List<dynamic>? ?? [];
+      return data.map((item) => CustomerAddress.fromJson(item as Map<String, dynamic>)).toList();
     }
 
     // Sort default first, then newest
@@ -109,23 +109,16 @@ class CustomerAddressService {
     return sorted;
   }
 
-  /// GET /api/customers/me/addresses/{addressId}
+  /// GET /api/customers/me/addresses/{addressId}; null when the address does not exist (404).
   Future<CustomerAddress?> getAddressById(int addressId) async {
     if (!isMock) {
       try {
-        final uri = Uri.parse('$baseUrl/api/customers/me/addresses/$addressId');
-        final request = await _httpClient.getUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-        if (response.statusCode == 200) {
-          final body = await response.transform(utf8.decoder).join();
-          final map = jsonDecode(body) as Map<String, dynamic>;
-          final data = map['data'] as Map<String, dynamic>?;
-          if (data != null) return CustomerAddress.fromJson(data);
-        }
-      } catch (_) {
-        // Fallback
+        final envelope = await _call('GET', '/$addressId', 'Không tải được địa chỉ.');
+        final data = envelope['data'] as Map<String, dynamic>?;
+        return data == null ? null : CustomerAddress.fromJson(data);
+      } on ApiException catch (e) {
+        if (e.statusCode == 404) return null;
+        rethrow;
       }
     }
 
@@ -141,30 +134,8 @@ class CustomerAddressService {
     _validateAddressInput(input);
 
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me/addresses');
-        final request = await _httpClient.postUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-        request.headers.contentType = ContentType.json;
-
-        request.write(jsonEncode(input.toJson()));
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-
-        if (response.statusCode == 201 || response.statusCode == 200) {
-          final body = await response.transform(utf8.decoder).join();
-          final map = jsonDecode(body) as Map<String, dynamic>;
-          final data = map['data'] as Map<String, dynamic>;
-          final created = CustomerAddress.fromJson(data);
-          _updateMockStoreAfterCreate(created);
-          return created;
-        } else {
-          final body = await response.transform(utf8.decoder).join();
-          throw HttpException('Tạo địa chỉ thất bại (${response.statusCode}): $body');
-        }
-      } catch (e) {
-        if (e is FormatException || e is ArgumentError) rethrow;
-        // Fallback mock creation
-      }
+      final envelope = await _call('POST', '', 'Tạo địa chỉ thất bại.', body: input.toJson());
+      return CustomerAddress.fromJson(envelope['data'] as Map<String, dynamic>);
     }
 
     // Mock creation logic
@@ -196,30 +167,8 @@ class CustomerAddressService {
     _validateAddressInput(input);
 
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me/addresses/$addressId');
-        final request = await _httpClient.putUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-        request.headers.contentType = ContentType.json;
-
-        request.write(jsonEncode(input.toJson()));
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-
-        if (response.statusCode == 200) {
-          final body = await response.transform(utf8.decoder).join();
-          final map = jsonDecode(body) as Map<String, dynamic>;
-          final data = map['data'] as Map<String, dynamic>;
-          final updated = CustomerAddress.fromJson(data);
-          _updateMockStoreAfterUpdate(updated);
-          return updated;
-        } else {
-          final body = await response.transform(utf8.decoder).join();
-          throw HttpException('Cập nhật địa chỉ thất bại (${response.statusCode}): $body');
-        }
-      } catch (e) {
-        if (e is FormatException || e is ArgumentError) rethrow;
-        // Fallback mock update
-      }
+      final envelope = await _call('PUT', '/$addressId', 'Cập nhật địa chỉ thất bại.', body: input.toJson());
+      return CustomerAddress.fromJson(envelope['data'] as Map<String, dynamic>);
     }
 
     // Mock update logic
@@ -250,20 +199,8 @@ class CustomerAddressService {
   /// DELETE /api/customers/me/addresses/{addressId}
   Future<void> deleteAddress(int addressId) async {
     if (!isMock) {
-      try {
-        final uri = Uri.parse('$baseUrl/api/customers/me/addresses/$addressId');
-        final request = await _httpClient.deleteUrl(uri).timeout(const Duration(milliseconds: 600));
-        _setAuthHeader(request);
-
-        final response = await request.close().timeout(const Duration(milliseconds: 600));
-        if (response.statusCode != 200 && response.statusCode != 204) {
-          final body = await response.transform(utf8.decoder).join();
-          throw HttpException('Xoá địa chỉ thất bại: $body');
-        }
-      } catch (e) {
-        if (e is HttpException) rethrow;
-        // Continue to remove from mock store
-      }
+      await _call('DELETE', '/$addressId', 'Xoá địa chỉ thất bại.');
+      return;
     }
 
     final index = _mockStore.indexWhere((a) => a.addressId == addressId);
@@ -311,34 +248,6 @@ class CustomerAddressService {
     }
     if (input.longitude < -180.0 || input.longitude > 180.0) {
       throw ArgumentError('Kinh độ (longitude) không hợp lệ (-180 đến 180).');
-    }
-  }
-
-  void _updateMockStoreAfterCreate(CustomerAddress created) {
-    if (created.isDefault) {
-      for (var i = 0; i < _mockStore.length; i++) {
-        _mockStore[i] = _mockStore[i].copyWith(isDefault: false);
-      }
-    }
-    _mockStore.insert(0, created);
-  }
-
-  void _updateMockStoreAfterUpdate(CustomerAddress updated) {
-    final idx = _mockStore.indexWhere((a) => a.addressId == updated.addressId);
-    if (idx != -1) {
-      if (updated.isDefault) {
-        for (var i = 0; i < _mockStore.length; i++) {
-          if (i != idx) _mockStore[i] = _mockStore[i].copyWith(isDefault: false);
-        }
-      }
-      _mockStore[idx] = updated;
-    }
-  }
-
-  void _setAuthHeader(HttpClientRequest request) {
-    final token = _tokenStorage.accessToken;
-    if (token != null && token.isNotEmpty) {
-      request.headers.set('Authorization', 'Bearer $token');
     }
   }
 }
