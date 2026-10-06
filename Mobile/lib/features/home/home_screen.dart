@@ -6,6 +6,7 @@ import '../../core/widgets/eyebrow_badge.dart';
 import '../../core/widgets/nordic_button.dart';
 import '../../core/widgets/nordic_card.dart';
 import '../../core/widgets/trust_badge.dart';
+import '../identity/screens/phone_input_screen.dart';
 
 /// Main Welcome Screen of TỔ ẤM — Nordic Care Mobile application.
 /// Strictly conforms to the 390x844 mobile viewport specification.
@@ -237,8 +238,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: 'Đặt Ca Ngay',
                         width: double.infinity,
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Chuyển hướng đến luồng đặt ca...')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PhoneInputScreen(
+                                role: AppRole.customer,
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -289,8 +295,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: 'Vào Trực Ca',
                         width: double.infinity,
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Bật chế độ sẵn sàng nhận ca...')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PhoneInputScreen(
+                                role: AppRole.worker,
+                              ),
+                            ),
                           );
                         },
                       ),
