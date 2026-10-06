@@ -9,6 +9,8 @@
 //   4. labels the issue `in-progress` (removes `ready`) and assigns you
 //   5. regenerates .spec/tasks.md from GitHub Issues (generated file, not tracked) and runs scope-check as proof
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 const args = process.argv.slice(2)
 const dry = args.includes('--dry-run')
@@ -148,8 +150,27 @@ try {
 } catch (e) {
   fail('sync-issues failed', String(e.stderr || e.message).split('\n')[0])
 }
+// Windows/PowerShell: Git for Windows puts only Git\cmd on PATH, so find Git's own sh (never WSL's bash.exe).
+const findSh = () => {
+  if (tryRun('sh', ['-c', 'exit 0']) !== null) return { sh: 'sh', tried: ['sh (PATH)'] }
+  const tried = ['sh (PATH)']
+  if (process.platform === 'win32') {
+    const execPath = tryRun('git', ['--exec-path']) // <Git>/mingw64/libexec/git-core
+    const candidates = [
+      execPath && join(execPath, '..', '..', '..', 'bin', 'sh.exe'),
+      'C:\\Program Files\\Git\\bin\\sh.exe', // same default as harness/run.ps1
+    ].filter(Boolean)
+    for (const c of candidates) {
+      tried.push(c)
+      if (existsSync(c)) return { sh: c, tried }
+    }
+  }
+  return { sh: null, tried }
+}
+const { sh, tried } = findSh()
+if (!sh) fail('Git Bash (sh) not found, scope-check could not run', ...tried.map((t) => `tried ${t}`), 'install Git for Windows')
 try {
-  console.log(run('sh', ['harness/scope-check.sh']))
+  console.log(run(sh, ['harness/scope-check.sh']))
 } catch (e) {
   fail('scope-check does not accept this ticket', String(e.stderr || e.stdout || e.message).split('\n').slice(0, 4).join(' | '))
 }
