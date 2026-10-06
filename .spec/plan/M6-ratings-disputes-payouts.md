@@ -14,7 +14,7 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 - [ ] **WEB-BASE-02** Đăng nhập + lưu token + role guard (theo contract Identity, mock cho tới G2).
 - [ ] **WEB-BASE-03** API client theo envelope `ApiResponse<T>` + kiểu sinh từ OpenAPI (sau G4; trước đó mock theo contract) — dùng `src/services/api.ts`, đường dẫn tương đối `/api/...`.
 - [ ] **WEB-BASE-04** Bảng dữ liệu dùng chung (nhiều cột, lọc, phân trang, xuất file) + **trình xem chuỗi ảnh Before/After** (so sánh) dùng cho Dispute/eKYC/Agency.
-- [x] **BE-M6-00** Contract Ratings + Disputes + Payouts + Admin → `.spec/contracts/*.md`. — evidence: `.harness/evidence/20261006-153823-L3.log` (L3 PASSED, run with DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1, see PR); files `.spec/contracts/{ratings,disputes,payouts,admin}.md`
+- [x] **BE-M6-00** Contract Ratings + Disputes + Payouts + Admin → `.spec/contracts/*.md`. — evidence: `.harness/evidence/20261006-162921-L3.log` (L3 PASSED, run with DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1, see PR); files `.spec/contracts/{ratings,disputes,payouts,admin}.md`
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
 - [ ] **BE-M6-01** Đánh giá 2 chiều (BR-09): mở khi `COMPLETED`, đóng sau **48 h** (*decisions:* Q14; tiêu chí cố định trong decisions; UNIQUE(assignment_id, rater_role) SC-5), khách→thợ 1–5 sao + tiêu chí, thợ→khách; lưu vĩnh viễn, không sửa/đánh trùng; `IWorkerReputation` cho MatchingScore · *needs:* BASE-07 · nghe `JobCompleted`.

@@ -35,13 +35,13 @@ Storage: `criteria_json` stores the keys exactly as in decisions Q14 (`cleaning_
 {
   "assignmentId": 0,
   "canRate": true,
-  "reason": "OPEN | NOT_COMPLETED | WINDOW_CLOSED | ALREADY_RATED | NOT_YOUR_ASSIGNMENT",
+  "reason": "OPEN | NOT_COMPLETED | WINDOW_CLOSED | ALREADY_RATED",
   "opensAt": "ISO-8601 UTC | null",
   "closesAt": "ISO-8601 UTC | null",
   "secondsRemaining": 0
 }
 ```
-`opensAt` = `completed_at`, `closesAt` = `completed_at + Rating.WindowHours` (48, Q14). This feeds the countdown shown on the rating screens ("Còn 47 giờ 12 phút").
+An assignment that is not the caller's is **404**, never a `reason` (no existence leak, `identity.md` §1). `opensAt` = `completed_at`, `closesAt` = `completed_at + Rating.WindowHours` (48, Q14). This feeds the countdown shown on the rating screens ("Còn 47 giờ 12 phút").
 
 ## 2. Endpoints
 

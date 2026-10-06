@@ -17,7 +17,7 @@
   "batchStatus": "DRAFT | CLOSED",
   "totalAmount": 0,
   "itemCount": 0,
-  "confirmedBy": 0,
+  "confirmedBy": "number | null",
   "confirmedAt": "ISO-8601 UTC | null",
   "createdAt": "ISO-8601 UTC"
 }
@@ -29,8 +29,8 @@
 {
   "itemId": 0,
   "payeeType": "FREELANCER | AGENCY",
-  "workerId": 0,
-  "agencyId": 0,
+  "workerId": "number | null",
+  "agencyId": "number | null",
   "payeeName": "string",
   "jobCount": 0,
   "grossAmount": 0,

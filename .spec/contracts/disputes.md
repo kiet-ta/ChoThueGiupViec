@@ -18,7 +18,7 @@
   "evidenceUrls": ["string"],
   "disputeStatus": "OPEN | IN_REVIEW | RESOLVED | DISMISSED",
   "faultParty": "FREELANCER | AGENCY | CUSTOMER | null",
-  "compensationAmount": 0,
+  "compensationAmount": "number | null",
   "slaDueAt": "ISO-8601 UTC",
   "resolvedAt": "ISO-8601 UTC | null",
   "createdAt": "ISO-8601 UTC"
@@ -103,7 +103,7 @@ Effects: `dispute_status = OPEN`, `sla_due_at = created_at + 48 h` (drawio note:
 
 `compensationAmount` and every refund use `Vnd` (G-2). The `resolved_by` admin, `resolved_at` (UTC, `IClock`) and `note` are recorded; the note is stored in `ADMIN_AUDIT_LOG` as `entity_type = DISPUTE_TICKET`, `field_name = dispute_status`, `reason = note` (**D8**).
 
-Absence-fee reversal (Q10): if the customer disputes an absence fee within 24 h and wins (`faultParty` = the worker's side, `category = ABSENT_FEE`), the 40% fee is refunded to the customer and deducted from the worker's next payout (`PAYOUT_ITEM.penalty_amount`) the same way as `FREELANCER`.
+Absence-fee reversal (Q10): if the customer disputes an absence fee within 24 h and wins (`faultParty` = the worker's side, `category = ABSENT_FEE`), the 40% fee is refunded to the customer and deducted through the payee's next payout: for a Freelancer worker from that worker's `PAYOUT_ITEM.penalty_amount`; for an Agency worker from the **agency's** `PAYOUT_ITEM.penalty_amount` (the payee of that job in `payouts.md`), with **no** SLA points and **no** escrow movement because Q09 lists only `NO_SHOW`, `SHORTAGE` and upheld `QUALITY_COMPLAINT` as SLA/escrow causes (**D9**).
 
 ## 3. Events
 - **Handles** `CustomerAbsentApproved` (published by this team's Admin module): tells the customer, through `INotificationService`, that they can dispute the fee within `Absence.CustomerDisputeHours` (24, Q10). No row is created.
@@ -121,3 +121,4 @@ Absence-fee reversal (Q10): if the customer disputes an absence fee within 24 h 
 | **D6** | Case file needs check-in log (M3), photos/VoL (M4) and checklist: modules may not read each other's tables. | **New read port `IDisputeEvidenceQuery` returning timeline, checklist and photos by `orderId` (implementer M3/M4 or M1 via the shared flat `JOB_ASSIGNMENT` data), added through a Scope exception on BASE-03.** Until then Fake. |
 | **D7** | If the customer is at fault, may the platform charge a fee? PRD only defines the 40% absence rule. | **No extra charge (nothing is invented); `CUSTOMER` fault is only recorded.** |
 | **D8** | G-5 audits Admin-editable money parameters only; a verdict moves money. | **Also write one `ADMIN_AUDIT_LOG` row per verdict (cheap, append-only).** |
+| **D9** | Q10 says the reversed absence fee is deducted "from the worker's next payout"; for an Agency worker the payee is the agency, and Q09 does not make an absence reversal an SLA/escrow event. | **Agency payout deduction only, no SLA points, no escrow, as written in section 2.3.** Leader to confirm. |
