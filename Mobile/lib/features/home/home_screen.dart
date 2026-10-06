@@ -7,6 +7,7 @@ import '../../core/widgets/nordic_button.dart';
 import '../../core/widgets/nordic_card.dart';
 import '../../core/widgets/trust_badge.dart';
 import '../customers/screens/address_list_screen.dart';
+import '../customers/screens/customer_profile_screen.dart';
 import '../customers/screens/favorite_workers_screen.dart';
 import '../identity/screens/phone_input_screen.dart';
 
@@ -354,6 +355,51 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => const FavoriteWorkersScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12.0),
+                NordicCard(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40.0,
+                        height: 40.0,
+                        decoration: BoxDecoration(
+                          color: NordicColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                        child: const Icon(
+                          Icons.person_outline_rounded,
+                          color: NordicColors.primary,
+                          size: 22.0,
+                        ),
+                      ),
+                      const SizedBox(width: 12.0),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Hồ Sơ Cá Nhân', style: NordicTypography.h3),
+                            Text(
+                              'Thông tin tài khoản, điểm tin cậy & email',
+                              style: NordicTypography.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      NordicButton(
+                        label: 'Xem & Sửa',
+                        variant: NordicButtonVariant.secondary,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CustomerProfileScreen(),
                             ),
                           );
                         },

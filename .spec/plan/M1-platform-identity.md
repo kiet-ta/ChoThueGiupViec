@@ -40,7 +40,7 @@ Ticket module: Identity, Customers theo mẫu ở overview §3 (+ `Mobile/lib/fe
 - [x] **MOB-M1-01** Đăng nhập OTP + lưu token. — evidence: Flutter test suite 21/21 passed (widget tests for PhoneInputScreen and OtpVerifyScreen, unit tests for AuthService and TokenStorage; PR #72)
 - [x] **MOB-M1-02** Sổ địa chỉ (chọn vị trí GPS, nhập diện tích/tầng, hiển thị S_total). — evidence: Flutter test suite 38/38 passed (widget tests for AddressListScreen and AddressFormScreen, unit tests for CustomerAddress model and CustomerAddressService; PR #74)
 - [x] **MOB-M1-03** Danh sách thợ quen. — evidence: Flutter test suite 47/47 passed (widget tests for FavoriteWorkersScreen, unit tests for FavoriteWorker model and FavoriteWorkerService; PR #80)
-- [ ] **MOB-M1-04** Hồ sơ.
+- [x] **MOB-M1-04** Hồ sơ. — evidence: Flutter test suite 60/60 passed (widget tests for CustomerProfileScreen, unit tests for CustomerProfile model and CustomerProfileService; PR #82)
 
 ## Hỗ trợ cả nhóm (khi được ticket "Scope exception" yêu cầu)
 - [ ] Xử lý thay đổi schema / port được các module đề nghị (mỗi yêu cầu = 1 issue riêng, chạy tuần tự).

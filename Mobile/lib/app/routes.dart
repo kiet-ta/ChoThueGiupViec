@@ -10,4 +10,5 @@ class AppRoutes {
   static const String addressList = '/addresses';
   static const String addressForm = '/addresses/form';
   static const String favoriteWorkers = '/favorite-workers';
+  static const String profile = '/profile';
 }
