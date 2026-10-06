@@ -3,7 +3,8 @@
 # (GitHub Issue #N mirrored in .spec/tasks.md). Violations FAIL with evidence (file + rule).
 #
 # Usage:
-#   sh harness/scope-check.sh              # staged files (pre-commit)
+#   sh harness/scope-check.sh              # staged files (pre-commit); during a merge of origin/main:
+#                                          #   staged result vs MERGE_HEAD (the ticket's own changes)
 #   sh harness/scope-check.sh --ci <base>  # files changed vs <base> (CI), e.g. origin/main
 # Branch must be named: ticket/<issue-number>-<slug>   (override in CI: HARNESS_BRANCH)
 #
@@ -34,8 +35,19 @@ STATUS=$(echo "$BLOCK" | sed -n 's/^- status: *//p' | head -1 | tr -d '\r ')
 ALLOWED=$(echo "$BLOCK" | awk '/^- allowed:/{a=1;next} /^- /{a=0} a && /^ +- /{sub(/^ +- */,""); gsub(/[`\r ]/,""); print}')
 [ -n "$ALLOWED" ] || fail "ticket #$ID has no allowed paths" "$TASKS section '## #$ID' lacks '- allowed:' entries"
 
+MERGE_FILE=$(git rev-parse --git-path MERGE_HEAD)
 if [ "$1" = "--ci" ]; then
   FILES=$(git diff --name-only --diff-filter=ACMRD "$2"...HEAD)
+elif [ -f "$MERGE_FILE" ]; then
+  # Merge commit (pre-commit after a conflicted merge): only a merge of origin/main is allowed. The ticket's own
+  # changes are then what the staged result still differs from main by (its commits + any conflict resolution).
+  MERGED=$(tr -d '\r' < "$MERGE_FILE")
+  [ "$(echo "$MERGED" | wc -l | tr -d ' ')" = "1" ] || fail "octopus merge is not allowed" "MERGE_HEAD lists: $(echo "$MERGED" | tr '\n' ' ')"
+  git merge-base --is-ancestor "$MERGED" origin/main 2>/dev/null \
+    || fail "only a merge of origin/main into a ticket branch is allowed" \
+      "MERGE_HEAD=$MERGED is not contained in origin/main (another ticket branch or an unpushed commit?)" \
+      "abort with 'git merge --abort', then 'git fetch origin' and 'git merge origin/main'"
+  FILES=$(git diff --cached --name-only --diff-filter=ACMRD "$MERGED")
 else
   FILES=$(git diff --cached --name-only --diff-filter=ACMRD)
 fi

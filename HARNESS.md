@@ -107,3 +107,8 @@ Implemented: `harness/` (verify, scope-check, guard-command, protected-paths, sy
 - `node harness/start-ticket.mjs <issue#>` (PowerShell: `./harness/run.ps1 start-ticket <issue#>`) is the only way to start a ticket. It validates the Issue (open, label `ticket`, not `blocked`/`review`, every blocker closed), creates or resumes `ticket/<issue#>-<slug>` from a freshly fetched `origin/main`, sets `in-progress`, regenerates `.spec/tasks.md` and runs `scope-check`.
 - `.spec/tasks.md` is GENERATED from GitHub Issues and NOT tracked (no merge conflicts between members). CI regenerates it before `scope-check` (job `scope`), so a PR cannot widen its own scope by editing its own copy.
 - Still manual (GitHub Settings, leader): branch protection on `main` requiring the checks `scope` and `verify-l3`.
+
+### 9.2 Bringing main into a ticket branch (HARNESS-04, issue #76)
+- When a PR conflicts with `main`, the member resolves it on the ticket branch: `git fetch origin`, `git merge origin/main`, fix the conflicts, `git add`, `git commit`, `git push`. Never rebase + force push (rule 7).
+- During that merge commit, pre-commit `scope-check` checks the files where the staged result differs from `MERGE_HEAD` (the ticket's own changes plus the conflict resolution), not everything `main` brought in. Each of them must still be in `allowed`.
+- Only a merge of a commit already in `origin/main` is accepted; merging another ticket branch, a local unpushed commit or an octopus merge fails with the `MERGE_HEAD` sha as evidence. A merge without conflicts never reaches pre-commit (git runs `pre-merge-commit`, not configured); CI `scope` (`origin/main...HEAD`) still checks the whole branch.
