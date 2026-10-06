@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 import { pageItems, pageRange, totalPages } from '../src/components/data-table/paging.ts'
 import { toCsv } from '../src/components/data-table/csv.ts'
 import { pairPhotos, type ComparePhoto } from '../src/components/photo-compare/pair-photos.ts'
+import { moveIndex, ownsArrowKeys, stepFromKey } from '../src/components/photo-compare/viewer-keys.ts'
 
 describe('pagination', () => {
   it('totalPages is at least 1', () => {
@@ -89,5 +90,31 @@ describe('pairPhotos', () => {
 
   it('returns an empty list when there are no photos', () => {
     assert.deepEqual(pairPhotos([], []), [])
+  })
+})
+
+describe('viewer keys', () => {
+  it('lets form controls (the compare slider) keep their arrow keys', () => {
+    assert.equal(ownsArrowKeys('INPUT'), true)
+    assert.equal(ownsArrowKeys('input'), true)
+    assert.equal(ownsArrowKeys('SELECT'), true)
+    assert.equal(ownsArrowKeys('TEXTAREA'), true)
+    assert.equal(ownsArrowKeys('DIV', true), true)
+    assert.equal(ownsArrowKeys('BUTTON'), false)
+    assert.equal(ownsArrowKeys('DIV'), false)
+  })
+
+  it('maps only the two arrow keys to a step', () => {
+    assert.equal(stepFromKey('ArrowLeft'), -1)
+    assert.equal(stepFromKey('ArrowRight'), 1)
+    assert.equal(stepFromKey('ArrowUp'), 0)
+    assert.equal(stepFromKey('Enter'), 0)
+  })
+
+  it('moveIndex stays inside the list', () => {
+    assert.equal(moveIndex(0, -1, 3), 0)
+    assert.equal(moveIndex(1, 1, 3), 2)
+    assert.equal(moveIndex(2, 1, 3), 2)
+    assert.equal(moveIndex(0, 1, 0), 0)
   })
 })

@@ -25,13 +25,13 @@ Frontend/
 - Style with Tailwind utilities; use shadcn components instead of custom ones when available.
 - Only `VITE_`-prefixed env vars are exposed to the browser: never put secrets there (Stripe secret key stays in backend; frontend may use the publishable key only).
 
+## Commands
+`npm install`, `npm run dev` (http://localhost:5173), `npm run build`, `npm run lint`, `npm test`.
+
 ## Shared components (WEB-BASE-04)
 Live in `src/components/` (outside `features/`, so no module owns them). No extra package; theme colours come from the shadcn tokens (mapping the TO AM tokens into `index.css` is a separate ticket).
 - **`DataTable<T>`** (`@/components/data-table`): `columns: Column<T>[]` (`id`, `header`, `cell(row)`, optional `align`, `className`), `rows`, `rowKey`, and optional `loading` (skeleton rows, `aria-busy`), `error` + `onRetry`, `emptyMessage`, `onRowClick`, `toolbar`, `pagination`. Presentational: the caller owns data, paging and filters because they are server-side (contract shape `{ items, page, pageSize, total }`). Many columns scroll horizontally.
 - **`Pagination`**: `page` (1-based), `pageSize`, `total`, `onPageChange`, optional `pageSizeOptions` + `onPageSizeChange`; shows "Hiển thị a–b trên tổng N". Range and page-button maths are pure functions in `paging.ts`.
 - **`DataTableToolbar<T>`**: controlled `search`, controlled chip `filter` (`options`, `value`, `onChange`), and `exportCsv { fileName, columns, rows }` which downloads the rows currently shown as `.csv` (`toCsv`: UTF-8 BOM for Excel, CRLF, quotes escaped, text starting with `= + - @` neutralised against formula injection). Real bank files stay server-side (`.xlsx`, payouts contract section 2.3).
-- **`BeforeAfterViewer`** (`@/components/photo-compare`): `before` and `after` are `ComparePhoto[]` (`angleNo`, `url`, optional `volScore`, `isAccepted`, `caption`). `pairPhotos` pairs them by `angleNo` (decisions Q03): per angle an accepted photo beats a rejected retake, the latest wins; an angle missing on one side shows "Thiếu ảnh". Modes "Cạnh nhau" and "Kéo thanh" (slider overlay), previous/next and angle tabs, ArrowLeft/ArrowRight, VoL badge ("Đạt nét" / "Bị mờ").
-- Tests: `tests/components.test.ts` covers `paging.ts`, `csv.ts` and `pair-photos.ts` (`npm test`).
-
-## Commands
-`npm install`, `npm run dev` (http://localhost:5173), `npm run build`, `npm run lint`, `npm test`.
+- **`BeforeAfterViewer`** (`@/components/photo-compare`): `before` and `after` are `ComparePhoto[]` (`angleNo`, `url`, optional `volScore`, `isAccepted`, `caption`). `pairPhotos` pairs them by `angleNo` (decisions Q03): per angle an accepted photo beats a rejected retake, the latest wins; an angle missing on one side shows "Thiếu ảnh". Modes "Cạnh nhau" and "Kéo thanh" (slider overlay), previous/next and angle tabs, ArrowLeft/ArrowRight (ignored while the focus is on the slider or another form control, rules in `viewer-keys.ts`), VoL badge ("Đạt nét" / "Bị mờ").
+- Tests: `tests/components.test.ts` covers `paging.ts`, `csv.ts`, `pair-photos.ts` and `viewer-keys.ts` (`npm test`).

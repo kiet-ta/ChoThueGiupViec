@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { pairPhotos, type ComparePhoto } from './pair-photos'
+import { moveIndex, ownsArrowKeys, stepFromKey } from './viewer-keys'
 
 export interface BeforeAfterViewerProps {
   before: ComparePhoto[]
@@ -112,8 +113,13 @@ export function BeforeAfterViewer({ before, after, initialAngleNo }: BeforeAfter
   const current = pairs[index]
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'ArrowRight') setSelected(Math.min(index + 1, pairs.length - 1))
-    if (e.key === 'ArrowLeft') setSelected(Math.max(index - 1, 0))
+    // The slider (and any other form control) keeps its own arrow keys: do not also change the angle.
+    const target = e.target as HTMLElement
+    if (ownsArrowKeys(target.tagName, target.isContentEditable)) return
+    const step = stepFromKey(e.key)
+    if (step === 0) return
+    e.preventDefault()
+    setSelected(moveIndex(index, step, pairs.length))
   }
 
   return (
@@ -141,27 +147,29 @@ export function BeforeAfterViewer({ before, after, initialAngleNo }: BeforeAfter
         <SliderCompare key={current.angleNo} before={current.before} after={current.after} />
       )}
 
-      <div className="flex items-center gap-2 overflow-x-auto" role="tablist" aria-label="Chọn góc chụp">
+      <div className="flex items-center gap-2">
         <Button size="sm" variant="outline" disabled={index === 0} onClick={() => setSelected(index - 1)}>
           Góc trước
         </Button>
-        {pairs.map((p, i) => (
-          <button
-            key={p.angleNo}
-            type="button"
-            role="tab"
-            aria-selected={i === index}
-            onClick={() => setSelected(i)}
-            className={cn(
-              'flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-sm',
-              i === index ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted',
-              (!p.before || !p.after) && 'border-dashed',
-            )}
-          >
-            Góc {p.angleNo}
-            {(!p.before || !p.after) && <span aria-label="Thiếu ảnh">!</span>}
-          </button>
-        ))}
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" role="tablist" aria-label="Chọn góc chụp">
+          {pairs.map((p, i) => (
+            <button
+              key={p.angleNo}
+              type="button"
+              role="tab"
+              aria-selected={i === index}
+              onClick={() => setSelected(i)}
+              className={cn(
+                'flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-sm',
+                i === index ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted',
+                (!p.before || !p.after) && 'border-dashed',
+              )}
+            >
+              Góc {p.angleNo}
+              {(!p.before || !p.after) && <span aria-label="Thiếu ảnh">!</span>}
+            </button>
+          ))}
+        </div>
         <Button size="sm" variant="outline" disabled={index === pairs.length - 1} onClick={() => setSelected(index + 1)}>
           Góc sau
         </Button>
