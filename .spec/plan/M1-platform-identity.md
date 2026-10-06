@@ -38,7 +38,7 @@ Ticket module: Identity, Customers theo mẫu ở overview §3 (+ `Mobile/lib/fe
 
 ## Wave 3 — Mobile (Flutter) · *needs:* nền Mobile của M3 (MOB-BASE-01..03) + G3/G4
 - [x] **MOB-M1-01** Đăng nhập OTP + lưu token. — evidence: Flutter test suite 21/21 passed (widget tests for PhoneInputScreen and OtpVerifyScreen, unit tests for AuthService and TokenStorage; PR #72)
-- [ ] **MOB-M1-02** Sổ địa chỉ (chọn vị trí GPS, nhập diện tích/tầng, hiển thị S_total).
+- [x] **MOB-M1-02** Sổ địa chỉ (chọn vị trí GPS, nhập diện tích/tầng, hiển thị S_total). — evidence: Flutter test suite 38/38 passed (widget tests for AddressListScreen and AddressFormScreen, unit tests for CustomerAddress model and CustomerAddressService; PR #74)
 - [ ] **MOB-M1-03** Danh sách thợ quen · **MOB-M1-04** Hồ sơ.
 
 ## Hỗ trợ cả nhóm (khi được ticket "Scope exception" yêu cầu)
