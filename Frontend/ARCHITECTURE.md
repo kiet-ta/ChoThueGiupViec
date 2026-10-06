@@ -8,7 +8,8 @@ Frontend/
     components/ui/   shadcn/ui components (generated; add with `npx shadcn@latest add <name>`)
     lib/utils.ts     `cn()` helper
     services/api.ts  fetch client; backend envelope ApiResponse<T> { success, message, data }
-    features/        feature modules (components, hooks, api per feature)
+    app/             shell, FROZEN after WEB-BASE-01 (router, area layout, feature registry); nobody edits it to add a feature
+    features/        feature modules (components, hooks, api per feature); each has a routes.tsx
     pages/           route-level pages
     hooks/           shared hooks
     types/           shared TS types
@@ -24,6 +25,13 @@ Frontend/
 - For production set `VITE_API_BASE_URL` to the API URL and enable CORS in Backend.
 - Style with Tailwind utilities; use shadcn components instead of custom ones when available.
 - Only `VITE_`-prefixed env vars are exposed to the browser: never put secrets there (Stripe secret key stays in backend; frontend may use the publishable key only).
+
+## Routing and feature modules (WEB-BASE-01)
+- Router: `react-router-dom` (chosen by the owner on 2026-10-06; ARCHITECTURE.md named none before). Two desktop areas (decision D3, 1440x900 reference): **Admin console** at `/admin/*` and **Partner Portal** at `/partner/*`, each with a 240 px sidebar + main content layout (`src/app/AreaLayout.tsx`). `/` redirects to `/admin`.
+- **Auto-loading:** `src/app/feature-registry.ts` uses `import.meta.glob('../features/*/routes.tsx', { eager: true })`. A feature adds routes by editing **only its own** `src/features/<name>/routes.tsx`, which must `export default` a `FeatureModule` (`src/app/feature-module.ts`): `{ area: 'admin' | 'partner', routes: RouteObject[], nav?: NavItem[] }`. `routes` are relative to the area root; `nav` entries (`label`, `to`, optional `section`) fill that area's sidebar. No file in `src/app/**` changes when a feature is added.
+- Feature folders created by the base: `agencies` (partner), `skills`, `workers`, `dispatch`, `ratings`, `disputes`, `payouts`, `admin` (admin), each with an empty `routes.tsx`. The owner of a module fills it in.
+- Role guards and token storage arrive with WEB-BASE-02; until then both areas are open.
+- Theme: layouts use the shadcn theme tokens (`bg-sidebar`, `text-sidebar-foreground`, ...). Mapping the TO AM design tokens into `src/index.css` is a separate ticket (design skill, section 4); do not do it inside a feature ticket.
 
 ## Commands
 `npm install`, `npm run dev` (http://localhost:5173), `npm run build`, `npm run lint`.
