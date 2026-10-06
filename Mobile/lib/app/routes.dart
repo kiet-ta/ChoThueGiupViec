@@ -9,4 +9,5 @@ class AppRoutes {
   static const String otpVerify = '/auth/otp-verify';
   static const String addressList = '/addresses';
   static const String addressForm = '/addresses/form';
+  static const String favoriteWorkers = '/favorite-workers';
 }
