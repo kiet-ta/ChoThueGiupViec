@@ -19,10 +19,9 @@ class PermissionWrapper implements IPermissionWrapper {
   bool _mockCameraGranted;
 
   PermissionWrapper({
-    bool mockLocationGranted = true,
-    bool mockCameraGranted = true,
-  })  : _mockLocationGranted = mockLocationGranted,
-        _mockCameraGranted = mockCameraGranted;
+    this._mockLocationGranted = true,
+    this._mockCameraGranted = true,
+  });
 
   void setMockLocationPermission(bool granted) {
     _mockLocationGranted = granted;

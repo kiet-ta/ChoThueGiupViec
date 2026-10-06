@@ -164,7 +164,7 @@ class ApiClient {
       if (statusCode == 401 && !isRetry && requiresAuth && tokenStorage.hasRefreshToken) {
         final refreshed = await _tryRefreshToken();
         if (refreshed) {
-          return _sendRequest<T>(
+          return await _sendRequest<T>(
             method,
             path,
             body: body,
