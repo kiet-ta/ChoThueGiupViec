@@ -83,7 +83,19 @@ public class DispatchOfferEngine
 
         if (scanResult.BestCandidate == null)
         {
-            _logger.LogWarning("No eligible candidate found for order {OrderId}. Dispatch cannot proceed.", orderId);
+            var failedAtUtc = _clock.UtcNow;
+            var reason = scanResult.ExhaustedAllSteps
+                ? "Quá bán kính 10 km không tìm được thợ phù hợp (BR-03)."
+                : "Không tìm thấy thợ phù hợp cho đơn hàng.";
+
+            _logger.LogWarning("No eligible candidate found for order {OrderId}. Reason: {Reason}. Publishing AssignmentFailed.", orderId, reason);
+
+            await _mediator.Publish(new AssignmentFailed(
+                OrderId: orderId,
+                Reason: reason,
+                FailedAtUtc: failedAtUtc
+            ), cancellationToken);
+
             return null;
         }
 
