@@ -407,4 +407,87 @@ public class DispatchOfferEngineTests
         Assert.Contains("10 km", failedEvent.Reason);
         Assert.Equal(startTime, failedEvent.FailedAtUtc);
     }
+
+    [Fact]
+    public async Task StartDispatchForOrder_auto_assigns_Premium_orders_via_AgencyCapacity()
+    {
+        var startTime = new DateTime(2026, 10, 15, 8, 0, 0, DateTimeKind.Utc);
+        var clock = new FakeClock();
+        clock.Set(startTime);
+        var fakeQuery = new FakeWorkerAvailabilityQuery();
+        var scanner = new SteppedRadiusDispatchScanner(fakeQuery, MicrosoftOptions.Create(new BusinessRules()));
+        var repo = new InMemoryDispatchRepository();
+        repo.AddSlot(new BookingSlot { SlotId = 1, SlotStatus = "AVAILABLE" });
+        var store = new InMemoryOfferStore();
+        var mediator = new TestMediator();
+        var fakeAgencyCapacity = new FakeAgencyCapacityService { RemainingSlots = 10 };
+
+        var engine = new DispatchOfferEngine(
+            scanner, repo, store, clock, mediator,
+            MicrosoftOptions.Create(new BusinessRules()),
+            agencyCapacityService: fakeAgencyCapacity
+        );
+
+        var result = await engine.StartDispatchForOrderAsync(
+            orderId: 801,
+            customerId: 501,
+            serviceTier: ServiceTier.Premium,
+            date: new DateOnly(2026, 10, 15),
+            shiftCode: "CHIEU",
+            location: new GeoPoint(10.762622, 106.660172),
+            grossAmount: 390000m
+        );
+
+        Assert.NotNull(result);
+        Assert.True(result.IsAccepted);
+        var storedAssignment = await repo.GetAssignmentByIdAsync(result.AssignmentId);
+        Assert.Equal(ServiceTier.Premium, storedAssignment!.ServiceTier);
+        Assert.Equal(JobAssignmentStatus.Assigned, storedAssignment!.AssignmentStatus);
+
+        // Verify slot was locked
+        var lockedSlot = repo.GetSlot(1);
+        Assert.Equal("LOCKED", lockedSlot!.SlotStatus);
+
+        // Verify JobAssigned was published with AgencyId
+        Assert.Single(mediator.PublishedEvents);
+        var assignedEvt = Assert.IsType<JobAssigned>(mediator.PublishedEvents[0]);
+        Assert.Equal(801, assignedEvt.OrderId);
+        Assert.NotNull(assignedEvt.AgencyId);
+    }
+
+    [Fact]
+    public async Task StartDispatchForOrder_publishes_AssignmentFailed_when_Premium_agency_capacity_is_fully_booked()
+    {
+        var startTime = new DateTime(2026, 10, 15, 8, 0, 0, DateTimeKind.Utc);
+        var clock = new FakeClock();
+        clock.Set(startTime);
+        var fakeQuery = new FakeWorkerAvailabilityQuery();
+        var scanner = new SteppedRadiusDispatchScanner(fakeQuery, MicrosoftOptions.Create(new BusinessRules()));
+        var repo = new InMemoryDispatchRepository();
+        var store = new InMemoryOfferStore();
+        var mediator = new TestMediator();
+        var fakeAgencyCapacity = new FakeAgencyCapacityService { RemainingSlots = 0 }; // Fully booked
+
+        var engine = new DispatchOfferEngine(
+            scanner, repo, store, clock, mediator,
+            MicrosoftOptions.Create(new BusinessRules()),
+            agencyCapacityService: fakeAgencyCapacity
+        );
+
+        var result = await engine.StartDispatchForOrderAsync(
+            orderId: 802,
+            customerId: 502,
+            serviceTier: ServiceTier.Premium,
+            date: new DateOnly(2026, 10, 15),
+            shiftCode: "TOI",
+            location: new GeoPoint(10.762622, 106.660172),
+            grossAmount: 390000m
+        );
+
+        Assert.Null(result);
+        Assert.Single(mediator.PublishedEvents);
+        var failedEvt = Assert.IsType<AssignmentFailed>(mediator.PublishedEvents[0]);
+        Assert.Equal(802, failedEvt.OrderId);
+        Assert.Contains("Agency", failedEvt.Reason);
+    }
 }

@@ -38,6 +38,7 @@ public class DispatchOfferEngine
     private readonly IClock _clock;
     private readonly IMediator _mediator;
     private readonly BusinessRules _businessRules;
+    private readonly IAgencyCapacityService? _agencyCapacityService;
     private readonly ILogger<DispatchOfferEngine> _logger;
     private readonly object _lock = new();
 
@@ -48,6 +49,7 @@ public class DispatchOfferEngine
         IClock clock,
         IMediator mediator,
         IOptions<BusinessRules> businessRules,
+        IAgencyCapacityService? agencyCapacityService = null,
         ILogger<DispatchOfferEngine>? logger = null)
     {
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
@@ -56,6 +58,7 @@ public class DispatchOfferEngine
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _businessRules = businessRules?.Value ?? new BusinessRules();
+        _agencyCapacityService = agencyCapacityService;
         _logger = logger ?? NullLogger<DispatchOfferEngine>.Instance;
     }
 
@@ -73,6 +76,20 @@ public class DispatchOfferEngine
         byte assignmentSeq = 1,
         CancellationToken cancellationToken = default)
     {
+        // 1. If serviceTier is PREMIUM, auto-assign to Partner Agency via IAgencyCapacityService (PRD §2.1, §4.1)
+        if (serviceTier == ServiceTier.Premium)
+        {
+            return await StartPremiumAgencyDispatchAsync(
+                orderId,
+                customerId,
+                date,
+                shiftCode,
+                grossAmount,
+                assignmentSeq,
+                cancellationToken
+            );
+        }
+
         var scanResult = await _scanner.ScanCandidatesAsync(
             serviceTier,
             date,
@@ -151,6 +168,100 @@ public class DispatchOfferEngine
             offer.AssignmentId, offer.WorkerId, offer.MatchingScore, timeoutSeconds);
 
         return offer;
+    }
+
+    /// <summary>
+    /// Auto-assigns a Premium order to an agency via <see cref="IAgencyCapacityService"/> (PRD §2.1, §4.1).
+    /// </summary>
+    public async Task<DispatchOffer?> StartPremiumAgencyDispatchAsync(
+        long orderId,
+        int customerId,
+        DateOnly date,
+        string shiftCode,
+        decimal grossAmount,
+        byte assignmentSeq = 1,
+        CancellationToken cancellationToken = default)
+    {
+        var nowUtc = _clock.UtcNow;
+
+        if (_agencyCapacityService == null)
+        {
+            _logger.LogWarning("No agency capacity service configured for Premium order {OrderId}.", orderId);
+            return null;
+        }
+
+        var capacityRequest = new CapacityRequest(date, shiftCode, RequiredWorkers: 1);
+        var reservation = await _agencyCapacityService.TryReserveAsync(capacityRequest, cancellationToken);
+
+        if (reservation == null)
+        {
+            _logger.LogWarning("Partner agencies are fully booked for order {OrderId} on {Date} shift {Shift}.", orderId, date, shiftCode);
+            await _mediator.Publish(new AssignmentFailed(
+                OrderId: orderId,
+                Reason: "Đơn Premium không có doanh nghiệp đối tác (Agency) còn lịch trống (Q13).",
+                FailedAtUtc: nowUtc
+            ), cancellationToken);
+            return null;
+        }
+
+        int slotId = reservation.SlotIds.Count > 0 ? reservation.SlotIds[0] : 0;
+        int agencyId = reservation.AgencyId;
+
+        decimal commissionRate = 0.20m;
+        decimal payoutAmount = grossAmount * (1.0m - commissionRate);
+
+        var assignment = new JobAssignment
+        {
+            OrderId = orderId,
+            CustomerId = customerId,
+            WorkerId = 0, // Staff assigned by agency or assigned directly
+            AgencyId = agencyId,
+            SlotId = slotId,
+            ServiceTier = ServiceTier.Premium,
+            AssignmentSeq = assignmentSeq,
+            DispatchRadiusKm = 0,
+            MatchingScore = 1.0m,
+            GrossAmount = grossAmount,
+            CommissionRate = commissionRate,
+            PayoutAmount = payoutAmount,
+            AcceptedAt = nowUtc,
+            CreatedAt = nowUtc,
+            UpdatedAt = nowUtc,
+        };
+
+        var savedAssignment = await _dispatchRepository.CreateAssignmentAsync(assignment, cancellationToken);
+
+        // Lock slot directly (transitions OFFERED -> ASSIGNED)
+        await _dispatchRepository.TryLockSlotAndAssignAsync(savedAssignment.AssignmentId, slotId, nowUtc, cancellationToken);
+
+        await _mediator.Publish(new JobAssigned(
+            AssignmentId: savedAssignment.AssignmentId,
+            OrderId: orderId,
+            WorkerId: savedAssignment.WorkerId,
+            AgencyId: agencyId,
+            SlotId: slotId,
+            AssignedAtUtc: nowUtc
+        ), cancellationToken);
+
+        _logger.LogInformation(
+            "Auto-assigned Premium order {OrderId} to Agency {AgencyId} (Slot {SlotId}).",
+            orderId, agencyId, slotId);
+
+        return new DispatchOffer
+        {
+            AssignmentId = savedAssignment.AssignmentId,
+            OrderId = orderId,
+            WorkerId = savedAssignment.WorkerId,
+            SlotId = slotId,
+            SearchRadiusKm = 0,
+            MatchingScore = 1.0m,
+            GrossAmount = grossAmount,
+            CommissionRate = commissionRate,
+            PayoutAmount = payoutAmount,
+            OfferedAtUtc = nowUtc,
+            ExpiresAtUtc = nowUtc,
+            IsAccepted = true
+        };
     }
 
     /// <summary>
