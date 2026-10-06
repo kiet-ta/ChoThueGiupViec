@@ -274,6 +274,7 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
       "unit_price", oldPrice.ToString(), newPrice.ToString(), reason), ct);
   await _uow.SaveChangesAsync(ct);   // saves the price change and the audit row together
   ```
+- **Lifetime:** `EfAuditLog` is **scoped** (it shares the request's `AppDbContext`), while `FakeAuditLog` was a singleton. A consumer of `IAuditLog` must therefore be scoped or transient; a singleton that takes it fails with "Cannot consume scoped service" when scope validation is on (Development). A test pins this (`A_singleton_cannot_take_IAuditLog_because_it_shares_the_scoped_DbContext`).
 - **Append-only:** the port and the class have no update/delete method (a test checks the method names). The database itself still allows an UPDATE/DELETE by SQL; blocking that needs a schema-level rule (trigger or permissions), which is an M1 schema change and not part of this ticket.
 - **Rules enforced:** `changed_at` comes from `IClock` (UTC); `entityType` <= 30, `entityId` <= 40, `fieldName` <= 50, `oldValue`/`newValue` <= 500, `reason` <= 255 characters, rejected with `ArgumentException` instead of being truncated; an `ADMIN` entry needs `adminId` and a non-blank `reason`; a `SYSTEM` entry must have `adminId = null`.
 - Tests: `Tests/Admin/EfAuditLogTests.cs`; the transaction test (commit keeps the row, rollback leaves none) runs only when the local SQL Server database exists (`dotnet ef database update`, section 7.1).

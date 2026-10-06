@@ -207,6 +207,30 @@ public class EfAuditLogTests
         Assert.IsType<EfAuditLog>(scope.ServiceProvider.GetRequiredService<IAuditLog>());
     }
 
+    private sealed class SingletonConsumer(IAuditLog audit)
+    {
+        public IAuditLog Audit { get; } = audit;
+    }
+
+    [Fact]
+    public void A_singleton_cannot_take_IAuditLog_because_it_shares_the_scoped_DbContext()
+    {
+        // Documents the rule of Backend/ARCHITECTURE.md 7.6: FakeAuditLog was a singleton, the real one is scoped
+        // (it uses the request's AppDbContext), so a consumer of the port must be scoped or transient.
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IHostEnvironment>(new TestEnvironment());
+        services.AddInfrastructure(new ConfigurationBuilder().Build());
+        services.AddFakePorts();
+        services.AddSingleton<SingletonConsumer>();
+
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        var error = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<SingletonConsumer>());
+        // The chain EfAuditLog -> AppDbContext -> DbContextOptions is scoped, so the singleton is refused.
+        Assert.Contains("Cannot consume scoped service", error.Message);
+        Assert.Contains(nameof(SingletonConsumer), error.Message);
+    }
+
     // ---- same transaction as the change (SQL Server, skipped when not available) -----------------
 
     private static DbContextOptions<AppDbContext> SqlOptions() =>
