@@ -18,7 +18,7 @@ Ticket `MOB-BASE-*`: `Mobile/**`, `.spec/plan/M3-*.md`; riêng `MOB-BASE-05` là
 - [x] **BE-M3-00** Contract Dispatch → `.spec/contracts/dispatch.md` (offer, nhận/từ chối, check-in, báo vắng mặt, báo sự cố, trạng thái điều phối). — evidence: `.harness/evidence/20261006-204219-L3.log` (L3 PASSED; .spec/contracts/dispatch.md created with offer 30s, check-in GPS <=100m, absent review 40/60, force majeure incidents, SignalR hub events)
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
-- [ ] **BE-M3-01** `MatchingScore` (khoảng cách, rating, lịch sử ca thành công) hàm thuần, trọng số qua options · *needs:* G0.
+- [x] **BE-M3-01** `MatchingScore` (khoảng cách, rating, lịch sử ca thành công) hàm thuần, trọng số qua options · *needs:* G0. — evidence: `.harness/evidence/20261006-210916-L3.log` (L3 PASSED; MatchingScoreCalculator pure function, MatchingScoreOptions, DispatchCandidate, Q14 rating filter, 840 tests passed)
 - [ ] **BE-M3-02** (loại thợ rating_avg < 4.00 sau ≥10 ca, *decisions:* Q14) Quét bán kính bậc thang **5 → 7 → 10 km** (BR-03); Economy **chỉ Freelancer, tuyệt đối không Agency** (§2.1) · *needs:* BE-M3-01, `IWorkerAvailabilityQuery` · *done:* test "Agency không nhận Economy".
 - [ ] **BE-M3-03** Engine offer: mỗi thợ **đúng 30 s** rồi chuyển người kế (BR-03), nhận → `JobAssignment ASSIGNED` + khoá Booking Slot, an toàn khi 2 thợ nhận cùng lúc; nghe `OrderPaid` · *needs:* BE-M3-02, `IClock` · *decisions:* Q07 (SignalR + polling dự phòng) · *done:* test timeout bằng clock giả.
 - [ ] **BE-M3-04** Quá 10 km không có thợ → huỷ đơn + hoàn 100 % (phát `AssignmentFailed`) · *needs:* BE-M3-03.
