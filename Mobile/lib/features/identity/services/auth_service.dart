@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 import '../../../core/models/user_role.dart';
 import '../models/auth_models.dart';
+import 'api_error.dart';
 import 'token_storage.dart';
 
 /// Service handling Customer and Worker OTP authentication flows.
@@ -9,13 +9,16 @@ class AuthService {
   final String baseUrl;
   final TokenStorage tokenStorage;
   final HttpClient _client;
+
+  /// Mock mode, only when a caller (a test) passes it explicitly: no network, canned answers.
+  /// Off (the default, the real app): every server or network error is reported, never replaced by mock data.
   bool useMockFallback;
 
   AuthService({
     this.baseUrl = 'http://10.0.2.2:5004', // Android emulator default to localhost
     TokenStorage? tokenStorage,
     HttpClient? client,
-    this.useMockFallback = true,
+    this.useMockFallback = false,
   })  : tokenStorage = tokenStorage ?? TokenStorage(),
         _client = client ?? HttpClient();
 
@@ -45,42 +48,24 @@ class AuthService {
       throw const FormatException('Số điện thoại không hợp lệ. Vui lòng nhập số di động 10 số tại Việt Nam.');
     }
 
+    if (useMockFallback) {
+      return const OtpRequestResult(
+        expiresInSeconds: 300,
+        resendAvailableInSeconds: 60,
+      );
+    }
+
     final roleStr = role == AppRole.worker ? 'Worker' : 'Customer';
 
-    try {
-      final uri = Uri.parse('$baseUrl/api/auth/otp/request');
-      final request = await _client.postUrl(uri).timeout(const Duration(seconds: 4));
-      request.headers.contentType = ContentType.json;
-      request.write(jsonEncode({
-        'phoneNumber': normalized,
-        'role': roleStr,
-      }));
-      final response = await request.close().timeout(const Duration(seconds: 4));
-
-      final responseBody = await response.transform(utf8.decoder).join();
-      final decoded = jsonDecode(responseBody) as Map<String, dynamic>;
-
-      if (response.statusCode == 200 && decoded['success'] == true) {
-        return OtpRequestResult.fromJson(decoded['data'] as Map<String, dynamic>);
-      } else if (response.statusCode == 429) {
-        throw HttpException(
-          decoded['message'] as String? ?? 'Quá nhiều yêu cầu. Vui lòng thử lại sau 60 giây.',
-        );
-      } else {
-        throw HttpException(
-          decoded['message'] as String? ?? 'Không thể gửi mã OTP. Vui lòng thử lại.',
-        );
-      }
-    } catch (e) {
-      if (useMockFallback) {
-        // Mock fallback for test environment or local offline mode
-        return const OtpRequestResult(
-          expiresInSeconds: 300,
-          resendAvailableInSeconds: 60,
-        );
-      }
-      rethrow;
-    }
+    // Throws ApiException on 429 (cooldown, with Retry-After), any other error status, or no connection.
+    final envelope = await apiRequest(
+      _client,
+      'POST',
+      Uri.parse('$baseUrl/api/auth/otp/request'),
+      body: {'phoneNumber': normalized, 'role': roleStr},
+      fallbackMessage: 'Không thể gửi mã OTP. Vui lòng thử lại.',
+    );
+    return OtpRequestResult.fromJson(envelope['data'] as Map<String, dynamic>);
   }
 
   /// Verifies OTP code via /api/auth/otp/verify
@@ -106,78 +91,64 @@ class AuthService {
 
     final roleStr = role == AppRole.worker ? 'Worker' : 'Customer';
 
-    try {
-      final uri = Uri.parse('$baseUrl/api/auth/otp/verify');
-      final request = await _client.postUrl(uri).timeout(const Duration(seconds: 4));
-      request.headers.contentType = ContentType.json;
-      request.write(jsonEncode({
-        'phoneNumber': normalized,
-        'role': roleStr,
-        'code': code.trim(),
-      }));
-      final response = await request.close().timeout(const Duration(seconds: 4));
-
-      final responseBody = await response.transform(utf8.decoder).join();
-      final decoded = jsonDecode(responseBody) as Map<String, dynamic>;
-
-      if (response.statusCode == 200 && decoded['success'] == true) {
-        final data = decoded['data'] as Map<String, dynamic>;
-        if (data.containsKey('registrationToken')) {
-          final reg = RegistrationRequired.fromJson(data);
-          tokenStorage.saveRegistration(reg);
-          return VerifyOtpResponse(registrationRequired: reg);
-        } else {
-          final auth = AuthResult.fromJson(data);
-          tokenStorage.saveAuth(auth);
-          return VerifyOtpResponse(authResult: auth);
-        }
-      } else if (response.statusCode == 401) {
-        return VerifyOtpResponse(
-          errorMessage: decoded['message'] as String? ?? 'Mã xác thực không chính xác hoặc đã hết hạn.',
+    if (useMockFallback) {
+      // Mock mode (tests only): '000000' is a wrong code, '999999' too many tries, any other 6 digits logs in.
+      if (code == '000000') {
+        return const VerifyOtpResponse(
+          errorMessage: 'Mã xác thực không chính xác hoặc đã hết hạn.',
           statusCode: 401,
         );
-      } else if (response.statusCode == 429) {
-        return VerifyOtpResponse(
-          errorMessage: decoded['message'] as String? ?? 'Bạn đã nhập sai quá số lần quy định. Vui lòng yêu cầu mã mới.',
+      }
+      if (code == '999999') {
+        return const VerifyOtpResponse(
+          errorMessage: 'Bạn đã nhập sai quá số lần quy định. Vui lòng yêu cầu mã mới.',
           statusCode: 429,
         );
-      } else {
-        return VerifyOtpResponse(
-          errorMessage: decoded['message'] as String? ?? 'Xác thực không thành công.',
-          statusCode: response.statusCode,
-        );
       }
-    } catch (e) {
-      if (useMockFallback) {
-        // In mock mode: reject '000000' as invalid test, accept other 6-digit codes
-        if (code == '000000') {
-          return const VerifyOtpResponse(
-            errorMessage: 'Mã xác thực không chính xác hoặc đã hết hạn.',
-            statusCode: 401,
-          );
-        }
-        if (code == '999999') {
-          return const VerifyOtpResponse(
-            errorMessage: 'Bạn đã nhập sai quá số lần quy định. Vui lòng yêu cầu mã mới.',
-            statusCode: 429,
-          );
-        }
 
-        final mockAuth = AuthResult(
-          tokenType: 'Bearer',
-          accessToken: 'mock_jwt_access_token_demo',
-          accessTokenExpiresInSeconds: 900,
-          refreshToken: 'mock_refresh_token_demo',
-          user: AuthUser(
-            id: 101,
-            role: roleStr,
-            isNewUser: false,
-          ),
-        );
-        tokenStorage.saveAuth(mockAuth);
-        return VerifyOtpResponse(authResult: mockAuth);
-      }
-      return VerifyOtpResponse(errorMessage: e.toString(), statusCode: 500);
+      final mockAuth = AuthResult(
+        tokenType: 'Bearer',
+        accessToken: 'mock_jwt_access_token_demo',
+        accessTokenExpiresInSeconds: 900,
+        refreshToken: 'mock_refresh_token_demo',
+        user: AuthUser(
+          id: 101,
+          role: roleStr,
+          isNewUser: false,
+        ),
+      );
+      tokenStorage.saveAuth(mockAuth);
+      return VerifyOtpResponse(authResult: mockAuth);
     }
+
+    RegistrationRequired? reg;
+    AuthResult? auth;
+    try {
+      final envelope = await apiRequest(
+        _client,
+        'POST',
+        Uri.parse('$baseUrl/api/auth/otp/verify'),
+        body: {'phoneNumber': normalized, 'role': roleStr, 'code': code.trim()},
+        fallbackMessage: 'Xác thực không thành công.',
+      );
+      final data = envelope['data'] as Map<String, dynamic>;
+      if (data.containsKey('registrationToken')) {
+        reg = RegistrationRequired.fromJson(data);
+      } else {
+        auth = AuthResult.fromJson(data);
+      }
+    } on ApiException catch (e) {
+      // 401 wrong/expired code, 429 too many tries, other errors, or status 0 = no connection. Tokens untouched.
+      return VerifyOtpResponse(errorMessage: e.message, statusCode: e.statusCode);
+    } on TypeError {
+      return const VerifyOtpResponse(errorMessage: 'Phản hồi từ máy chủ không hợp lệ.', statusCode: 500);
+    }
+
+    if (reg != null) {
+      tokenStorage.saveRegistration(reg);
+      return VerifyOtpResponse(registrationRequired: reg);
+    }
+    tokenStorage.saveAuth(auth!);
+    return VerifyOtpResponse(authResult: auth);
   }
 }

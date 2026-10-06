@@ -4,6 +4,7 @@ import 'package:mobile/core/models/user_role.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/identity/screens/otp_verify_screen.dart';
 import 'package:mobile/features/identity/screens/phone_input_screen.dart';
+import 'package:mobile/features/identity/services/auth_service.dart';
 
 void main() {
   group('PhoneInputScreen Widget Tests', () {
@@ -18,7 +19,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: NordicTheme.lightTheme,
-          home: const PhoneInputScreen(role: AppRole.customer),
+          home: PhoneInputScreen(role: AppRole.customer, authService: AuthService(useMockFallback: true)),
         ),
       );
       await tester.pumpAndSettle();
