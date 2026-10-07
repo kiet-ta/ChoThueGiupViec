@@ -1,5 +1,6 @@
 using CommonService.Application.Features.Disputes;
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -92,6 +93,34 @@ public sealed class EfDisputeRepository(AppDbContext db) : IDisputeRepository
         db.DisputeTickets.FirstOrDefaultAsync(d => d.DisputeId == disputeId, cancellationToken);
 
     public Task SaveAsync(CancellationToken cancellationToken = default) => db.SaveChangesAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<DisputeVerdictAssignment>> GetVerdictAssignmentsAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await db.JobAssignments.AsNoTracking()
+            .Where(a => a.OrderId == orderId)
+            .OrderBy(a => a.AssignmentId)
+            .Select(a => new DisputeVerdictAssignment(a.AssignmentId, a.WorkerId, a.AgencyId, a.GrossAmount))
+            .ToListAsync(cancellationToken);
+
+    public async Task<DisputeTicket?> TryResolveAsync(
+        int disputeId, int adminId, string status, FaultParty? faultParty, decimal compensationAmount, DateTime resolvedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        // A dismissal records no compensation (contract: null); a verdict records the amount, 0 included.
+        decimal? compensation = faultParty is null ? null : compensationAmount;
+        var open = DisputeConstants.Unresolved.ToList();
+
+        var changed = await db.DisputeTickets
+            .Where(d => d.DisputeId == disputeId && open.Contains(d.DisputeStatus))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.DisputeStatus, status)
+                .SetProperty(d => d.FaultParty, faultParty)
+                .SetProperty(d => d.CompensationAmount, compensation)
+                .SetProperty(d => d.ResolvedBy, (int?)adminId)
+                .SetProperty(d => d.ResolvedAt, (DateTime?)resolvedAtUtc), cancellationToken);
+        if (changed == 0) return null;
+
+        return await db.DisputeTickets.AsNoTracking().FirstAsync(d => d.DisputeId == disputeId, cancellationToken);
+    }
 
     public async Task<IReadOnlyDictionary<long, DisputeSummaryData>> GetSummaryDataAsync(
         IReadOnlyCollection<long> orderIds, CancellationToken cancellationToken = default)

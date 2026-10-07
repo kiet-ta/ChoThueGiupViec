@@ -17,7 +17,7 @@ public class DisputeServiceTests
     private const int WorkerId = 22;
     private const long OrderId = 900;
 
-    private sealed class TestClock(DateTime utcNow) : IClock
+    internal sealed class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow { get; set; } = utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -25,7 +25,7 @@ public class DisputeServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(UtcNow));
     }
 
-    private sealed class MemoryDisputes : IDisputeRepository
+    internal sealed class MemoryDisputes : IDisputeRepository
     {
         public Dictionary<long, DisputeOrderInfo> Orders { get; } = [];
         public List<DisputeTicket> Tickets { get; } = [];
@@ -89,6 +89,29 @@ public class DisputeServiceTests
             Task.FromResult<IReadOnlyDictionary<long, DisputeSummaryData>>(Summaries.Where(s => orderIds.Contains(s.Key)).ToDictionary(s => s.Key, s => s.Value));
 
         public Task<DisputeCaseData> GetCaseDataAsync(long orderId, CancellationToken cancellationToken = default) => Task.FromResult(Case);
+
+        public Dictionary<long, List<DisputeVerdictAssignment>> VerdictAssignments { get; } = [];
+        public int ResolveCalls { get; private set; }
+        public Action? BeforeResolve { get; set; }
+
+        public Task<IReadOnlyList<DisputeVerdictAssignment>> GetVerdictAssignmentsAsync(long orderId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DisputeVerdictAssignment>>(VerdictAssignments.GetValueOrDefault(orderId) ?? []);
+
+        public Task<DisputeTicket?> TryResolveAsync(
+            int disputeId, int adminId, string status, FaultParty? faultParty, decimal compensationAmount, DateTime resolvedAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            ResolveCalls++;
+            BeforeResolve?.Invoke(); // lets a test play "another admin decided it first"
+            var ticket = Tickets.FirstOrDefault(t => t.DisputeId == disputeId);
+            if (ticket is null || !DisputeConstants.Unresolved.Contains(ticket.DisputeStatus)) return Task.FromResult<DisputeTicket?>(null);
+            ticket.DisputeStatus = status;
+            ticket.FaultParty = faultParty;
+            ticket.CompensationAmount = faultParty is null ? null : compensationAmount;
+            ticket.ResolvedBy = adminId;
+            ticket.ResolvedAt = resolvedAtUtc;
+            return Task.FromResult<DisputeTicket?>(ticket);
+        }
     }
 
     private sealed class Harness

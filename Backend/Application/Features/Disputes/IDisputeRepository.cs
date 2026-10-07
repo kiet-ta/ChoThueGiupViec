@@ -28,6 +28,9 @@ public sealed record DisputeCaseData(
     IReadOnlyList<DisputePhotoData> Photos,
     IReadOnlyList<(long AssignmentId, DateTime CompletedAtUtc)> Completions);
 
+/// <summary>An assignment of the disputed order as the verdict needs it: who worked it, for which agency, and what it was worth.</summary>
+public sealed record DisputeVerdictAssignment(long AssignmentId, int WorkerId, int? AgencyId, decimal GrossAmount);
+
 /// <summary>
 /// Persistence of DISPUTE_TICKET and the read model of the Admin console (BE-M6-02a). Reads <c>JOB_ORDER</c>,
 /// <c>JOB_ASSIGNMENT</c>, <c>BOOKING_SLOT</c>, <c>CHECK_IN_LOG</c>, <c>JOB_PHOTO</c> and the name columns of Customer,
@@ -60,6 +63,18 @@ public interface IDisputeRepository
     Task<DisputeTicket?> FindTrackedAsync(int disputeId, CancellationToken cancellationToken = default);
 
     Task SaveAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Every assignment of the order with its agency and gross amount (the verdict applies to all of them).</summary>
+    Task<IReadOnlyList<DisputeVerdictAssignment>> GetVerdictAssignmentsAsync(long orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Decides the ticket with ONE conditional update (only while it is OPEN or IN_REVIEW) and returns the decided ticket, or null
+    /// when somebody else decided it first: that is what makes two simultaneous verdicts one 200 and one 409. The caller runs this
+    /// inside its unit of work so a later failure undoes it.
+    /// </summary>
+    Task<DisputeTicket?> TryResolveAsync(
+        int disputeId, int adminId, string status, FaultParty? faultParty, decimal compensationAmount, DateTime resolvedAtUtc,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Order code, customer name and the workers of each order (one query per kind, not per ticket).</summary>
     Task<IReadOnlyDictionary<long, DisputeSummaryData>> GetSummaryDataAsync(

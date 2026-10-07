@@ -20,10 +20,10 @@ namespace CommonService.Tests.Disputes;
 /// <summary>BE-M6-02a: controllers (policies, routes, verbs, status mapping) and the repository on the local SQL Server.</summary>
 public class DisputeEndpointTests
 {
-    private const string ConnectionString =
+    internal const string ConnectionString =
         "Server=localhost;Database=ChoThueGiupViec;Integrated Security=True;TrustServerCertificate=True;";
 
-    private static bool IsSqlServerAvailable()
+    internal static bool IsSqlServerAvailable()
     {
         try
         {
@@ -60,11 +60,58 @@ public class DisputeEndpointTests
             .ToArray();
 
     [Fact]
-    public void The_actions_are_exactly_the_ones_of_the_contract_and_there_is_no_resolve_yet()
+    public void The_actions_are_exactly_the_ones_of_the_contract()
     {
         Assert.Equal(["GET", "GET {disputeId:int}", "POST"], Routes(typeof(CustomerDisputesController)));
         Assert.Equal(["GET", "GET {disputeId:int}", "POST"], Routes(typeof(WorkerDisputesController)));
-        Assert.Equal(["GET", "GET {disputeId:int}", "POST {disputeId:int}/take"], Routes(typeof(AdminDisputesController)));
+        Assert.Equal(
+            ["GET", "GET {disputeId:int}", "POST {disputeId:int}/resolve", "POST {disputeId:int}/take"],
+            Routes(typeof(AdminDisputesController)));
+    }
+
+    private sealed class StubVerdicts(int status) : IDisputeVerdictService
+    {
+        public (int Admin, int Dispute)? LastCall { get; private set; }
+
+        public Task<DisputeResult<AdminDisputeDto>> ResolveAsync(int adminId, int disputeId, ResolveDisputeRequestDto request, CancellationToken cancellationToken = default)
+        {
+            LastCall = (adminId, disputeId);
+            return Task.FromResult(status switch
+            {
+                200 => DisputeResult<AdminDisputeDto>.Ok(new AdminDisputeDto { DisputeId = disputeId }),
+                400 => DisputeResult<AdminDisputeDto>.ValidationError(new Dictionary<string, string[]> { ["note"] = ["bad"] }),
+                404 => DisputeResult<AdminDisputeDto>.NotFound(),
+                409 => DisputeResult<AdminDisputeDto>.Conflict("decided"),
+                _ => DisputeResult<AdminDisputeDto>.BadGateway("refund refused"),
+            });
+        }
+    }
+
+    [Theory]
+    [InlineData(200)]
+    [InlineData(400)]
+    [InlineData(404)]
+    [InlineData(409)]
+    [InlineData(502)]
+    public async Task Resolve_maps_the_result_and_takes_the_admin_id_from_the_token(int status)
+    {
+        var verdicts = new StubVerdicts(status);
+        var controller = new AdminDisputesController(null!, verdicts, new FakeUser(7));
+
+        var result = Assert.IsType<ObjectResult>(await controller.Resolve(5, new ResolveDisputeRequestDto(), default));
+
+        Assert.Equal(status, result.StatusCode);
+        Assert.Equal(status == 200, SuccessOf(result.Value));
+        Assert.Equal((7, 5), verdicts.LastCall);
+    }
+
+    [Fact]
+    public async Task Resolve_without_a_body_is_a_400_and_without_a_user_id_a_401_before_the_service_is_called()
+    {
+        var verdicts = new StubVerdicts(200);
+        Assert.IsType<BadRequestObjectResult>(await new AdminDisputesController(null!, verdicts, new FakeUser(7)).Resolve(5, null!, default));
+        Assert.IsType<UnauthorizedObjectResult>(await new AdminDisputesController(null!, verdicts, new FakeUser(null)).Resolve(5, new ResolveDisputeRequestDto(), default));
+        Assert.Null(verdicts.LastCall);
     }
 
     private sealed class FakeUser(int? id) : ICurrentUser
@@ -158,10 +205,10 @@ public class DisputeEndpointTests
 
     // ---- SQL Server -----------------------------------------------------------------------------
 
-    private static DbContextOptions<AppDbContext> Options() =>
+    internal static DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options;
 
-    private sealed class FixedClock(DateTime utcNow) : IClock
+    internal sealed class FixedClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -169,11 +216,11 @@ public class DisputeEndpointTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(utcNow));
     }
 
-    private sealed record Seeded(
+    internal sealed record Seeded(
         int AdminId, int CustomerId, int AddressId, int WorkerId, List<long> OrderIds, List<int> SlotIds, List<long> AssignmentIds);
 
     /// <summary>A customer, a worker and <paramref name="orders"/> orders with a COMPLETED assignment each (completed one hour before now).</summary>
-    private static async Task<Seeded> SeedAsync(DateTime now, int orders = 1)
+    internal static async Task<Seeded> SeedAsync(DateTime now, int orders = 1)
     {
         await using var db = new AppDbContext(Options());
 
@@ -298,7 +345,7 @@ public class DisputeEndpointTests
             orderRows.Select(o => o.OrderId).ToList(), slots.Select(s => s.SlotId).ToList(), assignments.Select(a => a.AssignmentId).ToList());
     }
 
-    private static async Task CleanAsync(Seeded s)
+    internal static async Task CleanAsync(Seeded s)
     {
         await using var db = new AppDbContext(Options());
         await db.DisputeTickets.Where(d => s.OrderIds.Contains(d.OrderId)).ExecuteDeleteAsync();
