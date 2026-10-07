@@ -28,5 +28,8 @@ public sealed class AdminModule : IModule
         // Super-Freelancer approve / revoke / auto-revoke (BE-M6-09c).
         services.AddScoped<ISuperFreelancerRepository, EfSuperFreelancerRepository>();
         services.AddScoped<ISuperFreelancerService, SuperFreelancerService>();
+
+        services.AddScoped<IAbsenceRepository, EfAbsenceRepository>();
+        services.AddScoped<IAbsenceReportService, AbsenceReportService>();
     }
 }
