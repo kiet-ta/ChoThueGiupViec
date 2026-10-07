@@ -224,6 +224,12 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   - 4 sample `SKILL` rows (catalog standard `CLEAN_BASIC`, `DEEP_CLEAN`, `IRONING`, `COOKING`)
 - `DatabaseSeederHostedService` (`Infrastructure/Modules/Identity/DatabaseSeederHostedService.cs`): registers as `IHostedService` in `IdentityModule` to execute the seeders on startup without touching `Program.cs`. Tests: `Tests/Persistence/DatabaseSeederTests.cs` and `Tests/Identity/Pbkdf2PasswordHasherTests.cs`.
 
+### 7.2a Worker reputation (`IWorkerReputation`, BE-M6-01b)
+- Real implementation `Infrastructure/Modules/Ratings/EfWorkerReputation.cs`, registered by `WorkerReputationModule` (its own `IModule`), so it wins over `FakeWorkerReputation`. The port is unchanged: `Task<WorkerReputationDto?> GetAsync(int workerId, ct)` returning `WorkerReputationDto(WorkerId, RatingAvg, CompletedJobs, SuccessRate)`, `null` for an unknown worker. Read-only, `AsNoTracking`, three queries at most.
+- **Definitions live in `Application/Features/Ratings/ReputationFormula.cs`** (change only there): `RatingAvg` = average stars of the worker's `CUSTOMER` ratings, 2 decimals, half away from zero, 0 without ratings (worker-to-customer ratings are not counted); `CompletedJobs` = assignments in `COMPLETED`; `SuccessRate` = `completed / (completed + CANCELLED_BY_WORKER)`, 3 decimals, 0 when there is no such job. Customer-caused `ABSENT`, `INCIDENT`, `REASSIGNED`, a system `CANCELLED`, `OFFERED` and the running states do not count against the worker. This follows the port's comment and the recommended default of contract `ratings.md` question M3; it is an assumption the team can change in that one method.
+- Lifetime: scoped (shares the request's `AppDbContext`); a singleton must not take `IWorkerReputation` (same rule as `IAuditLog`).
+- Tests: `Tests/Ratings/WorkerReputationTests.cs` (the DB test seeds a worker with every assignment status and ratings of both sides and removes them; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`).
+
 ### 7.3 Shared infrastructure and helpers (BASE-11)
 - `SystemClock` (`Infrastructure/Services/SystemClock.cs`): implements `IClock` (decisions G-3), converting UTC to/from Asia/Ho_Chi_Minh (UTC+7) across both Windows and IANA timezone providers.
 - `ClaimsCurrentUser` (`Infrastructure/Services/ClaimsCurrentUser.cs`): implements `ICurrentUser`, resolving authenticated `UserId` and `UserRole` (`Customer`, `Worker`, `Partner`, `Admin`) from HttpContext claims.
