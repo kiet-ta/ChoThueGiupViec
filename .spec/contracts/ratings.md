@@ -1,6 +1,6 @@
 # Contract: Ratings (module `Ratings`, owner M6)
 
-> Status: **DRAFT, awaiting leader approval** (ticket BE-M6-00, issue #62). Nobody codes an endpoint that is not in an approved contract.
+> Status: **merged by the leader in PR #64** (ticket BE-M6-00, issue #62). The four endpoints of section 2 are implemented by BE-M6-01a (ticket #120). The open questions of section 4 (M1-M6) are still unanswered by the leader; `IWorkerReputation` waits for the answer to **M3**.
 > Sources: `.spec/spec.md` BR-09 · `.spec/decisions.md` Q14, G-2, G-3, G-7 · `.spec/plan/00-overview.md` §4 (`IWorkerReputation`), §5 (`RatingSubmitted`, `JobCompleted`) · `Backend/GiupViec_Physical_DB_MVP5.drawio` table `TWO_WAY_RATING` (+ SC-5) · entity `Backend/Domain/Entities/TwoWayRating.cs`.
 > Implements tickets: BE-M6-01 (two-way rating), the `IWorkerReputation` port. UI: MOB-M6-01 (customer rates worker), MOB-M6-02 (worker rates customer), design "MOB-M6-02: Thợ đánh giá khách" (Stitch).
 > Conventions (envelope, camelCase, UTC, status codes, roles, policies, 404-for-not-owned) are defined in `identity.md` §1 and apply here unchanged. Items marked **Mx** are not decided by the PRD or `decisions.md`; they are listed in section 4 with a recommended default.
@@ -77,17 +77,17 @@ Both roles: `Agency` workers (`worker_type = AGENCY_STAFF`) can rate and be rate
 
 ## 3. Port and events
 
-**`IWorkerReputation`** (port, overview §4; implementer M6, consumer M3 Dispatch for `MatchingScore`, signature proposed here, M1 finalizes at BASE-03)
+**`IWorkerReputation`** (port, overview §4; implementer M6, consumer M3 Dispatch for `MatchingScore`). The port exists since BASE-03 (`Backend/Application/Interfaces/Ports/IWorkerReputation.cs`) and this contract follows it:
 ```text
-Task<WorkerReputation> GetAsync(int workerId, CancellationToken ct)
-WorkerReputation { int workerId, decimal ratingAvg, int ratedJobs, decimal successRate }
+Task<WorkerReputationDto?> GetAsync(int workerId, CancellationToken ct)      // null when the worker is unknown
+WorkerReputationDto(int WorkerId, decimal RatingAvg, int CompletedJobs, decimal SuccessRate)
 ```
-- `ratingAvg` = average `stars` of `CUSTOMER` ratings for the worker, rounded to 2 decimals (round half away from zero, G-2); `ratedJobs` = count of those ratings. No rating yet: `ratingAvg = 0`, `ratedJobs = 0`.
-- `successRate` definition: see **M3**.
+- `RatingAvg` = average `stars` of the `CUSTOMER` ratings of the worker, rounded to 2 decimals (round half away from zero, G-2), 0.00-5.00 (Q14); no rating yet: 0.
+- `CompletedJobs` and `SuccessRate`: the port only says "share of accepted jobs that ended COMPLETED" (0-1). Which assignments count as "accepted" and as "ended" is **not decided** (question **M3**), so the real implementation is **not part of BE-M6-01a**; the Fake keeps serving Dispatch until the leader answers.
 
 Events:
 - **Handles** `JobCompleted` (M4): nothing to store (the window is derived from `completed_at`); the handler only schedules the "please rate" notification through `INotificationService` (content: Mobile text, no new endpoint).
-- **Publishes** `RatingSubmitted { ratingId, assignmentId, workerId, raterRole, stars }` after each successful insert (consumers: Admin module for Super-Freelancer auto-revoke, see `admin.md` §2.6).
+- **Publishes** `RatingSubmitted(RatingId, AssignmentId, RaterRole, Stars, CreatedAtUtc)` (the record of `Backend/Domain/Events/RatingSubmitted.cs`; it has **no worker id**: a consumer that needs it reads the assignment) after each successful insert (consumers: Admin module for Super-Freelancer auto-revoke, see `admin.md` §2.6). A failing consumer is logged and never turns the saved rating into an error for the rater.
 
 ## 4. Open questions (not covered by PRD or decisions; recommended default in bold)
 
