@@ -1,6 +1,6 @@
 # Contract: Disputes (module `Disputes`, owner M6)
 
-> Status: **DRAFT, awaiting leader approval** (ticket BE-M6-00, issue #62). Nobody codes an endpoint that is not in an approved contract.
+> Status: **merged by the leader in PR #64** (ticket BE-M6-00, issue #62). Section 2.1, the queue and case file of 2.2 and `take` of 2.3 are implemented by BE-M6-02a (ticket #130); `resolve` is implemented by BE-M6-02b (ticket #132, stacked on #131) with the corrections marked "(02b)" below. The open questions of section 4 are still unanswered by the leader; the recommended defaults are applied in one options class (`DisputeOptions`) and one constants class (`DisputeConstants`).
 > Sources: `.spec/spec.md` §4.3, BR-05 · `.spec/decisions.md` Q09, Q10, Q11, Q22 D3, G-2, G-3, G-7 · `.spec/plan/00-overview.md` §4 (`IRefundService`, `ISlaPenaltyService`, `IFileStorage`), §5 (`DisputeResolved`) · `Backend/GiupViec_Physical_DB_MVP5.drawio` table `DISPUTE_TICKET` · entity `Backend/Domain/Entities/DisputeTicket.cs`, enum `FaultParty`.
 > Implements tickets: BE-M6-02 (dispute filing and verdict). UI: WEB-M6-01 (dispute console, Figma `66:2`), MOB-M6-03 (file a dispute).
 > Conventions (envelope, camelCase, UTC, status codes, roles, policies, 404-for-not-owned) are defined in `identity.md` §1 and apply here unchanged. Items marked **Dx** are not decided by the PRD or `decisions.md`; they are listed in section 4 with a recommended default.
@@ -53,9 +53,9 @@
 
 | Status | Condition |
 |---|---|
-| 400 | `description` empty or longer than 1000; `category` not in the allowed set (**D1**); `evidenceUrls` empty (PRD §4.3 step 1: "kèm hình ảnh bằng chứng") or more than 10 entries, or an entry that is not a URL issued by `IFileStorage` |
+| 400 | `description` empty or longer than 1000; `category` not in the allowed set (**D1**); `evidenceUrls` empty (PRD §4.3 step 1: "kèm hình ảnh bằng chứng") or more than 10 entries, or an entry that is blank or longer than 500 characters (no upload endpoint exists yet, so any such text is accepted; checking that it was issued by `IFileStorage` needs that endpoint) |
 | 404 | order missing or caller not on it |
-| 409 | more than 24 h after the end of the shift (**D4**); the order has no assignment that reached `COMPLETED`/`AWAITING_ACCEPTANCE`/`ABSENT` (nothing to dispute); an open dispute by the same role already exists for this order (**D5**) |
+| 409 | more than 24 h after the end of the shift (**D4**); the order has no assignment that reached `COMPLETED`/`AWAITING_ACCEPTANCE`/`ABSENT` (nothing to dispute); **a dispute already exists for this order** (**D5**, corrected: `DISPUTE_TICKET` has a UNIQUE index on `order_id`, so an order has one ticket in total, whoever filed it; the loser of two simultaneous filings gets this 409 too) |
 
 Effects: `dispute_status = OPEN`, `sla_due_at = created_at + 48 h` (drawio note: `sla_due_at = +48 h`; PRD says SLA 24-48 h, see **D3**). The customer-absent fee dispute window (Q10: 24 h after the fee, `Absence.CustomerDisputeHours`) is the same endpoint with `category = ABSENT_FEE`.
 
@@ -88,15 +88,16 @@ Effects: `dispute_status = OPEN`, `sla_due_at = created_at + 48 h` (drawio note:
 
 | Status | Condition |
 |---|---|
-| 400 | `note` empty or longer than 255; `compensationAmount` < 0 or > the `gross_amount` sum of the order's assignments; `lockWorker = true` with `faultParty` other than `FREELANCER`; `faultParty = null` with `compensationAmount` > 0 |
+| 400 | `note` empty or longer than 255; `compensationAmount` < 0, not a whole number of VND (G-2) or > the `gross_amount` sum of the order's assignments; `lockWorker = true` with `faultParty` other than `FREELANCER`; `compensationAmount` > 0 with `faultParty` other than `FREELANCER`/`AGENCY` (null and `CUSTOMER` move no money, D7) (02b); `FREELANCER` when the order has no freelancer assignment (`agency_id` null) or `AGENCY` when it has no agency assignment (02b). Errors use the field map of decision O5 |
 | 404 | missing |
-| 409 | already `RESOLVED`/`DISMISSED` (idempotent guard: a second call changes nothing) |
+| 409 | already `RESOLVED`/`DISMISSED` (idempotent guard: a second call changes nothing). The claim is one conditional `UPDATE ... WHERE dispute_status IN ('OPEN','IN_REVIEW')`, so two admins deciding at the same time get one 200 and one 409 and the refund runs once (02b) |
+| 502 | the refund was refused (`RefundResult.Succeeded = false`): the whole transaction is rolled back, the ticket stays as it was, nothing is audited or published (02b) |
 
-`faultParty = null` dismisses the dispute (`DISMISSED`); otherwise `RESOLVED`. All effects run in one DB transaction, then `DisputeResolved` is published:
+`faultParty = null` dismisses the dispute (`DISMISSED`, `compensation_amount` stays null); otherwise `RESOLVED` with the amount (0 included). The ticket can be decided from `OPEN` or `IN_REVIEW`; `resolved_by` becomes the deciding admin. The refund (one `IRefundService` call for the whole amount), the `ISlaPenaltyService` call, the audit row and the ticket change run in one DB transaction, then `DisputeResolved` is published (02b):
 
 | `faultParty` | Effect |
 |---|---|
-| `FREELANCER` (Q22 D3, PRD §4.3) | Customer is compensated first (Principle 0, Q09): `IRefundService` refunds `compensationAmount` to the customer. The same amount becomes a **pending deduction** on the worker's next payout (`PAYOUT_ITEM.penalty_amount`, applied by `payouts.md` §2.1). `lockWorker = true` locks the worker account through the Workers module event handler (PRD: "khóa tài khoản cảnh cáo"). |
+| `FREELANCER` (Q22 D3, PRD §4.3) | Customer is compensated first (Principle 0, Q09): `IRefundService` refunds `compensationAmount` to the customer. The same amount becomes a **pending deduction** on the worker's next payout (`PAYOUT_ITEM.penalty_amount`, applied by `payouts.md` §2.1). `lockWorker = true` locks the worker account through the Workers module event handler (PRD: "khóa tài khoản cảnh cáo"). **(02b) Not delivered yet:** the lock belongs to M4 (BE-M4-01) and the real `DisputeResolved` event (`Domain/Events/DisputeResolved.cs`) has no `lockWorker` field, so 02b only validates the flag and records the request as a second audit row (`field_name = worker_lock_requested`). The pending payout deduction is not written here: BE-M6-04 reads it from the resolved ticket (`fault_party = FREELANCER`, `compensation_amount`) through the assignments of the order. |
 | `AGENCY` (Q09, PRD §4.3) | Order of deduction: (1) refund the customer 100% of the affected amount, (2) actual rescue-worker cost, (3) platform fee. `ISlaPenaltyService` subtracts `QUALITY_COMPLAINT` points (Q09: **only because the dispute is upheld**, `-5`) and the escrow deduction (customer refund + rescue cost). Shortfall and suspension follow Q09. The Disputes module never writes escrow or SLA tables itself. |
 | `CUSTOMER` (dispute raised by a worker, or a false customer claim) | No money moves to the customer. If the dispute was about an absence fee (`ABSENT_FEE`) and the customer lost, nothing is refunded. A **false absence claim** is recorded as an upheld dispute with the worker's side as `faultParty` (Q10). Platform fee charge to the customer: see **D7**. |
 | `null` | Dismissed, no effect. |
@@ -107,7 +108,7 @@ Absence-fee reversal (Q10): if the customer disputes an absence fee within 24 h 
 
 ## 3. Events
 - **Handles** `CustomerAbsentApproved` (published by this team's Admin module): tells the customer, through `INotificationService`, that they can dispute the fee within `Absence.CustomerDisputeHours` (24, Q10). No row is created.
-- **Publishes** `DisputeResolved { disputeId, orderId, faultParty, compensationAmount, lockWorker }` (consumers: M5 `ISlaPenaltyService` bookkeeping, M2 refund bookkeeping, M4 worker lock, M6 Payouts). Idempotent: consumers key on `disputeId`.
+- **Publishes** `DisputeResolved { DisputeId, AssignmentId, FaultParty?, CustomerRefundAmount, ResolutionNotes, ResolvedAtUtc }` (the record of `Domain/Events/DisputeResolved.cs`, merged earlier by M1; this replaces the shape first written here, which had `orderId`, `compensationAmount` and `lockWorker`). (02b) The event is per assignment while the ticket is per order, so it is published **once per assignment of the order** after the commit; `CustomerRefundAmount` is that assignment's share of `compensationAmount` (split over the blamed assignments by `gross_amount`, whole VND, remainder on the last; 0 for the others, for `CUSTOMER` and for a dismissal) and the shares add up to the amount. Consumers: M5 `ISlaPenaltyService` bookkeeping, M2 refund bookkeeping, M6 Payouts. Idempotent: consumers key on `DisputeId` + `AssignmentId`.
 
 ## 4. Open questions (not covered by PRD or decisions; recommended default in bold)
 
@@ -117,7 +118,7 @@ Absence-fee reversal (Q10): if the customer disputes an absence fee within 24 h 
 | **D2** | `DISPUTE_TICKET` has `order_id` only, but fault is per worker (a two-worker order could mix a Freelancer and an Agency worker). | **One verdict per dispute; it applies to every assignment of the order. A mixed-fault order is out of the MVP.** If the leader wants per-assignment disputes, M1 adds an `assignment_id` column (schema change). |
 | **D3** | PRD says SLA 24-48 h by priority; drawio says `sla_due_at = +48 h`; Figma shows High/Medium/Low priority. No rule for priority. | **`sla_due_at = created_at + 48 h` for all; `priority` derived from remaining time: HIGH < 6 h, MEDIUM < 24 h, else LOW** (thresholds are config keys `Disputes.PriorityHighHours`, `Disputes.PriorityMediumHours`, proposed, not decided). |
 | **D4** | "Within 24 h after the shift" (PRD §4.3): measured from `completed_at` or the shift end? A customer can dispute before completion ("Từ chối & Khiếu nại" during acceptance, Figma timeline). | **Allowed from check-in until `max(completed_at, shift end) + Dispute.FileWindowHours` (24).** |
-| **D5** | Duplicate disputes; auto-created dispute for the absence fee ("Auto-Cancelled Dispute" in Figma). | **At most one unresolved dispute per `(order_id, raised_by)`; the system does not auto-create disputes, the Figma tag is shown only when `category = ABSENT_FEE`.** |
+| **D5** | Duplicate disputes; auto-created dispute for the absence fee ("Auto-Cancelled Dispute" in Figma). | **One ticket per order, enforced by the database (`UNIQUE(order_id)`, `DisputeTicketConfiguration.cs:17`): the first filing by either side wins, a second one is a 409. Replaces the earlier default "one unresolved per (order, raiser)", which the schema contradicts.** The system does not auto-create disputes; the Figma tag is shown only when `category = ABSENT_FEE`. If both sides must be able to file, the schema needs a change (M1). |
 | **D6** | Case file needs check-in log (M3), photos/VoL (M4) and checklist: modules may not read each other's tables. | **New read port `IDisputeEvidenceQuery` returning timeline, checklist and photos by `orderId` (implementer M3/M4 or M1 via the shared flat `JOB_ASSIGNMENT` data), added through a Scope exception on BASE-03.** Until then Fake. |
 | **D7** | If the customer is at fault, may the platform charge a fee? PRD only defines the 40% absence rule. | **No extra charge (nothing is invented); `CUSTOMER` fault is only recorded.** |
 | **D8** | G-5 audits Admin-editable money parameters only; a verdict moves money. | **Also write one `ADMIN_AUDIT_LOG` row per verdict (cheap, append-only).** |

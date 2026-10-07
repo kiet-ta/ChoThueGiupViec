@@ -17,6 +17,18 @@ public sealed class AdminModule : IModule
         // The real audit log wins over FakeAuditLog, which FakePortRegistration adds later with TryAdd.
         services.AddScoped<IAuditLog, EfAuditLog>();
 
+        // Read side of the same table (BE-M6-09b).
+        services.AddScoped<IAuditLogReadRepository, EfAuditLogReadRepository>();
+        services.AddScoped<IAuditLogQueryService, AuditLogQueryService>();
+
+        // Profile of the signed-in Admin (BE-M6-06a).
+        services.AddScoped<IAdminProfileReader, EfAdminProfileReader>();
+        services.AddScoped<IAdminProfileService, AdminProfileService>();
+
+        // Super-Freelancer approve / revoke / auto-revoke (BE-M6-09c).
+        services.AddScoped<ISuperFreelancerRepository, EfSuperFreelancerRepository>();
+        services.AddScoped<ISuperFreelancerService, SuperFreelancerService>();
+
         services.AddScoped<IAbsenceRepository, EfAbsenceRepository>();
         services.AddScoped<IAbsenceReportService, AbsenceReportService>();
     }
