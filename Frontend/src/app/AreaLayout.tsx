@@ -1,4 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/auth/useAuth'
 import { cn } from '@/lib/utils'
 import type { Area, NavItem } from './feature-module'
 import { navFor } from './feature-registry'
@@ -26,6 +28,7 @@ function groupBySection(items: NavItem[]): { section?: string; items: NavItem[] 
  */
 export function AreaLayout({ area }: { area: Area }) {
   const groups = groupBySection(navFor(area))
+  const { session, logout } = useAuth()
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="flex w-60 shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar p-5 text-sidebar-foreground">
@@ -57,6 +60,12 @@ export function AreaLayout({ area }: { area: Area }) {
             </div>
           ))}
         </nav>
+        <div className="mt-auto flex flex-col gap-2 border-t border-sidebar-border pt-4 text-sm">
+          <span className="text-muted-foreground">{session ? `${session.user.role} #${session.user.id}` : ''}</span>
+          <Button variant="outline" size="sm" onClick={() => void logout()}>
+            Đăng xuất
+          </Button>
+        </div>
       </aside>
       <main className="min-w-0 flex-1 p-8">
         <Outlet />
