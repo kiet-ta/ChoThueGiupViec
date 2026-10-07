@@ -24,7 +24,7 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 - [ ] **BE-M6-05** Xuất file chuyển khoản ngân hàng hàng loạt (Freelancer; Agency tổng hợp) · *needs:* BE-M6-04 · *decisions:* Q18 (`.xlsx`; Agency nhận thêm file chi tiết từng ca).
 - [ ] **BE-M6-06** Tài khoản Admin + chỉ số vận hành cho dashboard (số đơn, ca, tranh chấp tồn) · *needs:* G2.
 - [ ] **BE-M6-07** Thu nhập thợ theo tháng (freelancer 80 %) · *needs:* BE-M4-08.
-- [ ] **BE-M6-09** `IAuditLog` thật: ghi `ADMIN_AUDIT_LOG` append-only (không có API sửa/xoá), endpoint đọc lịch sử cho Admin; Admin duyệt/thu hồi `is_super_freelancer` (tiêu chí & tự thu hồi <4.70 theo decisions Q12) · *needs:* BASE-07 · *decisions:* G-5, Q12. — *một phần:* `IAuditLog` thật xong (ticket #70, evidence: `.harness/evidence/20261006-163138-L3.log`); endpoint đọc audit log và Super-Freelancer còn mở, chưa tick
+- [ ] **BE-M6-09** `IAuditLog` thật: ghi `ADMIN_AUDIT_LOG` append-only (không có API sửa/xoá), endpoint đọc lịch sử cho Admin; Admin duyệt/thu hồi `is_super_freelancer` (tiêu chí & tự thu hồi <4.70 theo decisions Q12) · *needs:* BASE-07 · *decisions:* G-5, Q12. — *một phần:* `IAuditLog` thật xong (ticket #70, evidence: `.harness/evidence/20261006-163138-L3.log`); *một phần (2):* endpoint đọc audit log xong (ticket #121, evidence: `.harness/evidence/20261007-105438-L3.log`); còn mở: duyệt/thu hồi Super-Freelancer (chưa tick)
 - [ ] **BE-M6-08** Test: cửa sổ đánh giá, 1 đánh giá/chiều, hạn khiếu nại 24 h, 40 % vắng mặt, payout đúng 80 %/tổng hợp & chạy lại không trùng · *needs:* BE-M6-01..07.
 
 ## Wave 3 — Web (Admin console desktop) & Mobile · *needs:* WEB-BASE-01..04, G4
