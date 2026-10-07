@@ -84,6 +84,15 @@ Bank-specific transfer formats are deferred (Q18). The file is also stored throu
 
 **`POST /api/admin/payout-batches/{batchId}/confirm`** -> 200 `data: PayoutBatch`. Sets `batch_status = CLOSED`, `confirmed_by` = caller, `confirmed_at` = `IClock.UtcNow`, every item `TRANSFERRED`, then publishes `PayoutBatchClosed { batchId, periodMonth, totalAmount }`. 409 if already `CLOSED` or the batch has no items. Idempotent guard: a second call never changes anything. Confirming a month that is not over is rejected (**P2**).
 
+**How 2.1 and 2.4 are implemented (BE-M6-04, ticket #136):**
+- The month is read in `Asia/Ho_Chi_Minh` and queried in UTC: for `2026-10` the range is `[2026-09-30T17:00Z, 2026-10-31T17:00Z)`. "Finished" means the Ho Chi Minh calendar has left the month, not the UTC date.
+- An approved absence fee has no `completed_at`: the assignment (status `ABSENT`, `absence_fee_amount > 0`) is dated by `updated_at`, which the absence approval (BE-M6-03) sets; attaching it to an item does not touch `updated_at`.
+- `penaltyAmount` needs no stored state: pending = (deductions decided before the month end) - (penalty already applied in earlier CLOSED batches of that payee), capped at `gross - commission` of the month so the net never goes below 0 (**P3**); the rest stays pending. A rebuild therefore gives the same numbers. Deductions come from `IPayoutPenaltySource` (owned by Payouts, implemented in the Disputes folder, **P1** resolved without a new M1 port): a resolved ticket with `fault_party = FREELANCER` costs each freelancer of the order its share (split by `gross_amount`, whole VND, remainder on the last), and a resolved `ABSENT_FEE` ticket with `fault_party = AGENCY` costs the agency (decision D9); a quality fault of an agency is escrow business (`ISlaPenaltyService`), not payout.
+- Items are listed in the order they were built: freelancers by worker id, then agencies by agency id.
+- Two simultaneous builds of one month are serialised by a transaction-scoped SQL application lock (`sp_getapplock`); a build that loses a claim on an assignment (paid by another batch meanwhile) is a 409 and is rolled back.
+- `confirm` closes the batch with one conditional `UPDATE ... WHERE batch_status = 'DRAFT'` (two admins at once: one 200, one 409), marks every item `TRANSFERRED` with `transferred_at`, writes one `ADMIN_AUDIT_LOG` row (`PAYOUT_BATCH`, `batch_status`, `DRAFT` to `CLOSED`) and then publishes the event.
+- An assignment completed after its month's batch was closed is not paid by a later batch (months are separate by `completed_at`); that is a consequence of P2 and is listed as a known gap in the PR.
+
 ### 2.5 Worker income (BE-M6-07, MOB-M6-04) — policy `WorkerOnly`
 
 **`GET /api/workers/me/earnings?month=YYYY-MM`** -> 200
@@ -104,7 +113,7 @@ Computed from the caller's own `COMPLETED` assignments (same formula as 2.1, not
 **`GET /api/workers/me/payouts?page=&pageSize=`** -> 200 `data: { items: [ { batchId, periodMonth, netAmount, itemStatus, transferredAt } ], page, pageSize, total }` — the worker's own closed items (the "Lịch sử giải ngân" screen).
 
 ## 3. Events
-- **Publishes** `PayoutBatchClosed { batchId, periodMonth, totalAmount }`. Consumers: Notifications to workers/agencies (`INotificationService`).
+- **Publishes** `PayoutBatchClosed { BatchId, PeriodMonth, TotalAmount, ItemCount, ClosedAtUtc }` (the record of `Domain/Events/PayoutBatchClosed.cs`; the first draft here had no `itemCount` and `closedAtUtc`). Consumers: Notifications to workers/agencies (`INotificationService`).
 - **Handles** nothing: it reads `JOB_ASSIGNMENT` and the resolved disputes in the Disputes module through the Disputes read model (**P1**).
 
 ## 4. Open questions (not covered by PRD or decisions; recommended default in bold)
