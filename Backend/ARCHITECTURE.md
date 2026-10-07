@@ -261,6 +261,13 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **Time:** the month is read in Asia/Ho_Chi_Minh (G-3) and queried in UTC; the dates are given `Kind = Utc` because the persistence converters reject any other kind.
 - Tests: `Tests/Payouts/PayoutCalculatorTests.cs` (arithmetic), `PayoutBatchServiceTests.cs` (rules, controller) and `PayoutBatchDatabaseTests.cs` (SQL Server: month boundaries to the second, penalty carry over three months, agency payee, 4-way parallel build, CLOSED immutability; they use months in 2093-2098 and remove their rows; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`).
 
+### 7.5d Payouts: bank transfer export (BE-M6-05, contract `payouts.md` 2.3, decision Q18)
+- **Endpoint (`AdminOnly`):** `GET api/admin/payout-batches/{batchId}/export?type=freelancer|agency-summary|agency-detail` answers the `.xlsx` file (`FileContentResult`, `Content-Disposition: attachment`), the only response of the API that is not the JSON envelope; 400 unknown type and 404 missing batch keep the envelope. Service `PayoutExportService`, controller `AdminPayoutExportController`.
+- **No package:** `XlsxWriter` writes the workbook parts (content types, relationships, workbook, styles, one sheet) with `System.IO.Compression` and `System.Xml`; text is `inlineStr` (leading zeros of an account number survive), decimals are numbers, ids plain numbers, XML special characters escaped and control characters dropped; the same input gives the same bytes. Tests read the file back part by part (`XlsxTestReader`); it has not been opened in Excel or LibreOffice in this environment.
+- **Columns:** Q18 for `freelancer`; P5 defaults for `agency-summary` and `agency-detail`, the latter with `agency_name` in front. Payees with net 0 are left out of the two transfer files; payees without a bank account stay listed.
+- **Storage:** every export goes through `IFileStorage` (folder `payouts`), `PAYOUT_BATCH.export_file_url` points at the latest one and the previous file of the batch is deleted. Bank account numbers live in these files: they are not served as static files (no `UseStaticFiles` in this project).
+- Tests: `Tests/Payouts/XlsxWriterTests.cs`, `PayoutExportTests.cs` (rows and columns per type, storage replacement, controller, and one SQL Server test that exports a real batch).
+
 ### 7.5 OpenAPI and Swagger snapshot (BASE-13)
 - **Configuration** (`Infrastructure/Swagger/SwaggerConfiguration.cs`):
   - Deterministic `operationId` format: `{Controller}_{Action}` for code generators.
