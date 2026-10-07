@@ -1,3 +1,5 @@
+using CommonService.Application.Features.Admin;
+using CommonService.Application.Features.Admin.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
@@ -14,5 +16,9 @@ public sealed class AdminModule : IModule
     {
         // The real audit log wins over FakeAuditLog, which FakePortRegistration adds later with TryAdd.
         services.AddScoped<IAuditLog, EfAuditLog>();
+
+        // Read side of the same table (BE-M6-09b).
+        services.AddScoped<IAuditLogReadRepository, EfAuditLogReadRepository>();
+        services.AddScoped<IAuditLogQueryService, AuditLogQueryService>();
     }
 }
