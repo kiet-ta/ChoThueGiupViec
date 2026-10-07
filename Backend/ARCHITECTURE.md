@@ -269,6 +269,16 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **FCM Push Notification**: DEFERRED per decision Q07b (not implemented in MVP).
 - Tests: `Tests/Infrastructure/SignalRNotificationTests.cs` (574 total tests passing).
 
+### 7.4b Disputes: filing, queue, case file, take (BE-M6-02a, contract `disputes.md`, PRD 4.3)
+- **Endpoints:** `POST/GET api/customers/me/disputes` (`CustomerOnly`), `POST/GET api/workers/me/disputes` (`WorkerOnly`) with `GET .../{disputeId}`, and for the Admin (`AdminOnly`) `GET api/admin/disputes` (queue), `GET api/admin/disputes/{disputeId}` (case file) and `POST api/admin/disputes/{disputeId}/take`. Ids come from `ICurrentUser`. The verdict (`resolve`) is BE-M6-02b and does not exist yet.
+- **One ticket per order:** `DISPUTE_TICKET` has a UNIQUE index on `order_id`, so the first filing by either side wins and a second one is a 409; the database also decides two simultaneous filings (`EfDisputeRepository.TryAddAsync` turns SQL error 2601/2627 into `false`). The contract's earlier "one per order and raiser" was corrected.
+- **Filing rules (`DisputeFilingService`):** the caller must be on the order (customer owns it / worker has an assignment on it) else 404; the order needs an assignment in `AWAITING_ACCEPTANCE`, `COMPLETED` or `ABSENT` and `now <= max(completed_at, shift end) + 24 h` (shift end = slot date + end time in Asia/Ho_Chi_Minh, converted by `IClock`); category in `QUALITY, ATTITUDE, PROPERTY_DAMAGE, ABSENT_FEE, OTHER`; description 1-1000 chars; 1-10 evidence entries of 1-500 chars (stored as a JSON array; no upload endpoint exists yet, so they are plain text). Status `OPEN`, `sla_due_at = created_at + 48 h`.
+- **Thresholds in one place:** `DisputeOptions` (file window 24 h, SLA 48 h, priority bands 6 h / 24 h, near-SLA 6 h; override in the `Disputes` configuration section) and `DisputeConstants` (statuses, categories). They are the recommended defaults of `disputes.md` questions D1/D3/D4, not leader decisions.
+- **Queue:** default status `OPEN,IN_REVIEW`, ordered by `sla_due_at`; `priority` HIGH/MEDIUM/LOW is derived from the time left (a decided ticket is LOW) and never stored; `nearSla=true` keeps unresolved tickets due within 6 h, overdue included (`slaSecondsRemaining` is negative then); `pageSize` 1-100 (over 100 is a 400). Names (customer, workers, agency) come from read-only joins on the shared tables (contract questions A6/D6: no read port exists yet).
+- **Case file:** the ticket, its summary, a shift timeline (`CHECK_IN`, `PHOTO_AFTER`, `CUSTOMER_DISPUTED`, `CHECK_OUT`) and the photos from `CHECK_IN_LOG` / `JOB_PHOTO`; the checklist has no data source and is `null`.
+- **Take:** `OPEN` to `IN_REVIEW`, the admin id goes to `resolved_by` as the handler (contract wording); 409 when not open.
+- Tests: `Tests/Disputes/DisputeServiceTests.cs` (in-memory) and `Tests/Disputes/DisputeEndpointTests.cs` (controllers; SQL Server flow, 6-way race and window checks that seed and remove their own rows; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`).
+
 ### 7.5 OpenAPI and Swagger snapshot (BASE-13)
 - **Configuration** (`Infrastructure/Swagger/SwaggerConfiguration.cs`):
   - Deterministic `operationId` format: `{Controller}_{Action}` for code generators.

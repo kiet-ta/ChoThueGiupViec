@@ -1,6 +1,6 @@
 # Contract: Disputes (module `Disputes`, owner M6)
 
-> Status: **DRAFT, awaiting leader approval** (ticket BE-M6-00, issue #62). Nobody codes an endpoint that is not in an approved contract.
+> Status: **merged by the leader in PR #64** (ticket BE-M6-00, issue #62). Section 2.1, the queue and case file of 2.2 and `take` of 2.3 are implemented by BE-M6-02a (ticket #130); `resolve` (BE-M6-02b) is not built yet. The open questions of section 4 are still unanswered by the leader; the recommended defaults are applied in one options class (`DisputeOptions`) and one constants class (`DisputeConstants`).
 > Sources: `.spec/spec.md` §4.3, BR-05 · `.spec/decisions.md` Q09, Q10, Q11, Q22 D3, G-2, G-3, G-7 · `.spec/plan/00-overview.md` §4 (`IRefundService`, `ISlaPenaltyService`, `IFileStorage`), §5 (`DisputeResolved`) · `Backend/GiupViec_Physical_DB_MVP5.drawio` table `DISPUTE_TICKET` · entity `Backend/Domain/Entities/DisputeTicket.cs`, enum `FaultParty`.
 > Implements tickets: BE-M6-02 (dispute filing and verdict). UI: WEB-M6-01 (dispute console, Figma `66:2`), MOB-M6-03 (file a dispute).
 > Conventions (envelope, camelCase, UTC, status codes, roles, policies, 404-for-not-owned) are defined in `identity.md` §1 and apply here unchanged. Items marked **Dx** are not decided by the PRD or `decisions.md`; they are listed in section 4 with a recommended default.
@@ -53,9 +53,9 @@
 
 | Status | Condition |
 |---|---|
-| 400 | `description` empty or longer than 1000; `category` not in the allowed set (**D1**); `evidenceUrls` empty (PRD §4.3 step 1: "kèm hình ảnh bằng chứng") or more than 10 entries, or an entry that is not a URL issued by `IFileStorage` |
+| 400 | `description` empty or longer than 1000; `category` not in the allowed set (**D1**); `evidenceUrls` empty (PRD §4.3 step 1: "kèm hình ảnh bằng chứng") or more than 10 entries, or an entry that is blank or longer than 500 characters (no upload endpoint exists yet, so any such text is accepted; checking that it was issued by `IFileStorage` needs that endpoint) |
 | 404 | order missing or caller not on it |
-| 409 | more than 24 h after the end of the shift (**D4**); the order has no assignment that reached `COMPLETED`/`AWAITING_ACCEPTANCE`/`ABSENT` (nothing to dispute); an open dispute by the same role already exists for this order (**D5**) |
+| 409 | more than 24 h after the end of the shift (**D4**); the order has no assignment that reached `COMPLETED`/`AWAITING_ACCEPTANCE`/`ABSENT` (nothing to dispute); **a dispute already exists for this order** (**D5**, corrected: `DISPUTE_TICKET` has a UNIQUE index on `order_id`, so an order has one ticket in total, whoever filed it; the loser of two simultaneous filings gets this 409 too) |
 
 Effects: `dispute_status = OPEN`, `sla_due_at = created_at + 48 h` (drawio note: `sla_due_at = +48 h`; PRD says SLA 24-48 h, see **D3**). The customer-absent fee dispute window (Q10: 24 h after the fee, `Absence.CustomerDisputeHours`) is the same endpoint with `category = ABSENT_FEE`.
 
@@ -117,7 +117,7 @@ Absence-fee reversal (Q10): if the customer disputes an absence fee within 24 h 
 | **D2** | `DISPUTE_TICKET` has `order_id` only, but fault is per worker (a two-worker order could mix a Freelancer and an Agency worker). | **One verdict per dispute; it applies to every assignment of the order. A mixed-fault order is out of the MVP.** If the leader wants per-assignment disputes, M1 adds an `assignment_id` column (schema change). |
 | **D3** | PRD says SLA 24-48 h by priority; drawio says `sla_due_at = +48 h`; Figma shows High/Medium/Low priority. No rule for priority. | **`sla_due_at = created_at + 48 h` for all; `priority` derived from remaining time: HIGH < 6 h, MEDIUM < 24 h, else LOW** (thresholds are config keys `Disputes.PriorityHighHours`, `Disputes.PriorityMediumHours`, proposed, not decided). |
 | **D4** | "Within 24 h after the shift" (PRD §4.3): measured from `completed_at` or the shift end? A customer can dispute before completion ("Từ chối & Khiếu nại" during acceptance, Figma timeline). | **Allowed from check-in until `max(completed_at, shift end) + Dispute.FileWindowHours` (24).** |
-| **D5** | Duplicate disputes; auto-created dispute for the absence fee ("Auto-Cancelled Dispute" in Figma). | **At most one unresolved dispute per `(order_id, raised_by)`; the system does not auto-create disputes, the Figma tag is shown only when `category = ABSENT_FEE`.** |
+| **D5** | Duplicate disputes; auto-created dispute for the absence fee ("Auto-Cancelled Dispute" in Figma). | **One ticket per order, enforced by the database (`UNIQUE(order_id)`, `DisputeTicketConfiguration.cs:17`): the first filing by either side wins, a second one is a 409. Replaces the earlier default "one unresolved per (order, raiser)", which the schema contradicts.** The system does not auto-create disputes; the Figma tag is shown only when `category = ABSENT_FEE`. If both sides must be able to file, the schema needs a change (M1). |
 | **D6** | Case file needs check-in log (M3), photos/VoL (M4) and checklist: modules may not read each other's tables. | **New read port `IDisputeEvidenceQuery` returning timeline, checklist and photos by `orderId` (implementer M3/M4 or M1 via the shared flat `JOB_ASSIGNMENT` data), added through a Scope exception on BASE-03.** Until then Fake. |
 | **D7** | If the customer is at fault, may the platform charge a fee? PRD only defines the 40% absence rule. | **No extra charge (nothing is invented); `CUSTOMER` fault is only recorded.** |
 | **D8** | G-5 audits Admin-editable money parameters only; a verdict moves money. | **Also write one `ADMIN_AUDIT_LOG` row per verdict (cheap, append-only).** |
