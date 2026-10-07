@@ -24,5 +24,9 @@ public sealed class AdminModule : IModule
         // Profile of the signed-in Admin (BE-M6-06a).
         services.AddScoped<IAdminProfileReader, EfAdminProfileReader>();
         services.AddScoped<IAdminProfileService, AdminProfileService>();
+
+        // Super-Freelancer approve / revoke / auto-revoke (BE-M6-09c).
+        services.AddScoped<ISuperFreelancerRepository, EfSuperFreelancerRepository>();
+        services.AddScoped<ISuperFreelancerService, SuperFreelancerService>();
     }
 }
