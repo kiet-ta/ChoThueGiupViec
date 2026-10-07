@@ -172,6 +172,65 @@ public sealed class EfPayoutRepository(AppDbContext db) : IPayoutRepository
         return (views, total);
     }
 
+    public async Task<IReadOnlyList<PayoutItemView>> GetAllItemsAsync(int batchId, PayeeType payeeType, CancellationToken cancellationToken = default)
+    {
+        var items = await db.PayoutItems.AsNoTracking()
+            .Where(i => i.BatchId == batchId && i.PayeeType == payeeType)
+            .OrderBy(i => i.ItemId)
+            .ToListAsync(cancellationToken);
+        var names = await NamesAsync(items, cancellationToken);
+        return items.Select(i =>
+        {
+            names.TryGetValue(KeyOf(i.PayeeType, i.WorkerId, i.AgencyId), out var name);
+            return new PayoutItemView(i, name.Name ?? string.Empty, name.Bank);
+        }).ToList();
+    }
+
+    public async Task<IReadOnlyList<PayoutDetailRow>> GetAgencyDetailAsync(int batchId, CancellationToken cancellationToken = default)
+    {
+        var agencyItems = await db.PayoutItems.AsNoTracking()
+            .Where(i => i.BatchId == batchId && i.PayeeType == PayeeType.Agency)
+            .Select(i => new { i.ItemId, i.AgencyId })
+            .ToListAsync(cancellationToken);
+        if (agencyItems.Count == 0) return [];
+
+        var itemIds = agencyItems.Select(i => (int?)i.ItemId).ToList();
+        var agencyIds = agencyItems.Select(i => i.AgencyId!.Value).Distinct().ToList();
+        var agencyNames = await db.PartnerAgencies.AsNoTracking()
+            .Where(a => agencyIds.Contains(a.AgencyId)).Select(a => new { a.AgencyId, a.LegalName })
+            .ToDictionaryAsync(a => a.AgencyId, a => a.LegalName, cancellationToken);
+
+        var rows = await (
+            from a in db.JobAssignments.AsNoTracking()
+            join w in db.Workers.AsNoTracking() on a.WorkerId equals w.WorkerId
+            where itemIds.Contains(a.PayoutItemId)
+            select new
+            {
+                a.AssignmentId,
+                a.OrderId,
+                a.AgencyId,
+                WorkerName = w.FullName,
+                a.AssignmentStatus,
+                a.GrossAmount,
+                a.CommissionRate,
+                a.AbsenceFeeAmount,
+                a.CompletedAt,
+                a.UpdatedAt,
+            }).ToListAsync(cancellationToken);
+
+        return rows
+            .Select(r => new PayoutDetailRow(
+                agencyNames.GetValueOrDefault(r.AgencyId ?? 0, string.Empty), r.AssignmentId, r.OrderId, r.WorkerName,
+                r.AssignmentStatus, r.GrossAmount, r.CommissionRate, r.AbsenceFeeAmount,
+                r.AssignmentStatus == JobAssignmentStatus.Absent ? r.UpdatedAt : r.CompletedAt ?? r.UpdatedAt))
+            .OrderBy(r => r.AgencyName, StringComparer.Ordinal).ThenBy(r => r.AssignmentId)
+            .ToList();
+    }
+
+    public Task SetExportUrlAsync(int batchId, string? url, CancellationToken cancellationToken = default) =>
+        db.PayoutBatches.Where(b => b.BatchId == batchId)
+            .ExecuteUpdateAsync(s => s.SetProperty(b => b.ExportFileUrl, url), cancellationToken);
+
     public async Task<IReadOnlyList<string>> GetPayeesWithoutBankAsync(int batchId, CancellationToken cancellationToken = default)
     {
         var items = await db.PayoutItems.AsNoTracking()

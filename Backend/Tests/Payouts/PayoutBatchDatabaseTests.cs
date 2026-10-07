@@ -26,7 +26,7 @@ public class PayoutBatchDatabaseTests
 
     private static readonly DateTime Now = new(2099, 6, 1, 4, 0, 0, DateTimeKind.Utc);
 
-    private static bool IsSqlServerAvailable()
+    internal static bool IsSqlServerAvailable()
     {
         try
         {
@@ -40,10 +40,10 @@ public class PayoutBatchDatabaseTests
         }
     }
 
-    private static DbContextOptions<AppDbContext> Options() =>
+    internal static DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options;
 
-    private sealed class RecordingPublisher : IPublisher
+    internal sealed class RecordingPublisher : IPublisher
     {
         public List<PayoutBatchClosed> Events { get; } = [];
 
@@ -58,12 +58,12 @@ public class PayoutBatchDatabaseTests
             Publish((object)notification, cancellationToken);
     }
 
-    private static PayoutBatchService Real(AppDbContext db, RecordingPublisher? publisher = null) =>
+    internal static PayoutBatchService Real(AppDbContext db, RecordingPublisher? publisher = null) =>
         new(new EfPayoutRepository(db), new EfPayoutPenaltySource(db), new EfAuditLog(db, new PayoutBatchServiceTests.TestClock(Now)),
             new UnitOfWork(db), new PayoutBatchServiceTests.TestClock(Now), publisher ?? new RecordingPublisher());
 
     /// <summary>Everything one test seeded, so it can be removed.</summary>
-    private sealed class Seed
+    internal sealed class Seed
     {
         public int AdminId { get; set; }
         public int CustomerId { get; set; }
@@ -76,7 +76,7 @@ public class PayoutBatchDatabaseTests
         public List<int> BatchIds { get; } = [];
     }
 
-    private static async Task<Seed> SeedBaseAsync(bool withAgency = false)
+    internal static async Task<Seed> SeedBaseAsync(bool withAgency = false)
     {
         var seed = new Seed();
         await using var db = new AppDbContext(Options());
@@ -147,7 +147,7 @@ public class PayoutBatchDatabaseTests
         return seed;
     }
 
-    private static async Task<int> AddWorkerAsync(Seed seed, string name, string? bankNo, bool agencyStaff = false)
+    internal static async Task<int> AddWorkerAsync(Seed seed, string name, string? bankNo, bool agencyStaff = false)
     {
         await using var db = new AppDbContext(Options());
         var phone = "092" + Random.Shared.Next(1000000, 9999999);
@@ -168,7 +168,7 @@ public class PayoutBatchDatabaseTests
     private static int _dayCounter;
 
     /// <summary>One order, one slot and one assignment; COMPLETED at <paramref name="completedAtUtc"/> or ABSENT with a fee dated <paramref name="completedAtUtc"/>.</summary>
-    private static async Task<long> AddAssignmentAsync(
+    internal static async Task<long> AddAssignmentAsync(
         Seed seed, int workerId, DateTime completedAtUtc, decimal gross = 260000m, decimal rate = 0.200m, int? agencyId = null, decimal? absenceFee = null)
     {
         await using var db = new AppDbContext(Options());
@@ -264,7 +264,7 @@ public class PayoutBatchDatabaseTests
         await db.SaveChangesAsync();
     }
 
-    private static async Task CleanAsync(Seed seed, params string[] periods)
+    internal static async Task CleanAsync(Seed seed, params string[] periods)
     {
         await using var db = new AppDbContext(Options());
         var batchIds = await db.PayoutBatches.Where(b => periods.Contains(b.PeriodMonth)).Select(b => b.BatchId).ToListAsync();
@@ -285,7 +285,7 @@ public class PayoutBatchDatabaseTests
         await db.Admins.Where(a => a.AdminId == seed.AdminId).ExecuteDeleteAsync();
     }
 
-    private static DateTime Utc(int y, int m, int d, int h = 0, int min = 0, int s = 0) => new(y, m, d, h, min, s, DateTimeKind.Utc);
+    internal static DateTime Utc(int y, int m, int d, int h = 0, int min = 0, int s = 0) => new(y, m, d, h, min, s, DateTimeKind.Utc);
 
     [Fact]
     public async Task Real_database_the_month_is_read_in_Ho_Chi_Minh_time_each_payee_gets_one_item_and_a_rebuild_gives_the_same_numbers()
