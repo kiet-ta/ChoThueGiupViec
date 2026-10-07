@@ -11,6 +11,21 @@ public sealed class FileDisputeRequestDto
     public List<string>? EvidenceUrls { get; init; }
 }
 
+/// <summary>Body of POST /api/admin/disputes/{id}/resolve (contract disputes.md 2.3). Text and nullable values so a bad one is a 400 with field messages.</summary>
+public sealed class ResolveDisputeRequestDto
+{
+    /// <summary>FREELANCER, AGENCY or CUSTOMER; null dismisses the dispute.</summary>
+    public string? FaultParty { get; init; }
+
+    /// <summary>Whole VND; omitted means 0.</summary>
+    public decimal? CompensationAmount { get; init; }
+
+    /// <summary>Only with FREELANCER (PRD 4.3: warning lock).</summary>
+    public bool? LockWorker { get; init; }
+
+    public string? Note { get; init; }
+}
+
 /// <summary>A dispute as its two parties see it (contract disputes.md section 1). The handling admin is not shown to them.</summary>
 public class DisputeDto
 {

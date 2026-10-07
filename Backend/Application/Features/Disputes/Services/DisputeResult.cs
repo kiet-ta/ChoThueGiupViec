@@ -23,4 +23,7 @@ public sealed class DisputeResult<T>
     public static DisputeResult<T> NotFound() => new() { StatusCode = 404, ErrorMessage = "Not found." };
 
     public static DisputeResult<T> Conflict(string message) => new() { StatusCode = 409, ErrorMessage = message };
+
+    /// <summary>A port outside Disputes (refund, SLA penalty) refused or failed; nothing was saved.</summary>
+    public static DisputeResult<T> BadGateway(string message) => new() { StatusCode = 502, ErrorMessage = message };
 }
