@@ -266,6 +266,11 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   - Fails whenever the live document drifts from the contract snapshot.
 - Tests: `Tests/Contracts/OpenApiSnapshotTests.cs` (577 total tests passing).
 
+### 7.5a Admin profile (BE-M6-06a, contract `admin.md` 2.1)
+- `GET /api/admin/me` (`WebAPI/Controllers/Admin/AdminProfileController.cs`, policy `AdminOnly`, GET only, no parameters): `{ adminId, email, fullName, adminRole, isActive, createdAt }` of the **caller**; the id is `ICurrentUser.UserId`, never a URL or body value. `password_hash`, `failed_login_count` and `locked_until` are not in the DTO (a test serialises the DTO and looks for them). 404 only when the row was removed.
+- `EfAdminProfileReader` reads `ADMIN` with `AsNoTracking`; the module registers it with `AdminModule`. No admin management endpoint exists in the MVP (contract question A1, recommended default); the operations dashboard (BE-M6-06 second part) waits for questions A2 and A6.
+- Tests: `Tests/Admin/AdminProfileTests.cs` (the DB test inserts and deletes its own `ADMIN` row; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`: in that mode `SqlClient` throws and the DB test returns early as a silent pass).
+
 ### 7.6 Audit log (`IAuditLog`, BE-M6-09a, decisions G-5 / SC-3)
 - The real implementation is `Infrastructure/Modules/Admin/EfAuditLog.cs`, registered by `AdminModule` (`IModule`), so it wins over `FakeAuditLog`. The port is unchanged: `Task WriteAsync(AuditEntry entry, CancellationToken ct)`.
 - **Same unit of work:** `WriteAsync` only adds the `ADMIN_AUDIT_LOG` row to the scoped `AppDbContext`; it never calls `SaveChanges`. A module therefore calls it **before** its own `SaveChangesAsync` / `IUnitOfWork` commit (inside `ExecuteInTransactionAsync` when it has one), and the change and its audit row commit or roll back together.
