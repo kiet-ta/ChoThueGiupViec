@@ -24,5 +24,10 @@ public sealed class AdminModule : IModule
         // Profile of the signed-in Admin (BE-M6-06a).
         services.AddScoped<IAdminProfileReader, EfAdminProfileReader>();
         services.AddScoped<IAdminProfileService, AdminProfileService>();
+
+        // Operations dashboard counts (BE-M6-06b); the near-SLA threshold can be overridden in the "Admin" configuration section.
+        services.Configure<AdminDashboardOptions>(configuration.GetSection("Admin"));
+        services.AddScoped<IAdminDashboardRepository, EfAdminDashboardRepository>();
+        services.AddScoped<IAdminDashboardService, AdminDashboardService>();
     }
 }
