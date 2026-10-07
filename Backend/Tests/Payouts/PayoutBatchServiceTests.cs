@@ -85,7 +85,7 @@ public class PayoutBatchServiceTests
         }
     }
 
-    private sealed class MemoryPayouts : IPayoutRepository
+    internal sealed class MemoryPayouts : IPayoutRepository
     {
         public List<PayoutBatch> Batches { get; } = [];
         public Dictionary<int, List<NewPayoutItem>> Stored { get; } = [];
@@ -173,6 +173,45 @@ public class PayoutBatchServiceTests
                 },
                 n.PayeeType == PayeeType.Freelancer ? $"Worker {n.WorkerId}" : $"Agency {n.AgencyId}", "ACB")).ToList();
             return Task.FromResult<(IReadOnlyList<PayoutItemView>, int)>((views, matching.Count));
+        }
+
+        public Dictionary<PayeeKey, (string Name, string? Bank)> Names { get; } = [];
+        public List<PayoutDetailRow> Details { get; } = [];
+
+        public Task<IReadOnlyList<PayoutItemView>> GetAllItemsAsync(int batchId, PayeeType payeeType, CancellationToken cancellationToken = default)
+        {
+            var items = (Stored.GetValueOrDefault(batchId) ?? []).Where(i => i.PayeeType == payeeType).Select((n, index) =>
+            {
+                var key = new PayeeKey(n.PayeeType, n.PayeeType == PayeeType.Freelancer ? n.WorkerId!.Value : n.AgencyId!.Value);
+                var name = Names.GetValueOrDefault(key, ($"Payee {key.Id}", "ACB"));
+                return new PayoutItemView(
+                    new PayoutItem
+                    {
+                        ItemId = index + 1,
+                        BatchId = batchId,
+                        WorkerId = n.WorkerId,
+                        AgencyId = n.AgencyId,
+                        PayeeType = n.PayeeType,
+                        JobCount = n.JobCount,
+                        GrossAmount = n.GrossAmount,
+                        CommissionAmount = n.CommissionAmount,
+                        PenaltyAmount = n.PenaltyAmount,
+                        NetAmount = n.NetAmount,
+                        BankAccountNo = n.BankAccountNo,
+                        ItemStatus = "PENDING",
+                    },
+                    name.Item1, name.Item2);
+            }).ToList();
+            return Task.FromResult<IReadOnlyList<PayoutItemView>>(items);
+        }
+
+        public Task<IReadOnlyList<PayoutDetailRow>> GetAgencyDetailAsync(int batchId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PayoutDetailRow>>(Details.ToList());
+
+        public Task SetExportUrlAsync(int batchId, string? url, CancellationToken cancellationToken = default)
+        {
+            Batches.First(b => b.BatchId == batchId).ExportFileUrl = url;
+            return Task.CompletedTask;
         }
 
         public Task<IReadOnlyList<string>> GetPayeesWithoutBankAsync(int batchId, CancellationToken cancellationToken = default) =>

@@ -34,6 +34,18 @@ public sealed record NewPayoutItem(
     string BankAccountNo,
     IReadOnlyList<long> AssignmentIds);
 
+/// <summary>An assignment paid through an agency item, for the per-assignment export (decision Q18, question P5).</summary>
+public sealed record PayoutDetailRow(
+    string AgencyName,
+    long AssignmentId,
+    long OrderId,
+    string WorkerName,
+    JobAssignmentStatus Status,
+    decimal GrossAmount,
+    decimal CommissionRate,
+    decimal? AbsenceFeeAmount,
+    DateTime DateUtc);
+
 /// <summary>A stored item with the payee name and bank name read from the worker or agency.</summary>
 public sealed record PayoutItemView(PayoutItem Item, string PayeeName, string? BankName);
 
@@ -83,6 +95,15 @@ public interface IPayoutRepository
     /// <summary>Items of a batch (optionally one payee type) with names, in the order they were built: freelancers first, then agencies, each by id.</summary>
     Task<(IReadOnlyList<PayoutItemView> Items, int Total)> GetItemsAsync(
         int batchId, PayeeType? payeeType, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>Every item of one payee type, in the order they were built (no paging), for the export files.</summary>
+    Task<IReadOnlyList<PayoutItemView>> GetAllItemsAsync(int batchId, PayeeType payeeType, CancellationToken cancellationToken = default);
+
+    /// <summary>The assignments paid through the batch's AGENCY items, by agency name then assignment id.</summary>
+    Task<IReadOnlyList<PayoutDetailRow>> GetAgencyDetailAsync(int batchId, CancellationToken cancellationToken = default);
+
+    /// <summary>Records where the last export of the batch was stored (<c>export_file_url</c>).</summary>
+    Task SetExportUrlAsync(int batchId, string? url, CancellationToken cancellationToken = default);
 
     /// <summary>Names of the payees of the batch that have no bank account number (question P4).</summary>
     Task<IReadOnlyList<string>> GetPayeesWithoutBankAsync(int batchId, CancellationToken cancellationToken = default);
