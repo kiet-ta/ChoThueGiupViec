@@ -20,5 +20,9 @@ public sealed class AdminModule : IModule
         // Read side of the same table (BE-M6-09b).
         services.AddScoped<IAuditLogReadRepository, EfAuditLogReadRepository>();
         services.AddScoped<IAuditLogQueryService, AuditLogQueryService>();
+
+        // Profile of the signed-in Admin (BE-M6-06a).
+        services.AddScoped<IAdminProfileReader, EfAdminProfileReader>();
+        services.AddScoped<IAdminProfileService, AdminProfileService>();
     }
 }
