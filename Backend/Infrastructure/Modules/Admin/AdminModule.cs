@@ -1,3 +1,5 @@
+using CommonService.Application.Features.Admin;
+using CommonService.Application.Features.Admin.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
@@ -14,5 +16,9 @@ public sealed class AdminModule : IModule
     {
         // The real audit log wins over FakeAuditLog, which FakePortRegistration adds later with TryAdd.
         services.AddScoped<IAuditLog, EfAuditLog>();
+
+        // Super-Freelancer approve / revoke / auto-revoke (BE-M6-09c).
+        services.AddScoped<ISuperFreelancerRepository, EfSuperFreelancerRepository>();
+        services.AddScoped<ISuperFreelancerService, SuperFreelancerService>();
     }
 }
