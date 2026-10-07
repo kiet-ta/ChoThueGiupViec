@@ -214,6 +214,7 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   dotnet ef migrations remove
   ```
 - Persistence tests: `Tests/Persistence/AppDbContextModelTests.cs` (EF Core model metadata & conventions) and `Tests/Persistence/SqlServerPersistenceTests.cs` (live SQL Server schema, unique constraints, filtered indexes, CHECK constraints, UTC DateTime converter).
+- **Silent skips (check this before trusting a green run):** every DB-backed test starts with `IsSqlServerAvailable()`, which swallows all exceptions and then returns early, counted as a pass. It skips when SQL Server or the database `ChoThueGiupViec` is missing (`dotnet ef database update` creates it) **and whenever `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` is set**, because `Microsoft.Data.SqlClient` throws `NotSupportedException` in invariant globalization mode. Run the suite without that variable to execute them.
 
 ### 7.2 Data seeding and password hashing (BASE-10)
 - `Pbkdf2PasswordHasher` (`Infrastructure/Modules/Identity/Pbkdf2PasswordHasher.cs`) implements `IPasswordHasher` using PBKDF2 with HMAC-SHA256 (100,000 iterations, 16-byte salt, 32-byte subkey, format `pbkdf2$sha256$...`). Registered via `IdentityModule : IModule` and takes precedence over `FakePasswordHasher`.
@@ -278,6 +279,16 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **Append-only:** the port and the class have no update/delete method (a test checks the method names). The database itself still allows an UPDATE/DELETE by SQL; blocking that needs a schema-level rule (trigger or permissions), which is an M1 schema change and not part of this ticket.
 - **Rules enforced:** `changed_at` comes from `IClock` (UTC); `entityType` <= 30, `entityId` <= 40, `fieldName` <= 50, `oldValue`/`newValue` <= 500, `reason` <= 255 characters, rejected with `ArgumentException` instead of being truncated; an `ADMIN` entry needs `adminId` and a non-blank `reason`; a `SYSTEM` entry must have `adminId = null`.
 - Tests: `Tests/Admin/EfAuditLogTests.cs`; the transaction test (commit keeps the row, rollback leaves none) runs only when the local SQL Server database exists (`dotnet ef database update`, section 7.1).
+
+### 7.7 Ratings module (BE-M6-01a, contract `ratings.md`, decisions Q14 / SC-5)
+- **Endpoints:** `GET .../rating-window` and `POST .../rating` under `api/customers/me/assignments/{assignmentId}` (policy `CustomerOnly`, customer rates the worker) and `api/workers/me/assignments/{assignmentId}` (policy `WorkerOnly`, worker rates the customer). The caller id comes from `ICurrentUser`, never from the URL or body; an assignment that is not the caller's is a 404, never a reason.
+- **Rules (`Application/Features/Ratings/Services/RatingService.cs`):** stars 1-5; criteria are exactly `punctuality, cleaningQuality, attitude` (customer) or `cooperation, workingConditions` (worker), each 1-5, camelCase in the API and snake_case in `criteria_json` (`cleaning_quality`, `working_conditions`); comment at most 500 characters; the assignment must be `COMPLETED` and `now <= completed_at + Rating.WindowHours` (48, `BusinessRules`; the exact closing instant is still open); one rating per `(assignment_id, rater_role)` with `rater_role` `CUSTOMER` / `WORKER`. Body validation runs first (400, `data.errors`), then ownership (404), then the state (409: `NOT_COMPLETED`, `WINDOW_CLOSED`, `ALREADY_RATED`).
+- **Race:** `EfRatingRepository.TryAddAsync` saves on its own and turns the unique-index violation (SQL error 2601/2627) into `false`, so of simultaneous requests exactly one wins and the rest get 409. A test fires six at once against the local database.
+- **Event:** `RatingSubmitted` (no worker id in the record) is published after the row is saved; a consumer that fails is logged and does not fail the request.
+- **Reads `JOB_ASSIGNMENT`** (the flat shared node) with `AsNoTracking` and never changes it. The worker-to-customer rating is internal (Q14): no endpoint returns it to the customer or lists it back to the worker; a test pins that the service has no other method.
+- **Not here:** the real `IWorkerReputation` (its `successRate` is undecided, contract question M3; the Fake still serves Dispatch) and the sync of `WORKER.rating_avg` (M4's table).
+- **Testing note:** the DB-backed tests return early (a silent pass) when SQL Server or the database is missing **and also when `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` is set**, because `Microsoft.Data.SqlClient` throws in invariant globalization mode. Do not set that variable when you want those tests to run.
+- Tests: `Tests/Ratings/RatingServiceTests.cs` (rules, in-memory repository) and `Tests/Ratings/RatingEndpointTests.cs` (controllers, repository, unique-index race).
 
 ## 8. Known gaps / TODO
 - No authentication (`UseAuthorization` only, until Identity module BE-M1-02).
