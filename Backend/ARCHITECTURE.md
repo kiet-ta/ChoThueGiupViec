@@ -244,6 +244,15 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   - `ResponseWrapperMiddleware`: wraps 2xx responses into `ApiResponse<T>.Ok`, non-2xx responses into `ApiResponse<T>.Fail`, normalizes to camelCase, skips Swagger/health/hubs, and prevents double-wrapping.
 - Tests: `Tests/Infrastructure/*Tests.cs` (567 total tests passing).
 
+### 7.4a Super-Freelancer (BE-M6-09c, decisions Q12 and G-5, contract `admin.md` 2.5)
+- `POST` and `DELETE /api/admin/workers/{workerId}/super-freelancer` (`WebAPI/Controllers/Admin/AdminSuperFreelancerController.cs`, policy `AdminOnly`, body `{ "reason" }`). Approve needs rating average >= 4.80 and completed jobs >= 50 (both from `IWorkerReputation`, 4.80 / 50 from `BusinessRules.SuperFreelancer`), `kyc_status` approved, and no dispute with `fault_party = FREELANCER` resolved in the last 180 days for an order of the worker; a refusal is a 409 whose `data.failedCriteria` lists every failing criterion (`RATING_BELOW_MINIMUM`, `COMPLETED_JOBS_BELOW_MINIMUM`, `KYC_NOT_APPROVED`, `UPHELD_DISPUTE_RECENT`; an agency worker is `NOT_FREELANCER`). Approving a super worker or revoking a non-super one is an idempotent 200 that writes nothing.
+- **One unit of work:** the service changes the tracked `Worker` and calls `IAuditLog.WriteAsync` before one `SaveChangesAsync`, so the flag and its `ADMIN_AUDIT_LOG` row (`entity_type = WORKER`, `field_name = is_super_freelancer`, `false`/`true`, the reason) commit together.
+- **Auto revoke:** `RatingSubmittedSuperFreelancerHandler` (MediatR) reacts to CUSTOMER ratings only, finds the worker through the assignment (the event has no worker id) and, when the worker's average is below `RevokeBelowRating` (4.70; exactly 4.70 keeps the flag), clears the flag with a `SYSTEM` audit row (no admin id, reason `rating below 4.70`). The average comes from `IWorkerReputation`, so it is correct only once the real implementation (BE-M6-01b) is registered; with the Fake a null reputation does nothing.
+- **Assumptions:** `WORKER.kyc_status` has no defined values yet; `SuperFreelancerService.KycApprovedStatus = "APPROVED"` (case-insensitive) is the single place to align with M4. The service reads and writes `WORKER` (public `IsSuperFreelancer` setter) directly, as the plan assigns the flag to M6; no command port was added (contract question A7).
+- **Format numbers with the invariant culture:** the audit reason is built with `CultureInfo.InvariantCulture`; the first version printed `4,70` on a machine with comma decimals, caught by a test.
+- **Schema fact to remember:** `DISPUTE_TICKET` has a UNIQUE index on `order_id` (`DisputeTicketConfiguration.cs:17`), so an order can have only one dispute ticket in total; this matters for the Disputes module (contract question D5 assumed one per role).
+- Tests: `Tests/Admin/SuperFreelancerTests.cs` (DB tests seed an admin, customer, order(s), workers, slots, assignments and dispute tickets and remove them).
+
 ### 7.4 Realtime and notification channel (SignalR, BASE-12, decisions Q07)
 - **SignalR Hub** (`Infrastructure/Realtime/NotificationHub.cs`): mapped at `/hubs/notifications` via `RealtimeModule : IModule`.
   - Strong-typed client: `INotificationClient.ReceiveNotification(NotificationMessageDto notification)`.
@@ -259,6 +268,16 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
     - Response 400: missing `role`/`userId` when unauthenticated.
 - **FCM Push Notification**: DEFERRED per decision Q07b (not implemented in MVP).
 - Tests: `Tests/Infrastructure/SignalRNotificationTests.cs` (574 total tests passing).
+
+### 7.4b Disputes: filing, queue, case file, take (BE-M6-02a, contract `disputes.md`, PRD 4.3)
+- **Endpoints:** `POST/GET api/customers/me/disputes` (`CustomerOnly`), `POST/GET api/workers/me/disputes` (`WorkerOnly`) with `GET .../{disputeId}`, and for the Admin (`AdminOnly`) `GET api/admin/disputes` (queue), `GET api/admin/disputes/{disputeId}` (case file) and `POST api/admin/disputes/{disputeId}/take`. Ids come from `ICurrentUser`. The verdict (`resolve`) is BE-M6-02b and does not exist yet.
+- **One ticket per order:** `DISPUTE_TICKET` has a UNIQUE index on `order_id`, so the first filing by either side wins and a second one is a 409; the database also decides two simultaneous filings (`EfDisputeRepository.TryAddAsync` turns SQL error 2601/2627 into `false`). The contract's earlier "one per order and raiser" was corrected.
+- **Filing rules (`DisputeFilingService`):** the caller must be on the order (customer owns it / worker has an assignment on it) else 404; the order needs an assignment in `AWAITING_ACCEPTANCE`, `COMPLETED` or `ABSENT` and `now <= max(completed_at, shift end) + 24 h` (shift end = slot date + end time in Asia/Ho_Chi_Minh, converted by `IClock`); category in `QUALITY, ATTITUDE, PROPERTY_DAMAGE, ABSENT_FEE, OTHER`; description 1-1000 chars; 1-10 evidence entries of 1-500 chars (stored as a JSON array; no upload endpoint exists yet, so they are plain text). Status `OPEN`, `sla_due_at = created_at + 48 h`.
+- **Thresholds in one place:** `DisputeOptions` (file window 24 h, SLA 48 h, priority bands 6 h / 24 h, near-SLA 6 h; override in the `Disputes` configuration section) and `DisputeConstants` (statuses, categories). They are the recommended defaults of `disputes.md` questions D1/D3/D4, not leader decisions.
+- **Queue:** default status `OPEN,IN_REVIEW`, ordered by `sla_due_at`; `priority` HIGH/MEDIUM/LOW is derived from the time left (a decided ticket is LOW) and never stored; `nearSla=true` keeps unresolved tickets due within 6 h, overdue included (`slaSecondsRemaining` is negative then); `pageSize` 1-100 (over 100 is a 400). Names (customer, workers, agency) come from read-only joins on the shared tables (contract questions A6/D6: no read port exists yet).
+- **Case file:** the ticket, its summary, a shift timeline (`CHECK_IN`, `PHOTO_AFTER`, `CUSTOMER_DISPUTED`, `CHECK_OUT`) and the photos from `CHECK_IN_LOG` / `JOB_PHOTO`; the checklist has no data source and is `null`.
+- **Take:** `OPEN` to `IN_REVIEW`, the admin id goes to `resolved_by` as the handler (contract wording); 409 when not open.
+- Tests: `Tests/Disputes/DisputeServiceTests.cs` (in-memory) and `Tests/Disputes/DisputeEndpointTests.cs` (controllers; SQL Server flow, 6-way race and window checks that seed and remove their own rows; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`).
 
 ### 7.5 OpenAPI and Swagger snapshot (BASE-13)
 - **Configuration** (`Infrastructure/Swagger/SwaggerConfiguration.cs`):

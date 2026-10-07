@@ -29,5 +29,9 @@ public sealed class AdminModule : IModule
         services.Configure<AdminDashboardOptions>(configuration.GetSection("Admin"));
         services.AddScoped<IAdminDashboardRepository, EfAdminDashboardRepository>();
         services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+
+        // Super-Freelancer approve / revoke / auto-revoke (BE-M6-09c).
+        services.AddScoped<ISuperFreelancerRepository, EfSuperFreelancerRepository>();
+        services.AddScoped<ISuperFreelancerService, SuperFreelancerService>();
     }
 }
