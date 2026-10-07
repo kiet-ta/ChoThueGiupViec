@@ -253,6 +253,14 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **FCM Push Notification**: DEFERRED per decision Q07b (not implemented in MVP).
 - Tests: `Tests/Infrastructure/SignalRNotificationTests.cs` (574 total tests passing).
 
+### 7.5b Admin: absence approval (BE-M6-03, contract `admin.md` 2.2, decision Q10)
+- **Endpoints (`AdminOnly`):** `GET api/admin/absence-reports?status=&page=&pageSize=` (default `PENDING`, oldest report first, `pageSize` 1-100), `GET .../{assignmentId}`, `POST .../{assignmentId}/approve`, `POST .../{assignmentId}/reject` (`{ reason }`). Service `AbsenceReportService`, repository `EfAbsenceRepository`.
+- **No new table (question A3):** a report is a `CHECK_IN_LOG` row with `customer_absent_at` (written by M3, `CustomerAbsentService`). PENDING = assignment not `ABSENT` and no rejection row; APPROVED = assignment `ABSENT`; REJECTED = an `ADMIN_AUDIT_LOG` row (`JOB_ASSIGNMENT`, `absence_report`, `REJECTED`). The queue reads `CHECK_IN_LOG`, `JOB_ASSIGNMENT`, `JOB_ORDER` and the name columns read-only (question A6: no read port yet).
+- **Approve** is refused with 409 and `blockReasons` unless GPS is verified, `call_attempts >= Absence.MinCallAttempts` (2), `now - checked_in_at >= Absence.MinWaitMinutes` (15) and `customer_absent_at` is set (all from `BusinessRules.Absence`); a decided report or an assignment that is no longer `CHECKED_IN` is a 409 too. In one unit of work: one conditional `UPDATE` (`CHECKED_IN` to `ABSENT`, `absence_fee_amount = Vnd.Round(gross x 0.40)`), `IRefundService` for `gross - fee`, one audit row; then `CustomerAbsentApproved` is published. A refused refund is a 502 and everything is rolled back.
+- **Reject** needs a reason of 1-255 characters and only writes the audit row (question A4: the assignment is left alone).
+- **Not done here:** notifying the Admins on `CustomerAbsentReported` (a notification needs a recipient id and no admin list port exists) and notifying the customer of the 24 h dispute window; the worker returns to `IDLE` through the Workers module reacting to the event (decision Q22 D6).
+- Tests: `Tests/Admin/AbsenceReportTests.cs` (in-memory rules; SQL Server: approve flow with queue statuses, blocked approval, rejection, rollback on a refused refund, 6-way race; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`).
+
 ### 7.5 OpenAPI and Swagger snapshot (BASE-13)
 - **Configuration** (`Infrastructure/Swagger/SwaggerConfiguration.cs`):
   - Deterministic `operationId` format: `{Controller}_{Action}` for code generators.
