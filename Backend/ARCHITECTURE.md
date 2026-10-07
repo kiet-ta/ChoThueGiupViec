@@ -261,6 +261,12 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **Time:** the month is read in Asia/Ho_Chi_Minh (G-3) and queried in UTC; the dates are given `Kind = Utc` because the persistence converters reject any other kind.
 - Tests: `Tests/Payouts/PayoutCalculatorTests.cs` (arithmetic), `PayoutBatchServiceTests.cs` (rules, controller) and `PayoutBatchDatabaseTests.cs` (SQL Server: month boundaries to the second, penalty carry over three months, agency payee, 4-way parallel build, CLOSED immutability; they use months in 2093-2098 and remove their rows; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`).
 
+### 7.5e Payouts: the freelancer's income (BE-M6-07, contract `payouts.md` 2.5, decision Q11)
+- **Endpoints (`WorkerOnly`):** `GET api/workers/me/earnings?month=YYYY-MM` (default the current month in Asia/Ho_Chi_Minh; 400 bad or future month; 403 for agency staff, whose agency is paid) and `GET api/workers/me/payouts?page=&pageSize=` (the worker's own items of CLOSED batches, newest month first). Service `WorkerEarningsService`, controller `WorkerEarningsController`.
+- **Own repository:** `IWorkerEarningsRepository` / `EfWorkerEarningsRepository` are scoped to one worker id in every method; they were kept apart from `IPayoutRepository` so the batch interfaces stay as they are. The worker id comes from `ICurrentUser`, never from the request.
+- **Same arithmetic as the batch** (`PayoutCalculator`): jobs and approved absence fees of the month with the frozen commission rate, pending penalty capped by the month. `payoutStatus` is NOT_BUILT / PENDING (DRAFT) / TRANSFERRED (CLOSED). A DRAFT item is not trusted (it may be stale) so the month is recomputed; a CLOSED batch's stored item wins so the screen equals the money transferred.
+- Tests: `Tests/Payouts/WorkerEarningsTests.cs` (in-memory rules and controller; one SQL Server test with two freelancers and an agency staff member: month boundaries to the second, ownership, DRAFT then CLOSED, history; rows removed afterwards).
+
 ### 7.5 OpenAPI and Swagger snapshot (BASE-13)
 - **Configuration** (`Infrastructure/Swagger/SwaggerConfiguration.cs`):
   - Deterministic `operationId` format: `{Controller}_{Action}` for code generators.
