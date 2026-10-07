@@ -53,7 +53,9 @@ On success, in one transaction (per affected assignment, Q10):
 - `absence_fee_amount = Vnd.Round(gross_amount x Absence.FeeRate)` (0.40); the assignment moves to `ABSENT` through the state machine.
 - The customer is charged exactly that 40% and the other 60% is refunded through `IRefundService` to the original payment method; the platform keeps nothing.
 - The worker returns to `IDLE` (Workers module reacts to the event, `WORKER.work_status` is not written here, Q22 D6).
-- `CustomerAbsentApproved { assignmentId, orderId, workerId, agencyId, feeAmount, refundAmount }` is published; the customer is notified and has 24 h to dispute (`disputes.md`).
+- `CustomerAbsentApproved` is published after the commit; the customer is notified and has 24 h to dispute (`disputes.md`). **(BE-M6-03) The fields are those of the real record** `Domain/Events/CustomerAbsentApproved.cs`: `AssignmentId, OrderId, WorkerId, CompensationAmount` (the 40 % fee), `RefundAmount` (the 60 %), `ApprovedAtUtc`; it has no `agencyId` (the first draft had `agencyId, feeAmount, refundAmount`).
+- **(BE-M6-03) How it is done:** one conditional `UPDATE ... WHERE assignment_status = 'CHECKED_IN'` sets `ABSENT` and the fee, so two admins approving at once get one 200 and one 409 and the refund runs once; `IRefundService` refunds `gross - fee` (so the two parts add up exactly); a refused refund is a **502** and the whole transaction is rolled back; one `ADMIN_AUDIT_LOG` row is written (`JOB_ASSIGNMENT`, `absence_report`, `PENDING` to `APPROVED`, reason with the amounts); an assignment that is no longer `CHECKED_IN` (for example the work started) is a 409. `waitedMinutes` is the time since check-in until now while PENDING and until the report once decided.
+- **Double-refund risk to settle with M2:** `Domain/Events` and `Backend/ARCHITECTURE.md` describe this event as the trigger of the 60 % refund in M2, while this contract (and the code) refunds through `IRefundService` here. The real `IRefundService` implementer must not refund again on `CustomerAbsentApproved`.
 
 **`POST /api/admin/absence-reports/{assignmentId}/reject`** -> 200 `data: AbsenceReport`
 ```json

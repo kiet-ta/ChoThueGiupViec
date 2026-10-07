@@ -22,6 +22,9 @@ public static class DisputeConstants
     /// <summary>category is VARCHAR(15): PRD 4.3 lists damage, cleanliness and attitude; ABSENT_FEE is the customer dispute of Q10.</summary>
     public static readonly IReadOnlyList<string> Categories = ["QUALITY", "ATTITUDE", "PROPERTY_DAMAGE", "ABSENT_FEE", "OTHER"];
 
+    /// <summary>The category of the customer dispute of an absence fee (Q10); its reversal never costs SLA points or escrow (D9).</summary>
+    public const string AbsentFeeCategory = "ABSENT_FEE";
+
     public const int MaxDescriptionLength = 1000; // DISPUTE_TICKET.description NVARCHAR(1000)
     public const int MaxEvidenceCount = 10;
     public const int MaxEvidenceUrlLength = 500;
