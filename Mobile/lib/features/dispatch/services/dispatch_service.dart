@@ -3,9 +3,10 @@ import '../../../core/device/location_wrapper.dart';
 import '../../../core/network/api_client.dart';
 import '../models/check_in_result.dart';
 import '../models/customer_absent_report.dart';
+import '../models/incident_log.dart';
 import '../models/job_offer.dart';
 
-/// Service managing worker job offers, check-in, and absent protocols matching .spec/contracts/dispatch.md §3.1.
+/// Service managing worker job offers, check-in, absent, and incident protocols matching .spec/contracts/dispatch.md §3.1.
 class DispatchService {
   final ApiClient _apiClient;
   final ILocationWrapper _locationWrapper;
@@ -16,6 +17,7 @@ class DispatchService {
   CheckInResult? _mockCheckInResult;
   int _mockCallAttempts = 0;
   DateTime? _mockCheckedInAt;
+  IncidentLog? _mockIncidentLog;
 
   DispatchService({
     ApiClient? apiClient,
@@ -68,6 +70,11 @@ class DispatchService {
     if (checkedInAt != null) {
       _mockCheckedInAt = checkedInAt;
     }
+  }
+
+  /// Sets mock incident log.
+  void setMockIncidentLog(IncidentLog? log) {
+    _mockIncidentLog = log;
   }
 
   /// Fetches the currently pending job offer for the worker.
@@ -321,5 +328,54 @@ class DispatchService {
       return CustomerAbsentReport.fromJson(data);
     }
     throw const ApiException(500, 'Không thể báo khách vắng mặt');
+  }
+
+  /// Reports a force majeure incident with photo evidence and GPS (BR-10).
+  Future<IncidentLog> reportIncident({
+    required int assignmentId,
+    required String incidentType,
+    required String description,
+    required String photoEvidenceUrl,
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (isMock) {
+      if (_mockIncidentLog != null) {
+        return _mockIncidentLog!;
+      }
+      return IncidentLog(
+        incidentId: 3001,
+        assignmentId: assignmentId,
+        workerId: 42,
+        incidentType: incidentType,
+        description: description,
+        photoEvidenceUrl: photoEvidenceUrl,
+        latitude: latitude,
+        longitude: longitude,
+        reportedAt: DateTime.now(),
+        isPenaltyExempt: true,
+        reDispatchStatus: 'SEARCHING',
+        reDispatchDeadline: DateTime.now().add(const Duration(minutes: 5)),
+        substituteWorkerId: null,
+      );
+    }
+
+    final response = await _apiClient.post(
+      '/api/dispatch/assignments/$assignmentId/incidents',
+      body: {
+        'incidentType': incidentType,
+        'description': description,
+        'photoEvidenceUrl': photoEvidenceUrl,
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+      requiresAuth: true,
+    );
+
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return IncidentLog.fromJson(data);
+    }
+    throw const ApiException(500, 'Không thể gửi báo cáo sự cố');
   }
 }
