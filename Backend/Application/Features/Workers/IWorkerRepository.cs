@@ -19,7 +19,13 @@ public interface IWorkerRepository : IRepository<Worker, int>
     Task AddSlotAsync(BookingSlot slot, CancellationToken cancellationToken = default);
     void UpdateSlot(BookingSlot slot);
 
+    Task<JobAssignment?> GetAssignmentByIdAsync(long assignmentId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JobPhoto>> GetJobPhotosAsync(long assignmentId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JobPhoto>> GetAcceptedJobPhotosByPhaseAsync(long assignmentId, string photoPhase, CancellationToken cancellationToken = default);
+    Task AddJobPhotoAsync(JobPhoto photo, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
 
 
