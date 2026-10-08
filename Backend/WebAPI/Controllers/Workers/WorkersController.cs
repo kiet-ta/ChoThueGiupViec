@@ -89,6 +89,34 @@ public class WorkersController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Returns active blocked availability slots for specified date range (contract §2.3.1).</summary>
+    [HttpGet("me/slots")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<BookingSlotResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetSlots(
+        [FromQuery] DateOnly? startDate,
+        [FromQuery] DateOnly? endDate,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(new GetWorkerSlotsQuery(startDate, endDate), ct);
+        return Ok(result);
+    }
+
+    /// <summary>Enables or disables an availability slot for a given date and shift (contract §2.3.2).</summary>
+    [HttpPost("me/slots/toggle")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<BookingSlotResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ToggleSlot(
+        [FromBody] ToggleBookingSlotRequest request,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(new ToggleBookingSlotCommand(request), ct);
+        return Ok(result);
+    }
+
     /// <summary>Public summary view of a worker profile by ID (contract §2.1.4).</summary>
     [HttpGet("{id:int}")]
     [Authorize]
@@ -100,3 +128,4 @@ public class WorkersController(ISender sender) : ControllerBase
         return Ok(result);
     }
 }
+
