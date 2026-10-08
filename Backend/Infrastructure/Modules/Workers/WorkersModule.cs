@@ -18,5 +18,6 @@ public sealed class WorkersModule : IModule
         services.AddScoped<IWorkerRepository, EfWorkerRepository>();
         services.AddScoped<IWorkerProfileQuery, WorkerProfileQuery>();
         services.AddScoped<IImageQualityService, ImageQualityService>();
+        services.AddScoped<IEkycProvider, EkycProvider>();
     }
 }

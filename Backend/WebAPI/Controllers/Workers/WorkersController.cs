@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CommonService.WebAPI.Controllers.Workers;
 
 /// <summary>
-/// Worker profile management endpoints (contract workers.md §2.1).
+/// Worker profile management endpoints (contract workers.md §2.1 & §2.2).
 /// </summary>
 [ApiController]
 [Route("api/workers")]
@@ -62,6 +62,30 @@ public class WorkersController(ISender sender) : ControllerBase
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateWorkerProfileRequest request, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateWorkerProfileCommand(request), ct);
+        return Ok(result);
+    }
+
+    /// <summary>Submits CCCD photos and selfie for eKYC verification (contract §2.2.1).</summary>
+    [HttpPost("me/ekyc")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<EkycResultResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> SubmitEkyc([FromBody] SubmitEkycRequest request, CancellationToken ct)
+    {
+        var result = await sender.Send(new SubmitEkycCommand(request), ct);
+        return Ok(result);
+    }
+
+    /// <summary>Returns current worker's eKYC status details (contract §2.2.1).</summary>
+    [HttpGet("me/ekyc/status")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<EkycStatusResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetEkycStatus(CancellationToken ct)
+    {
+        var result = await sender.Send(new GetEkycStatusQuery(), ct);
         return Ok(result);
     }
 
