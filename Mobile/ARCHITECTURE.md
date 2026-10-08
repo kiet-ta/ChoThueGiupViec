@@ -55,6 +55,11 @@ To prevent merge conflicts across the 6 team members:
 3. Every feature defines its own `routes.dart` containing a class implementing `FeatureModule`.
 4. Route names are exposed through static constants in the feature's `routes.dart` and registered in its module's `routes` map or `onGenerateRoute` factory.
 
+### Worker income (`features/payouts`, MOB-M6-04)
+- `/payouts` (`PayoutScreen`): month selector (default month and "today" are read in Asia/Ho_Chi_Minh, UTC+7; the next button stops at the current month because the server answers 400 for a future month; the previous button stops at January 2024) and `GET /api/workers/me/earnings?month=YYYY-MM`. It shows "Thu nhập tháng này" (net), gross, commission, penalty, the payout status (`NOT_BUILT`, `PENDING`, `TRANSFERRED`) with a hint, and the jobs; an approved absence fee carries a "Phí vắng mặt" tag. There is no wallet or "số dư khả dụng" (open question P6). A 403 (agency staff: the agency is paid) is explained and has no retry. A slow answer of an older month never overwrites a newer choice.
+- `/payouts/history` (`PayoutHistoryScreen`): `GET /api/workers/me/payouts?page=&pageSize=`, "Xem thêm" loads the next page; a failure on a later page keeps what is shown.
+- `logic/payout_logic.dart` is pure (month keys, VND `1.234.567 đ`, Ho Chi Minh date and time, labels, error texts). Every amount comes from the server; the device does no money arithmetic. `services/payouts_service.dart` uses the shared `ApiClient`; screens take an `IPayoutsService` so tests inject a fake.
+
 ## 4. Verification
 - `cd Mobile && flutter analyze`: Static linting and code quality.
 - `cd Mobile && flutter test`: Unit and widget test execution.

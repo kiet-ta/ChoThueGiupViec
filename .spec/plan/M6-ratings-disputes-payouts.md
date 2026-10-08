@@ -34,4 +34,4 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 - [ ] **WEB-M6-04** Dashboard vận hành.
 - [ ] **MOB-M6-01** Khách đánh giá thợ · **MOB-M6-02** Thợ đánh giá khách.
 - [ ] **MOB-M6-03** Tạo khiếu nại kèm ảnh (khách + thợ), trong 24 h.
-- [ ] **MOB-M6-04** Thợ xem thu nhập thực nhận.
+- [ ] **MOB-M6-04** Thợ xem thu nhập thực nhận. — *đã làm, chờ review:* ticket #156 (màn `/payouts` theo tháng + `/payouts/history`; endpoint ở PR #141 chưa merge nên chưa chạy với backend thật); chưa tick (xem PR của #156)
