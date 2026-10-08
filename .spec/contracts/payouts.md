@@ -119,6 +119,14 @@ Computed from the caller's own `COMPLETED` assignments (same formula as 2.1, not
 
 **`GET /api/workers/me/payouts?page=&pageSize=`** -> 200 `data: { items: [ { batchId, periodMonth, netAmount, itemStatus, transferredAt } ], page, pageSize, total }` — the worker's own closed items (the "Lịch sử giải ngân" screen).
 
+**How 2.5 is implemented (BE-M6-07, ticket #140):**
+- The worker id always comes from the token; every query is scoped to it (`IWorkerEarningsRepository`), so no worker can read another's money. `earnings` is 404 for an unknown worker and 403 for `AGENCY_STAFF`; `payouts` answers an empty list for agency staff (they have no items of their own).
+- `month` is read in `Asia/Ho_Chi_Minh` and queried in UTC; the current month is allowed (the screen shows what has been earned so far), a future month or a malformed value is 400.
+- The numbers are `PayoutCalculator` (the same function as the batch) over the worker's own freelancer assignments (`agency_id` null) that earned money in the month, paid by a batch or not; an approved absence fee is a job with `absenceFee = true`, paid in full with no commission and dated by `updated_at`.
+- `payoutStatus`: `NOT_BUILT` without a batch for the month, `PENDING` for a DRAFT, `TRANSFERRED` once CLOSED. While DRAFT or NOT_BUILT the totals are recomputed from the current data (a DRAFT item may be stale); once the batch is CLOSED and holds an item for the worker, that item's numbers are the answer, so the screen equals the money transferred.
+- `penaltyAmount` follows 2.1: decided before the month end minus what earlier CLOSED batches already took, capped by the month's payable amount. The penalty source is asked for every payee and the worker's own key is picked from the answer (a scan of resolved tickets per request; acceptable for the MVP volume).
+- Known gap: a job completed after its month's batch was closed shows in `jobs` but is not in the stored totals (and, by P2, is never paid by a later batch).
+
 ## 3. Events
 - **Publishes** `PayoutBatchClosed { BatchId, PeriodMonth, TotalAmount, ItemCount, ClosedAtUtc }` (the record of `Domain/Events/PayoutBatchClosed.cs`; the first draft here had no `itemCount` and `closedAtUtc`). Consumers: Notifications to workers/agencies (`INotificationService`).
 - **Handles** nothing: it reads `JOB_ASSIGNMENT` and the resolved disputes in the Disputes module through the Disputes read model (**P1**).

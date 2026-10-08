@@ -16,6 +16,8 @@ public sealed class PayoutsModule : IModule
     {
         services.AddScoped<IPayoutRepository, EfPayoutRepository>();
         services.AddScoped<IPayoutBatchService, PayoutBatchService>();
+        services.AddScoped<IWorkerEarningsRepository, EfWorkerEarningsRepository>();
+        services.AddScoped<IWorkerEarningsService, WorkerEarningsService>();
         services.AddScoped<IPayoutExportService, PayoutExportService>();
 
         // The Disputes side of the penalty port (question P1); registered here until the Disputes module registers its own services.
