@@ -97,9 +97,9 @@ Modules never call each other: they use a **port** (interface + DTOs in `Applica
 | `IAgencyCapacityService` (check, atomic reserve, release) | M5 | M2, M3 | `FakeAgencyCapacityService` |
 | `ISlaPenaltyService` (SLA points + escrow, Q09) | M5 | M3, M6 | `FakeSlaPenaltyService` |
 | `IWorkerAvailabilityQuery` | M4 | M3 | `FakeWorkerAvailabilityQuery` |
-| `IWorkerReputation` | M6 | M3 | `FakeWorkerReputation` |
+| `IWorkerReputation` | M6 | M3 | `FakeWorkerReputation` (replaced by the real `EfWorkerReputation`, section 7.2a) |
 | `IWorkerProfileQuery` (Q21 C3) | M4 | M1 (favorite workers) | `FakeWorkerProfileQuery` |
-| `IAuditLog` (append-only, G-5) | M6 | M2, M5, M6 | `FakeAuditLog` |
+| `IAuditLog` (append-only, G-5) | M6 | M2, M5, M6 | `FakeAuditLog` (replaced by the real `EfAuditLog`, section 7.6) |
 | `IEkycProvider` (Fake only, Q05) | M4 | M4 | `FakeEkycProvider` (confidence 92.00) |
 | `IImageQualityService` (VoL, Q03) | M4 | M4 | `FakeImageQualityService` |
 | `INotificationService` (SignalR, Q07) | M1 (BASE-12) | all | `FakeNotificationService` |
@@ -358,7 +358,7 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **Race:** `EfRatingRepository.TryAddAsync` saves on its own and turns the unique-index violation (SQL error 2601/2627) into `false`, so of simultaneous requests exactly one wins and the rest get 409. A test fires six at once against the local database.
 - **Event:** `RatingSubmitted` (no worker id in the record) is published after the row is saved; a consumer that fails is logged and does not fail the request.
 - **Reads `JOB_ASSIGNMENT`** (the flat shared node) with `AsNoTracking` and never changes it. The worker-to-customer rating is internal (Q14): no endpoint returns it to the customer or lists it back to the worker; a test pins that the service has no other method.
-- **Not here:** the real `IWorkerReputation` (its `successRate` is undecided, contract question M3; the Fake still serves Dispatch) and the sync of `WORKER.rating_avg` (M4's table).
+- **Not here:** the sync of `WORKER.rating_avg` (M4's table). The real `IWorkerReputation` exists since BE-M6-01b (section 7.2a); its `successRate` definition is the recommended default of contract question M3, still unconfirmed by the leader.
 - **Testing note:** the DB-backed tests return early (a silent pass) when SQL Server or the database is missing **and also when `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` is set**, because `Microsoft.Data.SqlClient` throws in invariant globalization mode. Do not set that variable when you want those tests to run.
 - Tests: `Tests/Ratings/RatingServiceTests.cs` (rules, in-memory repository) and `Tests/Ratings/RatingEndpointTests.cs` (controllers, repository, unique-index race).
 
