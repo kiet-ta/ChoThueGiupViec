@@ -12,5 +12,7 @@ public interface IWorkerRepository : IRepository<Worker, int>
     Task<Worker?> GetByPhoneNumberAsync(string phoneNumber, CancellationToken cancellationToken = default);
     Task<Worker?> GetByNationalIdAsync(string nationalId, CancellationToken cancellationToken = default);
     Task<bool> ExistsByPhoneOrNationalIdAsync(string phoneNumber, string nationalId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Worker> Items, int TotalCount)> GetEkycQueueAsync(int page, int pageSize, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+

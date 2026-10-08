@@ -29,4 +29,31 @@ public partial class Worker
             TransitionTo(WorkStatus.Idle);
         }
     }
+
+    /// <summary>
+    /// Admin manual review of worker eKYC.
+    /// </summary>
+    public void ReviewKyc(bool approved, int adminId)
+    {
+        KycReviewedBy = adminId;
+        UpdatedAt = DateTime.UtcNow;
+
+        if (approved)
+        {
+            KycStatus = "APPROVED";
+            if (WorkStatus == WorkStatus.Pending || WorkStatus == WorkStatus.Locked)
+            {
+                TransitionTo(WorkStatus.Idle);
+            }
+        }
+        else
+        {
+            KycStatus = "REJECTED";
+            if (WorkStatus == WorkStatus.Pending || WorkStatus == WorkStatus.Idle || WorkStatus == WorkStatus.Busy)
+            {
+                TransitionTo(WorkStatus.Locked);
+            }
+        }
+    }
 }
+
