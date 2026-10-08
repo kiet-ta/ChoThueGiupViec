@@ -60,6 +60,11 @@ To prevent merge conflicts across the 6 team members:
 - `/payouts/history` (`PayoutHistoryScreen`): `GET /api/workers/me/payouts?page=&pageSize=`, "Xem thêm" loads the next page; a failure on a later page keeps what is shown.
 - `logic/payout_logic.dart` is pure (month keys, VND `1.234.567 đ`, Ho Chi Minh date and time, labels, error texts). Every amount comes from the server; the device does no money arithmetic. `services/payouts_service.dart` uses the shared `ApiClient`; screens take an `IPayoutsService` so tests inject a fake.
 
+### Disputes (`features/disputes`, MOB-M6-03)
+- Both routes read `DisputeScreenArgs(role, orderId?)` from the route arguments (the endpoint prefix depends on whether a customer or a worker is signed in); without them a note says disputes are opened from a job. `/disputes` (`DisputeScreen`) lists the caller's own disputes (`GET .../disputes`) with status, SLA due time and, once `RESOLVED`, the fault party and compensation; `DISMISSED` is stated plainly. With an `orderId` a button opens `DisputeCreateScreen` (`/disputes/create`).
+- The form (`POST .../disputes`): category (D1; `ABSENT_FEE` only for a customer), description 1-1000 characters, 1-10 evidence photos, a statement of the 24 h window and the one-ticket-per-order rule, one request per tap. 400 field messages show under their fields; 404, 409 and network failures have their own text; the success view shows the `slaDueAt` returned by the server.
+- **Evidence photos are not available yet:** the contract says no upload endpoint exists and the app has no picker package, so photos go through `IEvidenceUploader` and the production `UnavailableEvidenceUploader` reports `isAvailable = false`; the form then explains it and the send button stays disabled. When a leader-approved upload endpoint and picker exist, only that class changes. Tests use a fake uploader.
+
 ## 4. Verification
 - `cd Mobile && flutter analyze`: Static linting and code quality.
 - `cd Mobile && flutter test`: Unit and widget test execution.
