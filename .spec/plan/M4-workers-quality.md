@@ -9,7 +9,7 @@
 **Allowed mặc định:** `Backend/Application/Features/Workers/**`, `Backend/WebAPI/Controllers/Workers/**`, `Backend/Infrastructure/Modules/Workers/**`, `Backend/Tests/Workers/**`, `Backend/Domain/Entities/*.Workers.cs`, `Mobile/lib/features/workers/**`, `Mobile/test/features/workers/**`, `Frontend/src/features/workers/**`, `.spec/plan/M4-*.md`, `.spec/contracts/workers.md`.
 
 ## Wave 0 — làm ngay
-- [ ] **BE-M4-00** Contract Workers → `.spec/contracts/workers.md` (đăng ký thợ, eKYC, Block Slots, check-in ảnh, upload ảnh, nghiệm thu, hoàn tất, đáp ứng Làm lần 2).
+- [x] **BE-M4-00** Contract Workers → `.spec/contracts/workers.md` (đăng ký thợ, eKYC, Block Slots, check-in ảnh, upload ảnh, nghiệm thu, hoàn tất, đáp ứng Làm lần 2) — evidence: #172
 - [x] **BE-M4-05a** *(làm sớm được vì là hàm thuần)* Thuật toán Variance of Laplacian trên ảnh: hàm thuần + ảnh mẫu rõ/mờ làm test — evidence: #174
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
