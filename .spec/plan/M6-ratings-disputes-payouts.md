@@ -30,7 +30,7 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 ## Wave 3 — Web (Admin console desktop) & Mobile · *needs:* WEB-BASE-01..04, G4
 - [ ] **WEB-M6-01** Dispute console: đối soát chuỗi ảnh Before/After + biên bản nghiệm thu, phán quyết. — *đã làm, chờ review:* ticket #149 (xếp chồng trên #146), hàng đợi `/admin/disputes` + hồ sơ `/admin/disputes/:id` (dòng thời gian, ảnh Before/After, nhận xử lý, phán quyết có xác nhận); khoá tài khoản thợ mới chỉ ghi nhận; chưa tick (xem PR của #149)
 - [ ] **WEB-M6-02** Duyệt khách vắng mặt (cuộc gọi + GPS). — *đã làm, chờ review:* ticket #148 (xếp chồng trên #146), trang `/admin/absence-reports` (danh sách 3 tab, panel chi tiết GPS/cuộc gọi, duyệt có xác nhận, từ chối có lý do); chưa tick (xem PR của #148)
-- [ ] **WEB-M6-03** Payout batch: xem/duyệt/xuất file/giải ngân.
+- [ ] **WEB-M6-03** Payout batch: xem/duyệt/xuất file/giải ngân. — *đã làm, chờ review:* ticket #152 (xếp chồng trên #146), `/admin/payout-batches` (danh sách + dựng kỳ) và `/admin/payout-batches/:id` (người nhận, tải 3 file `.xlsx`, dựng lại, xác nhận giải ngân); không có Figma cho màn này; chưa tick (xem PR của #152)
 - [ ] **WEB-M6-04** Dashboard vận hành. — *đã làm, chờ review:* ticket #146, trang `/admin/dashboard` (3 thẻ + danh sách tranh chấp sắp quá hạn, đủ trạng thái tải/rỗng/lỗi); backend `GET /api/admin/dashboard` ở PR #143; chưa tick (xem PR của #146)
 - [ ] **MOB-M6-01** Khách đánh giá thợ · **MOB-M6-02** Thợ đánh giá khách. — *đã làm, chờ review:* ticket #154 (MOB-M6-01 và MOB-M6-02 cùng một màn `RatingScreen`, route `/ratings` nhận `RatingScreenArgs`); chưa tick (xem PR của #154)
 - [ ] **MOB-M6-03** Tạo khiếu nại kèm ảnh (khách + thợ), trong 24 h.
