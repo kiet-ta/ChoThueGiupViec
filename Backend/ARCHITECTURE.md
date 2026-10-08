@@ -324,8 +324,15 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 
 ### 7.5a Admin profile (BE-M6-06a, contract `admin.md` 2.1)
 - `GET /api/admin/me` (`WebAPI/Controllers/Admin/AdminProfileController.cs`, policy `AdminOnly`, GET only, no parameters): `{ adminId, email, fullName, adminRole, isActive, createdAt }` of the **caller**; the id is `ICurrentUser.UserId`, never a URL or body value. `password_hash`, `failed_login_count` and `locked_until` are not in the DTO (a test serialises the DTO and looks for them). 404 only when the row was removed.
-- `EfAdminProfileReader` reads `ADMIN` with `AsNoTracking`; the module registers it with `AdminModule`. No admin management endpoint exists in the MVP (contract question A1, recommended default); the operations dashboard (BE-M6-06 second part) waits for questions A2 and A6.
+- `EfAdminProfileReader` reads `ADMIN` with `AsNoTracking`; the module registers it with `AdminModule`. No admin management endpoint exists in the MVP (contract question A1, recommended default); the operations dashboard is section 7.5f.
 - Tests: `Tests/Admin/AdminProfileTests.cs` (the DB test inserts and deletes its own `ADMIN` row; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`: in that mode `SqlClient` throws and the DB test returns early as a silent pass).
+
+### 7.5f Admin: operations dashboard (BE-M6-06b, contract `admin.md` 2.3, question A2)
+- **Endpoint:** `GET api/admin/dashboard` (`AdminOnly`) answers exactly `{ generatedAt, orders: { today, thisWeek }, shifts: { inProgress, completedToday }, disputes: { open, nearSla } }` (decision G-7: no other metric; a test lists the DTO properties). Service `AdminDashboardService`, repository `EfAdminDashboardRepository` (six counts, one after the other: a `DbContext` cannot run queries in parallel).
+- **Definitions are the contract's recommended defaults, not leader decisions:** orders by `JOB_ORDER.created_at` in the current day and ISO week (Monday start) of Asia/Ho_Chi_Minh; shifts in progress = assignments `CHECKED_IN`, `IN_PROGRESS`, `AWAITING_ACCEPTANCE`; completed today = `COMPLETED` with `completed_at` today; disputes open = `OPEN` + `IN_REVIEW`; near SLA = open with `sla_due_at <= now + Admin:DisputeNearSlaHours` (default 6, `AdminDashboardOptions`, overdue included).
+- **Time zone:** `AdminDashboardService.WindowFor` turns the local day and week into UTC instants through `IClock` (decision G-3); Sunday 23:59:59 local is still the old week and Monday 00:00 local is the new one even while the UTC date is still Sunday. The dates are given `Kind = Utc` because the persistence converters reject any other kind.
+- **Read-only access to other modules' tables** (`JOB_ORDER`, `JOB_ASSIGNMENT`, `DISPUTE_TICKET`) because no read port exists (contract question A6).
+- Tests: `Tests/Admin/AdminDashboardTests.cs` (window edges, mapping, DTO shape, controller, and one SQL Server test that seeds the edges of the day and week in 2092 and compares against the baseline counts; rows removed afterwards).
 
 ### 7.6 Audit log (`IAuditLog`, BE-M6-09a, decisions G-5 / SC-3)
 - The real implementation is `Infrastructure/Modules/Admin/EfAuditLog.cs`, registered by `AdminModule` (`IModule`), so it wins over `FakeAuditLog`. The port is unchanged: `Task WriteAsync(AuditEntry entry, CancellationToken ct)`.

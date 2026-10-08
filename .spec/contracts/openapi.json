@@ -662,6 +662,76 @@
         }
       }
     },
+    "/api/admin/dashboard": {
+      "get": {
+        "tags": [
+          "AdminDashboard"
+        ],
+        "operationId": "AdminDashboard_Get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/disputes": {
       "get": {
         "tags": [
@@ -6152,6 +6222,83 @@
           },
           "data": {
             "$ref": "#/components/schemas/CustomerProfileDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DashboardDisputesDto": {
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nearSla": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DashboardDto": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "orders": {
+            "$ref": "#/components/schemas/DashboardOrdersDto"
+          },
+          "shifts": {
+            "$ref": "#/components/schemas/DashboardShiftsDto"
+          },
+          "disputes": {
+            "$ref": "#/components/schemas/DashboardDisputesDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DashboardDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/DashboardDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DashboardOrdersDto": {
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "thisWeek": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DashboardShiftsDto": {
+        "type": "object",
+        "properties": {
+          "inProgress": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "completedToday": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
