@@ -67,9 +67,35 @@ public sealed class EfWorkerRepository(AppDbContext dbContext) : IWorkerReposito
         return (items, totalCount);
     }
 
+    public async Task<IReadOnlyList<BookingSlot>> GetWorkerSlotsAsync(int workerId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.BookingSlots.AsNoTracking()
+            .Where(s => s.WorkerId == workerId && s.SlotDate >= startDate && s.SlotDate <= endDate)
+            .OrderBy(s => s.SlotDate)
+            .ThenBy(s => s.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<BookingSlot?> GetWorkerSlotByShiftAsync(int workerId, DateOnly slotDate, string shiftCode, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.BookingSlots
+            .FirstOrDefaultAsync(s => s.WorkerId == workerId && s.SlotDate == slotDate && s.ShiftCode == shiftCode, cancellationToken);
+    }
+
+    public async Task AddSlotAsync(BookingSlot slot, CancellationToken cancellationToken = default)
+    {
+        await dbContext.BookingSlots.AddAsync(slot, cancellationToken);
+    }
+
+    public void UpdateSlot(BookingSlot slot)
+    {
+        dbContext.BookingSlots.Update(slot);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return dbContext.SaveChangesAsync(cancellationToken);
     }
 }
+
 
