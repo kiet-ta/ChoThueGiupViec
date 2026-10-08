@@ -1,6 +1,6 @@
 # Contract: Ratings (module `Ratings`, owner M6)
 
-> Status: **merged by the leader in PR #64** (ticket BE-M6-00, issue #62). The four endpoints of section 2 are implemented by BE-M6-01a (ticket #120). The open questions of section 4 (M1-M6) are still unanswered by the leader; `IWorkerReputation` waits for the answer to **M3**.
+> Status: **merged by the leader in PR #64** (ticket BE-M6-00, issue #62). The four endpoints of section 2 are implemented by BE-M6-01a (ticket #120). The open questions of section 4 (M1-M6) are still unanswered by the leader; The real `IWorkerReputation` is implemented by BE-M6-01b (ticket #126) with the recommended default of question **M3** (section 3); the leader has not confirmed that definition.
 > Sources: `.spec/spec.md` BR-09 · `.spec/decisions.md` Q14, G-2, G-3, G-7 · `.spec/plan/00-overview.md` §4 (`IWorkerReputation`), §5 (`RatingSubmitted`, `JobCompleted`) · `Backend/GiupViec_Physical_DB_MVP5.drawio` table `TWO_WAY_RATING` (+ SC-5) · entity `Backend/Domain/Entities/TwoWayRating.cs`.
 > Implements tickets: BE-M6-01 (two-way rating), the `IWorkerReputation` port. UI: MOB-M6-01 (customer rates worker), MOB-M6-02 (worker rates customer), design "MOB-M6-02: Thợ đánh giá khách" (Stitch).
 > Conventions (envelope, camelCase, UTC, status codes, roles, policies, 404-for-not-owned) are defined in `identity.md` §1 and apply here unchanged. Items marked **Mx** are not decided by the PRD or `decisions.md`; they are listed in section 4 with a recommended default.
@@ -83,7 +83,7 @@ Task<WorkerReputationDto?> GetAsync(int workerId, CancellationToken ct)      // 
 WorkerReputationDto(int WorkerId, decimal RatingAvg, int CompletedJobs, decimal SuccessRate)
 ```
 - `RatingAvg` = average `stars` of the `CUSTOMER` ratings of the worker, rounded to 2 decimals (round half away from zero, G-2), 0.00-5.00 (Q14); no rating yet: 0.
-- `CompletedJobs` and `SuccessRate`: the port only says "share of accepted jobs that ended COMPLETED" (0-1). Which assignments count as "accepted" and as "ended" is **not decided** (question **M3**), so the real implementation is **not part of BE-M6-01a**; the Fake keeps serving Dispatch until the leader answers.
+- `CompletedJobs` and `SuccessRate`: the port only says "share of accepted jobs that ended COMPLETED" (0-1). Which assignments count as "accepted" and as "ended" is **not decided** (question **M3**), so the real implementation is **not part of BE-M6-01a**. It was added by BE-M6-01b (ticket #126, `Infrastructure/Modules/Ratings/EfWorkerReputation.cs`, definitions only in `Application/Features/Ratings/ReputationFormula.cs`) and replaces the Fake: `CompletedJobs` = assignments in `COMPLETED`; `SuccessRate` = `completed / (completed + CANCELLED_BY_WORKER)`, 3 decimals, 0 when there is no such job (customer-caused `ABSENT`, `INCIDENT`, `REASSIGNED`, a system `CANCELLED`, `OFFERED` and running states are not counted against the worker). This is the recommended default of **M3**, not a leader decision; to change it, change only `ReputationFormula`.
 
 Events:
 - **Handles** `JobCompleted` (M4): nothing to store (the window is derived from `completed_at`); the handler only schedules the "please rate" notification through `INotificationService` (content: Mobile text, no new endpoint).
