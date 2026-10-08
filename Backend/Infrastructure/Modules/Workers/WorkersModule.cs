@@ -21,6 +21,8 @@ public sealed class WorkersModule : IModule
         services.AddScoped<IImageQualityService, ImageQualityService>();
         services.AddScoped<IEkycProvider, EkycProvider>();
         services.AddScoped<IEkycAuditService, EkycAuditService>();
+        services.AddScoped<IWorkerAvailabilityQuery, WorkerAvailabilityQuery>();
     }
 }
+
 
