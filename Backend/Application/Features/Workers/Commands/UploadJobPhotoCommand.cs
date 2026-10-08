@@ -1,5 +1,6 @@
 using CommonService.Application.Common.Models;
 using CommonService.Application.Common.Options;
+using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Workers.Dtos;
 using CommonService.Application.Interfaces.Ports;
@@ -15,6 +16,7 @@ public sealed record UploadJobPhotoCommand(long AssignmentId, UploadJobPhotoRequ
 public sealed class UploadJobPhotoCommandHandler(
     IWorkerRepository workerRepository,
     IImageQualityService imageQualityService,
+    IFileStorage fileStorage,
     ICurrentUser currentUser,
     IOptions<BusinessRules> rulesOptions)
     : IRequestHandler<UploadJobPhotoCommand, ApiResponse<JobPhotoResponse>>
@@ -88,22 +90,39 @@ public sealed class UploadJobPhotoCommandHandler(
             }
         }
 
-        // Assess VoL image quality
-        byte[] imageBytes;
-        if (req.PhotoUrl.Contains("blur") || req.PhotoUrl.Contains("low_quality") || req.PhotoUrl.Contains("vol_45"))
+        // Assess VoL image quality using actual image from storage
+        Stream? imageStream = await fileStorage.OpenReadAsync(req.PhotoUrl, cancellationToken);
+        if (imageStream == null)
         {
-            // Low variance byte stream producing VolScore < 100.0 (e.g. constant byte values -> variance 0.0)
-            imageBytes = new byte[640 * 480];
-            Array.Fill(imageBytes, (byte)128);
-        }
-        else
-        {
-            // High variance byte stream producing VolScore >= 100.0
-            imageBytes = System.Text.Encoding.UTF8.GetBytes(req.PhotoUrl.PadRight(640 * 10, 'A'));
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                { "photoUrl", ["Image not found or cannot be accessed."] }
+            });
         }
 
-        using var imageStream = new MemoryStream(imageBytes);
-        var qualityResult = await imageQualityService.AssessAsync(imageStream, cancellationToken);
+        // Read the image stream to bytes
+        byte[] imageBytes;
+        await using (imageStream)
+        {
+            imageStream = imageStream ?? throw new ValidationException(new Dictionary<string, string[]>
+            {
+                { "photoUrl", ["Image stream is null."] }
+            });
+            using var memoryStream = new MemoryStream();
+            await imageStream.CopyToAsync(memoryStream, cancellationToken);
+            imageBytes = memoryStream.ToArray();
+        }
+
+        if (imageBytes.Length == 0)
+        {
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                { "photoUrl", ["Image file is empty."] }
+            });
+        }
+
+        using var imageStreamForAssessment = new MemoryStream(imageBytes);
+        var qualityResult = await imageQualityService.AssessAsync(imageStreamForAssessment, cancellationToken);
 
         bool isAccepted = qualityResult.IsAccepted;
         double volScore = qualityResult.VolScore;
