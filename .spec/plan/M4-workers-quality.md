@@ -9,12 +9,12 @@
 **Allowed mặc định:** `Backend/Application/Features/Workers/**`, `Backend/WebAPI/Controllers/Workers/**`, `Backend/Infrastructure/Modules/Workers/**`, `Backend/Tests/Workers/**`, `Backend/Domain/Entities/*.Workers.cs`, `Mobile/lib/features/workers/**`, `Mobile/test/features/workers/**`, `Frontend/src/features/workers/**`, `.spec/plan/M4-*.md`, `.spec/contracts/workers.md`.
 
 ## Wave 0 — làm ngay
-- [ ] **BE-M4-00** Contract Workers → `.spec/contracts/workers.md` (đăng ký thợ, eKYC, Block Slots, check-in ảnh, upload ảnh, nghiệm thu, hoàn tất, đáp ứng Làm lần 2).
-- [ ] **BE-M4-05a** *(làm sớm được vì là hàm thuần)* Thuật toán Variance of Laplacian trên ảnh: hàm thuần + ảnh mẫu rõ/mờ làm test · *needs:* G0 (chỉ cần project test).
+- [x] **BE-M4-00** Contract Workers → `.spec/contracts/workers.md` (đăng ký thợ, eKYC, Block Slots, check-in ảnh, upload ảnh, nghiệm thu, hoàn tất, đáp ứng Làm lần 2) — evidence: #172
+- [x] **BE-M4-05a** *(làm sớm được vì là hàm thuần)* Thuật toán Variance of Laplacian trên ảnh: hàm thuần + ảnh mẫu rõ/mờ làm test — evidence: #174
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
-- [ ] **BE-M4-01** Hồ sơ Worker (STI): đăng ký Freelancer, `worker_type`, `agency_id` null, trạng thái (IDLE…), khoá/mở · *needs:* BASE-06.
-- [ ] **BE-M4-02** eKYC Freelancer (§2.8): nhận CCCD 2 mặt + selfie → `IEkycProvider` (Fake, mặc định 92.00; *decisions:* Q05) → **Confidence ≥ 85 % → IDLE ngay**, thấp hơn/cờ gian lận → hàng đợi thủ công · *needs:* BE-M4-01.
+- [x] **BE-M4-01** Hồ sơ Worker (STI): đăng ký Freelancer, `worker_type`, `agency_id` null, trạng thái (IDLE…), khoá/mở — evidence: #176
+- [x] **BE-M4-02** eKYC Freelancer (§2.8): nhận CCCD 2 mặt + selfie → `IEkycProvider` (Fake, mặc định 92.00; *decisions:* Q05) → **Confidence ≥ 85 % → IDLE ngay**, thấp hơn/cờ gian lận → hàng đợi thủ công — evidence: #178
 - [ ] **BE-M4-03** ~~Nhà cung cấp eKYC thật~~ — **HOÃN (Q05b), KHÔNG làm** cho tới khi leader chọn nhà cung cấp.
 - [ ] **BE-M4-04** Hậu kiểm mẫu 10–20 % cho Admin (5 ca đầu của thợ mới: hậu kiểm 100 %; sau đó mẫu ngẫu nhiên 20 % theo `BusinessRules`; duyệt/thu hồi) · *decisions:* Q05 · *needs:* BE-M4-02.
 - [ ] **BE-M4-05** Block Slots (§2.6): Ca Sáng 08:00–12:00, Chiều 13:00–17:00, Tối 17:30–20:30; bật/tắt theo tuần; **`UNIQUE(worker_id, slot_date, shift_code)`** + bắt lỗi trùng → thao tác idempotent (double-click/race) · *needs:* BASE-07 · *done:* test 2 request đồng thời không tạo 2 ca.
