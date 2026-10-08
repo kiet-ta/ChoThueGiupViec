@@ -13,7 +13,7 @@
 - [x] **BE-M4-05a** *(làm sớm được vì là hàm thuần)* Thuật toán Variance of Laplacian trên ảnh: hàm thuần + ảnh mẫu rõ/mờ làm test — evidence: #174
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
-- [ ] **BE-M4-01** Hồ sơ Worker (STI): đăng ký Freelancer, `worker_type`, `agency_id` null, trạng thái (IDLE…), khoá/mở · *needs:* BASE-06.
+- [x] **BE-M4-01** Hồ sơ Worker (STI): đăng ký Freelancer, `worker_type`, `agency_id` null, trạng thái (IDLE…), khoá/mở — evidence: #176
 - [ ] **BE-M4-02** eKYC Freelancer (§2.8): nhận CCCD 2 mặt + selfie → `IEkycProvider` (Fake, mặc định 92.00; *decisions:* Q05) → **Confidence ≥ 85 % → IDLE ngay**, thấp hơn/cờ gian lận → hàng đợi thủ công · *needs:* BE-M4-01.
 - [ ] **BE-M4-03** ~~Nhà cung cấp eKYC thật~~ — **HOÃN (Q05b), KHÔNG làm** cho tới khi leader chọn nhà cung cấp.
 - [ ] **BE-M4-04** Hậu kiểm mẫu 10–20 % cho Admin (5 ca đầu của thợ mới: hậu kiểm 100 %; sau đó mẫu ngẫu nhiên 20 % theo `BusinessRules`; duyệt/thu hồi) · *decisions:* Q05 · *needs:* BE-M4-02.
