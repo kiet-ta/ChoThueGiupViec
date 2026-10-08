@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../../app/feature_module.dart';
+import 'screens/check_in_screen.dart';
 import 'screens/dispatch_offers_screen.dart';
 
 /// Route names owned by the Dispatch feature module.
@@ -18,6 +19,6 @@ class DispatchFeatureModule extends FeatureModule {
   @override
   Map<String, WidgetBuilder> get routes => {
         DispatchRoutes.offers: (context) => const DispatchOffersScreen(),
-        DispatchRoutes.checkIn: (context) => const DispatchOffersScreen(),
+        DispatchRoutes.checkIn: (context) => const CheckInScreen(assignmentId: 1001),
       };
 }
