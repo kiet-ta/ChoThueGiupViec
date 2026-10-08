@@ -76,6 +76,8 @@ On success, in one transaction (per affected assignment, Q10):
 ```
 Exactly the three groups the plan names (orders, shifts, open disputes); no other metric is added without the leader (G-7). Definitions are **A2**. The "Tranh chấp sắp quá hạn" list on the dashboard reuses `GET /api/admin/disputes?nearSla=true&pageSize=5` (`disputes.md` §2.2), so the dashboard does not duplicate it. Errors and loading states are the standard envelope (the UI has loading/empty/error states).
 
+**(BE-M6-06b, ticket #142) As built:** the counts follow the recommended defaults of **A2** (not yet confirmed by the leader). Days and the ISO week are those of `Asia/Ho_Chi_Minh` (Sunday 23:59:59 local still belongs to the ending week, Monday 00:00 local starts the new one even when the UTC date is still Sunday); `shifts.inProgress` counts `CHECKED_IN`, `IN_PROGRESS` and `AWAITING_ACCEPTANCE`; `disputes.open` counts `OPEN` and `IN_REVIEW`; `disputes.nearSla` is open tickets with `sla_due_at <= now + Admin:DisputeNearSlaHours` (default 6, configurable in one options class, overdue included). The module reads `JOB_ORDER`, `JOB_ASSIGNMENT` and `DISPUTE_TICKET` read-only because no read port exists (**A6**).
+
 ### 2.4 Audit log (BE-M6-09)
 
 `IAuditLog` (port) gets its real implementation here: **append-only**; there is no update or delete endpoint or method. `Append` runs in the **same DB transaction** as the change it records (G-5) and rejects an empty `reason` for Admin actors.
