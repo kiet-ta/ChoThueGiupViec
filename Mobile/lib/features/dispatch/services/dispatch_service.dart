@@ -2,9 +2,10 @@ import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/location_wrapper.dart';
 import '../../../core/network/api_client.dart';
 import '../models/check_in_result.dart';
+import '../models/customer_absent_report.dart';
 import '../models/job_offer.dart';
 
-/// Service managing worker job offers and field check-ins matching .spec/contracts/dispatch.md §3.1.
+/// Service managing worker job offers, check-in, and absent protocols matching .spec/contracts/dispatch.md §3.1.
 class DispatchService {
   final ApiClient _apiClient;
   final ILocationWrapper _locationWrapper;
@@ -13,6 +14,8 @@ class DispatchService {
 
   JobOffer? _mockOffer;
   CheckInResult? _mockCheckInResult;
+  int _mockCallAttempts = 0;
+  DateTime? _mockCheckedInAt;
 
   DispatchService({
     ApiClient? apiClient,
@@ -39,6 +42,7 @@ class DispatchService {
         expiresAt: DateTime.now().add(const Duration(seconds: 30)),
         remainingSeconds: 30,
       );
+      _mockCheckedInAt = DateTime.now().subtract(const Duration(minutes: 16));
     }
   }
 
@@ -53,6 +57,17 @@ class DispatchService {
   /// Sets or clears the active mock check-in result.
   void setMockCheckInResult(CheckInResult? result) {
     _mockCheckInResult = result;
+  }
+
+  /// Sets mock call attempts and check-in timestamp for absent testing.
+  void setMockAbsentPreconditions({
+    int callAttempts = 0,
+    DateTime? checkedInAt,
+  }) {
+    _mockCallAttempts = callAttempts;
+    if (checkedInAt != null) {
+      _mockCheckedInAt = checkedInAt;
+    }
   }
 
   /// Fetches the currently pending job offer for the worker.
@@ -233,7 +248,6 @@ class DispatchService {
       );
     }
 
-    // Customer confirmation endpoint or poll status
     return CheckInResult(
       checkInId: 2003,
       assignmentId: assignmentId,
@@ -245,5 +259,67 @@ class DispatchService {
       platePhotoUrl: null,
       isCustomerConfirmed: true,
     );
+  }
+
+  /// Logs a phone call attempt to the customer via system mask (Q17).
+  Future<CallLogResult> logCallAttempt(int assignmentId) async {
+    if (isMock) {
+      _mockCallAttempts++;
+      return CallLogResult(
+        assignmentId: assignmentId,
+        callAttempts: _mockCallAttempts,
+        loggedAt: DateTime.now(),
+      );
+    }
+
+    final response = await _apiClient.post(
+      '/api/dispatch/assignments/$assignmentId/calls/log',
+      requiresAuth: true,
+    );
+
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return CallLogResult.fromJson(data);
+    }
+    throw const ApiException(500, 'Không thể ghi nhận cuộc gọi');
+  }
+
+  /// Reports customer absent after waiting >= 15 mins and >= 2 call attempts (BR-05, Q10).
+  Future<CustomerAbsentReport> reportCustomerAbsent(int assignmentId) async {
+    if (isMock) {
+      final checkedInAt = _mockCheckedInAt ?? DateTime.now().subtract(const Duration(minutes: 16));
+      final elapsed = DateTime.now().difference(checkedInAt).inMinutes;
+
+      if (elapsed < 15 || _mockCallAttempts < 2) {
+        throw const ApiException(
+          409,
+          'Yêu cầu chờ tối thiểu 15 phút và thực hiện ít nhất 2 cuộc gọi trước khi báo khách vắng mặt (BR-05)',
+        );
+      }
+
+      return CustomerAbsentReport(
+        assignmentId: assignmentId,
+        reportedAt: DateTime.now(),
+        checkedInAt: checkedInAt,
+        elapsedMinutes: elapsed,
+        callAttempts: _mockCallAttempts,
+        reviewStatus: 'PENDING_APPROVAL',
+        workerFeeRate: 0.40,
+        absenceFeeAmount: 104000.0,
+        customerRefundRate: 0.60,
+        customerRefundAmount: 156000.0,
+      );
+    }
+
+    final response = await _apiClient.post(
+      '/api/dispatch/assignments/$assignmentId/absent',
+      requiresAuth: true,
+    );
+
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return CustomerAbsentReport.fromJson(data);
+    }
+    throw const ApiException(500, 'Không thể báo khách vắng mặt');
   }
 }
