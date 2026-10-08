@@ -33,5 +33,5 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 - [ ] **WEB-M6-03** Payout batch: xem/duyệt/xuất file/giải ngân.
 - [ ] **WEB-M6-04** Dashboard vận hành.
 - [ ] **MOB-M6-01** Khách đánh giá thợ · **MOB-M6-02** Thợ đánh giá khách.
-- [ ] **MOB-M6-03** Tạo khiếu nại kèm ảnh (khách + thợ), trong 24 h.
+- [ ] **MOB-M6-03** Tạo khiếu nại kèm ảnh (khách + thợ), trong 24 h. — *làm một phần, chờ review:* ticket #158 (danh sách khiếu nại của mình + phán quyết + form gửi). **Chưa đính kèm ảnh được:** contract ghi chưa có endpoint upload và app chưa có package chọn ảnh, nên nút gửi bị khóa kèm giải thích cho tới khi có endpoint do leader duyệt; không tick
 - [ ] **MOB-M6-04** Thợ xem thu nhập thực nhận. — *đã làm, chờ review:* ticket #156 (màn `/payouts` theo tháng + `/payouts/history`; endpoint ở PR #141 chưa merge nên chưa chạy với backend thật); chưa tick (xem PR của #156)
