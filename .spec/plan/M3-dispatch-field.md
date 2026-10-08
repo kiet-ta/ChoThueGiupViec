@@ -31,7 +31,7 @@ Ticket `MOB-BASE-*`: `Mobile/**`, `.spec/plan/M3-*.md`; riêng `MOB-BASE-05` là
 - [x] **BE-M3-11** Test: không double-assign, timeout 30 s, thang bán kính, Agency bị loại khỏi Economy, miễn phạt sự cố · *needs:* BE-M3-01..10. — evidence: `.harness/evidence/20261006-224726-L3.log` (L3 PASSED; ComprehensiveDispatchIntegrationTests suite validates double-assign race condition prevention, 30s timeout engine, 5->7->10 km stepped radius scanner, Agency exclusion from Economy pool, and force majeure penalty waiver with 100% refund, 879 backend tests pass)
 
 ## Wave 3 — Mobile (Worker) & Web (Admin)
-- [ ] **MOB-M3-01** Màn nhận cuốc: khu vực, thời lượng, **số tiền thực nhận sau hoa hồng**, đếm ngược 30 s, nhận/bỏ qua (§4.2 bước 1) · *needs:* MOB-BASE-01..04, G4.
+- [x] **MOB-M3-01** Màn nhận cuốc: khu vực, thời lượng, **số tiền thực nhận sau hoa hồng**, đếm ngược 30 s, nhận/bỏ qua (§4.2 bước 1) · *needs:* MOB-BASE-01..04, G4. — evidence: `.harness/evidence/20261008-164322-L3.log` (L3 PASSED; JobOffer model, DispatchService, JobOfferCard with 30s countdown & net earnings after 20% commission, DispatchOffersScreen, 125 flutter tests pass, flutter analyze 0 issues)
 - [ ] **MOB-M3-02** "Đã đến nơi" (GPS) + xác nhận thay thế khi lệch.
 - [ ] **MOB-M3-03** Nút "Khách vắng mặt" (sau 15 phút) + log cuộc gọi.
 - [ ] **MOB-M3-04** Báo sự cố (ảnh + GPS) và nhận cập nhật khi đổi thợ.
