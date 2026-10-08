@@ -309,6 +309,10 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **Storage:** every export goes through `IFileStorage` (folder `payouts`), `PAYOUT_BATCH.export_file_url` points at the latest one and the previous file of the batch is deleted. Bank account numbers live in these files: they are not served as static files (no `UseStaticFiles` in this project).
 - Tests: `Tests/Payouts/XlsxWriterTests.cs`, `PayoutExportTests.cs` (rows and columns per type, storage replacement, controller, and one SQL Server test that exports a real batch).
 
+### 7.5g M6 cross-module acceptance test (BE-M6-08)
+- `Tests/Admin/M6AcceptanceTests.cs` runs the money chain of the M6 modules with the **real** services on the local SQL Server: an absence report approved through `AbsenceReportService` (40 % fee 104000 of 260000, 60 % refund 156000 through `IRefundService`), a dispute decided against a freelancer through `DisputeVerdictService` (compensation 50000), then `PayoutBatchService` builds the month. It checks that the modules agree: the absence fee is paid with no commission, the verdict becomes the payout deduction, the second freelancer gets 80 % with rounding per assignment, an agency's two jobs are one aggregated item, a rerun gives the same batch and items with no assignment counted twice, and a CLOSED month cannot be built again.
+- It uses the months of 2088 so no real data is touched, three clocks (absence on 10 March, verdict on 20 March, batch on 5 April) and removes every row it seeds (audit rows, check-in log, tickets, batch, items, assignments, people). Each criterion of BE-M6-08 is also covered inside the ticket that built it; the PR of BE-M6-08 lists the test names.
+
 ### 7.5 OpenAPI and Swagger snapshot (BASE-13)
 - **Configuration** (`Infrastructure/Swagger/SwaggerConfiguration.cs`):
   - Deterministic `operationId` format: `{Controller}_{Action}` for code generators.
