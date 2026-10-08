@@ -117,6 +117,36 @@ public class WorkersController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Uploads and verifies a work photo using Variance of Laplacian (contract §2.4.1).</summary>
+    [HttpPost("assignments/{assignmentId:long}/photos")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<JobPhotoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UploadPhoto(
+        long assignmentId,
+        [FromBody] UploadJobPhotoRequest request,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(new UploadJobPhotoCommand(assignmentId, request), ct);
+        return Ok(result);
+    }
+
+    /// <summary>Returns all uploaded photos for a job assignment (contract §2.4.2).</summary>
+    [HttpGet("assignments/{assignmentId:long}/photos")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<JobPhotoResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetPhotos(
+        long assignmentId,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(new GetJobPhotosQuery(assignmentId), ct);
+        return Ok(result);
+    }
+
     /// <summary>Public summary view of a worker profile by ID (contract §2.1.4).</summary>
     [HttpGet("{id:int}")]
     [Authorize]
@@ -128,4 +158,5 @@ public class WorkersController(ISender sender) : ControllerBase
         return Ok(result);
     }
 }
+
 

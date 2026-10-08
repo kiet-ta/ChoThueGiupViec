@@ -92,10 +92,37 @@ public sealed class EfWorkerRepository(AppDbContext dbContext) : IWorkerReposito
         dbContext.BookingSlots.Update(slot);
     }
 
+    public async Task<JobAssignment?> GetAssignmentByIdAsync(long assignmentId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.JobAssignments.FirstOrDefaultAsync(a => a.AssignmentId == assignmentId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<JobPhoto>> GetJobPhotosAsync(long assignmentId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.JobPhotos.AsNoTracking()
+            .Where(p => p.AssignmentId == assignmentId)
+            .OrderBy(p => p.PhotoPhase)
+            .ThenBy(p => p.AngleNo)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<JobPhoto>> GetAcceptedJobPhotosByPhaseAsync(long assignmentId, string photoPhase, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.JobPhotos.AsNoTracking()
+            .Where(p => p.AssignmentId == assignmentId && p.PhotoPhase == photoPhase && p.IsAccepted)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddJobPhotoAsync(JobPhoto photo, CancellationToken cancellationToken = default)
+    {
+        await dbContext.JobPhotos.AddAsync(photo, cancellationToken);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return dbContext.SaveChangesAsync(cancellationToken);
     }
 }
+
 
 
