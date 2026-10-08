@@ -49,8 +49,27 @@ public sealed class EfWorkerRepository(AppDbContext dbContext) : IWorkerReposito
             .AnyAsync(w => w.PhoneNumber == phoneNumber || w.NationalId == nationalId, cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<Worker> Items, int TotalCount)> GetEkycQueueAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var p = page < 1 ? 1 : page;
+        var ps = pageSize < 1 ? 20 : pageSize;
+
+        var query = dbContext.Workers.AsNoTracking()
+            .Where(w => w.KycStatus == "MANUAL_REVIEW" || w.KycStatus == "PENDING" || w.KycStatus == "AUDIT_PENDING");
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(w => w.UpdatedAt)
+            .Skip((p - 1) * ps)
+            .Take(ps)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return dbContext.SaveChangesAsync(cancellationToken);
     }
 }
+

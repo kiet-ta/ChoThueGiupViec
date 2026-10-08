@@ -1,4 +1,5 @@
 using CommonService.Application.Features.Workers;
+using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
@@ -19,5 +20,7 @@ public sealed class WorkersModule : IModule
         services.AddScoped<IWorkerProfileQuery, WorkerProfileQuery>();
         services.AddScoped<IImageQualityService, ImageQualityService>();
         services.AddScoped<IEkycProvider, EkycProvider>();
+        services.AddScoped<IEkycAuditService, EkycAuditService>();
     }
 }
+
