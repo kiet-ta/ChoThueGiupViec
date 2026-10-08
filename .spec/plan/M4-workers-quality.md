@@ -10,7 +10,7 @@
 
 ## Wave 0 — làm ngay
 - [x] **BE-M4-00** Contract Workers → `.spec/contracts/workers.md` (đăng ký thợ, eKYC, Block Slots, check-in ảnh, upload ảnh, nghiệm thu, hoàn tất, đáp ứng Làm lần 2) — evidence: #172
-- [ ] **BE-M4-05a** *(làm sớm được vì là hàm thuần)* Thuật toán Variance of Laplacian trên ảnh: hàm thuần + ảnh mẫu rõ/mờ làm test · *needs:* G0 (chỉ cần project test).
+- [x] **BE-M4-05a** *(làm sớm được vì là hàm thuần)* Thuật toán Variance of Laplacian trên ảnh: hàm thuần + ảnh mẫu rõ/mờ làm test — evidence: #174
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
 - [ ] **BE-M4-01** Hồ sơ Worker (STI): đăng ký Freelancer, `worker_type`, `agency_id` null, trạng thái (IDLE…), khoá/mở · *needs:* BASE-06.
