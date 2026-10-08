@@ -97,9 +97,9 @@ Modules never call each other: they use a **port** (interface + DTOs in `Applica
 | `IAgencyCapacityService` (check, atomic reserve, release) | M5 | M2, M3 | `FakeAgencyCapacityService` |
 | `ISlaPenaltyService` (SLA points + escrow, Q09) | M5 | M3, M6 | `FakeSlaPenaltyService` |
 | `IWorkerAvailabilityQuery` | M4 | M3 | `FakeWorkerAvailabilityQuery` |
-| `IWorkerReputation` | M6 | M3 | `FakeWorkerReputation` |
+| `IWorkerReputation` | M6 | M3 | `FakeWorkerReputation` (replaced by the real `EfWorkerReputation`, section 7.2a) |
 | `IWorkerProfileQuery` (Q21 C3) | M4 | M1 (favorite workers) | `FakeWorkerProfileQuery` |
-| `IAuditLog` (append-only, G-5) | M6 | M2, M5, M6 | `FakeAuditLog` |
+| `IAuditLog` (append-only, G-5) | M6 | M2, M5, M6 | `FakeAuditLog` (replaced by the real `EfAuditLog`, section 7.6) |
 | `IEkycProvider` (Fake only, Q05) | M4 | M4 | `FakeEkycProvider` (confidence 92.00) |
 | `IImageQualityService` (VoL, Q03) | M4 | M4 | `FakeImageQualityService` |
 | `INotificationService` (SignalR, Q07) | M1 (BASE-12) | all | `FakeNotificationService` |
@@ -309,6 +309,9 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **Storage:** every export goes through `IFileStorage` (folder `payouts`), `PAYOUT_BATCH.export_file_url` points at the latest one and the previous file of the batch is deleted. Bank account numbers live in these files: they are not served as static files (no `UseStaticFiles` in this project).
 - Tests: `Tests/Payouts/XlsxWriterTests.cs`, `PayoutExportTests.cs` (rows and columns per type, storage replacement, controller, and one SQL Server test that exports a real batch).
 
+### 7.5g M6 cross-module acceptance test (BE-M6-08)
+- `Tests/Admin/M6AcceptanceTests.cs` runs the money chain of the M6 modules with the **real** services on the local SQL Server: an absence report approved through `AbsenceReportService` (40 % fee 104000 of 260000, 60 % refund 156000 through `IRefundService`), a dispute decided against a freelancer through `DisputeVerdictService` (compensation 50000), then `PayoutBatchService` builds the month. It checks that the modules agree: the absence fee is paid with no commission, the verdict becomes the payout deduction, the second freelancer gets 80 % with rounding per assignment, an agency's two jobs are one aggregated item, a rerun gives the same batch and items with no assignment counted twice, and a CLOSED month cannot be built again.
+- It uses the months of 2088 so no real data is touched, three clocks (absence on 10 March, verdict on 20 March, batch on 5 April) and removes every row it seeds (audit rows, check-in log, tickets, batch, items, assignments, people). Each criterion of BE-M6-08 is also covered inside the ticket that built it; the PR of BE-M6-08 lists the test names.
 ### 7.5e Payouts: the freelancer's income (BE-M6-07, contract `payouts.md` 2.5, decision Q11)
 - **Endpoints (`WorkerOnly`):** `GET api/workers/me/earnings?month=YYYY-MM` (default the current month in Asia/Ho_Chi_Minh; 400 bad or future month; 403 for agency staff, whose agency is paid) and `GET api/workers/me/payouts?page=&pageSize=` (the worker's own items of CLOSED batches, newest month first). Service `WorkerEarningsService`, controller `WorkerEarningsController`.
 - **Own repository:** `IWorkerEarningsRepository` / `EfWorkerEarningsRepository` are scoped to one worker id in every method; they were kept apart from `IPayoutRepository` so the batch interfaces stay as they are. The worker id comes from `ICurrentUser`, never from the request.
@@ -330,8 +333,15 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 
 ### 7.5a Admin profile (BE-M6-06a, contract `admin.md` 2.1)
 - `GET /api/admin/me` (`WebAPI/Controllers/Admin/AdminProfileController.cs`, policy `AdminOnly`, GET only, no parameters): `{ adminId, email, fullName, adminRole, isActive, createdAt }` of the **caller**; the id is `ICurrentUser.UserId`, never a URL or body value. `password_hash`, `failed_login_count` and `locked_until` are not in the DTO (a test serialises the DTO and looks for them). 404 only when the row was removed.
-- `EfAdminProfileReader` reads `ADMIN` with `AsNoTracking`; the module registers it with `AdminModule`. No admin management endpoint exists in the MVP (contract question A1, recommended default); the operations dashboard (BE-M6-06 second part) waits for questions A2 and A6.
+- `EfAdminProfileReader` reads `ADMIN` with `AsNoTracking`; the module registers it with `AdminModule`. No admin management endpoint exists in the MVP (contract question A1, recommended default); the operations dashboard is section 7.5f.
 - Tests: `Tests/Admin/AdminProfileTests.cs` (the DB test inserts and deletes its own `ADMIN` row; run without `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT`: in that mode `SqlClient` throws and the DB test returns early as a silent pass).
+
+### 7.5f Admin: operations dashboard (BE-M6-06b, contract `admin.md` 2.3, question A2)
+- **Endpoint:** `GET api/admin/dashboard` (`AdminOnly`) answers exactly `{ generatedAt, orders: { today, thisWeek }, shifts: { inProgress, completedToday }, disputes: { open, nearSla } }` (decision G-7: no other metric; a test lists the DTO properties). Service `AdminDashboardService`, repository `EfAdminDashboardRepository` (six counts, one after the other: a `DbContext` cannot run queries in parallel).
+- **Definitions are the contract's recommended defaults, not leader decisions:** orders by `JOB_ORDER.created_at` in the current day and ISO week (Monday start) of Asia/Ho_Chi_Minh; shifts in progress = assignments `CHECKED_IN`, `IN_PROGRESS`, `AWAITING_ACCEPTANCE`; completed today = `COMPLETED` with `completed_at` today; disputes open = `OPEN` + `IN_REVIEW`; near SLA = open with `sla_due_at <= now + Admin:DisputeNearSlaHours` (default 6, `AdminDashboardOptions`, overdue included).
+- **Time zone:** `AdminDashboardService.WindowFor` turns the local day and week into UTC instants through `IClock` (decision G-3); Sunday 23:59:59 local is still the old week and Monday 00:00 local is the new one even while the UTC date is still Sunday. The dates are given `Kind = Utc` because the persistence converters reject any other kind.
+- **Read-only access to other modules' tables** (`JOB_ORDER`, `JOB_ASSIGNMENT`, `DISPUTE_TICKET`) because no read port exists (contract question A6).
+- Tests: `Tests/Admin/AdminDashboardTests.cs` (window edges, mapping, DTO shape, controller, and one SQL Server test that seeds the edges of the day and week in 2092 and compares against the baseline counts; rows removed afterwards).
 
 ### 7.6 Audit log (`IAuditLog`, BE-M6-09a, decisions G-5 / SC-3)
 - The real implementation is `Infrastructure/Modules/Admin/EfAuditLog.cs`, registered by `AdminModule` (`IModule`), so it wins over `FakeAuditLog`. The port is unchanged: `Task WriteAsync(AuditEntry entry, CancellationToken ct)`.
@@ -353,7 +363,7 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **Race:** `EfRatingRepository.TryAddAsync` saves on its own and turns the unique-index violation (SQL error 2601/2627) into `false`, so of simultaneous requests exactly one wins and the rest get 409. A test fires six at once against the local database.
 - **Event:** `RatingSubmitted` (no worker id in the record) is published after the row is saved; a consumer that fails is logged and does not fail the request.
 - **Reads `JOB_ASSIGNMENT`** (the flat shared node) with `AsNoTracking` and never changes it. The worker-to-customer rating is internal (Q14): no endpoint returns it to the customer or lists it back to the worker; a test pins that the service has no other method.
-- **Not here:** the real `IWorkerReputation` (its `successRate` is undecided, contract question M3; the Fake still serves Dispatch) and the sync of `WORKER.rating_avg` (M4's table).
+- **Not here:** the sync of `WORKER.rating_avg` (M4's table). The real `IWorkerReputation` exists since BE-M6-01b (section 7.2a); its `successRate` definition is the recommended default of contract question M3, still unconfirmed by the leader.
 - **Testing note:** the DB-backed tests return early (a silent pass) when SQL Server or the database is missing **and also when `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` is set**, because `Microsoft.Data.SqlClient` throws in invariant globalization mode. Do not set that variable when you want those tests to run.
 - Tests: `Tests/Ratings/RatingServiceTests.cs` (rules, in-memory repository) and `Tests/Ratings/RatingEndpointTests.cs` (controllers, repository, unique-index race).
 

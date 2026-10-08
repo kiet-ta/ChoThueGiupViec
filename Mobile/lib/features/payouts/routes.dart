@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../../app/feature_module.dart';
+import 'screens/payout_history_screen.dart';
 import 'screens/payout_screen.dart';
 
 /// Route names owned by the Payouts feature module.
@@ -18,6 +19,6 @@ class PayoutsFeatureModule extends FeatureModule {
   @override
   Map<String, WidgetBuilder> get routes => {
         PayoutRoutes.payouts: (context) => const PayoutScreen(),
-        PayoutRoutes.history: (context) => const PayoutScreen(),
+        PayoutRoutes.history: (context) => const PayoutHistoryScreen(),
       };
 }
