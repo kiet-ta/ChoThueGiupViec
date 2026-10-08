@@ -32,6 +32,6 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 - [ ] **WEB-M6-02** Duyệt khách vắng mặt (cuộc gọi + GPS).
 - [ ] **WEB-M6-03** Payout batch: xem/duyệt/xuất file/giải ngân.
 - [ ] **WEB-M6-04** Dashboard vận hành. — *đã làm, chờ review:* ticket #146, trang `/admin/dashboard` (3 thẻ + danh sách tranh chấp sắp quá hạn, đủ trạng thái tải/rỗng/lỗi); backend `GET /api/admin/dashboard` ở PR #143; chưa tick (xem PR của #146)
-- [ ] **MOB-M6-01** Khách đánh giá thợ · **MOB-M6-02** Thợ đánh giá khách.
+- [ ] **MOB-M6-01** Khách đánh giá thợ · **MOB-M6-02** Thợ đánh giá khách. — *đã làm, chờ review:* ticket #154 (MOB-M6-01 và MOB-M6-02 cùng một màn `RatingScreen`, route `/ratings` nhận `RatingScreenArgs`); chưa tick (xem PR của #154)
 - [ ] **MOB-M6-03** Tạo khiếu nại kèm ảnh (khách + thợ), trong 24 h.
 - [ ] **MOB-M6-04** Thợ xem thu nhập thực nhận. — *đã làm, chờ review:* ticket #156 (màn `/payouts` theo tháng + `/payouts/history`; endpoint ở PR #141 chưa merge nên chưa chạy với backend thật); chưa tick (xem PR của #156)

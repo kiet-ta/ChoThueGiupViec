@@ -63,3 +63,9 @@ To prevent merge conflicts across the 6 team members:
 ## 4. Verification
 - `cd Mobile && flutter analyze`: Static linting and code quality.
 - `cd Mobile && flutter test`: Unit and widget test execution.
+
+## 5. Two-way rating (MOB-M6-01 customer rates the worker, MOB-M6-02 worker rates the customer)
+- Feature `lib/features/ratings/` (contract `.spec/contracts/ratings.md` 2.1-2.2, decision Q14): `models/rating_models.dart` (role, fixed criteria, window), `logic/rating_logic.dart` (pure: countdown text, reason messages, validation, request body, error mapping), `services/ratings_service.dart` (`IRatingsService` over the shared `ApiClient`), `screens/rating_screen.dart`.
+- **Route `/ratings`** takes `RatingScreenArgs(role, assignmentId, ratedName?)` as route arguments; whoever shows a completed job (booking or dispatch) pushes it. Without arguments a short note says ratings are given from a completed job. There is no ratings list screen: the API has no list and a worker's rating is internal only.
+- The screen reads the window (`.../assignments/{id}/rating-window`) and shows the form only while `canRate`: the countdown of the 48 h window, overall stars and the fixed criteria of the role (customer: punctuality, cleaningQuality, attitude; worker: cooperation, workingConditions), an optional comment of at most 500 characters. The send button is disabled until every score is chosen and sends once per tap; 400 field messages show under their field, 409 reloads the window and shows the real reason, 404 and network failures have their own text. A rating cannot be edited, and the screen says so before sending.
+- Tests: `test/features/ratings/` (`rating_logic_test.dart`, `ratings_service_test.dart` against a local `HttpServer`, `rating_screen_test.dart` for every state and error). `flutter pub get` regenerates the plugin registrant files under `linux/`, `macos/` and `windows/`: do not commit them in a feature ticket.
