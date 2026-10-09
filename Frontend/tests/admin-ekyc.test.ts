@@ -6,8 +6,6 @@ import {
   parseActionError,
   validateRejectionReason,
   TABS,
-  AUTO_APPROVE_THRESHOLD,
-  MOCK_EKYC_QUEUE,
 } from '../src/features/workers/view.ts'
 import type { EkycQueueItemResponse } from '../src/features/workers/types.ts'
 
