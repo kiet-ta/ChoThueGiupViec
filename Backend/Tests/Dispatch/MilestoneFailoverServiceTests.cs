@@ -8,6 +8,9 @@ using MediatR;
 using Microsoft.Extensions.Logging.Abstractions;
 using MicrosoftOptions = Microsoft.Extensions.Options.Options;
 using Xunit;
+// Aliases to disambiguate CapacityReservation
+using EntityCapacityReservation = CommonService.Domain.Entities.CapacityReservation;
+using PortCapacityReservation = CommonService.Application.Interfaces.Ports.CapacityReservation;
 
 namespace CommonService.Tests.Dispatch;
 
@@ -139,12 +142,12 @@ public class MilestoneFailoverServiceTests
     private sealed class MockAgencyCapacityService : IAgencyCapacityService
     {
         public bool HasCap { get; set; } = true;
-        public CommonService.Application.Interfaces.Ports.CapacityReservation? NextReservation { get; set; }
+        public PortCapacityReservation? NextReservation { get; set; }
 
         public Task<bool> HasCapacityAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(HasCap);
 
-        public Task<CommonService.Application.Interfaces.Ports.CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
+        public Task<PortCapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(NextReservation);
 
         public Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default) =>
@@ -311,7 +314,7 @@ public class MilestoneFailoverServiceTests
         };
 
         // Another Agency (Agency 7) has capacity
-        agencyService.NextReservation = new CommonService.Application.Interfaces.Ports.CapacityReservation(Guid.NewGuid(), 7, new[] { 701 });
+        agencyService.NextReservation = new PortCapacityReservation(Guid.NewGuid(), 7, [701]);
 
         var result = await service.ReportUnavailabilityAsync(3, "Thợ không liên lạc được sát giờ");
 
@@ -421,7 +424,7 @@ public class MilestoneFailoverServiceTests
         await service.ReportUnavailabilityAsync(5, "Agency báo tìm thợ");
 
         // Another Agency 8 ready to rescue
-        agencyService.NextReservation = new CommonService.Application.Interfaces.Ports.CapacityReservation(Guid.NewGuid(), 8, new[] { 801 });
+        agencyService.NextReservation = new PortCapacityReservation(Guid.NewGuid(), 8, [801]);
 
         // Advance 31 minutes
         clock.UtcNow = clock.UtcNow.AddMinutes(31);
