@@ -14,5 +14,6 @@ public class BookingModule : IModule
     {
         services.AddScoped<IPriceRuleRepository, PriceRuleRepository>();
         services.AddScoped<IPricingService, PricingService>();
+        services.AddScoped<IOrderTrackingQuery, OrderTrackingQuery>();
     }
 }
