@@ -301,15 +301,46 @@ public class DisputeVerdictTests
     }
 
     [Fact]
-    public async Task Lock_worker_with_a_freelancer_verdict_adds_one_audit_row_for_the_request()
+    public async Task Lock_worker_with_a_freelancer_verdict_locks_the_worker_and_writes_one_audit_row_for_the_request_and_one_per_worker()
     {
         var h = new Harness().Freelancers((1, 260000m));
 
         var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 50000m, lockWorker: true));
 
         Assert.True(result.Success);
-        Assert.Equal(["dispute_status", "worker_lock_requested"], h.Audit.Entries.Select(e => e.FieldName).ToArray());
-        Assert.Equal("true", h.Audit.Entries.Last().NewValue);
+        Assert.Equal([41], Assert.Single(h.Repo.LockRequests));
+        Assert.Equal(["dispute_status", "worker_lock_requested", "work_status"], h.Audit.Entries.Select(e => e.FieldName).ToArray());
+        Assert.Equal("true", h.Audit.Entries.ElementAt(1).NewValue);
+        var workerRow = h.Audit.Entries.Last();
+        Assert.Equal(("WORKER", "41", "LOCKED"), (workerRow.EntityType, workerRow.EntityId, workerRow.NewValue));
+    }
+
+    [Fact]
+    public async Task Lock_worker_with_two_freelancers_locks_both_once_and_skips_one_that_is_already_locked()
+    {
+        var h = new Harness().Freelancers((1, 100000m), (2, 100000m));
+        h.Repo.AlreadyLocked.Add(42);
+
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", null, lockWorker: true));
+
+        Assert.True(result.Success);
+        Assert.Equal([41, 42], Assert.Single(h.Repo.LockRequests));
+        var workerRows = h.Audit.Entries.Where(e => e.EntityType == "WORKER").ToList();
+        Assert.Equal("41", Assert.Single(workerRows).EntityId); // 42 was locked before: no row
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(false)]
+    public async Task Without_lock_worker_no_worker_is_touched(bool? lockWorker)
+    {
+        var h = new Harness().Freelancers((1, 260000m));
+
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 50000m, lockWorker: lockWorker));
+
+        Assert.True(result.Success);
+        Assert.Empty(h.Repo.LockRequests);
+        Assert.DoesNotContain(h.Audit.Entries, e => e.EntityType == "WORKER");
     }
 
     [Fact]
@@ -506,11 +537,42 @@ public class DisputeVerdictTests
                 .Where(a => a.EntityType == "DISPUTE_TICKET" && a.EntityId == disputeId.ToString()).OrderBy(a => a.LogId).ToListAsync();
             Assert.Equal(["dispute_status", "worker_lock_requested"], audit.Select(a => a.FieldName).ToArray());
             Assert.Equal("Photos show dirt", audit[0].Reason);
+
+            // the worker of the order is really locked, with one audit row of its own
+            Assert.Equal(WorkStatus.Locked, (await verify.Workers.AsNoTracking().SingleAsync(w => w.WorkerId == s.WorkerId)).WorkStatus);
+            var workerAudit = await verify.AdminAuditLogs.AsNoTracking()
+                .SingleAsync(a => a.EntityType == "WORKER" && a.EntityId == s.WorkerId.ToString());
+            Assert.Equal(("work_status", "LOCKED"), (workerAudit.FieldName, workerAudit.NewValue));
             Assert.Equal(100000m, Assert.Single(refunds.Requests).Amount);
 
             var published = Assert.Single(publisher.Events);
             Assert.Equal(s.AssignmentIds[0], published.AssignmentId);
             Assert.Equal(100000m, published.CustomerRefundAmount);
+        }
+        finally
+        {
+            await CleanVerdictAsync(s, s.OrderIds);
+        }
+    }
+
+    [Fact]
+    public async Task Real_database_lock_freelancers_locks_a_worker_once_and_skips_one_that_is_already_locked()
+    {
+        if (!DisputeEndpointTests.IsSqlServerAvailable()) return;
+
+        var now = DateTime.UtcNow;
+        var s = await DisputeEndpointTests.SeedAsync(now);
+        try
+        {
+            await using var db = new AppDbContext(DisputeEndpointTests.Options());
+            var repo = new EfDisputeRepository(db);
+
+            Assert.Equal([s.WorkerId], await repo.LockFreelancersAsync([s.WorkerId, s.WorkerId]));
+            Assert.Empty(await repo.LockFreelancersAsync([s.WorkerId]));
+            Assert.Empty(await repo.LockFreelancersAsync([]));
+
+            await using var verify = new AppDbContext(DisputeEndpointTests.Options());
+            Assert.Equal(WorkStatus.Locked, (await verify.Workers.AsNoTracking().SingleAsync(w => w.WorkerId == s.WorkerId)).WorkStatus);
         }
         finally
         {
@@ -634,6 +696,7 @@ public class DisputeVerdictTests
         {
             var ids = await db.DisputeTickets.Where(d => orderIds.Contains(d.OrderId)).Select(d => d.DisputeId.ToString()).ToListAsync();
             await db.AdminAuditLogs.Where(a => a.EntityType == "DISPUTE_TICKET" && ids.Contains(a.EntityId)).ExecuteDeleteAsync();
+            await db.AdminAuditLogs.Where(a => a.EntityType == "WORKER" && a.EntityId == s.WorkerId.ToString()).ExecuteDeleteAsync();
         }
 
         await DisputeEndpointTests.CleanAsync(s);
