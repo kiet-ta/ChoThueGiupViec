@@ -1,4 +1,3 @@
-using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using System.Collections.Generic;
@@ -81,7 +80,7 @@ namespace CommonService.Infrastructure.Modules.Agencies
 
             // Now we need to see if we can satisfy requiredWorkers.
             // Each slot can accommodate one worker? Actually, a slot is a time slot for one worker.
-            // But requiredWorkers can be 1 or 2 (for areas over 80 m2).
+            // But requiredWorkers can be 1 or 2 when the area is over 80 m2 (decisions Q01).
             // We assume each slot is for one worker. So we need at least requiredWorkers available slots.
             return availableSlots.Count >= requiredWorkers;
         }

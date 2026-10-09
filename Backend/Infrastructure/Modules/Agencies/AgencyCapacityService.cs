@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Linq;
 // Aliases to disambiguate CapacityReservation
 using EntityCapacityReservation = CommonService.Domain.Entities.CapacityReservation;
-using PortCapacityReservation = CommonService.Application.Interfaces.Ports.CapacityReservation;
+using CapacityReservation = CommonService.Application.Interfaces.Ports.CapacityReservation;
 
 namespace CommonService.Infrastructure.Modules.Agencies
 {
@@ -36,7 +36,7 @@ namespace CommonService.Infrastructure.Modules.Agencies
             var workerSkills = await _context.WorkerSkills.ToListAsync(cancellationToken);
 
             // Use pure function to check capacity
-            return AgencyCapacityPureService.HasCapacity(
+            return AgencyCapacity.HasCapacity(
                 request.Date,
                 request.ShiftCode,
                 request.RequiredWorkers,
@@ -47,7 +47,7 @@ namespace CommonService.Infrastructure.Modules.Agencies
                 now);
         }
 
-        public async Task<PortCapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default)
+        public async Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default)
         {
             var now = _clock.UtcNow;
 
@@ -60,7 +60,7 @@ namespace CommonService.Infrastructure.Modules.Agencies
             var expiration = now.Add(_reservationDuration);
 
             // Use pure function to determine what reservation to make
-            var reservationResult = AgencyCapacityPureService.TryReserve(
+            var reservationResults = AgencyCapacity.TryReserve(
                 request.Date,
                 request.ShiftCode,
                 request.RequiredWorkers,
@@ -71,7 +71,7 @@ namespace CommonService.Infrastructure.Modules.Agencies
                 now,
                 _reservationDuration);
 
-            if (reservationResult == null)
+            if (reservationResults == null || reservationResults.Count == 0)
             {
                 return null;
             }
@@ -81,24 +81,30 @@ namespace CommonService.Infrastructure.Modules.Agencies
 
             try
             {
-                // Create reservation entities
-                var reservationEntities = reservationResult.SlotIds.Select(slotId => new EntityCapacityReservation
+                // Create reservation entities (one per slot)
+                var reservationId = Guid.NewGuid();
+                var reservationEntities = new List<EntityCapacityReservation>();
+
+                foreach (var slotId in reservationResults.Select(r => r.SlotId))
                 {
-                    ReservationId = reservationResult.ReservationId,
-                    AgencyId = reservationResult.AgencyId,
-                    SlotId = slotId,
-                    ExpiresAt = expiration
-                }).ToList();
+                    reservationEntities.Add(new EntityCapacityReservation
+                    {
+                        ReservationId = reservationId,
+                        AgencyId = reservationResults.First().AgencyId, // All reservations have same AgencyId
+                        SlotId = slotId,
+                        ExpiresAt = expiration
+                    });
+                }
 
                 _context.CapacityReservations.AddRange(reservationEntities);
                 await _context.SaveChangesAsync(cancellationToken);
 
                 await transaction.CommitAsync(cancellationToken);
 
-                return new PortCapacityReservation(
-                    reservationResult.ReservationId,
-                    reservationResult.AgencyId,
-                    reservationResult.SlotIds);
+                return new CapacityReservation(
+                    reservationId,
+                    reservationResults.First().AgencyId,
+                    reservationResults.Select(r => r.SlotId).ToList());
             }
             catch
             {
