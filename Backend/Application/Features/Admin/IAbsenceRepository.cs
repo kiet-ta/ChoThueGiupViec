@@ -46,4 +46,10 @@ public interface IAbsenceRepository
     /// <c>CHECKED_IN</c> any more (somebody else decided first). The caller runs this inside its unit of work.
     /// </summary>
     Task<bool> TryMarkAbsentAsync(long assignmentId, decimal absenceFeeAmount, DateTime nowUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Ids of the Admin accounts that are active, to be told about a new report (BE-M6-03b).</summary>
+    Task<IReadOnlyList<int>> GetActiveAdminIdsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>The customer of an order; null when the order is unknown (BE-M6-03b).</summary>
+    Task<int?> GetCustomerIdOfOrderAsync(long orderId, CancellationToken cancellationToken = default);
 }

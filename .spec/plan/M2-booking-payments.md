@@ -21,7 +21,7 @@
 - [ ] **BE-M2-07** Hoàn tiền 100 % (`IRefundService`): xử lý `AssignmentFailed` (hết thợ >10 km, BR-03), sự cố không tìm được thợ (BR-10), phán quyết tranh chấp · *needs:* BE-M2-05.
 - [ ] **BE-M2-08** Nối ca "Làm lần 2" (BR-08): tạo `JobOrderExtension` + QR mới, khi thanh toán phát `ExtensionPaid` (M4 xử lý thợ đồng ý/từ chối) · *needs:* BE-M2-05.
 - [ ] **BE-M2-09** Khách huỷ đơn trước khi có thợ · *needs:* BE-M2-07 · *decisions:* Q15 (>2 giờ hoàn 100 %, ≤2 giờ tính 40 %, thợ huỷ → hoàn 100 % + điều thợ khác).
-- [ ] **BE-M2-10** Truy vấn: tiến độ đơn (`JOB_ASSIGNMENT WHERE order_id`), lịch sử khách (`WHERE customer_id`) — **0 JOIN** theo §5.2 · *needs:* G1.
+- [x] **BE-M2-10** Truy vấn: tiến độ đơn (`JOB_ASSIGNMENT WHERE order_id`), lịch sử khách (`WHERE customer_id`) — **0 JOIN** theo §5.2 · *needs:* G1. — evidence: .harness/evidence/20261009-162753-L3.log (query layer only; the 3 DB-backed tests did not run locally, SQL Server unreachable)
 - [ ] **BE-M2-11** Test: IPN replay, đua khoá slot Premium (2 khách cùng vị trí cuối), giá biên 80 m² · *needs:* BE-M2-01..10.
 
 ## Wave 3 — Mobile (Flutter, khách hàng) · *needs:* MOB-BASE-01..03 (M3) + G3/G4
