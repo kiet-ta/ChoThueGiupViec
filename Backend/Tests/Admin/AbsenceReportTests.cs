@@ -141,6 +141,15 @@ public class AbsenceReportTests
         public Task<AbsenceReportRow?> GetAsync(long assignmentId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Rows.FirstOrDefault(r => r.AssignmentId == assignmentId));
 
+        public List<int> ActiveAdmins { get; } = [];
+        public Dictionary<long, int> CustomerOfOrder { get; } = [];
+
+        public Task<IReadOnlyList<int>> GetActiveAdminIdsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<int>>(ActiveAdmins.ToList());
+
+        public Task<int?> GetCustomerIdOfOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(CustomerOfOrder.TryGetValue(orderId, out var id) ? id : (int?)null);
+
         public Task<bool> TryMarkAbsentAsync(long assignmentId, decimal absenceFeeAmount, DateTime nowUtc, CancellationToken cancellationToken = default)
         {
             MarkCalls++;
@@ -910,6 +919,28 @@ public class AbsenceReportTests
             Assert.Single(refunds.Requests);
             await using var verify = new AppDbContext(Options());
             Assert.Equal(1, await verify.AdminAuditLogs.CountAsync(a => a.EntityType == "JOB_ASSIGNMENT" && a.EntityId == s.AssignmentId.ToString()));
+        }
+        finally
+        {
+            await CleanAsync(s);
+        }
+    }
+
+    [Fact]
+    public async Task Real_database_the_notification_reads_find_the_active_admins_and_the_customer_of_the_order()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        var now = DateTime.UtcNow;
+        var s = await SeedAsync(now);
+        try
+        {
+            await using var db = new AppDbContext(Options());
+            var repo = new EfAbsenceRepository(db);
+
+            Assert.Contains(s.AdminId, await repo.GetActiveAdminIdsAsync());
+            Assert.Equal(s.CustomerId, await repo.GetCustomerIdOfOrderAsync(s.OrderId));
+            Assert.Null(await repo.GetCustomerIdOfOrderAsync(long.MaxValue));
         }
         finally
         {
