@@ -8,7 +8,7 @@
 **Allowed mặc định:** `Backend/Application/Features/{Agencies,Skills}/**`, `Backend/WebAPI/Controllers/{Agencies,Skills}/**`, `Backend/Infrastructure/Modules/{Agencies,Skills}/**`, `Backend/Tests/{Agencies,Skills}/**`, `Backend/Domain/Entities/*.{Agencies,Skills}.cs`, `Mobile/lib/features/agencies/**`, `Mobile/test/features/agencies/**`, `Frontend/src/features/{agencies,skills}/**`, `.spec/plan/M5-*.md`, `.spec/contracts/{agencies,skills}.md`.
 
 ## Wave 0 — làm ngay
-- [x] **BE-M5-00** Contract Agencies + Skills → `.spec/contracts/agencies.md`, `skills.md` (đăng ký Agency, gói thuê bao, import thợ, roster, ký quỹ, danh mục Skill, dashboard). — evidence: .harness/evidence/20261009-210516-L3.log
+- [ ] **BE-M5-00** Contract Agencies + Skills → `.spec/contracts/agencies.md`, `skills.md` (đăng ký Agency, gói thuê bao, import thợ, roster, ký quỹ, danh mục Skill, dashboard).
 - [ ] **BE-M5-06a** *(hàm thuần)* Thuật toán công suất: cho (slot, skill yêu cầu, roster, đơn đã khoá) → còn vị trí? + khoá/mở khoá nguyên tử · *needs:* G0.
 
 ## Wave 1 — Backend (sau G0, Fake; EF sau G1)
