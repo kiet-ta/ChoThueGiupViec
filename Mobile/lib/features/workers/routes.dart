@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import '../../app/feature_module.dart';
 import 'screens/worker_ekyc_screen.dart';
 import 'screens/worker_screen.dart';
+import 'screens/worker_slots_screen.dart';
 
 /// Route names owned by the Workers feature module.
 class WorkerRoutes {
@@ -21,6 +22,6 @@ class WorkersFeatureModule extends FeatureModule {
   Map<String, WidgetBuilder> get routes => {
         WorkerRoutes.profile: (context) => const WorkerScreen(),
         WorkerRoutes.ekyc: (context) => const WorkerEkycScreen(),
-        WorkerRoutes.slots: (context) => const WorkerScreen(),
+        WorkerRoutes.slots: (context) => const WorkerSlotsScreen(),
       };
 }
