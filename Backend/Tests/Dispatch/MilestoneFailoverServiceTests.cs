@@ -139,12 +139,12 @@ public class MilestoneFailoverServiceTests
     private sealed class MockAgencyCapacityService : IAgencyCapacityService
     {
         public bool HasCap { get; set; } = true;
-        public CapacityReservation? NextReservation { get; set; }
+        public CommonService.Application.Interfaces.Ports.CapacityReservation? NextReservation { get; set; }
 
         public Task<bool> HasCapacityAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(HasCap);
 
-        public Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
+        public Task<CommonService.Application.Interfaces.Ports.CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(NextReservation);
 
         public Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default) =>
@@ -311,7 +311,7 @@ public class MilestoneFailoverServiceTests
         };
 
         // Another Agency (Agency 7) has capacity
-        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701]);
+        agencyService.NextReservation = new CommonService.Application.Interfaces.Ports.CapacityReservation(Guid.NewGuid(), 7, new[] { 701 });
 
         var result = await service.ReportUnavailabilityAsync(3, "Thợ không liên lạc được sát giờ");
 
@@ -421,7 +421,7 @@ public class MilestoneFailoverServiceTests
         await service.ReportUnavailabilityAsync(5, "Agency báo tìm thợ");
 
         // Another Agency 8 ready to rescue
-        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 8, [801]);
+        agencyService.NextReservation = new CommonService.Application.Interfaces.Ports.CapacityReservation(Guid.NewGuid(), 8, new[] { 801 });
 
         // Advance 31 minutes
         clock.UtcNow = clock.UtcNow.AddMinutes(31);

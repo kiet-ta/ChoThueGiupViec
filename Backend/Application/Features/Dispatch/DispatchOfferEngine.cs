@@ -7,6 +7,8 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using CommonService.Application.Features.Booking;
+using CommonService.Application.Features.Skills;
 
 namespace CommonService.Application.Features.Dispatch;
 
@@ -40,6 +42,8 @@ public class DispatchOfferEngine
     private readonly BusinessRules _businessRules;
     private readonly IAgencyCapacityService? _agencyCapacityService;
     private readonly ILogger<DispatchOfferEngine> _logger;
+    private readonly IJobOrderRepository _jobOrderRepository;
+    private readonly ISkillRepository _skillRepository;
     private readonly object _lock = new();
 
     public DispatchOfferEngine(
@@ -50,7 +54,9 @@ public class DispatchOfferEngine
         IMediator mediator,
         IOptions<BusinessRules> businessRules,
         IAgencyCapacityService? agencyCapacityService = null,
-        ILogger<DispatchOfferEngine>? logger = null)
+        ILogger<DispatchOfferEngine>? logger = null,
+        IJobOrderRepository jobOrderRepository = null,
+        ISkillRepository skillRepository = null)
     {
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _dispatchRepository = dispatchRepository ?? throw new ArgumentNullException(nameof(dispatchRepository));
@@ -60,6 +66,9 @@ public class DispatchOfferEngine
         _businessRules = businessRules?.Value ?? new BusinessRules();
         _agencyCapacityService = agencyCapacityService;
         _logger = logger ?? NullLogger<DispatchOfferEngine>.Instance;
+        _jobOrderRepository = jobOrderRepository;
+        _skillRepository = skillRepository;
+        _lock = new();
     }
 
     /// <summary>
@@ -190,7 +199,19 @@ public class DispatchOfferEngine
             return null;
         }
 
-        var capacityRequest = new CapacityRequest(date, shiftCode, RequiredWorkers: 1);
+        string? requiredSkill = null;
+        int? skillId = null;
+        if (_jobOrderRepository != null)
+        {
+            var jobOrder = await _jobOrderRepository.GetByIdAsync(orderId, cancellationToken);
+            requiredSkill = jobOrder?.RequiredSkill;
+        }
+        if (_skillRepository != null && !string.IsNullOrWhiteSpace(requiredSkill))
+        {
+            skillId = await _skillRepository.GetSkillIdByCodeAsync(requiredSkill, cancellationToken);
+        }
+
+        var capacityRequest = new CapacityRequest(date, shiftCode, RequiredWorkers: 1, SkillId: skillId);
         var reservation = await _agencyCapacityService.TryReserveAsync(capacityRequest, cancellationToken);
 
         if (reservation == null)

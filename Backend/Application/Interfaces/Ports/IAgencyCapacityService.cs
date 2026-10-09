@@ -3,7 +3,8 @@ namespace CommonService.Application.Interfaces.Ports;
 /// <param name="Date">Shift date.</param>
 /// <param name="ShiftCode">Shift code as stored in BOOKING_SLOT.shift_code.</param>
 /// <param name="RequiredWorkers">1, or 2 when the area is over 80 m2 (decisions Q01).</param>
-public sealed record CapacityRequest(DateOnly Date, string ShiftCode, int RequiredWorkers);
+/// <param name="SkillId">Optional skill identifier for matching workers with required skill.</param>
+public sealed record CapacityRequest(DateOnly Date, string ShiftCode, int RequiredWorkers, int? SkillId = null);
 
 /// <summary>An atomic hold on agency slots (Premium phase 1). Release it if the order is not paid in time.</summary>
 public sealed record CapacityReservation(Guid ReservationId, int AgencyId, IReadOnlyList<int> SlotIds);
