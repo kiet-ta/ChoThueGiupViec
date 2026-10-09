@@ -15,7 +15,7 @@ namespace CommonService.WebAPI.Controllers.Disputes;
 [ApiController]
 [Route("api/customers/me/disputes")]
 [Authorize(Policy = "CustomerOnly")]
-public class CustomerDisputesController(IDisputeFilingService disputes, ICurrentUser currentUser) : ControllerBase
+public class CustomerDisputesController(IDisputeFilingService disputes, IDisputeEvidenceService evidence, ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>Files a dispute for an order: category, description and at least one piece of evidence. One dispute per order.</summary>
     [HttpPost]
@@ -30,6 +30,19 @@ public class CustomerDisputesController(IDisputeFilingService disputes, ICurrent
         if (currentUser.UserId is not int customerId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
         if (request is null) return BadRequest(ApiResponse<object>.Fail("Request body is required.", null));
         return this.ToActionResult(await disputes.FileAsync(DisputeSide.Customer, customerId, request, ct), "Dispute filed.");
+    }
+
+    /// <summary>Uploads one evidence photo (JSON with base64) and returns the address to put into <c>evidenceUrls</c>.</summary>
+    [HttpPost("evidence")]
+    [ProducesResponseType(typeof(ApiResponse<EvidenceFileDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UploadEvidence([FromBody] UploadEvidenceRequestDto request, CancellationToken ct)
+    {
+        if (currentUser.UserId is not int customerId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
+        if (request is null) return BadRequest(ApiResponse<object>.Fail("Request body is required.", null));
+        return this.ToActionResult(await evidence.UploadAsync(DisputeSide.Customer, customerId, request, ct), "Evidence uploaded.");
     }
 
     /// <summary>The caller's disputes, newest first.</summary>

@@ -53,11 +53,23 @@
 
 | Status | Condition |
 |---|---|
-| 400 | `description` empty or longer than 1000; `category` not in the allowed set (**D1**); `evidenceUrls` empty (PRD §4.3 step 1: "kèm hình ảnh bằng chứng") or more than 10 entries, or an entry that is blank or longer than 500 characters (no upload endpoint exists yet, so any such text is accepted; checking that it was issued by `IFileStorage` needs that endpoint) |
+| 400 | `description` empty or longer than 1000; `category` not in the allowed set (**D1**); `evidenceUrls` empty (PRD §4.3 step 1: "kèm hình ảnh bằng chứng") or more than 10 entries, or an entry that is blank or longer than 500 characters (a photo is uploaded first with 2.1a and its returned `url` is sent here; the server still accepts any text of that length, so a client that does not upload is not refused: checking that the address was issued by 2.1a is not done) |
 | 404 | order missing or caller not on it |
 | 409 | more than 24 h after the end of the shift (**D4**); the order has no assignment that reached `COMPLETED`/`AWAITING_ACCEPTANCE`/`ABSENT` (nothing to dispute); **a dispute already exists for this order** (**D5**, corrected: `DISPUTE_TICKET` has a UNIQUE index on `order_id`, so an order has one ticket in total, whoever filed it; the loser of two simultaneous filings gets this 409 too) |
 
 Effects: `dispute_status = OPEN`, `sla_due_at = created_at + 48 h` (drawio note: `sla_due_at = +48 h`; PRD says SLA 24-48 h, see **D3**). The customer-absent fee dispute window (Q10: 24 h after the fee, `Absence.CustomerDisputeHours`) is the same endpoint with `category = ABSENT_FEE`.
+
+### 2.1a Evidence photo upload (BE-M6-02d, added without a leader answer)
+
+> The leader gave no answer on how a dispute photo reaches the server and set a deadline, so this is the smallest upload that makes a photo real. It is listed here before the code, as AGENTS.md requires, and he can replace it.
+
+**`POST /api/customers/me/disputes/evidence`** (policy `CustomerOnly`) and **`POST /api/workers/me/disputes/evidence`** (policy `WorkerOnly`) -> 201 `data: { path, url, sizeBytes }`
+```json
+{ "fileName": "photo.jpg", "contentType": "image/jpeg", "contentBase64": "..." }
+```
+JSON with base64 because the mobile `ApiClient` is JSON-only (M4's photo upload is JSON too). Rules, all 400 with a field map: `contentType` is `image/jpeg`, `image/png` or `image/webp`; `fileName` is 1-100 characters (only its name part is kept, reduced to letters, digits, `_` and `-`, and the extension follows the content type); `contentBase64` is valid base64, 1 byte to 5 MB decoded, and its first bytes must be the signature of the declared type. The file goes through `IFileStorage` into the folder `dispute-evidence`, stored as `{guid}_{c|w}{userId}-{name}{ext}`. Put the returned `url` into `evidenceUrls` of 2.1.
+
+**`GET /files/dispute-evidence/{fileName}`** -> 200 the image, 404 otherwise. Anonymous on purpose: a browser sends no bearer header for `<img>`, and the Admin console shows the photos that way; the name holds a server-chosen GUID, so only somebody given the address can ask for it. Only that folder, only a name of letters, digits, `.`, `_`, `-` with a `.jpg`/`.png`/`.webp` extension; `X-Content-Type-Options: nosniff`. Known limits: no antivirus or EXIF stripping, no cleaning of photos of disputes that are never filed.
 
 **`GET /api/customers/me/disputes`** and **`GET /api/workers/me/disputes`** -> 200 `data: Dispute[]` (own disputes only), newest first. **`GET .../disputes/{disputeId}`** -> 200 `data: Dispute`, 404 if not the caller's. The party sees the verdict (`faultParty`, `compensationAmount`) once `RESOLVED`.
 
