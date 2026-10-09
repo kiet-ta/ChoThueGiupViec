@@ -76,6 +76,13 @@ public interface IDisputeRepository
         int disputeId, int adminId, string status, FaultParty? faultParty, decimal compensationAmount, DateTime resolvedAtUtc,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Sets <c>WORKER.work_status = LOCKED</c> for the given FREELANCER workers that are not locked yet, with conditional updates (no
+    /// read-modify-write), and returns the ids it really locked. An agency worker is never touched. The caller runs this inside its unit
+    /// of work so a later failure undoes it.
+    /// </summary>
+    Task<IReadOnlyList<int>> LockFreelancersAsync(IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default);
+
     /// <summary>Order code, customer name and the workers of each order (one query per kind, not per ticket).</summary>
     Task<IReadOnlyDictionary<long, DisputeSummaryData>> GetSummaryDataAsync(
         IReadOnlyCollection<long> orderIds, CancellationToken cancellationToken = default);

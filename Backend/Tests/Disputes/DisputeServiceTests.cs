@@ -93,6 +93,14 @@ public class DisputeServiceTests
         public Dictionary<long, List<DisputeVerdictAssignment>> VerdictAssignments { get; } = [];
         public int ResolveCalls { get; private set; }
         public Action? BeforeResolve { get; set; }
+        public List<int[]> LockRequests { get; } = [];
+        public HashSet<int> AlreadyLocked { get; } = [];
+
+        public Task<IReadOnlyList<int>> LockFreelancersAsync(IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default)
+        {
+            LockRequests.Add(workerIds.ToArray());
+            return Task.FromResult<IReadOnlyList<int>>(workerIds.Where(id => !AlreadyLocked.Contains(id)).ToList());
+        }
 
         public Task<IReadOnlyList<DisputeVerdictAssignment>> GetVerdictAssignmentsAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<DisputeVerdictAssignment>>(VerdictAssignments.GetValueOrDefault(orderId) ?? []);
