@@ -1,5 +1,8 @@
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
+// Aliases to disambiguate CapacityReservation
+using EntityCapacityReservation = CommonService.Domain.Entities.CapacityReservation;
+using PortCapacityReservation = CommonService.Application.Interfaces.Ports.CapacityReservation;
 
 namespace CommonService.Domain.Services;
 
@@ -23,7 +26,7 @@ public static class AgencyCapacityPureService
         CapacityRequest request,
         IEnumerable<BookingSlot> bookingSlots,
         IEnumerable<JobAssignment> jobAssignments,
-        IEnumerable<CapacityReservation> capacityReservations,
+        IEnumerable<EntityCapacityReservation> capacityReservations,
         IEnumerable<WorkerSkill> workerSkills,
         DateTime now)
     {
@@ -62,7 +65,7 @@ public static class AgencyCapacityPureService
         CapacityRequest request,
         IEnumerable<BookingSlot> bookingSlots,
         IEnumerable<JobAssignment> jobAssignments,
-        IEnumerable<CapacityReservation> capacityReservations,
+        IEnumerable<EntityCapacityReservation> capacityReservations,
         IEnumerable<WorkerSkill> workerSkills,
         DateTime now,
         TimeSpan reservationDuration)
@@ -108,7 +111,7 @@ public static class AgencyCapacityPureService
     private static IEnumerable<BookingSlot> GetAvailableSlots(
         IEnumerable<BookingSlot> bookingSlots,
         IEnumerable<JobAssignment> jobAssignments,
-        IEnumerable<CapacityReservation> capacityReservations,
+        IEnumerable<EntityCapacityReservation> capacityReservations,
         IEnumerable<WorkerSkill> workerSkills,
         DateOnly date,
         string shiftCode,
