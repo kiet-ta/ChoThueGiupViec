@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import '../../app/feature_module.dart';
 import 'screens/worker_ekyc_screen.dart';
+import 'screens/worker_execution_screen.dart';
 import 'screens/worker_screen.dart';
 import 'screens/worker_slots_screen.dart';
 
@@ -11,6 +12,7 @@ class WorkerRoutes {
   static const String profile = '/workers/profile';
   static const String ekyc = '/workers/ekyc';
   static const String slots = '/workers/slots';
+  static const String execution = '/workers/execution';
 }
 
 /// FeatureModule for Workers & Quality (Slot M4).
@@ -23,5 +25,6 @@ class WorkersFeatureModule extends FeatureModule {
         WorkerRoutes.profile: (context) => const WorkerScreen(),
         WorkerRoutes.ekyc: (context) => const WorkerEkycScreen(),
         WorkerRoutes.slots: (context) => const WorkerSlotsScreen(),
+        WorkerRoutes.execution: (context) => const WorkerExecutionScreen(),
       };
 }
