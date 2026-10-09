@@ -157,6 +157,23 @@ public class WorkersController(ISender sender) : ControllerBase
         var result = await sender.Send(new GetWorkerByIdQuery(id), ct);
         return Ok(result);
     }
+
+    /// <summary>Worker submits completed job for customer acceptance (contract §2.5.1).</summary>
+    [HttpPost("assignments/{assignmentId:long}/submit-completion")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<AssignmentStatusResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SubmitCompletion(
+        long assignmentId,
+        [FromBody] SubmitCompletionRequest? request,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(new SubmitJobCompletionCommand(assignmentId, request?.Notes), ct);
+        return Ok(result);
+    }
 }
 
 
