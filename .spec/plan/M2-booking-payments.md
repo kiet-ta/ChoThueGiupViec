@@ -8,10 +8,9 @@
 **Allowed mặc định:** `Backend/Application/Features/{Booking,Payments}/**`, `Backend/WebAPI/Controllers/{Booking,Payments}/**`, `Backend/Infrastructure/Modules/{Booking,Payments}/**`, `Backend/Tests/{Booking,Payments}/**`, `Backend/Domain/Entities/*.{Booking,Payments}.cs`, `Mobile/lib/features/{booking,payments}/**`, `Mobile/test/features/{booking,payments}/**`, `Frontend/src/features/{booking,payments}/**`, `.spec/plan/M2-*.md`, `.spec/contracts/{booking,payments}.md`.
 
 ## Wave 0 — làm ngay (không cần base)
-- [ ] **BE-M2-00** Contract Booking + Payments → `.spec/contracts/booking.md`, `payments.md` (tạo đơn, chọn phân khúc/slot/dịch vụ/ghi chú, QR, IPN, trạng thái đơn, Làm lần 2, lịch sử). Liệt kê trạng thái đơn dùng chung với M1.
+- [x] **BE-M2-00** Contract Booking + Payments → `.spec/contracts/booking.md`, `payments.md` (tạo đơn, chọn phân khúc/slot/dịch vụ/ghi chú, QR, IPN, trạng thái đơn, Làm lần 2, lịch sử). Liệt kê trạng thái đơn dùng chung với M1. — evidence: `.harness/evidence/20261008-200751-L3.log`, issue #181 (chờ leader duyệt B1–B12, P1–P5)
 
 ## Wave 1 — Backend (sau G0, dùng Fake; chuyển sang EF sau G1)
-- [ ] **BE-M2-01** Quy tắc ca (BR-01/BR-02): ≤80 m² → 1 Worker, ca ≤4 h; >80 m² → yêu cầu 2 Job Assignment song song (phối hợp M3 BE-M3-08); hàm thuần + test biên 80 m² · *needs:* G0.
 - [x] **BE-M2-02** Tính giá từ bảng `PRICE_RULE` (đơn giá / thợ / ca theo tier × nhóm diện tích; tổng = đơn giá × số thợ; **chốt giá vào `JOB_ORDER.total_amount` lúc tạo đơn**); đơn giá mặc định seed ở BASE-10 · *needs:* G0 · *decisions:* Q01 · *done:* test 6 tổ hợp tier×nhóm + biên 30/80 m². — evidence: .harness/evidence/20261009-110736-L3.log
 - [ ] **BE-M2-02a** Admin sửa giá `PRICE_RULE`: bắt buộc `reason`, ghi `ADMIN_AUDIT_LOG` qua `IAuditLog` **cùng transaction**, chỉ áp dụng cho đơn mới, có endpoint xem lịch sử thay đổi (chỉ đọc) · *needs:* BE-M2-02, BE-M6-09 (Fake trước) · *decisions:* Q01, G-5.
 - [ ] **BE-M2-03** Tạo `JobOrder` Economy/Premium: validate địa chỉ thuộc khách, Block Slot hợp lệ (Sáng 08–12 / Chiều 13–17 / Tối 17:30–20:30), Premium đặt trước tối thiểu 4 giờ (*decisions:* Q13); Premium gọi `IAgencyCapacityService` kiểm công suất **nguyên tử** và khoá vị trí khi thanh toán (Pha 1, §2.5) · *needs:* G0, BE-M2-01.
