@@ -3,6 +3,7 @@ import '../../app/feature_module.dart';
 import 'screens/customer_acceptance_screen.dart';
 import 'screens/worker_ekyc_screen.dart';
 import 'screens/worker_execution_screen.dart';
+import 'screens/worker_extension_screen.dart';
 import 'screens/worker_photos_screen.dart';
 import 'screens/worker_screen.dart';
 import 'screens/worker_slots_screen.dart';
@@ -16,6 +17,7 @@ class WorkerRoutes {
   static const String slots = '/workers/slots';
   static const String execution = '/workers/execution';
   static const String photos = '/workers/photos';
+  static const String extension = '/workers/extension';
   static const String customerAcceptance = '/customers/assignments/acceptance';
 }
 
@@ -31,7 +33,9 @@ class WorkersFeatureModule extends FeatureModule {
         WorkerRoutes.slots: (context) => const WorkerSlotsScreen(),
         WorkerRoutes.execution: (context) => const WorkerExecutionScreen(),
         WorkerRoutes.photos: (context) => const WorkerPhotosScreen(),
+        WorkerRoutes.extension: (context) => const WorkerExtensionScreen(),
         WorkerRoutes.customerAcceptance: (context) => const CustomerAcceptanceScreen(),
       };
 }
+
 
