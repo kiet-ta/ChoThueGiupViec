@@ -200,6 +200,8 @@ dotnet build
 dotnet run            # http://localhost:5004 , Swagger at /swagger (Development)
 dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonService.csproj excludes Tests/** from compilation
 ```
+- **Tests run one after the other** (`[assembly: CollectionBehavior(DisableTestParallelization = true)]` in `Tests/Admin/SharedDatabase.cs`, BE-M6-08b): about 30 test classes write to and count rows of the same local SQL Server database, so a count such as "open disputes" saw rows another class had seeded at that moment. The full suite took 9-11 s in parallel and 19-33 s serially on the author's machine.
+
 ### 7.1 Local database (SQL Server, BASE-07)
 - Provider: Microsoft SQL Server (Windows default instance: `localhost`, database: `ChoThueGiupViec`).
 - `AppDbContext` (`Infrastructure/Persistence/AppDbContext.cs`) implements all 27 tables of the MVP schema with `IEntityTypeConfiguration<T>` per entity.
