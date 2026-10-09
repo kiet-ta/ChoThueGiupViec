@@ -38,7 +38,10 @@ public class AgencyCapacityService : IAgencyCapacityService
 
         // Use pure function to check capacity
         return AgencyCapacityPureService.HasCapacity(
-            request,
+            request.Date,
+            request.ShiftCode,
+            request.RequiredWorkers,
+            request.SkillId,
             bookingSlots,
             jobAssignments,
             capacityReservations,
@@ -59,8 +62,11 @@ public class AgencyCapacityService : IAgencyCapacityService
         var expiration = now.Add(_reservationDuration);
 
         // Use pure function to determine what reservation to make
-        var reservation = AgencyCapacityPureService.TryReserve(
-            request,
+        var reservationResult = AgencyCapacityPureService.TryReserve(
+            request.Date,
+            request.ShiftCode,
+            request.RequiredWorkers,
+            request.SkillId,
             bookingSlots,
             jobAssignments,
             capacityReservations,
@@ -68,7 +74,7 @@ public class AgencyCapacityService : IAgencyCapacityService
             now,
             _reservationDuration);
 
-        if (reservation == null)
+        if (reservationResult == null)
         {
             return null;
         }
@@ -79,10 +85,10 @@ public class AgencyCapacityService : IAgencyCapacityService
         try
         {
             // Create reservation entities
-            var reservationEntities = reservation.SlotIds.Select(slotId => new EntityCapacityReservation
+            var reservationEntities = reservationResult.SlotIds.Select(slotId => new EntityCapacityReservation
             {
-                ReservationId = reservation.ReservationId,
-                AgencyId = reservation.AgencyId,
+                ReservationId = reservationResult.ReservationId,
+                AgencyId = reservationResult.AgencyId,
                 SlotId = slotId,
                 ExpiresAt = expiration
             }).ToList();
@@ -92,7 +98,10 @@ public class AgencyCapacityService : IAgencyCapacityService
 
             await transaction.CommitAsync(cancellationToken);
 
-            return reservation;
+            return new PortCapacityReservation(
+                reservationResult.ReservationId,
+                reservationResult.AgencyId,
+                reservationResult.SlotIds);
         }
         catch
         {
