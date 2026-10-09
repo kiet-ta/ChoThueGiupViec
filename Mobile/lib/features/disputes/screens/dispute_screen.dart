@@ -10,6 +10,7 @@ import '../../payouts/logic/payout_logic.dart';
 import '../logic/dispute_logic.dart';
 import '../models/dispute_models.dart';
 import '../services/disputes_service.dart';
+import '../services/api_evidence_uploader.dart';
 import '../services/evidence_uploader.dart';
 import 'dispute_create_screen.dart';
 
@@ -48,7 +49,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
   void initState() {
     super.initState();
     _service = widget.service ?? DisputesService();
-    _uploader = widget.uploader ?? const UnavailableEvidenceUploader();
+    _uploader = widget.uploader ?? ApiEvidenceUploader(role: widget.role);
     _load();
   }
 

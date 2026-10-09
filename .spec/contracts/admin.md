@@ -53,7 +53,7 @@ On success, in one transaction (per affected assignment, Q10):
 - `absence_fee_amount = Vnd.Round(gross_amount x Absence.FeeRate)` (0.40); the assignment moves to `ABSENT` through the state machine.
 - The customer is charged exactly that 40% and the other 60% is refunded through `IRefundService` to the original payment method; the platform keeps nothing.
 - The worker returns to `IDLE` (Workers module reacts to the event, `WORKER.work_status` is not written here, Q22 D6).
-- `CustomerAbsentApproved` is published after the commit; the customer is notified and has 24 h to dispute (`disputes.md`). **(BE-M6-03) The fields are those of the real record** `Domain/Events/CustomerAbsentApproved.cs`: `AssignmentId, OrderId, WorkerId, CompensationAmount` (the 40 % fee), `RefundAmount` (the 60 %), `ApprovedAtUtc`; it has no `agencyId` (the first draft had `agencyId, feeAmount, refundAmount`).
+- `CustomerAbsentApproved` is published after the commit; the customer and the worker are notified (BE-M6-03b, topic `absence.approved`, `data { assignmentId, orderId, compensationAmount, refundAmount }`) and the customer has 24 h to dispute (`disputes.md`). **(BE-M6-03) The fields are those of the real record** `Domain/Events/CustomerAbsentApproved.cs`: `AssignmentId, OrderId, WorkerId, CompensationAmount` (the 40 % fee), `RefundAmount` (the 60 %), `ApprovedAtUtc`; it has no `agencyId` (the first draft had `agencyId, feeAmount, refundAmount`).
 - **(BE-M6-03) How it is done:** one conditional `UPDATE ... WHERE assignment_status = 'CHECKED_IN'` sets `ABSENT` and the fee, so two admins approving at once get one 200 and one 409 and the refund runs once; `IRefundService` refunds `gross - fee` (so the two parts add up exactly); a refused refund is a **502** and the whole transaction is rolled back; one `ADMIN_AUDIT_LOG` row is written (`JOB_ASSIGNMENT`, `absence_report`, `PENDING` to `APPROVED`, reason with the amounts); an assignment that is no longer `CHECKED_IN` (for example the work started) is a 409. `waitedMinutes` is the time since check-in until now while PENDING and until the report once decided.
 - **Double-refund risk to settle with M2:** `Domain/Events` and `Backend/ARCHITECTURE.md` describe this event as the trigger of the 60 % refund in M2, while this contract (and the code) refunds through `IRefundService` here. The real `IRefundService` implementer must not refund again on `CustomerAbsentApproved`.
 
@@ -96,7 +96,7 @@ Q12: allowed only if `rating_avg >= 4.80`, `completed_jobs >= 50`, KYC approved,
 **Automatic revoke** (Q12): when a `RatingSubmitted` event leaves `rating_avg < 4.70`, the Admin module sets `is_super_freelancer = false` and writes an audit row with `actor_type = SYSTEM`, `admin_id = null`, `reason = "rating below 4.70"`.
 
 ## 3. Events
-- **Handles** `CustomerAbsentReported` (M3): notifies Admins through `INotificationService`; the queue itself is derived from data (2.2). **Handles** `RatingSubmitted` (Ratings) for the auto-revoke above.
+- **Handles** `CustomerAbsentReported` (M3): notifies every active Admin through `INotificationService` (BE-M6-03b, topic `absence.reported`, `data { assignmentId, orderId }`); the queue itself is derived from data (2.2). **Handles** `RatingSubmitted` (Ratings) for the auto-revoke above.
 - **Publishes** `CustomerAbsentApproved` (consumers M2 refund bookkeeping, M3, M4, M6 Disputes notification).
 
 ## 4. Open questions (not covered by PRD or decisions; recommended default in bold)
