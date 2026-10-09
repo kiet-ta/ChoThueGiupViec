@@ -29,6 +29,6 @@
 - [x] **MOB-M4-02** Lịch rảnh: lưới tuần bật/tắt Sáng/Chiều/Tối. — evidence: .harness/evidence/20261009-152608-L3.log
 - [x] **MOB-M4-03** Màn thi công: checklist, bấm giờ ca (≤4 h). — evidence: .harness/evidence/20261009-154255-L3.log
 - [x] **MOB-M4-04** Chụp ảnh Before/After: **kiểm VoL ngay trên máy** để chụp lại tại chỗ, khung hướng dẫn góc tương ứng; lấy ngưỡng từ API (Q03). — evidence: .harness/evidence/20261009-155238-L3.log
-- [ ] **MOB-M4-05** Khách: xem ảnh, "Xác nhận nghiệm thu" / yêu cầu dọn lại.
+- [x] **MOB-M4-05** Khách: xem ảnh, "Xác nhận nghiệm thu" / yêu cầu dọn lại. — evidence: .harness/evidence/20261009-162245-L3.log
 - [ ] **MOB-M4-06** Thợ: nhận/từ chối "Làm lần 2".
 - [ ] **WEB-M4-01** Admin: hàng đợi hậu kiểm eKYC (xem CCCD/selfie, duyệt/thu hồi) · *needs:* nền Web của M6.

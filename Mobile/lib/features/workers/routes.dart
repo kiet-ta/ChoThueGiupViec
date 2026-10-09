@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../../app/feature_module.dart';
+import 'screens/customer_acceptance_screen.dart';
 import 'screens/worker_ekyc_screen.dart';
 import 'screens/worker_execution_screen.dart';
 import 'screens/worker_photos_screen.dart';
@@ -15,6 +16,7 @@ class WorkerRoutes {
   static const String slots = '/workers/slots';
   static const String execution = '/workers/execution';
   static const String photos = '/workers/photos';
+  static const String customerAcceptance = '/customers/assignments/acceptance';
 }
 
 /// FeatureModule for Workers & Quality (Slot M4).
@@ -29,5 +31,7 @@ class WorkersFeatureModule extends FeatureModule {
         WorkerRoutes.slots: (context) => const WorkerSlotsScreen(),
         WorkerRoutes.execution: (context) => const WorkerExecutionScreen(),
         WorkerRoutes.photos: (context) => const WorkerPhotosScreen(),
+        WorkerRoutes.customerAcceptance: (context) => const CustomerAcceptanceScreen(),
       };
 }
+
