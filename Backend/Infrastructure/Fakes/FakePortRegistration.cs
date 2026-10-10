@@ -28,6 +28,7 @@ public static class FakePortRegistration
         services.TryAddSingleton<IEkycProvider, FakeEkycProvider>();
         services.TryAddSingleton<IImageQualityService, FakeImageQualityService>();
         services.TryAddSingleton<IWorkerProfileQuery, FakeWorkerProfileQuery>();
+        services.TryAddSingleton<ICustomerAddressQuery, FakeCustomerAddressQuery>();
 
         // Fail the startup (not the first login) when the registered IOtpSender is the Fake outside Development.
         services.AddHostedService<OtpSenderStartupGuard>();

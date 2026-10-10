@@ -162,6 +162,13 @@ The leader's instruction was "if not affected, just implement", so these are the
 - **D6 `WORKER.work_status = BUSY`** means on site: from check-in until the assignment is `COMPLETED` or an absence is approved. Accepting a future assignment does not change `work_status`; double booking is prevented by the slot UNIQUE. Dispatch offers jobs only to `IDLE` workers with a free slot.
 - **D7 Order status follows its assignments.** `ASSIGNED` when `required_workers` assignments are accepted; `COMPLETED` when that many are `COMPLETED`; back to `DISPATCHING` when a seat is lost (worker cancel, incident, reassignment): only the missing seat is re-dispatched. An `ABSENT` assignment is decided by the Admin approval flow (Q10). The BR-02 fallback (one worker, two consecutive shifts) is two assignments of the same worker.
 
+### Q23 Booking details (contract `.spec/contracts/booking.md` section 6; recommended defaults, approval relayed by M2 from the leader's private messages on 2026-10-10, see issues #221, #246, #247, #248)
+- **B1 Shift codes** are `SHIFT_MORNING` / `SHIFT_AFTERNOON` / `SHIFT_EVENING` everywhere (as `workers.md` section 2.3). Dispatch's `SANG/CHIEU/TOI` is aligned by an M3 fix ticket.
+- **B2 Address port.** Booking reads the customer's address only through `ICustomerAddressQuery.GetOwnedAsync(customerId, addressId)` -> `{ addressId, totalAreaM2, latitude, longitude }` or null (not owned / unknown). Implementer M1; Fake first.
+- **B3 Booking horizon.** Economy: the shift start only has to be in the future. Both tiers: `scheduledDate` at most `Booking.MaxDaysAhead` (14) days after today (local date); a later date is a 400 validation error on `scheduledDate`.
+- **B7 `order_code`** = `GV` + `yyMMdd` (local date) + 6 random uppercase alphanumerics (14 characters); retry on a UNIQUE clash.
+- **B8 Capacity reservation** is keyed by the order id (`CapacityRequest.OrderId`); `JOB_ORDER` gets no column. Booking inserts the order and reserves in one transaction; no capacity -> rollback, 409 `FULLY_BOOKED`, no order.
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery.
 
@@ -197,6 +204,7 @@ The leader's instruction was "if not affected, just implement", so these are the
 | `Sla.InitialScore` / `Penalty.NoShow` / `Penalty.Shortage` / `Penalty.QualityComplaint` / `WarnAtOrBelow` / `BlockPremiumBelow` / `AppealHours` | 100.00 / 20 / 10 / 5 / 70 / 50 / 48 | Q09 |
 | `SuperFreelancer.MinRating` / `MinCompletedJobs` / `NoUpheldDisputeDays` / `RevokeBelowRating` | 4.80 / 50 / 180 / 4.70 | Q12 |
 | `Premium.MinLeadHours` | 4 | Q13 |
+| `Booking.MaxDaysAhead` | 14 | Q23 B3 |
 | `Rating.WindowHours` / `LowStarThreshold` / `ConsecutiveLowToFlag` / `MinAvgAfterJobs.Rating` / `MinAvgAfterJobs.Jobs` | 48 / 2 / 3 / 4.00 / 10 | Q14 |
 | `Cancel.FullRefundHoursBefore` / `LateFeeRate` / `WorkerCancelLockCount` / `WorkerCancelWindowDays` | 2 / 0.40 / 3 / 30 | Q15 |
 | `Auth.MinPasswordLength` / `LockoutFailures` / `LockoutMinutes` | 10 / 5 / 15 | Q16 |

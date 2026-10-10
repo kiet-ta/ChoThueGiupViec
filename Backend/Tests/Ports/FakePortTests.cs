@@ -41,7 +41,7 @@ public class FakePortTests
             .Where(t => t.IsInterface && t.Namespace == typeof(IClock).Namespace)
             .ToList();
 
-        Assert.Equal(17, ports.Count);
+        Assert.Equal(18, ports.Count);
         foreach (var port in ports)
         {
             var instance = provider.GetRequiredService(port);
@@ -295,7 +295,7 @@ public class FakePortTests
     public async Task AgencyCapacity_hold_is_atomic_and_release_gives_the_slots_back()
     {
         var capacity = new FakeAgencyCapacityService { RemainingSlots = 2 };
-        var request = new CapacityRequest(new DateOnly(2026, 10, 6), "SHIFT_1", 2);
+        var request = new CapacityRequest(new DateOnly(2026, 10, 6), "SHIFT_1", 2, OrderId: 1);
 
         var first = await capacity.TryReserveAsync(request);
         var second = await capacity.TryReserveAsync(request);
@@ -357,6 +357,29 @@ public class FakePortTests
         Assert.Equal("Nguyen Van A", (await profiles.GetAsync(5))!.FullName);
         var many = await profiles.GetManyAsync([5, 6, 5]);
         Assert.Equal([5], many.Keys);
+    }
+
+    // ---- Customer address (Booking B2) ---------------------------------------------------------
+
+    [Fact]
+    public async Task CustomerAddressQuery_returns_only_an_address_owned_by_the_customer()
+    {
+        var addresses = new FakeCustomerAddressQuery();
+        addresses.Add(7, new CustomerAddressInfo(3, 55.5m, 10.76m, 106.66m));
+
+        Assert.Equal(55.5m, (await addresses.GetOwnedAsync(7, 3))!.TotalAreaM2);
+        Assert.Null(await addresses.GetOwnedAsync(8, 3));
+        Assert.Null(await addresses.GetOwnedAsync(7, 4));
+    }
+
+    [Fact]
+    public async Task AddFakePorts_registers_a_customer_address_query()
+    {
+        var services = new ServiceCollection();
+        services.AddFakePorts();
+        await using var provider = services.BuildServiceProvider();
+
+        Assert.IsType<FakeCustomerAddressQuery>(provider.GetRequiredService<ICustomerAddressQuery>());
     }
 
     // ---- eKYC / image quality ----------------------------------------------------------------
