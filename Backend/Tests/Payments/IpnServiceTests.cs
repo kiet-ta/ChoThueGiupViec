@@ -543,7 +543,7 @@ public sealed class IpnServiceTests
     }
 
     [Fact]
-    public async Task Controller_Is200WhenAcceptedOrRepeated_400WhenRejectedOrNotAnObject_AndPassesTheRawPairs()
+    public async Task Controller_Is204WhenAcceptedOrRepeated_AsMoMoRequires_400WhenRejectedOrNotAnObject_AndPassesTheRawPairs()
     {
         var body = JsonSerializer.Deserialize<JsonElement>("""{"gatewayTxnRef":"FAKE-abc","amount":260000,"status":"success","signature":"valid"}""");
         var accepted = new StubIpn(IpnOutcome.Accepted);
@@ -553,8 +553,8 @@ public sealed class IpnServiceTests
         var rejected = await new PaymentIpnController(new StubIpn(IpnOutcome.Rejected)).Momo(body, default);
         var notAnObject = await new PaymentIpnController(accepted).Momo(JsonSerializer.Deserialize<JsonElement>("[1]"), default);
 
-        Assert.Equal(200, ((ObjectResult)ok).StatusCode);
-        Assert.Equal(200, ((ObjectResult)repeat).StatusCode);
+        Assert.IsType<NoContentResult>(ok);
+        Assert.IsType<NoContentResult>(repeat);
         Assert.Equal(400, ((ObjectResult)rejected).StatusCode);
         Assert.Equal(400, ((ObjectResult)notAnObject).StatusCode);
         Assert.Equal("260000", accepted.LastPayload!["amount"]);

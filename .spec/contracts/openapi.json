@@ -5702,25 +5702,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ObjectApiResponse"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ObjectApiResponse"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ObjectApiResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "description": "Bad Request",
