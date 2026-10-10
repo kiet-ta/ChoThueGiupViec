@@ -32,4 +32,4 @@
 - [ ] **MOB-M2-04** Theo dõi ca (ASSIGNED… COMPLETED).
 - [ ] **MOB-M2-05** Nút "Làm lần 2" + QR mới (BR-08).
 - [ ] **MOB-M2-06** Lịch sử đơn.
-- [ ] **WEB-M2-01** Admin: màn sửa bảng giá + xem lịch sử thay đổi (ai, khi nào, giá cũ/mới, lý do) · *needs:* WEB-BASE-01..04 (M6), BE-M2-02a, G4.
+- [x] **WEB-M2-01** Admin: màn sửa bảng giá + xem lịch sử thay đổi (ai, khi nào, giá cũ/mới, lý do) · *needs:* WEB-BASE-01..04 (M6), BE-M2-02a, G4. — evidence: CI verify-l3 of the PR; npm run lint + tsc -b + npm test (175 pass) + npm run build pass locally; NOT checked in a browser against a running backend
