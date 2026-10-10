@@ -12,6 +12,7 @@ import '../../payments/models/payment_models.dart';
 import '../../payments/routes.dart';
 import '../logic/booking_logic.dart';
 import '../models/booking_models.dart';
+import '../routes.dart';
 import '../services/booking_service.dart';
 
 /// Booking flow of a customer (MOB-M2-01 choose the segment, MOB-M2-02 address -> day and shift -> note -> fixed price -> order);
@@ -201,10 +202,12 @@ class _BookingScreenState extends State<BookingScreen> {
 
   void _opened(BookingOrder order) {
     if (widget.onOrderCreated != null) return widget.onOrderCreated!(order);
-    Navigator.of(context).pushNamed(
-      PaymentRoutes.payment,
-      arguments: PaymentScreenArgs(orderId: order.orderId, orderCode: order.orderCode),
-    );
+    Navigator.of(context)
+        .pushNamed(PaymentRoutes.payment, arguments: PaymentScreenArgs(orderId: order.orderId, orderCode: order.orderCode))
+        .then((_) {
+      // Paid or not, the order exists: the customer follows it (and can pay or cancel it) on its own screen.
+      if (mounted) Navigator.of(context).pushReplacementNamed(BookingRoutes.bookingDetail, arguments: OrderDetailArgs(orderId: order.orderId));
+    });
   }
 
   void _manageAddresses() {
