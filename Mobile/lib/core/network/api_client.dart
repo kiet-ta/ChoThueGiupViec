@@ -15,11 +15,16 @@ class ApiException implements Exception {
   final Map<String, List<String>>? fieldErrors;
   final int? retryAfterSeconds;
 
+  /// Machine-readable business code of a failed call (`data.code`, e.g. `FULLY_BOOKED`); null when the server sent none.
+  /// Screens branch on this, never on [message].
+  final String? code;
+
   const ApiException(
     this.statusCode,
     this.message, {
     this.fieldErrors,
     this.retryAfterSeconds,
+    this.code,
   });
 
   bool get isNetworkError => statusCode == 0;
@@ -199,8 +204,11 @@ class ApiClient {
 
       // Extract error details on failure
       Map<String, List<String>>? fieldErrors;
+      String? code;
       final rawData = jsonMap['data'];
       if (rawData is Map<String, dynamic>) {
+        final rawCode = rawData['code'];
+        if (rawCode is String && rawCode.isNotEmpty) code = rawCode;
         final rawErrors = rawData['errors'];
         if (rawErrors is Map<String, dynamic>) {
           fieldErrors = rawErrors.map((k, v) => MapEntry(
@@ -221,6 +229,7 @@ class ApiClient {
         message.isNotEmpty ? message : 'Yêu cầu không thành công (mã $statusCode).',
         fieldErrors: fieldErrors,
         retryAfterSeconds: retryAfterSeconds,
+        code: code,
       );
     } on ApiException {
       rethrow;
