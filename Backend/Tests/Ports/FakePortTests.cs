@@ -310,6 +310,29 @@ public class FakePortTests
     }
 
     [Fact]
+    public async Task AgencyCapacity_release_by_order_gives_back_every_hold_of_that_order_only_and_can_be_repeated()
+    {
+        var capacity = new FakeAgencyCapacityService { RemainingSlots = 5 };
+        var date = new DateOnly(2026, 10, 6);
+
+        await capacity.TryReserveAsync(new CapacityRequest(date, "SHIFT_1", 2, OrderId: 1));
+        await capacity.TryReserveAsync(new CapacityRequest(date, "SHIFT_1", 1, OrderId: 1));
+        var other = await capacity.TryReserveAsync(new CapacityRequest(date, "SHIFT_1", 2, OrderId: 2));
+        Assert.Equal(0, capacity.RemainingSlots);
+
+        await capacity.ReleaseByOrderAsync(1);
+        Assert.Equal(3, capacity.RemainingSlots);
+
+        await capacity.ReleaseByOrderAsync(1); // a repeat
+        await capacity.ReleaseByOrderAsync(99); // an order without a hold
+        Assert.Equal(3, capacity.RemainingSlots);
+
+        await capacity.ReleaseAsync(other!.ReservationId);
+        await capacity.ReleaseByOrderAsync(2); // already released by its reservation id
+        Assert.Equal(5, capacity.RemainingSlots);
+    }
+
+    [Fact]
     public async Task SlaPenalty_applies_the_points_of_decisions_Q09_and_accumulates()
     {
         var sla = new FakeSlaPenaltyService();

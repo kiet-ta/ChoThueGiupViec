@@ -30,13 +30,14 @@ public static class PaymentCancelReasons
 /// <summary>
 /// BE-M2-05a: a customer who paid is never left with an unpaid order (a lost IPN is replaced by asking the gateway), and an order
 /// nobody pays is cancelled after <c>Payments.QrExpiryMinutes</c> with no charge. EXTENSION transactions are not touched (BE-M2-08).
-/// Open item: the Premium capacity hold is not released here (the port releases by reservation id only; separate Scope exception).
+/// A PREMIUM order cancelled here gives its agency capacity hold back (<see cref="PremiumHoldRelease"/>, contract payments.md 3.3).
 /// </summary>
 public sealed class PaymentReconciliationService(
     IPaymentRepository payments,
     IPaymentGateway gateway,
     IPaymentSettlementService settlement,
     IUnitOfWork unitOfWork,
+    IAgencyCapacityService capacity,
     IClock clock,
     IPublisher publisher,
     IOptions<BusinessRules> rules,
@@ -199,6 +200,7 @@ public sealed class PaymentReconciliationService(
     private async Task<bool> CancelUnpaidOrderAsync(long orderId, long? paymentId, DateTime now, CancellationToken cancellationToken)
     {
         OrderCancelled? cancelled = null;
+        var serviceTier = ServiceTier.Economy;
 
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
@@ -216,6 +218,7 @@ public sealed class PaymentReconciliationService(
             order.TransitionTo(JobOrderStatus.Cancelled);
             order.CancelReason = PaymentCancelReasons.PaymentExpired;
             order.UpdatedAt = now;
+            serviceTier = order.ServiceTier;
             cancelled = new OrderCancelled(order.OrderId, order.CustomerId, PaymentCancelReasons.PaymentExpired, now);
             return true;
         }, cancellationToken);
@@ -225,6 +228,7 @@ public sealed class PaymentReconciliationService(
             return false;
         }
 
+        await PremiumHoldRelease.ReleaseAsync(capacity, serviceTier, orderId, logger);
         await publisher.Publish(cancelled, cancellationToken);
         return true;
     }

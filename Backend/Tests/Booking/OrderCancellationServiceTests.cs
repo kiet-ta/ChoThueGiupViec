@@ -89,6 +89,7 @@ public sealed class OrderCancellationServiceTests
         public Payments Pay { get; } = new();
         public RecordingPublisher Publisher { get; } = new();
         public RecordingRefunds Refunds { get; }
+        public RecordingCapacity Capacity { get; } = new();
         public JobOrder Order { get; }
         public DateTime NowUtc { get; set; }
 
@@ -144,7 +145,7 @@ public sealed class OrderCancellationServiceTests
         }
 
         public OrderCancellationService Service() => new(
-            Db, Pay, Pay, Refunds, new TestClock(NowUtc), Publisher,
+            Db, Pay, Pay, Refunds, Capacity, new TestClock(NowUtc), Publisher,
             Microsoft.Extensions.Options.Options.Create(new CommonService.Application.Common.Options.BusinessRules()),
             NullLogger<OrderCancellationService>.Instance);
     }
@@ -177,6 +178,55 @@ public sealed class OrderCancellationServiceTests
         Assert.Equal(JobOrderStatus.Cancelled, f.Order.OrderStatus);
         Assert.Empty(f.Pay.Expired);
         Assert.Empty(f.Refunds.Requests);
+    }
+
+    [Theory]
+    [InlineData(JobOrderStatus.PendingPayment)]
+    [InlineData(JobOrderStatus.Paid)]
+    public async Task ACancelledPremiumOrder_GivesItsCapacityHoldBack(JobOrderStatus status)
+    {
+        var f = new Fixture(status);
+        f.Order.ServiceTier = ServiceTier.Premium;
+
+        await f.Service().CancelAsync(CustomerId, OrderId, Reason());
+
+        Assert.Equal([OrderId], f.Capacity.ReleasedOrders);
+    }
+
+    [Fact]
+    public async Task ACancelledEconomyOrder_NeverTouchesAgencyCapacity()
+    {
+        var f = new Fixture();
+
+        await f.Service().CancelAsync(CustomerId, OrderId, Reason());
+
+        Assert.Empty(f.Capacity.ReleasedOrders);
+    }
+
+    [Fact]
+    public async Task ARefusedCancel_KeepsThePremiumHold()
+    {
+        var f = new Fixture(JobOrderStatus.Completed);
+        f.Order.ServiceTier = ServiceTier.Premium;
+
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() => f.Service().CancelAsync(CustomerId, OrderId, Reason()));
+
+        Assert.Empty(f.Capacity.ReleasedOrders);
+    }
+
+    [Fact]
+    public async Task WhenTheReleaseFails_TheOrderIsStillCancelled_AndRefunded()
+    {
+        var f = new Fixture();
+        f.Order.ServiceTier = ServiceTier.Premium;
+        f.Capacity.ThrowOnRelease = true;
+
+        var result = await f.Service().CancelAsync(CustomerId, OrderId, Reason());
+
+        Assert.Equal(JobOrderStatus.Cancelled, result.Order.OrderStatus);
+        Assert.Null(result.RefundProblem);
+        Assert.Single(f.Refunds.Requests);
+        Assert.Single(f.Publisher.Published);
     }
 
     [Theory]

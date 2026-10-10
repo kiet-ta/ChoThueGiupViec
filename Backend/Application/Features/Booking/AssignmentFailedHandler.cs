@@ -13,12 +13,13 @@ namespace CommonService.Application.Features.Booking;
 /// and the customer gets a 100 % refund through <see cref="IRefundService"/>. Idempotent: an order already CANCELLED (or not paid yet,
 /// or completed) changes nothing and is not refunded twice.
 /// Known gap: if the refund fails it is logged as an error and NOT retried (no retry mechanism yet; the order stays cancelled).
-/// Not here: the Premium capacity hold (Scope exception #257).
+/// A PREMIUM order also gives its agency capacity hold back (<see cref="PremiumHoldRelease"/>).
 /// </summary>
 public sealed class AssignmentFailedHandler(
     IOrderRepository orders,
     IUnitOfWork unitOfWork,
     IRefundService refunds,
+    IAgencyCapacityService capacity,
     IClock clock,
     IPublisher publisher,
     ILogger<AssignmentFailedHandler> logger) : INotificationHandler<AssignmentFailed>
@@ -31,6 +32,7 @@ public sealed class AssignmentFailedHandler(
         var now = clock.UtcNow;
         OrderCancelled? cancelled = null;
         decimal refundAmount = 0m;
+        var serviceTier = ServiceTier.Economy;
 
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
@@ -51,6 +53,7 @@ public sealed class AssignmentFailedHandler(
             order.CancelReason = reason;
             order.UpdatedAt = now;
             refundAmount = order.TotalAmount;
+            serviceTier = order.ServiceTier;
             cancelled = new OrderCancelled(order.OrderId, order.CustomerId, reason, now);
             return true;
         }, cancellationToken);
@@ -60,6 +63,7 @@ public sealed class AssignmentFailedHandler(
             return;
         }
 
+        await PremiumHoldRelease.ReleaseAsync(capacity, serviceTier, notification.OrderId, logger);
         await publisher.Publish(cancelled, cancellationToken);
 
         var refund = await refunds.RefundAsync(new RefundRequest(notification.OrderId, refundAmount, reason), cancellationToken);

@@ -184,6 +184,7 @@ public sealed class PaymentReconciliationServiceTests
         public RecordingPublisher Publisher { get; } = new();
         public NoNotifications Notifications { get; } = new();
         public RecordingLateRefunds Refunds { get; } = new();
+        public Booking.RecordingCapacity Capacity { get; } = new();
 
         /// <summary>An order created <paramref name="orderAgeMinutes"/> ago with one PENDING transaction created <paramref name="txnAgeMinutes"/> ago.</summary>
         public (JobOrder Order, PaymentTransaction? Txn) AddOrder(long orderId, int orderAgeMinutes, int? txnAgeMinutes, string? reference = null,
@@ -243,9 +244,54 @@ public sealed class PaymentReconciliationServiceTests
         public PaymentReconciliationService Service() => new(
             Db, Gateway,
             new PaymentSettlementService(Db, Db, new TestClock(), Publisher, Notifications, Refunds, Refunds, NullLogger<PaymentSettlementService>.Instance),
-            Db, new TestClock(), Publisher,
+            Db, Capacity, new TestClock(), Publisher,
             Microsoft.Extensions.Options.Options.Create(new BusinessRules()),
             NullLogger<PaymentReconciliationService>.Instance);
+    }
+
+    [Fact]
+    public async Task AnExpiredPremiumOrder_GivesItsCapacityHoldBack_Once()
+    {
+        var f = new Fixture();
+        var (order, _) = f.AddOrder(1, orderAgeMinutes: 16, txnAgeMinutes: 15);
+        order.ServiceTier = ServiceTier.Premium;
+
+        await f.Service().RunOnceAsync();
+        await f.Service().RunOnceAsync();
+
+        Assert.Equal(JobOrderStatus.Cancelled, order.OrderStatus);
+        Assert.Equal([1L], f.Capacity.ReleasedOrders);
+    }
+
+    [Fact]
+    public async Task AnExpiredEconomyOrder_NeverTouchesAgencyCapacity_AndAPremiumOrderStillInTimeKeepsItsHold()
+    {
+        var f = new Fixture();
+        var (economy, _) = f.AddOrder(1, orderAgeMinutes: 16, txnAgeMinutes: 15);
+        var (premium, _) = f.AddOrder(2, orderAgeMinutes: 6, txnAgeMinutes: 5);
+        premium.ServiceTier = ServiceTier.Premium;
+
+        await f.Service().RunOnceAsync();
+
+        Assert.Equal(JobOrderStatus.Cancelled, economy.OrderStatus);
+        Assert.Equal(JobOrderStatus.PendingPayment, premium.OrderStatus);
+        Assert.Empty(f.Capacity.ReleasedOrders);
+    }
+
+    [Fact]
+    public async Task WhenTheReleaseFails_TheExpiredOrderIsStillCancelled_AndCounted()
+    {
+        var f = new Fixture();
+        var (order, txn) = f.AddOrder(1, orderAgeMinutes: 16, txnAgeMinutes: 15);
+        order.ServiceTier = ServiceTier.Premium;
+        f.Capacity.ThrowOnRelease = true;
+
+        var result = await f.Service().RunOnceAsync();
+
+        Assert.Equal(new ReconciliationResult(0, 1, 1, 0), result);
+        Assert.Equal(JobOrderStatus.Cancelled, order.OrderStatus);
+        Assert.Equal(PaymentStatus.Expired, txn!.TxnStatus);
+        Assert.IsType<OrderCancelled>(Assert.Single(f.Publisher.Published));
     }
 
     [Fact]
