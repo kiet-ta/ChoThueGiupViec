@@ -17,9 +17,12 @@ namespace CommonService.WebAPI.Controllers.Payments;
 [AllowAnonymous]
 public class PaymentIpnController(IIpnService ipn) : ControllerBase
 {
-    /// <summary>Handles a MoMo (sandbox) callback: 200 when accepted or repeated, 400 when rejected.</summary>
+    /// <summary>
+    /// Handles a MoMo (sandbox) callback: 204 No Content when accepted or repeated (what MoMo requires, within 15 seconds),
+    /// 400 when rejected.
+    /// </summary>
     [HttpPost("momo")]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Momo([FromBody] JsonElement body, CancellationToken ct)
     {
@@ -42,6 +45,6 @@ public class PaymentIpnController(IIpnService ipn) : ControllerBase
         var outcome = await ipn.HandleAsync(payload, body.GetRawText(), ct);
         return outcome == IpnOutcome.Rejected
             ? BadRequest(ApiResponse<object>.Fail("IPN rejected."))
-            : Ok(ApiResponse<object?>.Ok(null, "IPN processed."));
+            : NoContent();
     }
 }
