@@ -19,4 +19,10 @@ public interface IAgencyCapacityService
     Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default);
 
     Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Release every hold made for the order (<see cref="CapacityRequest.OrderId"/>): called when a Premium order is cancelled or its
+    /// QR expires (contracts booking.md 3.3 rule 6, payments.md 3.3). Idempotent: an order without a hold is a no-op.
+    /// </summary>
+    Task ReleaseByOrderAsync(long orderId, CancellationToken cancellationToken = default);
 }

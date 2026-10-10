@@ -335,15 +335,15 @@ public sealed class M2AcceptanceTests
         public IpnService Ipn() => new(Gateway, Db, Settlement(), NullLogger<IpnService>.Instance);
 
         public PaymentReconciliationService Reconciliation() =>
-            new(Db, Gateway, Settlement(), Db, Clock, Events, _rules, NullLogger<PaymentReconciliationService>.Instance);
+            new(Db, Gateway, Settlement(), Db, Capacity, Clock, Events, _rules, NullLogger<PaymentReconciliationService>.Instance);
 
         public RefundService Refunds() => new(Db, Gateway, Db, Clock, Events, _notifications, NullLogger<RefundService>.Instance);
 
         public OrderCancellationService Cancellation() =>
-            new(Db, Db, Db, Refunds(), Clock, Events, _rules, NullLogger<OrderCancellationService>.Instance);
+            new(Db, Db, Db, Refunds(), Capacity, Clock, Events, _rules, NullLogger<OrderCancellationService>.Instance);
 
         public AssignmentFailedHandler AssignmentFailed() =>
-            new(Db, Db, Refunds(), Clock, Events, NullLogger<AssignmentFailedHandler>.Instance);
+            new(Db, Db, Refunds(), Capacity, Clock, Events, NullLogger<AssignmentFailedHandler>.Instance);
 
         public Task<CreatedOrder> CreateOrderAsync(int customerId, int addressId, ServiceTier tier = ServiceTier.Economy) =>
             OrderCreation().CreateAsync(new CreateOrderRequest(customerId, addressId, tier, ShiftDate, BookingShifts.Morning, null, null));
@@ -575,6 +575,58 @@ public sealed class M2AcceptanceTests
 
         Assert.Equal(JobOrderStatus.PendingPayment, order.OrderStatus);
         Assert.Equal(0, w.Capacity.RemainingSlots);
+    }
+
+    // ---------------------------------------------------------------- Premium hold released (booking.md 3.3 rule 6, payments.md 3.3)
+
+    [Fact]
+    public async Task APremiumOrderNobodyPays_GivesItsPositionsBack_WhenItsQrExpires_AndTheNextCustomerCanBook()
+    {
+        var w = new World();
+        w.Capacity.RemainingSlots = 2;
+        w.AddAddress(1, 11, 90m); // 2 workers: takes both positions
+        w.AddAddress(2, 22, 90m);
+        var first = await w.CreateOrderAsync(1, 11, ServiceTier.Premium);
+        await w.Qr().CreateOrderQrAsync(1, first.OrderId);
+        var refused = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => w.CreateOrderAsync(2, 22, ServiceTier.Premium));
+        w.Clock.UtcNow = Start.AddMinutes(15);
+
+        await w.Reconciliation().RunOnceAsync();
+        await w.Reconciliation().RunOnceAsync(); // a second pass gives nothing back twice
+
+        Assert.Equal(BookingErrorCodes.FullyBooked, refused.Code);
+        Assert.Equal(JobOrderStatus.Cancelled, w.Order(first.OrderId).OrderStatus);
+        Assert.Equal(2, w.Capacity.RemainingSlots);
+        var second = await w.CreateOrderAsync(2, 22, ServiceTier.Premium);
+        Assert.Equal(JobOrderStatus.PendingPayment, second.OrderStatus);
+        Assert.Equal(0, w.Capacity.RemainingSlots);
+    }
+
+    [Fact]
+    public async Task APremiumOrder_CancelledByItsCustomer_GivesItsPositionBack()
+    {
+        var (w, order, txn) = await PaidUpToQrAsync(tier: ServiceTier.Premium);
+        await w.SendIpnAsync(txn);
+        Assert.Equal(99, w.Capacity.RemainingSlots);
+
+        await w.Cancellation().CancelAsync(Customer, order.OrderId, new CancelOrderRequest("Change of plans"));
+
+        Assert.Equal(JobOrderStatus.Cancelled, w.Order(order.OrderId).OrderStatus);
+        Assert.Equal(100, w.Capacity.RemainingSlots);
+    }
+
+    [Fact]
+    public async Task APremiumOrder_CancelledAfterAssignmentFailed_GivesItsPositionBack_Once()
+    {
+        var (w, order, txn) = await PaidUpToQrAsync(tier: ServiceTier.Premium);
+        await w.SendIpnAsync(txn);
+        var failed = new AssignmentFailed(order.OrderId, "No agency could staff the shift", w.Clock.UtcNow);
+
+        await w.AssignmentFailed().Handle(failed, default);
+        await w.AssignmentFailed().Handle(failed, default); // delivered twice
+
+        Assert.Equal(JobOrderStatus.Cancelled, w.Order(order.OrderId).OrderStatus);
+        Assert.Equal(100, w.Capacity.RemainingSlots);
     }
 
     // ---------------------------------------------------------------- money is never lost

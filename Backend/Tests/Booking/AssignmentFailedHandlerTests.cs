@@ -72,6 +72,7 @@ public sealed class AssignmentFailedHandlerTests
         public InMemoryOrders Db { get; } = new();
         public RecordingPublisher Publisher { get; } = new();
         public RecordingRefunds Refunds { get; }
+        public RecordingCapacity Capacity { get; } = new();
         public JobOrder Order { get; }
 
         public Fixture(JobOrderStatus status = JobOrderStatus.Paid, bool refundSucceeds = true)
@@ -121,7 +122,7 @@ public sealed class AssignmentFailedHandlerTests
         }
 
         public AssignmentFailedHandler Handler() =>
-            new(Db, Db, Refunds, new TestClock(), Publisher, NullLogger<AssignmentFailedHandler>.Instance);
+            new(Db, Db, Refunds, Capacity, new TestClock(), Publisher, NullLogger<AssignmentFailedHandler>.Instance);
     }
 
     private static AssignmentFailed Failed(string reason = "No worker within 10 km", long orderId = OrderId) => new(orderId, reason, Now);
@@ -186,6 +187,54 @@ public sealed class AssignmentFailedHandlerTests
     public async Task WhenTheRefundFails_TheOrderStaysCancelled_AndTheHandlerDoesNotThrow()
     {
         var f = new Fixture(refundSucceeds: false);
+
+        await f.Handler().Handle(Failed(), default);
+
+        Assert.Equal(JobOrderStatus.Cancelled, f.Order.OrderStatus);
+        Assert.Single(f.Publisher.Published);
+        Assert.Single(f.Refunds.Requests);
+    }
+
+    [Fact]
+    public async Task APremiumOrder_GivesItsCapacityHoldBack_Once_AndARepeatReleasesNothingMore()
+    {
+        var f = new Fixture();
+        f.Order.ServiceTier = ServiceTier.Premium;
+
+        await f.Handler().Handle(Failed(), default);
+        await f.Handler().Handle(Failed("again"), default);
+
+        Assert.Equal([OrderId], f.Capacity.ReleasedOrders);
+    }
+
+    [Fact]
+    public async Task AnEconomyOrder_NeverTouchesAgencyCapacity()
+    {
+        var f = new Fixture();
+
+        await f.Handler().Handle(Failed(), default);
+
+        Assert.Equal(JobOrderStatus.Cancelled, f.Order.OrderStatus);
+        Assert.Empty(f.Capacity.ReleasedOrders);
+    }
+
+    [Fact]
+    public async Task APremiumOrderThatIsNotCancelled_KeepsItsHold()
+    {
+        var f = new Fixture(JobOrderStatus.Completed);
+        f.Order.ServiceTier = ServiceTier.Premium;
+
+        await f.Handler().Handle(Failed(), default);
+
+        Assert.Empty(f.Capacity.ReleasedOrders);
+    }
+
+    [Fact]
+    public async Task WhenTheReleaseFails_TheOrderStaysCancelled_TheEventIsPublished_AndTheRefundIsStillAsked()
+    {
+        var f = new Fixture();
+        f.Order.ServiceTier = ServiceTier.Premium;
+        f.Capacity.ThrowOnRelease = true;
 
         await f.Handler().Handle(Failed(), default);
 

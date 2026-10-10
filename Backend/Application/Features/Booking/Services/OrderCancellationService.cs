@@ -17,13 +17,15 @@ namespace CommonService.Application.Features.Booking.Services;
 /// paid and not assigned yet, or assigned more than <c>Cancel.FullRefundHoursBefore</c> hours before the shift -> 100 % refund.
 /// An ASSIGNED order within that window is refused: its 40 % fee needs open question B10 (no decision yet).
 /// The order is CANCELLED in one transaction, OrderCancelled is published after the commit, then the refund is asked.
-/// Known gaps: a failed refund is reported but not retried; the Premium capacity hold is not released (Scope exception #257).
+/// A PREMIUM order also gives its agency capacity hold back (<see cref="PremiumHoldRelease"/>).
+/// Known gap: a failed refund is reported but not retried.
 /// </summary>
 public sealed class OrderCancellationService(
     IOrderRepository orders,
     IPaymentRepository payments,
     IUnitOfWork unitOfWork,
     IRefundService refunds,
+    IAgencyCapacityService capacity,
     IClock clock,
     IPublisher publisher,
     IOptions<BusinessRules> rules,
@@ -44,6 +46,7 @@ public sealed class OrderCancellationService(
 
         var now = clock.UtcNow;
         var refundAmount = 0m;
+        var serviceTier = ServiceTier.Economy;
         OrderCancelled? cancelled = null;
         CreatedOrder? result = null;
 
@@ -75,11 +78,13 @@ public sealed class OrderCancellationService(
             order.TransitionTo(JobOrderStatus.Cancelled);
             order.CancelReason = reason;
             order.UpdatedAt = now;
+            serviceTier = order.ServiceTier;
             cancelled = new OrderCancelled(order.OrderId, order.CustomerId, reason, now);
             result = ToOrder(order);
             return true;
         }, cancellationToken);
 
+        await PremiumHoldRelease.ReleaseAsync(capacity, serviceTier, orderId, logger);
         await publisher.Publish(cancelled!, cancellationToken);
 
         string? refundProblem = null;
