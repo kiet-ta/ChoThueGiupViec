@@ -62,6 +62,8 @@ public sealed class OrderCancellationServiceTests
         public Dictionary<long, JobOrder> Items { get; } = [];
         public Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => Task.FromResult(Items.GetValueOrDefault(orderId));
         public void Add(JobOrder order) => throw new NotSupportedException();
+        public Task<JobOrder?> GetOwnedAsync(int customerId, long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<(IReadOnlyList<JobOrder> Items, int Total)> ListByCustomerAsync(int customerId, JobOrderStatus? status, int skip, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
@@ -339,7 +341,7 @@ public sealed class OrderCancellationServiceTests
 
         Assert.Equal(200, ((ObjectResult)ok).StatusCode);
         Assert.Equal(200, ((ObjectResult)pending).StatusCode);
-        Assert.Contains("refund could not be completed", ((CommonService.Application.Common.Models.ApiResponse<CreatedOrder>)((ObjectResult)pending).Value!).Message);
+        Assert.Contains("refund could not be completed", ((CommonService.Application.Common.Models.ApiResponse<OrderDto>)((ObjectResult)pending).Value!).Message);
         Assert.Equal(401, ((ObjectResult)anonymous).StatusCode);
         var authorize = typeof(BookingCancelController).GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true).Cast<AuthorizeAttribute>().Single();
         Assert.Equal("CustomerOnly", authorize.Policy);

@@ -1,4 +1,5 @@
 using CommonService.Application.Common.Models;
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Features.Booking.Services;
 using CommonService.Application.Interfaces.Ports;
 using Microsoft.AspNetCore.Authorization;
@@ -15,7 +16,7 @@ public class BookingCancelController(IOrderCancellationService service, ICurrent
 {
     /// <summary>Cancels the order; paid orders are refunded 100 % (an assigned order within 2 hours of the shift cannot be cancelled yet).</summary>
     [HttpPost]
-    [ProducesResponseType(typeof(ApiResponse<CreatedOrder>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<OrderDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
@@ -32,6 +33,6 @@ public class BookingCancelController(IOrderCancellationService service, ICurrent
         var message = result.RefundProblem is null
             ? "Order cancelled."
             : "Order cancelled, but the refund could not be completed yet and will be handled manually.";
-        return Ok(ApiResponse<CreatedOrder>.Ok(result.Order, message));
+        return Ok(ApiResponse<OrderDto>.Ok(OrderDto.From(result.Order), message));
     }
 }

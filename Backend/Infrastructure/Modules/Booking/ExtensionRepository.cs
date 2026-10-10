@@ -24,5 +24,8 @@ public class ExtensionRepository(AppDbContext context) : IExtensionRepository
     public async Task<bool> ExtensionExistsAsync(long orderId, CancellationToken cancellationToken = default) =>
         await context.JobOrderExtensions.AsNoTracking().AnyAsync(e => e.OrderId == orderId, cancellationToken);
 
+    public async Task<JobOrderExtension?> GetByOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await context.JobOrderExtensions.AsNoTracking().FirstOrDefaultAsync(e => e.OrderId == orderId, cancellationToken);
+
     public void Add(JobOrderExtension extension) => context.JobOrderExtensions.Add(extension);
 }
