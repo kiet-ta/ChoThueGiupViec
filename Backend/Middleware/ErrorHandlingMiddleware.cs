@@ -118,7 +118,11 @@ public class ErrorHandlingMiddleware
             ),
             BusinessRuleViolationException brEx => (
                 StatusCodes.Status409Conflict,
-                ApiResponse<object>.Fail(string.IsNullOrWhiteSpace(brEx.Message) ? "Business rule violation" : brEx.Message),
+                // A business 409 carries data: { code } so clients branch on the code, never on the message (contracts booking.md 3.3,
+                // payments.md 2.1). Without a code the answer is unchanged (data null).
+                ApiResponse<object>.Fail(
+                    string.IsNullOrWhiteSpace(brEx.Message) ? "Business rule violation" : brEx.Message,
+                    brEx.Code is null ? null : new { code = brEx.Code }),
                 problem
             ),
             _ => (

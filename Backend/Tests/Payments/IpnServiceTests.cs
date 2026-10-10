@@ -113,6 +113,25 @@ public sealed class IpnServiceTests
             }
         }
 
+        public Task<bool> TryMarkSuccessFromExpiredAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default) => MarkSuccessFromExpired(paymentId, paidAtUtc, ipnPayload);
+
+        private Task<bool> MarkSuccessFromExpired(long paymentId, DateTime paidAtUtc, string ipnPayload)
+        {
+            lock (_gate)
+            {
+                var t = Transactions.Single(x => x.PaymentId == paymentId);
+                if (t.TxnStatus != PaymentStatus.Expired)
+                {
+                    return Task.FromResult(false);
+                }
+
+                t.TxnStatus = PaymentStatus.Success;
+                t.PaidAt = paidAtUtc;
+                t.IpnPayload = ipnPayload;
+                return Task.FromResult(true);
+            }
+        }
+
         public Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default)
         {
             lock (_gate)
@@ -172,6 +191,7 @@ public sealed class IpnServiceTests
         public InMemoryPayments Db { get; } = new();
         public RecordingPublisher Publisher { get; } = new();
         public RecordingNotifications Notifications { get; } = new();
+        public RecordingLateRefunds Refunds { get; } = new();
         public JobOrder Order { get; } = new()
         {
             OrderId = OrderId,
@@ -210,7 +230,7 @@ public sealed class IpnServiceTests
         public IpnService Service() =>
             new(
                 new FakePaymentGateway(), Db,
-                new PaymentSettlementService(Db, Db, new TestClock(), Publisher, Notifications, NullLogger<PaymentSettlementService>.Instance),
+                new PaymentSettlementService(Db, Db, new TestClock(), Publisher, Notifications, Refunds, Refunds, NullLogger<PaymentSettlementService>.Instance),
                 NullLogger<IpnService>.Instance);
     }
 
@@ -244,7 +264,7 @@ public sealed class IpnServiceTests
         Assert.Equal(PaymentStatus.Success, f.Txn.TxnStatus);
         Assert.Equal(Now, f.Txn.PaidAt);
         Assert.Equal(ipn.Raw, f.Txn.IpnPayload);
-        Assert.Equal(JobOrderStatus.Paid, f.Order.OrderStatus);
+        Assert.Equal(JobOrderStatus.Dispatching, f.Order.OrderStatus); // B4: PAID is only a moment inside the settlement transaction
         Assert.Equal(Now, f.Order.UpdatedAt);
         var paid = Assert.IsType<OrderPaid>(Assert.Single(f.Publisher.Published));
         Assert.Equal(new OrderPaid(OrderId, CustomerId, Amount, "SHIFT_MORNING", new DateTime(2026, 10, 15), 1), paid);
@@ -340,7 +360,6 @@ public sealed class IpnServiceTests
 
     [Theory]
     [InlineData(PaymentStatus.Refunded)]
-    [InlineData(PaymentStatus.Expired)]
     [InlineData(PaymentStatus.Success)]
     public async Task AnAlreadyFinishedTransaction_IsAnIdempotentNoOp(PaymentStatus status)
     {
@@ -351,6 +370,109 @@ public sealed class IpnServiceTests
         Assert.Equal(IpnOutcome.AlreadyProcessed, outcome);
         Assert.Equal(status, f.Txn.TxnStatus);
         Assert.Equal(JobOrderStatus.PendingPayment, f.Order.OrderStatus);
+        Assert.Empty(f.Publisher.Published);
+        Assert.Empty(f.Refunds.OrderRefunds);
+    }
+
+    // ---- P4 (decision Q24): money that arrives after we expired the transaction is recorded and refunded, never lost ----
+
+    [Fact]
+    public async Task ASuccessIpn_ForAnExpiredTransaction_IsRecordedAsSuccess_AndRefunded100Percent_WithoutRevivingTheOrder()
+    {
+        var f = new Fixture(PaymentStatus.Expired);
+        f.Order.TransitionTo(JobOrderStatus.Cancelled);
+        var ipn = Ipn();
+
+        var outcome = await Send(f, ipn);
+
+        Assert.Equal(IpnOutcome.Accepted, outcome);
+        Assert.Equal(PaymentStatus.Success, f.Txn.TxnStatus);
+        Assert.Equal(Now, f.Txn.PaidAt);
+        Assert.Equal(ipn.Raw, f.Txn.IpnPayload);
+        Assert.Equal(JobOrderStatus.Cancelled, f.Order.OrderStatus);
+        Assert.Empty(f.Publisher.Published); // no OrderPaid: Dispatch must not start
+        Assert.Equal(new RefundRequest(OrderId, Amount, "PAID_AFTER_EXPIRY"), Assert.Single(f.Refunds.OrderRefunds));
+    }
+
+    [Fact]
+    public async Task AReplayedLateIpn_IsRecordedAndRefundedOnlyOnce()
+    {
+        var f = new Fixture(PaymentStatus.Expired);
+        await Send(f, Ipn());
+
+        var second = await Send(f, Ipn());
+
+        Assert.Equal(IpnOutcome.AlreadyProcessed, second);
+        Assert.Single(f.Refunds.OrderRefunds);
+    }
+
+    [Fact]
+    public async Task TwoConcurrentLateIpns_GiveOneSuccessAndOneRefund()
+    {
+        var f = new Fixture(PaymentStatus.Expired);
+        f.Db.ReadBarrier = new Barrier(2); // both see EXPIRED before either records
+
+        var outcomes = await Task.WhenAll(Task.Run(() => Send(f, Ipn())), Task.Run(() => Send(f, Ipn())));
+
+        Assert.Equal(1, outcomes.Count(o => o == IpnOutcome.Accepted));
+        Assert.Equal(1, outcomes.Count(o => o == IpnOutcome.AlreadyProcessed));
+        Assert.Equal(PaymentStatus.Success, f.Txn.TxnStatus);
+        Assert.Single(f.Refunds.OrderRefunds);
+    }
+
+    [Theory]
+    [InlineData("expired")]
+    [InlineData("pending")]
+    public async Task AnExpiredTransaction_StaysExpired_WhenTheGatewayDoesNotReportSuccess(string status)
+    {
+        var f = new Fixture(PaymentStatus.Expired);
+
+        var outcome = await Send(f, Ipn(status: status));
+
+        Assert.Equal(IpnOutcome.AlreadyProcessed, outcome);
+        Assert.Equal(PaymentStatus.Expired, f.Txn.TxnStatus);
+        Assert.Empty(f.Refunds.OrderRefunds);
+    }
+
+    [Fact]
+    public async Task ALateIpn_WithAWrongAmountOrSignature_IsStillRejected_AndRecordsNothing()
+    {
+        var f = new Fixture(PaymentStatus.Expired);
+
+        var wrongAmount = await Send(f, Ipn(amount: "1"));
+        var forged = await Send(f, Ipn(signature: "forged"));
+
+        Assert.Equal(IpnOutcome.Rejected, wrongAmount);
+        Assert.Equal(IpnOutcome.Rejected, forged);
+        Assert.Equal(PaymentStatus.Expired, f.Txn.TxnStatus);
+        Assert.Empty(f.Refunds.OrderRefunds);
+    }
+
+    [Fact]
+    public async Task WhenTheLateRefundFails_TheMoneyStaysRecordedAsSuccess_AndTheIpnIsStillAccepted()
+    {
+        var f = new Fixture(PaymentStatus.Expired);
+        f.Refunds.Succeed = false;
+
+        var outcome = await Send(f, Ipn());
+
+        Assert.Equal(IpnOutcome.Accepted, outcome);
+        Assert.Equal(PaymentStatus.Success, f.Txn.TxnStatus);
+        Assert.Single(f.Refunds.OrderRefunds);
+    }
+
+    [Fact]
+    public async Task ALateExtensionPayment_IsRecordedAndRefunded_AndTheExtensionStaysExpired()
+    {
+        var (f, extension, txn) = ExtensionFixture(ExtensionStatuses.Expired);
+        txn.TxnStatus = PaymentStatus.Expired;
+
+        var outcome = await Send(f, ExtensionIpn());
+
+        Assert.Equal(IpnOutcome.Accepted, outcome);
+        Assert.Equal(PaymentStatus.Success, txn.TxnStatus);
+        Assert.Equal(ExtensionStatuses.Expired, extension.ExtStatus);
+        Assert.Equal((9, "PAID_AFTER_EXPIRY"), Assert.Single(f.Refunds.ExtensionRefunds));
         Assert.Empty(f.Publisher.Published);
     }
 
