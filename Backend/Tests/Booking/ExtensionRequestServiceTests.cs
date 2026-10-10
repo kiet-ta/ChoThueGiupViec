@@ -46,6 +46,7 @@ public sealed class ExtensionRequestServiceTests
             return Task.FromResult(a is not null && a.OrderId == orderId ? a : null);
         }
 
+        public Task<JobOrderExtension?> GetByOrderAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> ExtensionExistsAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Saved.Any(e => e.OrderId == orderId));
 

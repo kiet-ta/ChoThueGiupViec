@@ -135,6 +135,8 @@ public sealed class M2AcceptanceTests
             _undo.Value?.Add(() => _orders.Remove(order));
         }
 
+        public Task<JobOrder?> GetOwnedAsync(int customerId, long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<(IReadOnlyList<JobOrder> Items, int Total)> ListByCustomerAsync(int customerId, JobOrderStatus? status, int skip, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default)
         {
             lock (_gate) { return Task.FromResult(_orders.Any(o => o.OrderCode == orderCode)); }
@@ -155,6 +157,8 @@ public sealed class M2AcceptanceTests
             }
         }
 
+        public Task<PaymentTransaction?> GetPaymentAsync(long paymentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<PaymentTransaction>> ListPaymentsOfOrderAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => GetForUpdateAsync(orderId, cancellationToken);
 
         public void Add(PaymentTransaction transaction)

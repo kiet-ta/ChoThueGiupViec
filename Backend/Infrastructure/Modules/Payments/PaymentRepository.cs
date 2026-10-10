@@ -102,6 +102,21 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
                 cancellationToken);
     }
 
+    public async Task<PaymentTransaction?> GetPaymentAsync(long paymentId, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions.AsNoTracking().FirstOrDefaultAsync(t => t.PaymentId == paymentId, cancellationToken);
+
+    public async Task<IReadOnlyList<PaymentTransaction>> ListPaymentsOfOrderAsync(long orderId, CancellationToken cancellationToken = default)
+    {
+        var extensionIds = context.JobOrderExtensions.Where(e => e.OrderId == orderId).Select(e => (int?)e.ExtensionId);
+        return await context.PaymentTransactions
+            .AsNoTracking()
+            .Where(t => (t.Purpose == PaymentPurpose.Order && t.OrderId == orderId)
+                || (t.Purpose == PaymentPurpose.Extension && extensionIds.Contains(t.ExtensionId)))
+            .OrderByDescending(t => t.CreatedAt)
+            .ThenByDescending(t => t.PaymentId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<ExtensionForPayment?> GetExtensionAsync(int extensionId, CancellationToken cancellationToken = default) =>
         await (from e in context.JobOrderExtensions.AsNoTracking()
                join o in context.JobOrders.AsNoTracking() on e.OrderId equals o.OrderId

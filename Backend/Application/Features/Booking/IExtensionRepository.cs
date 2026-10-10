@@ -20,6 +20,9 @@ public interface IExtensionRepository
     /// <summary>JOB_ORDER_EXTENSION.order_id is UNIQUE: at most one extension per order.</summary>
     Task<bool> ExtensionExistsAsync(long orderId, CancellationToken cancellationToken = default);
 
+    /// <summary>The extension of the order (at most one, not tracked), or null.</summary>
+    Task<JobOrderExtension?> GetByOrderAsync(long orderId, CancellationToken cancellationToken = default);
+
     /// <summary>Stages the row; the unit of work saves it.</summary>
     void Add(JobOrderExtension extension);
 }

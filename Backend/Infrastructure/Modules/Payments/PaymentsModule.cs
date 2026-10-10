@@ -19,6 +19,7 @@ public class PaymentsModule : IModule
         services.AddScoped<IPaymentSettlementService, PaymentSettlementService>();
         services.AddScoped<IIpnService, IpnService>();
         services.AddScoped<IPaymentReconciliationService, PaymentReconciliationService>();
+        services.AddScoped<IPaymentReadService, PaymentReadService>();
         services.AddScoped<RefundService>();
         services.AddScoped<IRefundService>(sp => sp.GetRequiredService<RefundService>());
         services.AddScoped<IExtensionRefundService>(sp => sp.GetRequiredService<RefundService>());

@@ -72,6 +72,12 @@ public interface IPaymentRepository
     /// </summary>
     Task RevertRefundAsync(long paymentId, decimal refundAmount, CancellationToken cancellationToken = default);
 
+    /// <summary>The transaction by id (not tracked), or null (contract payments.md 2.3).</summary>
+    Task<PaymentTransaction?> GetPaymentAsync(long paymentId, CancellationToken cancellationToken = default);
+
+    /// <summary>Every <c>ORDER</c> transaction of the order and every <c>EXTENSION</c> transaction of its extension (not tracked), newest first.</summary>
+    Task<IReadOnlyList<PaymentTransaction>> ListPaymentsOfOrderAsync(long orderId, CancellationToken cancellationToken = default);
+
     /// <summary>The extension with its order's code and customer (not tracked), or null (BE-M2-08).</summary>
     Task<ExtensionForPayment?> GetExtensionAsync(int extensionId, CancellationToken cancellationToken = default);
 
