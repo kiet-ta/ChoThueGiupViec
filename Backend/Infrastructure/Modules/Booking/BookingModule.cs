@@ -20,5 +20,6 @@ public class BookingModule : IModule
         services.AddScoped<IOrderCreationService, OrderCreationService>();
         services.AddScoped<IExtensionRepository, ExtensionRepository>();
         services.AddScoped<IExtensionRequestService, ExtensionRequestService>();
+        services.AddScoped<IOrderCancellationService, OrderCancellationService>();
     }
 }
