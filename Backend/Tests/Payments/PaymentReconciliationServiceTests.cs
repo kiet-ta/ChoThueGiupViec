@@ -1,3 +1,4 @@
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Features.Payments;
 using CommonService.Application.Features.Payments.Services;
@@ -134,6 +135,17 @@ public sealed class PaymentReconciliationServiceTests
         public Task<PaymentTransaction?> FindRefundableOrderPaymentAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> TryReserveRefundAsync(long paymentId, decimal refundAmount, string reason, DateTime refundedAtUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task RevertRefundAsync(long paymentId, decimal refundAmount, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ExtensionForPayment?> GetExtensionAsync(int extensionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PaymentTransaction?> FindPendingExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<PaymentTransaction>> ListPendingExtensionPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PaymentTransaction>>(Transactions
+                .Where(t => t.Purpose == PaymentPurpose.Extension && t.TxnStatus == PaymentStatus.Pending && t.CreatedAt <= cutoffUtc)
+                .OrderBy(t => t.CreatedAt).Take(take).ToList());
+        public Task<PaymentTransaction?> FindRefundableExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Dictionary<int, JobOrderExtension> Extensions { get; } = [];
+
+        public Task<JobOrderExtension?> GetExtensionForUpdateAsync(int extensionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Extensions.GetValueOrDefault(extensionId));
         public Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Orders.GetValueOrDefault(orderId));
 
@@ -170,13 +182,18 @@ public sealed class PaymentReconciliationServiceTests
                 CreatedAt = Now.AddMinutes(-orderAgeMinutes),
                 UpdatedAt = Now.AddMinutes(-orderAgeMinutes),
             };
-            if (status == JobOrderStatus.Paid)
-            {
-                order.TransitionTo(JobOrderStatus.Paid);
-            }
-            else if (status == JobOrderStatus.Cancelled)
+            if (status == JobOrderStatus.Cancelled)
             {
                 order.TransitionTo(JobOrderStatus.Cancelled);
+            }
+            else
+            {
+                foreach (var step in new[] { JobOrderStatus.Paid, JobOrderStatus.Dispatching, JobOrderStatus.Assigned })
+                {
+                    if (status == JobOrderStatus.PendingPayment) { break; }
+                    order.TransitionTo(step);
+                    if (step == status) { break; }
+                }
             }
 
             Db.Orders[orderId] = order;
@@ -392,16 +409,110 @@ public sealed class PaymentReconciliationServiceTests
         Assert.Equal(JobOrderStatus.Paid, order.OrderStatus);
     }
 
+    private static (JobOrderExtension Extension, PaymentTransaction Txn) AddExtension(Fixture f, int txnAgeMinutes, string extStatus = ExtensionStatuses.PendingPayment)
+    {
+        var (order, _) = f.AddOrder(1, orderAgeMinutes: 120, txnAgeMinutes: null, status: JobOrderStatus.Assigned);
+        var extension = new JobOrderExtension
+        {
+            ExtensionId = 5,
+            OrderId = order.OrderId,
+            WorkerId = 11,
+            ExtraHours = 1.5m,
+            ExtraAmount = 97500m,
+            WorkerDecision = WorkerDecisions.Pending,
+            ExtStatus = extStatus,
+            RequestedAt = Now.AddMinutes(-txnAgeMinutes - 1),
+            CreatedAt = Now.AddMinutes(-txnAgeMinutes - 1),
+        };
+        f.Db.Extensions[5] = extension;
+        var txn = new PaymentTransaction
+        {
+            PaymentId = 50,
+            GatewayTxnRef = "FAKE-ext",
+            ExtensionId = 5,
+            Purpose = PaymentPurpose.Extension,
+            Gateway = "FAKE",
+            Amount = 97500m,
+            TxnStatus = PaymentStatus.Pending,
+            CreatedAt = Now.AddMinutes(-txnAgeMinutes),
+        };
+        f.Db.Transactions.Add(txn);
+        return (extension, txn);
+    }
+
     [Fact]
-    public async Task ExtensionTransactions_AreNotTouched()
+    public async Task ALostExtensionIpn_IsRecovered_TheExtensionIsPaid_OneExtensionPaid_AndTheOrderIsUntouched()
     {
         var f = new Fixture();
-        var (_, txn) = f.AddOrder(1, 30, 29, purpose: PaymentPurpose.Extension);
+        var (extension, txn) = AddExtension(f, txnAgeMinutes: 5);
+        f.Gateway.Statuses[txn.GatewayTxnRef] = (PaymentStatus.Success, 97500m);
 
         var result = await f.Service().RunOnceAsync();
 
-        Assert.Equal(PaymentStatus.Pending, txn!.TxnStatus);
-        Assert.Empty(f.Gateway.Queried);
-        Assert.Equal(0, result.Settled + result.Expired);
+        Assert.Equal(new ReconciliationResult(1, 0, 0, 0), result);
+        Assert.Equal(PaymentStatus.Success, txn.TxnStatus);
+        Assert.Equal(ExtensionStatuses.Paid, extension.ExtStatus);
+        Assert.Equal(JobOrderStatus.Assigned, f.Db.Orders[1].OrderStatus);
+        var paid = Assert.IsType<ExtensionPaid>(Assert.Single(f.Publisher.Published));
+        Assert.Equal(new ExtensionPaid(5, 1, 11, 1.5m, 97500m, Now), paid);
+        Assert.Equal(1, f.Notifications.Count);
+    }
+
+    [Fact]
+    public async Task AnUnpaidExtension_PastItsOwnDeadline_ExpiresTheTransactionAndTheExtension_NotTheOrder()
+    {
+        var f = new Fixture();
+        var (extension, txn) = AddExtension(f, txnAgeMinutes: 15);
+
+        var result = await f.Service().RunOnceAsync();
+
+        Assert.Equal(new ReconciliationResult(0, 1, 0, 0), result);
+        Assert.Equal(PaymentStatus.Expired, txn.TxnStatus);
+        Assert.Equal(ExtensionStatuses.Expired, extension.ExtStatus);
+        Assert.Equal(JobOrderStatus.Assigned, f.Db.Orders[1].OrderStatus);
+        Assert.Empty(f.Publisher.Published);
+    }
+
+    [Fact]
+    public async Task AnExtensionBeforeItsDeadline_IsQueriedButNotExpired()
+    {
+        var f = new Fixture();
+        var (extension, txn) = AddExtension(f, txnAgeMinutes: 14);
+
+        var result = await f.Service().RunOnceAsync();
+
+        Assert.Equal(new ReconciliationResult(0, 0, 0, 0), result);
+        Assert.Equal(PaymentStatus.Pending, txn.TxnStatus);
+        Assert.Equal(ExtensionStatuses.PendingPayment, extension.ExtStatus);
+        Assert.Equal([txn.GatewayTxnRef], f.Gateway.Queried);
+    }
+
+    [Fact]
+    public async Task AnExtensionPaidWithAWrongAmount_IsNotMarkedPaid()
+    {
+        var f = new Fixture();
+        var (extension, txn) = AddExtension(f, txnAgeMinutes: 5);
+        f.Gateway.Statuses[txn.GatewayTxnRef] = (PaymentStatus.Success, 1m);
+
+        var result = await f.Service().RunOnceAsync();
+
+        Assert.Equal(new ReconciliationResult(0, 0, 0, 0), result);
+        Assert.Equal(PaymentStatus.Pending, txn.TxnStatus);
+        Assert.Equal(ExtensionStatuses.PendingPayment, extension.ExtStatus);
+        Assert.Empty(f.Publisher.Published);
+    }
+
+    [Fact]
+    public async Task APaidExtensionThatIsNoLongerPending_KeepsTheMoney_ButGetsNoEvent()
+    {
+        var f = new Fixture();
+        var (extension, txn) = AddExtension(f, txnAgeMinutes: 5, extStatus: ExtensionStatuses.Expired);
+        f.Gateway.Statuses[txn.GatewayTxnRef] = (PaymentStatus.Success, 97500m);
+
+        await f.Service().RunOnceAsync();
+
+        Assert.Equal(PaymentStatus.Success, txn.TxnStatus);
+        Assert.Equal(ExtensionStatuses.Expired, extension.ExtStatus);
+        Assert.Empty(f.Publisher.Published);
     }
 }

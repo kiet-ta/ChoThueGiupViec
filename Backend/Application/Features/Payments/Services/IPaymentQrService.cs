@@ -29,4 +29,11 @@ public interface IPaymentQrService
     /// BusinessRuleViolationException with Code INVALID_STATE / PAYMENT_EXPIRED (409), PaymentGatewayUnavailableException (502).
     /// </summary>
     Task<PaymentQrResult> CreateOrderQrAsync(int customerId, long orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// POST /api/payments/extensions/{extensionId}/qr (contract payments.md 2.2): NotFoundException (extension unknown or its order is not
+    /// the customer's), BusinessRuleViolationException with Code INVALID_STATE (extension not PENDING_PAYMENT) / PAYMENT_EXPIRED,
+    /// PaymentGatewayUnavailableException (502).
+    /// </summary>
+    Task<PaymentQrResult> CreateExtensionQrAsync(int customerId, int extensionId, CancellationToken cancellationToken = default);
 }

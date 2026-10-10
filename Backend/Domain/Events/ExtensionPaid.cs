@@ -7,6 +7,6 @@ public sealed record ExtensionPaid(
     long ExtensionId,
     long OrderId,
     int WorkerId,
-    int ExtraHours,
+    decimal ExtraHours,
     decimal ExtraAmount,
     DateTime PaidAtUtc) : INotification;

@@ -1,3 +1,4 @@
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Enums;
@@ -18,6 +19,12 @@ public interface IPaymentSettlementService
     /// then OrderPaid and the payment.status push. False when another caller already changed the transaction.
     /// </summary>
     Task<bool> SettlePaidAsync(long paymentId, long orderId, decimal amount, string rawBody, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The same for an EXTENSION transaction (BE-M2-08, contract payments.md 2.4 step 5): PENDING -> SUCCESS and ext_status PAID in one
+    /// transaction, then ExtensionPaid and the push. The order is not changed. False when another caller already changed the transaction.
+    /// </summary>
+    Task<bool> SettleExtensionPaidAsync(long paymentId, int extensionId, string rawBody, CancellationToken cancellationToken = default);
 }
 
 public sealed class PaymentSettlementService(
@@ -82,7 +89,58 @@ public sealed class PaymentSettlementService(
         return true;
     }
 
-    private async Task NotifyAsync(int customerId, long paymentId, long orderId, CancellationToken cancellationToken)
+    public async Task<bool> SettleExtensionPaidAsync(long paymentId, int extensionId, string rawBody, CancellationToken cancellationToken = default)
+    {
+        var paidAt = clock.UtcNow;
+        ExtensionPaid? extensionPaid = null;
+        long orderId = 0;
+
+        var won = await unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            if (!await payments.TryMarkSuccessAsync(paymentId, paidAt, rawBody, cancellationToken))
+            {
+                return false;
+            }
+
+            var extension = await payments.GetExtensionForUpdateAsync(extensionId, cancellationToken);
+            if (extension is null)
+            {
+                logger.LogError("Payment {PaymentId} succeeded but extension {ExtensionId} does not exist.", paymentId, extensionId);
+                return true;
+            }
+
+            orderId = extension.OrderId;
+            if (extension.ExtStatus != ExtensionStatuses.PendingPayment)
+            {
+                // No leader decision for a late payment: the money was received, so SUCCESS stays recorded and the extension is left alone.
+                logger.LogWarning(
+                    "Payment {PaymentId} succeeded but extension {ExtensionId} is {ExtStatus}, not PENDING_PAYMENT: extension unchanged, no ExtensionPaid.",
+                    paymentId, extensionId, extension.ExtStatus);
+                return true;
+            }
+
+            extension.ExtStatus = ExtensionStatuses.Paid;
+            extensionPaid = new ExtensionPaid(
+                extension.ExtensionId, extension.OrderId, extension.WorkerId, extension.ExtraHours, extension.ExtraAmount, paidAt);
+            return true;
+        }, cancellationToken);
+
+        if (!won)
+        {
+            return false;
+        }
+
+        if (extensionPaid is not null)
+        {
+            await publisher.Publish(extensionPaid, cancellationToken);
+        }
+
+        var order = orderId == 0 ? null : await payments.GetOrderAsync(orderId, cancellationToken);
+        await NotifyAsync(order?.CustomerId ?? 0, paymentId, orderId, cancellationToken, extensionId);
+        return true;
+    }
+
+    private async Task NotifyAsync(int customerId, long paymentId, long orderId, CancellationToken cancellationToken, int? extensionId = null)
     {
         if (customerId == 0)
         {
@@ -98,6 +156,7 @@ public sealed class PaymentSettlementService(
                     {
                         ["paymentId"] = paymentId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         ["orderId"] = orderId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["extensionId"] = extensionId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
                         ["txnStatus"] = PaymentStatus.Success.ToString().ToUpperInvariant(),
                     }),
                 cancellationToken);

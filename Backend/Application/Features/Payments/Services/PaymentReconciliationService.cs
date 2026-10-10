@@ -1,4 +1,5 @@
 using CommonService.Application.Common.Options;
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Enums;
@@ -67,6 +68,23 @@ public sealed class PaymentReconciliationService(
             }
         }
 
+        // Extension payments (BE-M2-08): the same questions, but an expiry only touches the extension, never the order.
+        var pendingExtensions = await payments.ListPendingExtensionPaymentsCreatedBeforeAsync(now.AddMinutes(-_payments.ReconcileAfterMinutes), BatchSize, cancellationToken);
+        foreach (var transaction in pendingExtensions)
+        {
+            try
+            {
+                var outcome = await ReconcileExtensionAsync(transaction, now, cancellationToken);
+                settled += outcome.Settled;
+                expired += outcome.Expired;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                failed++;
+                logger.LogError(ex, "Reconciliation of extension payment {PaymentId} failed; continuing.", transaction.PaymentId);
+            }
+        }
+
         // 3.3: orders past their deadline that have no live transaction at all.
         var orphans = await payments.ListUnpaidOrderIdsWithoutLivePaymentAsync(now.AddMinutes(-_payments.QrExpiryMinutes), BatchSize, cancellationToken);
         foreach (var orderId in orphans)
@@ -128,6 +146,50 @@ public sealed class PaymentReconciliationService(
         }
 
         return (0, 0, 0);
+    }
+
+    private async Task<(int Settled, int Expired)> ReconcileExtensionAsync(
+        Domain.Entities.PaymentTransaction transaction, DateTime now, CancellationToken cancellationToken)
+    {
+        var extensionId = transaction.ExtensionId!.Value;
+        var status = await gateway.QueryStatusAsync(transaction.GatewayTxnRef, cancellationToken);
+        var marker = $"{{\"source\":\"reconciliation\",\"status\":\"{status.Status.ToString().ToUpperInvariant()}\"}}";
+
+        if (status.Status == PaymentStatus.Success)
+        {
+            if (status.Amount != transaction.Amount)
+            {
+                logger.LogWarning("Reconciliation: amount mismatch for extension payment {PaymentId}; not marked paid.", transaction.PaymentId);
+                return (0, 0);
+            }
+
+            return await settlement.SettleExtensionPaidAsync(transaction.PaymentId, extensionId, marker, cancellationToken) ? (1, 0) : (0, 0);
+        }
+
+        // An extension QR lives QrExpiryMinutes from the transaction's creation (contract payments.md 1.3).
+        var pastDeadline = now >= transaction.CreatedAt.AddMinutes(_payments.QrExpiryMinutes);
+        if (!pastDeadline && status.Status != PaymentStatus.Expired)
+        {
+            return (0, 0);
+        }
+
+        var didExpire = await unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            if (!await payments.TryMarkExpiredAsync(transaction.PaymentId, marker, cancellationToken))
+            {
+                return false;
+            }
+
+            var extension = await payments.GetExtensionForUpdateAsync(extensionId, cancellationToken);
+            if (extension is not null && extension.ExtStatus == ExtensionStatuses.PendingPayment)
+            {
+                extension.ExtStatus = ExtensionStatuses.Expired;
+            }
+
+            return true;
+        }, cancellationToken);
+
+        return (0, didExpire ? 1 : 0);
     }
 
     /// <summary>

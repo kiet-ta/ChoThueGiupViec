@@ -1,3 +1,4 @@
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Payments;
 using CommonService.Application.Features.Payments.Services;
@@ -55,6 +56,16 @@ public sealed class PaymentQrServiceTests
         public Task<PaymentTransaction?> FindRefundableOrderPaymentAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> TryReserveRefundAsync(long paymentId, decimal refundAmount, string reason, DateTime refundedAtUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task RevertRefundAsync(long paymentId, decimal refundAmount, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Dictionary<int, ExtensionForPayment> Extensions { get; } = [];
+
+        public Task<ExtensionForPayment?> GetExtensionAsync(int extensionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Extensions.GetValueOrDefault(extensionId));
+
+        public Task<PaymentTransaction?> FindPendingExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Saved.LastOrDefault(t => t.ExtensionId == extensionId && t.Purpose == PaymentPurpose.Extension && t.TxnStatus == PaymentStatus.Pending));
+        public Task<IReadOnlyList<PaymentTransaction>> ListPendingExtensionPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PaymentTransaction?> FindRefundableExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<JobOrderExtension?> GetExtensionForUpdateAsync(int extensionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -226,6 +237,108 @@ public sealed class PaymentQrServiceTests
         Assert.DoesNotContain(names, n => n.Contains("Ipn", StringComparison.OrdinalIgnoreCase));
     }
 
+    // ---- Extension QR (BE-M2-08, contract payments.md 2.2) ----
+
+    private const int ExtensionId = 9;
+
+    private static Fixture WithExtension(string extStatus = ExtensionStatuses.PendingPayment, int customerId = CustomerId)
+    {
+        var f = new Fixture(JobOrderStatus.Assigned);
+        f.Db.Extensions[ExtensionId] = new ExtensionForPayment(ExtensionId, OrderId, "GV261014ABC123", customerId, 11, 1.5m, 97500m, extStatus);
+        return f;
+    }
+
+    [Fact]
+    public async Task ExtensionQr_CreatesOnePendingExtensionTransaction_WithTheExtraAmount_AndAFreshFifteenMinuteWindow()
+    {
+        var f = WithExtension();
+
+        var result = await f.Service().CreateExtensionQrAsync(CustomerId, ExtensionId);
+
+        Assert.True(result.Created);
+        var saved = Assert.Single(f.Db.Saved);
+        Assert.Equal(PaymentPurpose.Extension, saved.Purpose);
+        Assert.Equal(ExtensionId, saved.ExtensionId);
+        Assert.Null(saved.OrderId);
+        Assert.Equal(97500m, saved.Amount);
+        Assert.Equal(PaymentStatus.Pending, saved.TxnStatus);
+        Assert.Equal(Now, saved.CreatedAt);
+        Assert.Equal("EXTENSION", result.Payment.Purpose);
+        Assert.Equal(ExtensionId, result.Payment.ExtensionId);
+        Assert.Equal(Now.AddMinutes(15), result.Payment.ExpiresAt);
+        Assert.NotNull(result.Payment.PayUrl);
+        var request = Assert.Single(f.Gateway.Created);
+        Assert.Equal(PaymentPurpose.Extension, request.Purpose);
+        Assert.Equal("9", request.PaymentRef);
+        Assert.Equal(97500m, request.Amount);
+        Assert.Equal("GV261014ABC123 extension", request.Description);
+        Assert.Equal(Now.AddMinutes(15), request.ExpiresAtUtc);
+    }
+
+    [Fact]
+    public async Task ExtensionQr_SecondCall_ReturnsTheSamePayment_WithoutAskingTheGatewayAgain()
+    {
+        var f = WithExtension();
+        var first = await f.Service().CreateExtensionQrAsync(CustomerId, ExtensionId);
+
+        var second = await f.Service().CreateExtensionQrAsync(CustomerId, ExtensionId);
+
+        Assert.False(second.Created);
+        Assert.Equal(first.Payment.PaymentId, second.Payment.PaymentId);
+        Assert.Single(f.Db.Saved);
+        Assert.Single(f.Gateway.Created);
+    }
+
+    [Fact]
+    public async Task ExtensionQr_OfAnotherCustomer_OrUnknown_IsNotFound()
+    {
+        var f = WithExtension(customerId: CustomerId + 1);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service().CreateExtensionQrAsync(CustomerId, ExtensionId));
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service().CreateExtensionQrAsync(CustomerId, 999));
+
+        Assert.Empty(f.Db.Saved);
+    }
+
+    [Theory]
+    [InlineData(ExtensionStatuses.Paid)]
+    [InlineData(ExtensionStatuses.Accepted)]
+    [InlineData(ExtensionStatuses.Declined)]
+    [InlineData(ExtensionStatuses.Expired)]
+    public async Task ExtensionQr_ForAnExtensionNotWaitingForPayment_IsInvalidState(string extStatus)
+    {
+        var f = WithExtension(extStatus);
+
+        var error = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => f.Service().CreateExtensionQrAsync(CustomerId, ExtensionId));
+
+        Assert.Equal(PaymentErrorCodes.InvalidState, error.Code);
+        Assert.Empty(f.Db.Saved);
+        Assert.Empty(f.Gateway.Created);
+    }
+
+    [Fact]
+    public async Task ExtensionQr_WhenThePendingTransactionIsOlderThanTheWindow_IsPaymentExpired()
+    {
+        var f = WithExtension();
+        await f.Service().CreateExtensionQrAsync(CustomerId, ExtensionId);
+        f.NowUtc = Now.AddMinutes(15);
+
+        var error = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => f.Service().CreateExtensionQrAsync(CustomerId, ExtensionId));
+
+        Assert.Equal(PaymentErrorCodes.PaymentExpired, error.Code);
+        Assert.Single(f.Gateway.Created);
+    }
+
+    [Fact]
+    public async Task ExtensionQr_WhenTheGatewayFails_NothingIsStored()
+    {
+        var f = WithExtension();
+
+        await Assert.ThrowsAsync<PaymentGatewayUnavailableException>(() => f.Service(new FailingGateway()).CreateExtensionQrAsync(CustomerId, ExtensionId));
+
+        Assert.Empty(f.Db.Saved);
+    }
+
     private sealed class StubUser(int? userId) : ICurrentUser
     {
         public bool IsAuthenticated => userId.HasValue;
@@ -236,6 +349,9 @@ public sealed class PaymentQrServiceTests
     private sealed class StubService(Func<PaymentQrResult> result) : IPaymentQrService
     {
         public Task<PaymentQrResult> CreateOrderQrAsync(int customerId, long orderId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(result());
+
+        public Task<PaymentQrResult> CreateExtensionQrAsync(int customerId, int extensionId, CancellationToken cancellationToken = default) =>
             Task.FromResult(result());
     }
 

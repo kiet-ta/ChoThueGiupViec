@@ -1,5 +1,6 @@
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
+using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
 using CommonService.Domain.ValueObjects;
@@ -7,6 +8,13 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace CommonService.Application.Features.Payments.Services;
+
+/// <summary>Refund of an extension payment (BE-M2-08, contract payments.md 3.4: "internal to the module", the port only takes an order id).</summary>
+public interface IExtensionRefundService
+{
+    /// <summary>Refunds the extension's paid transaction (the amount not refunded yet, 100 % when untouched). Never throws for a business refusal.</summary>
+    Task<RefundResult> RefundExtensionAsync(int extensionId, string reason, CancellationToken cancellationToken = default);
+}
 
 /// <summary>
 /// Real <see cref="IRefundService"/> (BE-M2-07, contract payments.md 3.4, P2). Customer money is protected first: the refund is
@@ -21,7 +29,7 @@ public sealed class RefundService(
     IClock clock,
     IPublisher publisher,
     INotificationService notifications,
-    ILogger<RefundService> logger) : IRefundService
+    ILogger<RefundService> logger) : IRefundService, IExtensionRefundService
 {
     internal const int MaxReasonLength = 255;
 
@@ -42,13 +50,38 @@ public sealed class RefundService(
             return Fail("The order has no paid transaction to refund.");
         }
 
+        return await RefundCoreAsync(order, transaction, amount, request.Reason, extensionId: null, cancellationToken);
+    }
+
+    public async Task<RefundResult> RefundExtensionAsync(int extensionId, string reason, CancellationToken cancellationToken = default)
+    {
+        var extension = await payments.GetExtensionAsync(extensionId, cancellationToken);
+        var transaction = extension is null ? null : await payments.FindRefundableExtensionPaymentAsync(extensionId, cancellationToken);
+        var order = extension is null ? null : await payments.GetOrderAsync(extension.OrderId, cancellationToken);
+        if (extension is null || transaction is null || order is null)
+        {
+            return Fail("The extension has no paid transaction to refund.");
+        }
+
+        var remaining = transaction.Amount - transaction.RefundedAmount;
+        if (remaining <= 0)
+        {
+            return Fail("The extension is already fully refunded.");
+        }
+
+        return await RefundCoreAsync(order, transaction, remaining, reason, extensionId, cancellationToken);
+    }
+
+    private async Task<RefundResult> RefundCoreAsync(
+        OrderForPayment order, PaymentTransaction transaction, decimal amount, string requestedReason, int? extensionId, CancellationToken cancellationToken)
+    {
         var remaining = transaction.Amount - transaction.RefundedAmount;
         if (amount > remaining)
         {
             return Fail($"The refund ({amount:0}) is above the amount not refunded yet ({remaining:0}).");
         }
 
-        var reason = Truncate(string.IsNullOrWhiteSpace(request.Reason) ? "REFUND" : request.Reason.Trim());
+        var reason = Truncate(string.IsNullOrWhiteSpace(requestedReason) ? "REFUND" : requestedReason.Trim());
         var refundedAt = clock.UtcNow;
 
         // 1. Reserve in the database (conditional, atomic).
@@ -79,7 +112,7 @@ public sealed class RefundService(
 
         // 3. The money moved (or was recorded): tell the others. A failing listener never turns a done refund into a failure.
         await PublishAsync(new OrderRefunded(order.OrderId, order.CustomerId, amount, reason, refundedAt), cancellationToken);
-        await NotifyAsync(order.CustomerId, transaction.PaymentId, order.OrderId, cancellationToken);
+        await NotifyAsync(order.CustomerId, transaction.PaymentId, order.OrderId, extensionId, cancellationToken);
 
         return new RefundResult(
             true,
@@ -110,7 +143,7 @@ public sealed class RefundService(
         }
     }
 
-    private async Task NotifyAsync(int customerId, long paymentId, long orderId, CancellationToken cancellationToken)
+    private async Task NotifyAsync(int customerId, long paymentId, long orderId, int? extensionId, CancellationToken cancellationToken)
     {
         try
         {
@@ -121,6 +154,7 @@ public sealed class RefundService(
                     {
                         ["paymentId"] = paymentId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         ["orderId"] = orderId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["extensionId"] = extensionId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
                         ["txnStatus"] = PaymentStatus.Refunded.ToString().ToUpperInvariant(),
                     }),
                 cancellationToken);

@@ -1,3 +1,4 @@
+using CommonService.Application.Features.Booking;
 using System.Text.Json;
 using CommonService.Application.Features.Payments;
 using CommonService.Application.Features.Payments.Services;
@@ -74,7 +75,11 @@ public sealed class IpnServiceTests
         public List<PaymentTransaction> Transactions { get; } = [];
         public Dictionary<long, JobOrder> Orders { get; } = [];
 
-        public Task<OrderForPayment?> GetOrderAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<OrderForPayment?> GetOrderAsync(long orderId, CancellationToken cancellationToken = default)
+        {
+            var o = Orders.GetValueOrDefault(orderId);
+            return Task.FromResult(o is null ? null : new OrderForPayment(o.OrderId, o.CustomerId, o.OrderCode, o.TotalAmount, o.OrderStatus, o.CreatedAt));
+        }
         public Task<PaymentTransaction?> FindPendingOrderPaymentAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public void Add(PaymentTransaction transaction) => throw new NotSupportedException();
 
@@ -129,6 +134,14 @@ public sealed class IpnServiceTests
         public Task<PaymentTransaction?> FindRefundableOrderPaymentAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> TryReserveRefundAsync(long paymentId, decimal refundAmount, string reason, DateTime refundedAtUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task RevertRefundAsync(long paymentId, decimal refundAmount, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ExtensionForPayment?> GetExtensionAsync(int extensionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PaymentTransaction?> FindPendingExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<PaymentTransaction>> ListPendingExtensionPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PaymentTransaction?> FindRefundableExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Dictionary<int, JobOrderExtension> Extensions { get; } = [];
+
+        public Task<JobOrderExtension?> GetExtensionForUpdateAsync(int extensionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Extensions.GetValueOrDefault(extensionId));
         public Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Orders.GetValueOrDefault(orderId));
 
@@ -355,9 +368,8 @@ public sealed class IpnServiceTests
     }
 
     [Theory]
-    [InlineData(PaymentPurpose.Extension)]
     [InlineData(PaymentPurpose.Subscription)]
-    public async Task ANonOrderTransaction_IsLeftUntouched_AndRejected(PaymentPurpose purpose)
+    public async Task ASubscriptionTransaction_IsLeftUntouched_AndRejected(PaymentPurpose purpose)
     {
         var f = new Fixture(purpose: purpose);
 
@@ -365,6 +377,129 @@ public sealed class IpnServiceTests
 
         Assert.Equal(IpnOutcome.Rejected, outcome);
         AssertNothingChanged(f);
+    }
+
+    // ---- EXTENSION payments (BE-M2-08) ----
+
+    private const decimal ExtensionAmount = 97500m;
+
+    /// <summary>The fixture's order is ASSIGNED (a worker is on site) and extension 9 waits for its payment (<c>ext</c> txn, ref FAKE-ext).</summary>
+    private static (Fixture F, JobOrderExtension Extension, PaymentTransaction Txn) ExtensionFixture(string extStatus = ExtensionStatuses.PendingPayment)
+    {
+        var f = new Fixture();
+        f.Order.TransitionTo(JobOrderStatus.Paid);
+        f.Order.TransitionTo(JobOrderStatus.Dispatching);
+        f.Order.TransitionTo(JobOrderStatus.Assigned);
+        var extension = new JobOrderExtension
+        {
+            ExtensionId = 9,
+            OrderId = OrderId,
+            WorkerId = 11,
+            ExtraHours = 1.5m,
+            ExtraAmount = ExtensionAmount,
+            WorkerDecision = WorkerDecisions.Pending,
+            ExtStatus = extStatus,
+            RequestedAt = Now.AddMinutes(-6),
+            CreatedAt = Now.AddMinutes(-6),
+        };
+        f.Db.Extensions[9] = extension;
+        var txn = new PaymentTransaction
+        {
+            PaymentId = 2,
+            GatewayTxnRef = "FAKE-ext",
+            ExtensionId = 9,
+            Purpose = PaymentPurpose.Extension,
+            Gateway = "FAKE",
+            Amount = ExtensionAmount,
+            TxnStatus = PaymentStatus.Pending,
+            CreatedAt = Now.AddMinutes(-5),
+        };
+        f.Db.Transactions.Add(txn);
+        return (f, extension, txn);
+    }
+
+    private static (Dictionary<string, string> Payload, string Raw) ExtensionIpn(string amount = "97500", string signature = "valid") =>
+        Ipn(reference: "FAKE-ext", amount: amount, signature: signature);
+
+    [Fact]
+    public async Task ExtensionSuccess_MarksTheExtensionPaid_PublishesExtensionPaid_AndLeavesTheOrderAlone()
+    {
+        var (f, extension, txn) = ExtensionFixture();
+        var ipn = ExtensionIpn();
+
+        var outcome = await Send(f, ipn);
+
+        Assert.Equal(IpnOutcome.Accepted, outcome);
+        Assert.Equal(PaymentStatus.Success, txn.TxnStatus);
+        Assert.Equal(Now, txn.PaidAt);
+        Assert.Equal(ipn.Raw, txn.IpnPayload);
+        Assert.Equal(ExtensionStatuses.Paid, extension.ExtStatus);
+        Assert.Equal(JobOrderStatus.Assigned, f.Order.OrderStatus);
+        var paid = Assert.IsType<ExtensionPaid>(Assert.Single(f.Publisher.Published));
+        Assert.Equal(new ExtensionPaid(9, OrderId, 11, 1.5m, ExtensionAmount, Now), paid);
+        var message = Assert.Single(f.Notifications.Sent);
+        Assert.Equal("payment.status", message.Topic);
+        Assert.Equal(CustomerId, message.RecipientId);
+        Assert.Equal("9", message.Data!["extensionId"]);
+        Assert.Equal("42", message.Data["orderId"]);
+        Assert.Equal("SUCCESS", message.Data["txnStatus"]);
+    }
+
+    [Fact]
+    public async Task ExtensionReplay_ChangesNothingTheSecondTime()
+    {
+        var (f, _, _) = ExtensionFixture();
+        await Send(f, ExtensionIpn());
+
+        var second = await Send(f, ExtensionIpn());
+
+        Assert.Equal(IpnOutcome.AlreadyProcessed, second);
+        Assert.Single(f.Publisher.Published);
+        Assert.Single(f.Notifications.Sent);
+    }
+
+    [Theory]
+    [InlineData("97499")]
+    [InlineData("260000")]
+    public async Task ExtensionWithAWrongAmount_OrASignature_IsRejected_AndNothingChanges(string amount)
+    {
+        var (f, extension, txn) = ExtensionFixture();
+
+        var wrongAmount = await Send(f, ExtensionIpn(amount: amount));
+        var wrongSignature = await Send(f, ExtensionIpn(signature: "forged"));
+
+        Assert.Equal(IpnOutcome.Rejected, wrongAmount);
+        Assert.Equal(IpnOutcome.Rejected, wrongSignature);
+        Assert.Equal(PaymentStatus.Pending, txn.TxnStatus);
+        Assert.Equal(ExtensionStatuses.PendingPayment, extension.ExtStatus);
+        Assert.Empty(f.Publisher.Published);
+    }
+
+    [Fact]
+    public async Task ExtensionPaidAfterItExpired_RecordsTheMoney_ButDoesNotTouchTheExtensionOrPublish()
+    {
+        var (f, extension, txn) = ExtensionFixture(ExtensionStatuses.Expired);
+
+        var outcome = await Send(f, ExtensionIpn());
+
+        Assert.Equal(IpnOutcome.Accepted, outcome);
+        Assert.Equal(PaymentStatus.Success, txn.TxnStatus);
+        Assert.Equal(ExtensionStatuses.Expired, extension.ExtStatus);
+        Assert.Empty(f.Publisher.Published);
+    }
+
+    [Fact]
+    public async Task TwoConcurrentIdenticalExtensionIpns_GiveOneSuccessAndOneExtensionPaid()
+    {
+        var (f, _, txn) = ExtensionFixture();
+        f.Db.ReadBarrier = new Barrier(2);
+
+        var outcomes = await Task.WhenAll(Task.Run(() => Send(f, ExtensionIpn())), Task.Run(() => Send(f, ExtensionIpn())));
+
+        Assert.Equal(1, outcomes.Count(o => o == IpnOutcome.Accepted));
+        Assert.Equal(1, outcomes.Count(o => o == IpnOutcome.AlreadyProcessed));
+        Assert.Equal(PaymentStatus.Success, txn.TxnStatus);
+        Assert.Single(f.Publisher.Published);
     }
 
     [Fact]
