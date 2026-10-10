@@ -29,7 +29,7 @@
 - [x] **MOB-M2-01** Chọn phân khúc Economy/Premium (§2.1). — evidence: flutter analyze (own files: no issue) + flutter test (71 new pass); not run on a device or against a backend
 - [x] **MOB-M2-02** Luồng đặt đơn: địa chỉ → khung ca → dịch vụ + ghi chú → hiển thị giá cố định trước khi trả (lấy từ `PRICE_RULE`, Q01). — evidence: same PR as MOB-M2-01; not run on a device or against a backend
 - [x] **MOB-M2-03** Màn QR thanh toán, cập nhật PAID realtime (SignalR, polling dự phòng), **banner "SANDBOX – no real money"** (Q04). — evidence: same PR as MOB-M2-01; LIMITS: the QR is shown as text, NOT as a scannable image (no QR package in the project) and PAID arrives by polling, NOT SignalR (no client package); both need a package decision
-- [ ] **MOB-M2-04** Theo dõi ca (ASSIGNED… COMPLETED).
-- [ ] **MOB-M2-05** Nút "Làm lần 2" + QR mới (BR-08).
-- [ ] **MOB-M2-06** Lịch sử đơn.
+- [x] **MOB-M2-04** Theo dõi ca (ASSIGNED… COMPLETED). — evidence: flutter analyze (own paths: no issue) + flutter test test/features/booking test/features/payments (120 pass, 49 new); LIMITS: updates by polling every 5 s, NOT SignalR; not run on a device or against a backend
+- [x] **MOB-M2-05** Nút "Làm lần 2" + QR mới (BR-08). — evidence: same PR as MOB-M2-04; LIMITS: the extension QR is text, not an image (same as MOB-M2-03); not run on a device or against a backend
+- [x] **MOB-M2-06** Lịch sử đơn. — evidence: same PR as MOB-M2-04; LIMIT: no entry on the home screen opens `/booking/orders` yet; not run on a device or against a backend
 - [x] **WEB-M2-01** Admin: màn sửa bảng giá + xem lịch sử thay đổi (ai, khi nào, giá cũ/mới, lý do) · *needs:* WEB-BASE-01..04 (M6), BE-M2-02a, G4. — evidence: CI verify-l3 of the PR; npm run lint + tsc -b + npm test (175 pass) + npm run build pass locally; NOT checked in a browser against a running backend

@@ -217,3 +217,186 @@ class BookingAddress {
     this.isDefault = false,
   });
 }
+
+/// `assignmentStatus` values a customer can see (booking.md section 2; OFFERED, CANCELLED and REASSIGNED are never sent).
+class AssignmentStatus {
+  static const assigned = 'ASSIGNED';
+  static const checkedIn = 'CHECKED_IN';
+  static const inProgress = 'IN_PROGRESS';
+  static const awaitingAcceptance = 'AWAITING_ACCEPTANCE';
+  static const completed = 'COMPLETED';
+  static const cancelledByWorker = 'CANCELLED_BY_WORKER';
+  static const absent = 'ABSENT';
+  static const incident = 'INCIDENT';
+
+  AssignmentStatus._();
+}
+
+/// `extStatus` values (decision Q24 / B5).
+class ExtensionStatus {
+  static const pendingPayment = 'PENDING_PAYMENT';
+  static const paid = 'PAID';
+  static const accepted = 'ACCEPTED';
+  static const declined = 'DECLINED';
+  static const expired = 'EXPIRED';
+
+  ExtensionStatus._();
+}
+
+/// `OrderSummary` of the history list (booking.md section 2).
+class OrderSummary {
+  final int orderId;
+  final String orderCode;
+  final String serviceTier;
+  final String scheduledDate;
+  final String shiftCode;
+  final int requiredWorkers;
+  final int totalAmount;
+  final String orderStatus;
+  final DateTime? createdAt;
+
+  const OrderSummary({
+    required this.orderId,
+    required this.orderCode,
+    required this.serviceTier,
+    required this.scheduledDate,
+    required this.shiftCode,
+    required this.requiredWorkers,
+    required this.totalAmount,
+    required this.orderStatus,
+    required this.createdAt,
+  });
+
+  factory OrderSummary.fromJson(Map<String, dynamic> json) => OrderSummary(
+        orderId: _int(json['orderId']),
+        orderCode: json['orderCode'] as String? ?? '',
+        serviceTier: json['serviceTier'] as String? ?? '',
+        scheduledDate: json['scheduledDate'] as String? ?? '',
+        shiftCode: json['shiftCode'] as String? ?? '',
+        requiredWorkers: _int(json['requiredWorkers']),
+        totalAmount: _int(json['totalAmount']),
+        orderStatus: json['orderStatus'] as String? ?? '',
+        createdAt: _date(json['createdAt']),
+      );
+}
+
+/// One page of GET /api/booking/orders (booking.md 3.4).
+class OrderPage {
+  final List<OrderSummary> items;
+  final int page;
+  final int pageSize;
+  final int total;
+
+  const OrderPage({required this.items, required this.page, required this.pageSize, required this.total});
+
+  factory OrderPage.fromJson(Map<String, dynamic> json) => OrderPage(
+        items: (json['items'] as List? ?? const []).whereType<Map<String, dynamic>>().map(OrderSummary.fromJson).toList(),
+        page: _int(json['page']),
+        pageSize: _int(json['pageSize']),
+        total: _int(json['total']),
+      );
+}
+
+/// One visible assignment of `OrderProgress`. There is no worker phone here (Q17).
+class ProgressAssignment {
+  final int assignmentId;
+  final int assignmentSeq;
+  final int workerId;
+  final String? workerName;
+  final double workerRatingAvg;
+  final String assignmentStatus;
+  final DateTime? acceptedAt;
+  final DateTime? completedAt;
+
+  const ProgressAssignment({
+    required this.assignmentId,
+    required this.assignmentSeq,
+    required this.workerId,
+    required this.workerName,
+    required this.workerRatingAvg,
+    required this.assignmentStatus,
+    required this.acceptedAt,
+    required this.completedAt,
+  });
+
+  factory ProgressAssignment.fromJson(Map<String, dynamic> json) => ProgressAssignment(
+        assignmentId: _int(json['assignmentId']),
+        assignmentSeq: _int(json['assignmentSeq']),
+        workerId: _int(json['workerId']),
+        workerName: json['workerName'] as String?,
+        workerRatingAvg: _double(json['workerRatingAvg']),
+        assignmentStatus: json['assignmentStatus'] as String? ?? '',
+        acceptedAt: _date(json['acceptedAt']),
+        completedAt: _date(json['completedAt']),
+      );
+}
+
+/// `Extension` ("Làm lần 2", booking.md section 2). Amounts are the server's.
+class OrderExtension {
+  final int extensionId;
+  final int orderId;
+  final int workerId;
+  final double extraHours;
+  final int extraAmount;
+  final String extStatus;
+  final String workerDecision;
+  final DateTime? requestedAt;
+  final DateTime? decidedAt;
+
+  const OrderExtension({
+    required this.extensionId,
+    required this.orderId,
+    required this.workerId,
+    required this.extraHours,
+    required this.extraAmount,
+    required this.extStatus,
+    required this.workerDecision,
+    required this.requestedAt,
+    required this.decidedAt,
+  });
+
+  factory OrderExtension.fromJson(Map<String, dynamic> json) => OrderExtension(
+        extensionId: _int(json['extensionId']),
+        orderId: _int(json['orderId']),
+        workerId: _int(json['workerId']),
+        extraHours: _double(json['extraHours']),
+        extraAmount: _int(json['extraAmount']),
+        extStatus: json['extStatus'] as String? ?? '',
+        workerDecision: json['workerDecision'] as String? ?? '',
+        requestedAt: _date(json['requestedAt']),
+        decidedAt: _date(json['decidedAt']),
+      );
+}
+
+/// `OrderProgress` (booking.md 3.6).
+class OrderProgress {
+  final int orderId;
+  final String orderStatus;
+  final int requiredWorkers;
+  final List<ProgressAssignment> assignments;
+  final OrderExtension? extension;
+
+  const OrderProgress({
+    required this.orderId,
+    required this.orderStatus,
+    required this.requiredWorkers,
+    required this.assignments,
+    required this.extension,
+  });
+
+  factory OrderProgress.fromJson(Map<String, dynamic> json) => OrderProgress(
+        orderId: _int(json['orderId']),
+        orderStatus: json['orderStatus'] as String? ?? '',
+        requiredWorkers: _int(json['requiredWorkers']),
+        assignments:
+            (json['assignments'] as List? ?? const []).whereType<Map<String, dynamic>>().map(ProgressAssignment.fromJson).toList(),
+        extension: json['extension'] is Map<String, dynamic> ? OrderExtension.fromJson(json['extension'] as Map<String, dynamic>) : null,
+      );
+}
+
+/// What opens the order screen.
+class OrderDetailArgs {
+  final int orderId;
+
+  const OrderDetailArgs({required this.orderId});
+}
