@@ -46,6 +46,26 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
                     .SetProperty(t => t.IpnPayload, ipnPayload),
                 cancellationToken) > 0;
 
+    public async Task<IReadOnlyList<PaymentTransaction>> ListPendingOrderPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .AsNoTracking()
+            .Where(t => t.Purpose == PaymentPurpose.Order && t.TxnStatus == PaymentStatus.Pending && t.CreatedAt <= cutoffUtc)
+            .OrderBy(t => t.CreatedAt)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<long>> ListUnpaidOrderIdsWithoutLivePaymentAsync(DateTime createdBeforeUtc, int take, CancellationToken cancellationToken = default) =>
+        await context.JobOrders
+            .AsNoTracking()
+            .Where(o => o.OrderStatus == JobOrderStatus.PendingPayment && o.CreatedAt <= createdBeforeUtc)
+            .Where(o => !context.PaymentTransactions.Any(t =>
+                t.OrderId == o.OrderId && t.Purpose == PaymentPurpose.Order
+                && (t.TxnStatus == PaymentStatus.Pending || t.TxnStatus == PaymentStatus.Success)))
+            .OrderBy(o => o.CreatedAt)
+            .Select(o => o.OrderId)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
     public async Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
         await context.JobOrders.FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
 }

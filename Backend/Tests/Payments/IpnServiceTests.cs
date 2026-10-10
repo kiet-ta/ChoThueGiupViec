@@ -124,6 +124,8 @@ public sealed class IpnServiceTests
             }
         }
 
+        public Task<IReadOnlyList<PaymentTransaction>> ListPendingOrderPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<long>> ListUnpaidOrderIdsWithoutLivePaymentAsync(DateTime createdBeforeUtc, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Orders.GetValueOrDefault(orderId));
 
@@ -188,7 +190,10 @@ public sealed class IpnServiceTests
         public PaymentTransaction Txn => Db.Transactions.Single();
 
         public IpnService Service() =>
-            new(new FakePaymentGateway(), Db, Db, new TestClock(), Publisher, Notifications, NullLogger<IpnService>.Instance);
+            new(
+                new FakePaymentGateway(), Db,
+                new PaymentSettlementService(Db, Db, new TestClock(), Publisher, Notifications, NullLogger<PaymentSettlementService>.Instance),
+                NullLogger<IpnService>.Instance);
     }
 
     private static (Dictionary<string, string> Payload, string Raw) Ipn(
