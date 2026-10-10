@@ -23,4 +23,19 @@ public interface IPaymentRepository
 
     /// <summary>Stages the row; the unit of work saves it.</summary>
     void Add(PaymentTransaction transaction);
+
+    /// <summary>The transaction by its gateway reference (UNIQUE, Q04), not tracked, or null.</summary>
+    Task<PaymentTransaction?> FindByGatewayRefAsync(string gatewayTxnRef, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Conditional <c>PENDING -> SUCCESS</c> (contract payments.md 2.4 step 7): true only for the caller that changed the row,
+    /// so of two concurrent identical IPNs exactly one gets true. Runs inside the caller's transaction.
+    /// </summary>
+    Task<bool> TryMarkSuccessAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default);
+
+    /// <summary>Conditional <c>PENDING -> EXPIRED</c> (step 6); true only for the caller that changed the row.</summary>
+    Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default);
+
+    /// <summary>The order by id, TRACKED so the caller's unit of work saves its status change; null when unknown.</summary>
+    Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default);
 }

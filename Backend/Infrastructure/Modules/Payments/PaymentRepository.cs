@@ -23,4 +23,29 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
             .FirstOrDefaultAsync(cancellationToken);
 
     public void Add(PaymentTransaction transaction) => context.PaymentTransactions.Add(transaction);
+
+    public async Task<PaymentTransaction?> FindByGatewayRefAsync(string gatewayTxnRef, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.GatewayTxnRef == gatewayTxnRef, cancellationToken);
+
+    public async Task<bool> TryMarkSuccessAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .Where(t => t.PaymentId == paymentId && t.TxnStatus == PaymentStatus.Pending)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(t => t.TxnStatus, PaymentStatus.Success)
+                    .SetProperty(t => t.PaidAt, paidAtUtc)
+                    .SetProperty(t => t.IpnPayload, ipnPayload),
+                cancellationToken) > 0;
+
+    public async Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .Where(t => t.PaymentId == paymentId && t.TxnStatus == PaymentStatus.Pending)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(t => t.TxnStatus, PaymentStatus.Expired)
+                    .SetProperty(t => t.IpnPayload, ipnPayload),
+                cancellationToken) > 0;
+
+    public async Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await context.JobOrders.FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
 }

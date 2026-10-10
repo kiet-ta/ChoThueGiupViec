@@ -45,6 +45,13 @@ public sealed class PaymentQrServiceTests
 
         public void Add(PaymentTransaction transaction) => _pending.Add(transaction);
 
+        public Task<PaymentTransaction?> FindByGatewayRefAsync(string gatewayTxnRef, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Saved.FirstOrDefault(t => t.GatewayTxnRef == gatewayTxnRef));
+
+        public Task<bool> TryMarkSuccessAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             foreach (var t in _pending)
