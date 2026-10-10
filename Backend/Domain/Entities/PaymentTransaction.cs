@@ -43,4 +43,13 @@ public partial class PaymentTransaction
 
     /// <summary>payment_transaction.created_at DATETIME2</summary>
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>payment_transaction.refunded_amount DECIMAL(18,2) NOT NULL DEFAULT 0 (SC-10, contract payments.md P2). Total given back so far; status is REFUNDED once it is above 0.</summary>
+    public decimal RefundedAmount { get; set; }
+
+    /// <summary>payment_transaction.refund_reason NVARCHAR(255) NULL (SC-10). The reason of the latest refund.</summary>
+    public string? RefundReason { get; set; }
+
+    /// <summary>payment_transaction.refunded_at DATETIME2 NULL (SC-10). When the latest refund was recorded.</summary>
+    public DateTime? RefundedAt { get; set; }
 }

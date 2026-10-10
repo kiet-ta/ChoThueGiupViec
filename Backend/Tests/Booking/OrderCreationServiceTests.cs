@@ -39,6 +39,8 @@ public sealed class OrderCreationServiceTests
 
         public void Add(JobOrder order) => _pending.Add(order);
 
+        public Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default) =>
             Task.FromResult(TakenCodes.Contains(orderCode));
 
