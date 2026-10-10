@@ -1,5 +1,6 @@
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -15,9 +16,9 @@ public static class PaymentErrorCodes
 }
 
 /// <summary>
-/// Creates the payment QR of an order (BE-M2-04, contract payments.md 2.1): Pay-per-Job, 100 % of total_amount, sandbox only (Q04).
-/// Idempotent: a PENDING transaction of the order that has not expired is returned instead of creating a second QR.
-/// Not here: IPN, reconciliation, order cancellation on expiry (BE-M2-05, 05a).
+/// Creates the payment QR of an order (BE-M2-04, contract payments.md 2.1) or of an extension (BE-M2-08, 2.2): Pay-per-Job,
+/// 100 % of the amount, sandbox only (Q04). Idempotent: a PENDING transaction that has not expired is returned instead of
+/// creating a second QR. Not here: IPN, reconciliation, expiry handling (BE-M2-05, 05a).
 /// </summary>
 public sealed class PaymentQrService(
     IPaymentRepository payments,
@@ -55,34 +56,74 @@ public sealed class PaymentQrService(
             return new PaymentQrResult(ToDto(existing, expiresAt, payUrl: null), Created: false);
         }
 
+        var request = new CreatePaymentRequest(
+            PaymentPurpose.Order, orderId.ToString(System.Globalization.CultureInfo.InvariantCulture), order.TotalAmount, order.OrderCode, expiresAt);
+        var transaction = new PaymentTransaction { OrderId = orderId, Purpose = PaymentPurpose.Order, Amount = order.TotalAmount };
+        var payUrl = await RequestQrAsync(request, transaction, now, cancellationToken);
+
+        return new PaymentQrResult(ToDto(transaction, expiresAt, payUrl), Created: true);
+    }
+
+    public async Task<PaymentQrResult> CreateExtensionQrAsync(int customerId, int extensionId, CancellationToken cancellationToken = default)
+    {
+        var extension = await payments.GetExtensionAsync(extensionId, cancellationToken);
+        if (extension is null || extension.CustomerId != customerId)
+        {
+            throw new NotFoundException("Extension", extensionId);
+        }
+
+        if (extension.ExtStatus != ExtensionStatuses.PendingPayment)
+        {
+            throw new BusinessRuleViolationException("The extension is not waiting for payment.", PaymentErrorCodes.InvalidState);
+        }
+
+        var now = clock.UtcNow;
+        var window = TimeSpan.FromMinutes(_rules.Payments.QrExpiryMinutes);
+
+        // An extension has no deadline of its own (contract 1.3): its QR lives Payments.QrExpiryMinutes from the transaction's creation.
+        var existing = await payments.FindPendingExtensionPaymentAsync(extensionId, cancellationToken);
+        if (existing is not null)
+        {
+            var existingExpiresAt = existing.CreatedAt + window;
+            if (now >= existingExpiresAt)
+            {
+                throw new BusinessRuleViolationException("The payment deadline of the extension has passed.", PaymentErrorCodes.PaymentExpired);
+            }
+
+            return new PaymentQrResult(ToDto(existing, existingExpiresAt, payUrl: null), Created: false);
+        }
+
+        var expiresAt = now + window;
+        var request = new CreatePaymentRequest(
+            PaymentPurpose.Extension, extensionId.ToString(System.Globalization.CultureInfo.InvariantCulture), extension.ExtraAmount,
+            $"{extension.OrderCode} extension", expiresAt);
+        var transaction = new PaymentTransaction { OrderId = null, ExtensionId = extensionId, Purpose = PaymentPurpose.Extension, Amount = extension.ExtraAmount };
+        var payUrl = await RequestQrAsync(request, transaction, now, cancellationToken);
+
+        return new PaymentQrResult(ToDto(transaction, expiresAt, payUrl), Created: true);
+    }
+
+    /// <summary>Asks the gateway for the QR (a failure stores nothing) and inserts the PENDING transaction; returns the pay URL (not stored).</summary>
+    private async Task<string?> RequestQrAsync(CreatePaymentRequest request, PaymentTransaction transaction, DateTime now, CancellationToken cancellationToken)
+    {
         PaymentQr qr;
         try
         {
-            qr = await gateway.CreateQrAsync(
-                new CreatePaymentRequest(PaymentPurpose.Order, orderId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    order.TotalAmount, order.OrderCode, expiresAt),
-                cancellationToken);
+            qr = await gateway.CreateQrAsync(request, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             throw new PaymentGatewayUnavailableException("The payment gateway did not create the QR.", ex);
         }
 
-        var transaction = new PaymentTransaction
-        {
-            GatewayTxnRef = qr.GatewayTxnRef,
-            OrderId = orderId,
-            Purpose = PaymentPurpose.Order,
-            Gateway = GatewayName(),
-            Amount = order.TotalAmount,
-            TxnStatus = PaymentStatus.Pending,
-            QrPayload = qr.QrPayload,
-            CreatedAt = now,
-        };
+        transaction.GatewayTxnRef = qr.GatewayTxnRef;
+        transaction.Gateway = GatewayName();
+        transaction.TxnStatus = PaymentStatus.Pending;
+        transaction.QrPayload = qr.QrPayload;
+        transaction.CreatedAt = now;
         payments.Add(transaction);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new PaymentQrResult(ToDto(transaction, expiresAt, qr.PayUrl), Created: true);
+        return qr.PayUrl;
     }
 
     /// <summary>

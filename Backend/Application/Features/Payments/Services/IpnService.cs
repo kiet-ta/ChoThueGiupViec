@@ -44,10 +44,12 @@ public sealed class IpnService(
             return IpnOutcome.Rejected;
         }
 
-        // Only the order payment is handled here; the extension path is BE-M2-08.
-        if (transaction.Purpose != PaymentPurpose.Order || transaction.OrderId is null)
+        // Order and extension payments are handled here; a subscription payment is M5's.
+        var isOrder = transaction.Purpose == PaymentPurpose.Order && transaction.OrderId is not null;
+        var isExtension = transaction.Purpose == PaymentPurpose.Extension && transaction.ExtensionId is not null;
+        if (!isOrder && !isExtension)
         {
-            logger.LogWarning("IPN rejected: payment {PaymentId} has purpose {Purpose}, not handled by this endpoint yet.", transaction.PaymentId, transaction.Purpose);
+            logger.LogWarning("IPN rejected: payment {PaymentId} has purpose {Purpose}, not handled by this endpoint.", transaction.PaymentId, transaction.Purpose);
             return IpnOutcome.Rejected;
         }
 
@@ -60,9 +62,10 @@ public sealed class IpnService(
         switch (verification.Status)
         {
             case PaymentStatus.Success:
-                return await settlement.SettlePaidAsync(transaction.PaymentId, transaction.OrderId.Value, transaction.Amount, rawBody, cancellationToken)
-                    ? IpnOutcome.Accepted
-                    : IpnOutcome.AlreadyProcessed;
+                var settled = isOrder
+                    ? await settlement.SettlePaidAsync(transaction.PaymentId, transaction.OrderId!.Value, transaction.Amount, rawBody, cancellationToken)
+                    : await settlement.SettleExtensionPaidAsync(transaction.PaymentId, transaction.ExtensionId!.Value, rawBody, cancellationToken);
+                return settled ? IpnOutcome.Accepted : IpnOutcome.AlreadyProcessed;
             case PaymentStatus.Expired:
                 // 6. The order follows the reconciliation job (BE-M2-05a).
                 return await payments.TryMarkExpiredAsync(transaction.PaymentId, rawBody, cancellationToken)

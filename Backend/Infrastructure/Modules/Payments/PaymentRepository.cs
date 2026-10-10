@@ -102,6 +102,39 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
                 cancellationToken);
     }
 
+    public async Task<ExtensionForPayment?> GetExtensionAsync(int extensionId, CancellationToken cancellationToken = default) =>
+        await (from e in context.JobOrderExtensions.AsNoTracking()
+               join o in context.JobOrders.AsNoTracking() on e.OrderId equals o.OrderId
+               where e.ExtensionId == extensionId
+               select new ExtensionForPayment(e.ExtensionId, e.OrderId, o.OrderCode, o.CustomerId, e.WorkerId, e.ExtraHours, e.ExtraAmount, e.ExtStatus))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<PaymentTransaction?> FindPendingExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .AsNoTracking()
+            .Where(t => t.ExtensionId == extensionId && t.Purpose == PaymentPurpose.Extension && t.TxnStatus == PaymentStatus.Pending)
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<PaymentTransaction>> ListPendingExtensionPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .AsNoTracking()
+            .Where(t => t.Purpose == PaymentPurpose.Extension && t.TxnStatus == PaymentStatus.Pending && t.CreatedAt <= cutoffUtc)
+            .OrderBy(t => t.CreatedAt)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+    public async Task<PaymentTransaction?> FindRefundableExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .AsNoTracking()
+            .Where(t => t.ExtensionId == extensionId && t.Purpose == PaymentPurpose.Extension
+                && (t.TxnStatus == PaymentStatus.Success || t.TxnStatus == PaymentStatus.Refunded))
+            .OrderByDescending(t => t.PaidAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<JobOrderExtension?> GetExtensionForUpdateAsync(int extensionId, CancellationToken cancellationToken = default) =>
+        await context.JobOrderExtensions.FirstOrDefaultAsync(e => e.ExtensionId == extensionId, cancellationToken);
+
     public async Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
         await context.JobOrders.FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
 }

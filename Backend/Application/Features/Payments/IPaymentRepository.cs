@@ -12,6 +12,17 @@ public sealed record OrderForPayment(
     JobOrderStatus OrderStatus,
     DateTime CreatedAt);
 
+/// <summary>The part of JOB_ORDER_EXTENSION (and its order) the payment needs (BE-M2-08).</summary>
+public sealed record ExtensionForPayment(
+    int ExtensionId,
+    long OrderId,
+    string OrderCode,
+    int CustomerId,
+    int WorkerId,
+    decimal ExtraHours,
+    decimal ExtraAmount,
+    string ExtStatus);
+
 /// <summary>PAYMENT_TRANSACTION access of the Payments module (BE-M2-04, contract payments.md 2.1).</summary>
 public interface IPaymentRepository
 {
@@ -60,6 +71,21 @@ public interface IPaymentRepository
     /// transaction is SUCCESS again with no refund reason or time. Runs inside the caller's transaction.
     /// </summary>
     Task RevertRefundAsync(long paymentId, decimal refundAmount, CancellationToken cancellationToken = default);
+
+    /// <summary>The extension with its order's code and customer (not tracked), or null (BE-M2-08).</summary>
+    Task<ExtensionForPayment?> GetExtensionAsync(int extensionId, CancellationToken cancellationToken = default);
+
+    /// <summary>The PENDING <c>EXTENSION</c> transaction of the extension (not tracked), or null.</summary>
+    Task<PaymentTransaction?> FindPendingExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default);
+
+    /// <summary>PENDING <c>EXTENSION</c> transactions created at or before the cutoff (not tracked), oldest first.</summary>
+    Task<IReadOnlyList<PaymentTransaction>> ListPendingExtensionPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default);
+
+    /// <summary>The latest paid (SUCCESS, or partly REFUNDED) <c>EXTENSION</c> transaction of the extension (not tracked), or null.</summary>
+    Task<PaymentTransaction?> FindRefundableExtensionPaymentAsync(int extensionId, CancellationToken cancellationToken = default);
+
+    /// <summary>The extension by id, TRACKED so the caller's unit of work saves its status change; null when unknown.</summary>
+    Task<JobOrderExtension?> GetExtensionForUpdateAsync(int extensionId, CancellationToken cancellationToken = default);
 
     /// <summary>The order by id, TRACKED so the caller's unit of work saves its status change; null when unknown.</summary>
     Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default);
