@@ -14,5 +14,6 @@ public class PaymentsModule : IModule
     {
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IPaymentQrService, PaymentQrService>();
+        services.AddScoped<IIpnService, IpnService>();
     }
 }
