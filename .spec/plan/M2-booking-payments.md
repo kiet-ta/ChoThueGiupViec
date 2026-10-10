@@ -23,7 +23,7 @@
 - [x] **BE-M2-08** Nối ca "Làm lần 2" (BR-08): tạo `JobOrderExtension` + QR mới, khi thanh toán phát `ExtensionPaid` (M4 xử lý thợ đồng ý/từ chối) · *needs:* BE-M2-05. — evidence: CI verify-l3 of the PR; local verify L3 blocked by Smart App Control, backend tests passed in a Linux container (see PR); worker accept + new worker on decline are M4/M3; retry of a failed decline refund NOT done
 - [x] **BE-M2-09** Khách huỷ đơn trước khi có thợ · *needs:* BE-M2-07 · *decisions:* Q15 (>2 giờ hoàn 100 %, ≤2 giờ tính 40 %, thợ huỷ → hoàn 100 % + điều thợ khác). — evidence: CI verify-l3 of the PR; local verify L3 blocked by Smart App Control, backend tests passed in a Linux container (see PR); late cancel (assigned, within 2 h) NOT done: waits for B10; Premium hold release NOT done (#257)
 - [x] **BE-M2-10** Truy vấn: tiến độ đơn (`JOB_ASSIGNMENT WHERE order_id`), lịch sử khách (`WHERE customer_id`) — **0 JOIN** theo §5.2 · *needs:* G1. — evidence: .harness/evidence/20261009-162753-L3.log (query layer only; the 3 DB-backed tests did not run locally, SQL Server unreachable)
-- [ ] **BE-M2-11** Test: IPN replay, đua khoá slot Premium (2 khách cùng vị trí cuối), giá biên 80 m² · *needs:* BE-M2-01..10.
+- [x] **BE-M2-11** Test: IPN replay, đua khoá slot Premium (2 khách cùng vị trí cuối), giá biên 80 m² · *needs:* BE-M2-01..10. — evidence: CI verify-l3 of the PR; Backend/Tests/Booking/M2AcceptanceTests.cs (real services over an in-memory store, no SQL Server); local verify L3 blocked by Smart App Control, backend tests passed in a Linux container (see PR)
 
 ## Wave 3 — Mobile (Flutter, khách hàng) · *needs:* MOB-BASE-01..03 (M3) + G3/G4
 - [ ] **MOB-M2-01** Chọn phân khúc Economy/Premium (§2.1).
