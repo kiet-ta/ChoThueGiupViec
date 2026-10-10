@@ -44,6 +44,12 @@ public interface IPaymentRepository
     /// </summary>
     Task<bool> TryMarkSuccessAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Conditional <c>EXPIRED -> SUCCESS</c> for a payment that arrived after we expired it (decision Q24 / P4); true only for the
+    /// caller that changed the row, so a replayed or concurrent late IPN is recorded once.
+    /// </summary>
+    Task<bool> TryMarkSuccessFromExpiredAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default);
+
     /// <summary>Conditional <c>PENDING -> EXPIRED</c> (step 6); true only for the caller that changed the row.</summary>
     Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default);
 

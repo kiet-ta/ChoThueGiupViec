@@ -38,6 +38,15 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
                     .SetProperty(t => t.IpnPayload, ipnPayload),
                 cancellationToken) > 0;
 
+    public async Task<bool> TryMarkSuccessFromExpiredAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .Where(t => t.PaymentId == paymentId && t.TxnStatus == PaymentStatus.Expired)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(t => t.TxnStatus, PaymentStatus.Success)
+                    .SetProperty(t => t.PaidAt, paidAtUtc)
+                    .SetProperty(t => t.IpnPayload, ipnPayload),
+                cancellationToken) > 0;
+
     public async Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default) =>
         await context.PaymentTransactions
             .Where(t => t.PaymentId == paymentId && t.TxnStatus == PaymentStatus.Pending)

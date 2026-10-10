@@ -107,6 +107,25 @@ public sealed class PaymentReconciliationServiceTests
             return Task.FromResult(true);
         }
 
+        public Task<bool> TryMarkSuccessFromExpiredAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default) => MarkSuccessFromExpired(paymentId, paidAtUtc, ipnPayload);
+
+        private Task<bool> MarkSuccessFromExpired(long paymentId, DateTime paidAtUtc, string ipnPayload)
+        {
+            lock (Transactions)
+            {
+                var t = Transactions.Single(x => x.PaymentId == paymentId);
+                if (t.TxnStatus != PaymentStatus.Expired)
+                {
+                    return Task.FromResult(false);
+                }
+
+                t.TxnStatus = PaymentStatus.Success;
+                t.PaidAt = paidAtUtc;
+                t.IpnPayload = ipnPayload;
+                return Task.FromResult(true);
+            }
+        }
+
         public Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default)
         {
             var t = Transactions.Single(x => x.PaymentId == paymentId);
@@ -164,6 +183,7 @@ public sealed class PaymentReconciliationServiceTests
         public ScriptedGateway Gateway { get; } = new();
         public RecordingPublisher Publisher { get; } = new();
         public NoNotifications Notifications { get; } = new();
+        public RecordingLateRefunds Refunds { get; } = new();
 
         /// <summary>An order created <paramref name="orderAgeMinutes"/> ago with one PENDING transaction created <paramref name="txnAgeMinutes"/> ago.</summary>
         public (JobOrder Order, PaymentTransaction? Txn) AddOrder(long orderId, int orderAgeMinutes, int? txnAgeMinutes, string? reference = null,
@@ -222,7 +242,7 @@ public sealed class PaymentReconciliationServiceTests
 
         public PaymentReconciliationService Service() => new(
             Db, Gateway,
-            new PaymentSettlementService(Db, Db, new TestClock(), Publisher, Notifications, NullLogger<PaymentSettlementService>.Instance),
+            new PaymentSettlementService(Db, Db, new TestClock(), Publisher, Notifications, Refunds, Refunds, NullLogger<PaymentSettlementService>.Instance),
             Db, new TestClock(), Publisher,
             Microsoft.Extensions.Options.Options.Create(new BusinessRules()),
             NullLogger<PaymentReconciliationService>.Instance);
@@ -240,7 +260,7 @@ public sealed class PaymentReconciliationServiceTests
         Assert.Equal(new ReconciliationResult(1, 0, 0, 0), result);
         Assert.Equal(PaymentStatus.Success, txn.TxnStatus);
         Assert.Equal(Now, txn.PaidAt);
-        Assert.Equal(JobOrderStatus.Paid, order.OrderStatus);
+        Assert.Equal(JobOrderStatus.Dispatching, order.OrderStatus); // B4
         Assert.IsType<OrderPaid>(Assert.Single(f.Publisher.Published));
         Assert.Equal(1, f.Notifications.Count);
     }
@@ -252,7 +272,7 @@ public sealed class PaymentReconciliationServiceTests
         var (_, txn) = f.AddOrder(1, 6, 5);
         f.Gateway.Statuses[txn!.GatewayTxnRef] = (PaymentStatus.Success, Amount);
         await f.Service().RunOnceAsync();
-        var settlement = new PaymentSettlementService(f.Db, f.Db, new TestClock(), f.Publisher, f.Notifications, NullLogger<PaymentSettlementService>.Instance);
+        var settlement = new PaymentSettlementService(f.Db, f.Db, new TestClock(), f.Publisher, f.Notifications, f.Refunds, f.Refunds, NullLogger<PaymentSettlementService>.Instance);
 
         var second = await settlement.SettlePaidAsync(txn.PaymentId, 1, Amount, "ipn");
 
@@ -408,7 +428,7 @@ public sealed class PaymentReconciliationServiceTests
 
         Assert.Equal(new ReconciliationResult(1, 0, 0, 1), result);
         Assert.Equal(PaymentStatus.Pending, broken.TxnStatus);
-        Assert.Equal(JobOrderStatus.Paid, order.OrderStatus);
+        Assert.Equal(JobOrderStatus.Dispatching, order.OrderStatus); // B4
     }
 
     private static (JobOrderExtension Extension, PaymentTransaction Txn) AddExtension(Fixture f, int txnAgeMinutes, string extStatus = ExtensionStatuses.PendingPayment)

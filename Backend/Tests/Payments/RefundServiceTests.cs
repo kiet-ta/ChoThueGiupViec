@@ -151,6 +151,25 @@ public sealed class RefundServiceTests
         public void Add(PaymentTransaction transaction) => throw new NotSupportedException();
         public Task<PaymentTransaction?> FindByGatewayRefAsync(string gatewayTxnRef, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> TryMarkSuccessAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> TryMarkSuccessFromExpiredAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default) => MarkSuccessFromExpired(paymentId, paidAtUtc, ipnPayload);
+
+        private Task<bool> MarkSuccessFromExpired(long paymentId, DateTime paidAtUtc, string ipnPayload)
+        {
+            lock (_gate)
+            {
+                var t = Transactions.Single(x => x.PaymentId == paymentId);
+                if (t.TxnStatus != PaymentStatus.Expired)
+                {
+                    return Task.FromResult(false);
+                }
+
+                t.TxnStatus = PaymentStatus.Success;
+                t.PaidAt = paidAtUtc;
+                t.IpnPayload = ipnPayload;
+                return Task.FromResult(true);
+            }
+        }
+
         public Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<PaymentTransaction>> ListPendingOrderPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<long>> ListUnpaidOrderIdsWithoutLivePaymentAsync(DateTime createdBeforeUtc, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();

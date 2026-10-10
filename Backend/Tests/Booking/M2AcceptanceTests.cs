@@ -203,6 +203,25 @@ public sealed class M2AcceptanceTests
             }
         }
 
+        public Task<bool> TryMarkSuccessFromExpiredAsync(long paymentId, DateTime paidAtUtc, string ipnPayload, CancellationToken cancellationToken = default) => MarkSuccessFromExpired(paymentId, paidAtUtc, ipnPayload);
+
+        private Task<bool> MarkSuccessFromExpired(long paymentId, DateTime paidAtUtc, string ipnPayload)
+        {
+            lock (_gate)
+            {
+                var t = _transactions.Single(x => x.PaymentId == paymentId);
+                if (t.TxnStatus != PaymentStatus.Expired)
+                {
+                    return Task.FromResult(false);
+                }
+
+                t.TxnStatus = PaymentStatus.Success;
+                t.PaidAt = paidAtUtc;
+                t.IpnPayload = ipnPayload;
+                return Task.FromResult(true);
+            }
+        }
+
         public Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default)
         {
             lock (_gate)
@@ -311,7 +330,7 @@ public sealed class M2AcceptanceTests
         public PaymentQrService Qr() => new(Db, Gateway, Db, Clock, _rules);
 
         public PaymentSettlementService Settlement() =>
-            new(Db, Db, Clock, Events, _notifications, NullLogger<PaymentSettlementService>.Instance);
+            new(Db, Db, Clock, Events, _notifications, Refunds(), Refunds(), NullLogger<PaymentSettlementService>.Instance);
 
         public IpnService Ipn() => new(Gateway, Db, Settlement(), NullLogger<IpnService>.Instance);
 
@@ -378,7 +397,7 @@ public sealed class M2AcceptanceTests
 
         Assert.Equal(IpnOutcome.Accepted, first);
         Assert.All(replays, r => Assert.Equal(IpnOutcome.AlreadyProcessed, r));
-        Assert.Equal(JobOrderStatus.Paid, w.Order(order.OrderId).OrderStatus);
+        Assert.Equal(JobOrderStatus.Dispatching, w.Order(order.OrderId).OrderStatus); // B4
         Assert.Equal(PaymentStatus.Success, txn.TxnStatus);
         Assert.Equal(paidAt, txn.PaidAt);
         var paid = Assert.Single(w.Events.Published.OfType<OrderPaid>());
@@ -398,7 +417,7 @@ public sealed class M2AcceptanceTests
 
         Assert.Equal(1, outcomes.Count(o => o == IpnOutcome.Accepted));
         Assert.Equal(19, outcomes.Count(o => o == IpnOutcome.AlreadyProcessed));
-        Assert.Equal(JobOrderStatus.Paid, w.Order(order.OrderId).OrderStatus);
+        Assert.Equal(JobOrderStatus.Dispatching, w.Order(order.OrderId).OrderStatus); // B4
         Assert.Equal(1, w.Events.Count<OrderPaid>());
     }
 
@@ -417,7 +436,7 @@ public sealed class M2AcceptanceTests
         Assert.Equal(0, w.Events.Count<OrderPaid>());
 
         Assert.Equal(IpnOutcome.Accepted, await w.SendIpnAsync(txn));
-        Assert.Equal(JobOrderStatus.Paid, w.Order(order.OrderId).OrderStatus);
+        Assert.Equal(JobOrderStatus.Dispatching, w.Order(order.OrderId).OrderStatus); // B4
     }
 
     [Fact]
@@ -571,7 +590,7 @@ public sealed class M2AcceptanceTests
         var late = await w.SendIpnAsync(txn);
 
         Assert.Equal(new ReconciliationResult(1, 0, 0, 0), result);
-        Assert.Equal(JobOrderStatus.Paid, w.Order(order.OrderId).OrderStatus);
+        Assert.Equal(JobOrderStatus.Dispatching, w.Order(order.OrderId).OrderStatus); // B4
         Assert.Equal(IpnOutcome.AlreadyProcessed, late);
         Assert.Equal(1, w.Events.Count<OrderPaid>());
     }
@@ -635,22 +654,58 @@ public sealed class M2AcceptanceTests
     }
 
     /// <summary>
-    /// Documents today's behaviour, which is a KNOWN GAP and not the target: decision Q24 / P4 says a SUCCESS IPN for an already
-    /// EXPIRED transaction must be recorded and refunded 100 % (PAID_AFTER_EXPIRY). That is not implemented yet, so such a late
-    /// payment is currently ignored. When P4 is implemented this test must change.
+    /// Decision Q24 / P4 (BE-M2-13): the customer cancels an unpaid order (its QR is closed), then pays anyway. The money was received,
+    /// so it is recorded and refunded 100 % with PAID_AFTER_EXPIRY; the order stays cancelled and Dispatch is never started.
     /// </summary>
     [Fact]
-    public async Task AnUnpaidOrder_CancelledByItsCustomer_ClosesItsQr_AndALateSuccessIpnIsIgnored_UntilP4IsImplemented()
+    public async Task AnUnpaidOrder_CancelledByItsCustomer_ThenPaidAnyway_GetsTheMoneyBack_AndStaysCancelled()
     {
         var (w, order, txn) = await PaidUpToQrAsync();
 
         await w.Cancellation().CancelAsync(Customer, order.OrderId, new CancelOrderRequest("Mistake"));
+        Assert.Equal(PaymentStatus.Expired, txn.TxnStatus);
+        var late = await w.SendIpnAsync(txn);
+        var replay = await w.SendIpnAsync(txn);
+
+        Assert.Equal(IpnOutcome.Accepted, late);
+        Assert.Equal(IpnOutcome.AlreadyProcessed, replay);
+        Assert.Equal(JobOrderStatus.Cancelled, w.Order(order.OrderId).OrderStatus);
+        Assert.Equal(PaymentStatus.Refunded, txn.TxnStatus);
+        Assert.Equal(260000m, txn.RefundedAmount);
+        Assert.Equal("PAID_AFTER_EXPIRY", txn.RefundReason);
+        Assert.Equal(0, w.Events.Count<OrderPaid>());
+        var refunded = Assert.Single(w.Events.Published.OfType<OrderRefunded>());
+        Assert.Equal(260000m, refunded.Amount);
+    }
+
+    [Fact]
+    public async Task AnOrderExpiredByTheJob_ThenPaidAnyway_GetsTheMoneyBack_AndIsNotDispatched()
+    {
+        var (w, order, txn) = await PaidUpToQrAsync();
+        w.Clock.UtcNow = Start.AddMinutes(15);
+        await w.Reconciliation().RunOnceAsync(); // cancels the order and expires the QR
+
         var late = await w.SendIpnAsync(txn);
 
+        Assert.Equal(IpnOutcome.Accepted, late);
         Assert.Equal(JobOrderStatus.Cancelled, w.Order(order.OrderId).OrderStatus);
-        Assert.Equal(PaymentStatus.Expired, txn.TxnStatus);
-        Assert.Equal(IpnOutcome.AlreadyProcessed, late);
+        Assert.Equal(PaymentStatus.Refunded, txn.TxnStatus);
+        Assert.Equal(260000m, txn.RefundedAmount);
         Assert.Equal(0, w.Events.Count<OrderPaid>());
-        Assert.Equal(0, w.Events.Count<OrderRefunded>());
+        Assert.Equal(1, w.Events.Count<OrderRefunded>());
+    }
+
+    [Fact]
+    public async Task AfterPayment_TheOrderIsAlreadyDispatching_WhenOrderPaidIsPublished()
+    {
+        var (w, order, txn) = await PaidUpToQrAsync();
+
+        await w.SendIpnAsync(txn);
+
+        // B4: nobody ever observes PAID outside the settlement transaction.
+        Assert.Equal(JobOrderStatus.Dispatching, w.Order(order.OrderId).OrderStatus);
+        Assert.Equal(1, w.Events.Count<OrderPaid>());
+        var qr = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => w.Qr().CreateOrderQrAsync(Customer, order.OrderId));
+        Assert.Equal(PaymentErrorCodes.InvalidState, qr.Code);
     }
 }

@@ -53,6 +53,15 @@ public sealed class IpnService(
             return IpnOutcome.Rejected;
         }
 
+        // P4 (decision Q24): the gateway says SUCCESS for a transaction we already EXPIRED. The money was received: record it once
+        // and refund it; the order or extension is not revived.
+        if (transaction.TxnStatus == PaymentStatus.Expired && verification.Status == PaymentStatus.Success)
+        {
+            var recorded = await settlement.SettleLatePaymentAsync(
+                transaction.PaymentId, transaction.Purpose, transaction.OrderId, transaction.ExtensionId, transaction.Amount, rawBody, cancellationToken);
+            return recorded ? IpnOutcome.Accepted : IpnOutcome.AlreadyProcessed;
+        }
+
         // 4. Idempotent: anything but PENDING is a repeat.
         if (transaction.TxnStatus != PaymentStatus.Pending)
         {
