@@ -7,6 +7,7 @@ import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
 import '../models/job_photo_models.dart';
 import '../services/workers_photos_service.dart';
+import '../widgets/tinted_card.dart';
 
 /// Screen for Before/After photo capture & VoL verification (contract workers.md §2.4).
 /// Implements MOB-M4-04: angle guides, VoL blur check (threshold >= 100.0 per Q03), and retake prompt.
@@ -210,7 +211,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
               const SizedBox(height: 6.0),
               const Text(
                 'Yêu cầu chụp 3–5 góc. Ảnh After phải khớp đúng góc ảnh Before và có VoL ≥ 100.0.',
-                style: NordicTypography.bodyMuted,
+                style: NordicTypography.bodySmall,
               ),
               const SizedBox(height: 16.0),
 
@@ -228,7 +229,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
 
               // Messages
               if (_errorMessage != null) ...[
-                NordicCard(
+                TintedCard(
                   backgroundColor: const Color(0xFFFEE2E2),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -249,7 +250,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                 const SizedBox(height: 16.0),
               ],
               if (_successMessage != null) ...[
-                NordicCard(
+                TintedCard(
                   backgroundColor: const Color(0xFFDCFCE7),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -450,7 +451,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -470,7 +471,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12.0),
                 child: Center(
-                  child: Text('Chưa có ảnh nào được tải lên cho giai đoạn này.', style: NordicTypography.bodyMuted),
+                  child: Text('Chưa có ảnh nào được tải lên cho giai đoạn này.', style: NordicTypography.bodySmall),
                 ),
               )
             else
@@ -482,12 +483,12 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                       children: [
                         const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 18.0),
                         const SizedBox(width: 8.0),
-                        Text('Góc ${p.angleNo}', style: NordicTypography.bodyBold),
+                        Text('Góc ${p.angleNo}', style: NordicTypography.labelMedium),
                       ],
                     ),
                     Text(
                       'VoL: ${p.volScore.toStringAsFixed(1)}',
-                      style: const TextStyle(fontSize: 12.0, color: NordicColors.textMuted),
+                      style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
                     ),
                   ],
                 ),
