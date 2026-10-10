@@ -36,6 +36,15 @@ public interface IPaymentRepository
     /// <summary>Conditional <c>PENDING -> EXPIRED</c> (step 6); true only for the caller that changed the row.</summary>
     Task<bool> TryMarkExpiredAsync(long paymentId, string ipnPayload, CancellationToken cancellationToken = default);
 
+    /// <summary>PENDING <c>ORDER</c> transactions created at or before the cutoff (not tracked), oldest first, at most <paramref name="take"/> (BE-M2-05a).</summary>
+    Task<IReadOnlyList<PaymentTransaction>> ListPendingOrderPaymentsCreatedBeforeAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ids of orders still PENDING_PAYMENT, created at or before the cutoff, that have NO live (PENDING or SUCCESS) <c>ORDER</c>
+    /// transaction: the QR was never requested or it already expired (BE-M2-05a). Oldest first, at most <paramref name="take"/>.
+    /// </summary>
+    Task<IReadOnlyList<long>> ListUnpaidOrderIdsWithoutLivePaymentAsync(DateTime createdBeforeUtc, int take, CancellationToken cancellationToken = default);
+
     /// <summary>The order by id, TRACKED so the caller's unit of work saves its status change; null when unknown.</summary>
     Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default);
 }
