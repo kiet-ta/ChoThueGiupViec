@@ -45,6 +45,22 @@ public interface IPaymentRepository
     /// </summary>
     Task<IReadOnlyList<long>> ListUnpaidOrderIdsWithoutLivePaymentAsync(DateTime createdBeforeUtc, int take, CancellationToken cancellationToken = default);
 
+    /// <summary>The latest paid (SUCCESS, or already partly REFUNDED) <c>ORDER</c> transaction of the order (not tracked), or null (BE-M2-07).</summary>
+    Task<PaymentTransaction?> FindRefundableOrderPaymentAsync(long orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Conditional reservation of a refund (contract payments.md P2): in ONE statement, only while the transaction is SUCCESS or REFUNDED
+    /// and <c>refunded_amount + amount &lt;= amount</c>, add to <c>refunded_amount</c>, set REFUNDED, the reason and the time.
+    /// True only for the caller that changed the row, so concurrent refunds can never exceed the paid amount.
+    /// </summary>
+    Task<bool> TryReserveRefundAsync(long paymentId, decimal refundAmount, string reason, DateTime refundedAtUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Undoes <see cref="TryReserveRefundAsync"/> when the gateway refused: subtracts the amount; when nothing remains refunded the
+    /// transaction is SUCCESS again with no refund reason or time. Runs inside the caller's transaction.
+    /// </summary>
+    Task RevertRefundAsync(long paymentId, decimal refundAmount, CancellationToken cancellationToken = default);
+
     /// <summary>The order by id, TRACKED so the caller's unit of work saves its status change; null when unknown.</summary>
     Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default);
 }

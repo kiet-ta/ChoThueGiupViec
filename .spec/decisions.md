@@ -169,6 +169,13 @@ The leader's instruction was "if not affected, just implement", so these are the
 - **B7 `order_code`** = `GV` + `yyMMdd` (local date) + 6 random uppercase alphanumerics (14 characters); retry on a UNIQUE clash.
 - **B8 Capacity reservation** is keyed by the order id (`CapacityRequest.OrderId`); `JOB_ORDER` gets no column. Booking inserts the order and reserves in one transaction; no capacity -> rollback, 409 `FULLY_BOOKED`, no order.
 
+### Q24 Payments and Booking details (contracts `payments.md` P2/P4, `booking.md` B4/B5/B11; recommended defaults, approval relayed by M2 from the leader's private messages on 2026-10-10, see issue #259)
+- **P2 Refund columns** = SC-10 (section 3): partial and repeated refunds are recorded on `PAYMENT_TRANSACTION`; `REFUNDED` once `refunded_amount > 0`; a refund that would exceed `amount` is refused.
+- **P4 Late payment.** A `SUCCESS` IPN for an already `EXPIRED` transaction is recorded as `SUCCESS` (the money was received) and refunded 100 % with reason `PAID_AFTER_EXPIRY`; the order stays `CANCELLED` (adds `EXPIRED -> SUCCESS`). Implemented by a follow-up ticket.
+- **B4 `PAID -> DISPATCHING`.** Booking sets `DISPATCHING` in the same transaction that marks the order `PAID`, before `OrderPaid` is published (`PAID` stays visible in history only). Seat loss is signalled by a new event `AssignmentSeatLost { AssignmentId, OrderId, Reason }` (M1 event file: Scope exception) or by re-syncing on `IncidentReported`.
+- **B5 Extension values.** `ext_status` = `PENDING_PAYMENT`, `PAID`, `ACCEPTED`, `DECLINED`, `EXPIRED`; `worker_decision` = `PENDING`, `ACCEPTED`, `DECLINED`.
+- **B11 Extension hours.** `extraHours` from 0.5 to `Shift.MaxHours` (4) in 0.5 steps; `ExtensionPaid.ExtraHours` becomes `decimal` (M1 event file: Scope exception).
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery.
 
@@ -182,6 +189,7 @@ The leader's instruction was "if not affected, just implement", so these are the
 - **SC-7** New table `REFRESH_TOKEN`: `refresh_token_id BIGINT IDENTITY PK`, `token_hash VARCHAR(128) UNIQUE`, `subject_role VARCHAR(10)`, `subject_id INT`, `family_id UNIQUEIDENTIFIER`, `created_at DATETIME2`, `expires_at DATETIME2`, `revoked_at DATETIME2 NULL`, `replaced_by_id BIGINT NULL`. (Q20)
 - **SC-8** `ADMIN` and `PARTNER_AGENCY`: add `failed_login_count TINYINT NOT NULL DEFAULT 0` and `locked_until DATETIME2 NULL`. (Q20, Q16 lockout)
 - **SC-9** `JOB_ASSIGNMENT.accepted_at` becomes `DATETIME2 NULL` (null while `OFFERED`, Q22 D1). The unique index on `slot_id` excludes `CANCELLED`, `CANCELLED_BY_WORKER`, `REASSIGNED` (Q22 D2).
+- **SC-10** `PAYMENT_TRANSACTION`: add `refunded_amount DECIMAL(18,2) NOT NULL DEFAULT 0`, `refund_reason NVARCHAR(255) NULL`, `refunded_at DATETIME2 NULL`. `txn_status = REFUNDED` once `refunded_amount > 0`; a refund is refused when it would exceed `amount` (contract `payments.md` P2, Q23 below; approval relayed by M2 from the leader, issue #259).
 - Table count becomes **27** (22 + `PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN`; it was 25 before SC-6/SC-7). Owners: `PRICE_RULE` -> M2, `ESCROW_TRANSACTION` -> M5, `ADMIN_AUDIT_LOG` -> M6 (others write to it through the `IAuditLog` port), `OTP_CODE` and `REFRESH_TOKEN` -> M1.
 
 ## 4. Configuration keys and DEFAULT values (single source for `BusinessRules`)

@@ -8,4 +8,7 @@ public interface IOrderRepository
     void Add(JobOrder order);
 
     Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default);
+
+    /// <summary>The order by id, TRACKED so the caller's unit of work saves its status change; null when unknown (BE-M2-07).</summary>
+    Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default);
 }

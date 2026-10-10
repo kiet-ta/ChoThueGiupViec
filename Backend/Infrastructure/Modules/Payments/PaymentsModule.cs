@@ -1,5 +1,6 @@
 using CommonService.Application.Features.Payments;
 using CommonService.Application.Features.Payments.Services;
+using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,7 @@ public class PaymentsModule : IModule
         services.AddScoped<IPaymentSettlementService, PaymentSettlementService>();
         services.AddScoped<IIpnService, IpnService>();
         services.AddScoped<IPaymentReconciliationService, PaymentReconciliationService>();
+        services.AddScoped<IRefundService, RefundService>();
         services.AddHostedService<PaymentReconciliationWorker>();
     }
 }

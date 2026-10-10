@@ -66,6 +66,42 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
             .Take(take)
             .ToListAsync(cancellationToken);
 
+    public async Task<PaymentTransaction?> FindRefundableOrderPaymentAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .AsNoTracking()
+            .Where(t => t.OrderId == orderId && t.Purpose == PaymentPurpose.Order
+                && (t.TxnStatus == PaymentStatus.Success || t.TxnStatus == PaymentStatus.Refunded))
+            .OrderByDescending(t => t.PaidAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<bool> TryReserveRefundAsync(long paymentId, decimal refundAmount, string reason, DateTime refundedAtUtc, CancellationToken cancellationToken = default) =>
+        await context.PaymentTransactions
+            .Where(t => t.PaymentId == paymentId
+                && (t.TxnStatus == PaymentStatus.Success || t.TxnStatus == PaymentStatus.Refunded)
+                && t.RefundedAmount + refundAmount <= t.Amount)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(t => t.RefundedAmount, t => t.RefundedAmount + refundAmount)
+                    .SetProperty(t => t.TxnStatus, PaymentStatus.Refunded)
+                    .SetProperty(t => t.RefundReason, reason)
+                    .SetProperty(t => t.RefundedAt, refundedAtUtc),
+                cancellationToken) > 0;
+
+    public async Task RevertRefundAsync(long paymentId, decimal refundAmount, CancellationToken cancellationToken = default)
+    {
+        await context.PaymentTransactions
+            .Where(t => t.PaymentId == paymentId && t.RefundedAmount >= refundAmount)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RefundedAmount, t => t.RefundedAmount - refundAmount), cancellationToken);
+
+        // Nothing refunded any more: back to SUCCESS without a refund reason or time.
+        await context.PaymentTransactions
+            .Where(t => t.PaymentId == paymentId && t.TxnStatus == PaymentStatus.Refunded && t.RefundedAmount <= 0m)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(t => t.TxnStatus, PaymentStatus.Success)
+                    .SetProperty(t => t.RefundReason, (string?)null)
+                    .SetProperty(t => t.RefundedAt, (DateTime?)null),
+                cancellationToken);
+    }
+
     public async Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
         await context.JobOrders.FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
 }

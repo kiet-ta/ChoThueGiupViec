@@ -131,6 +131,9 @@ public sealed class PaymentReconciliationServiceTests
                     && (t.TxnStatus == PaymentStatus.Pending || t.TxnStatus == PaymentStatus.Success)))
                 .OrderBy(o => o.CreatedAt).Select(o => o.OrderId).Take(take).ToList());
 
+        public Task<PaymentTransaction?> FindRefundableOrderPaymentAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> TryReserveRefundAsync(long paymentId, decimal refundAmount, string reason, DateTime refundedAtUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task RevertRefundAsync(long paymentId, decimal refundAmount, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<JobOrder?> GetOrderForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Orders.GetValueOrDefault(orderId));
 

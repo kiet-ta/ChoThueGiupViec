@@ -9,6 +9,9 @@ public class OrderRepository(AppDbContext context) : IOrderRepository
 {
     public void Add(JobOrder order) => context.JobOrders.Add(order);
 
+    public async Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await context.JobOrders.FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
+
     public async Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default) =>
         await context.JobOrders.AsNoTracking().AnyAsync(o => o.OrderCode == orderCode, cancellationToken);
 }
