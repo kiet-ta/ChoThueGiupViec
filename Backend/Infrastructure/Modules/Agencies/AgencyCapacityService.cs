@@ -66,7 +66,7 @@ namespace CommonService.Infrastructure.Modules.Agencies
                 var workerSkills = await _context.WorkerSkills.ToListAsync(cancellationToken);
 
                 // Use pure function to determine what reservation to make
-                var reservationResults = AgencyCapacityPureService.TryReserve(
+                var reservationResults = AgencyCapacity.TryReserve(
                     request.Date,
                     request.ShiftCode,
                     request.RequiredWorkers,
