@@ -225,6 +225,30 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.ToTable("BOOKING_SLOT", (string)null);
                 });
 
+            modelBuilder.Entity("CommonService.Domain.Entities.CapacityReservation", b =>
+                {
+                    b.Property<Guid>("ReservationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AgencyId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("DATETIME2");
+
+                    b.Property<int>("SlotId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ReservationId");
+
+                    b.HasIndex("AgencyId");
+
+                    b.HasIndex("SlotId");
+
+                    b.ToTable("CapacityReservations");
+                });
+
             modelBuilder.Entity("CommonService.Domain.Entities.CheckInLog", b =>
                 {
                     b.Property<long>("CheckinId")
@@ -1978,6 +2002,25 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasForeignKey("WorkerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("CommonService.Domain.Entities.CapacityReservation", b =>
+                {
+                    b.HasOne("CommonService.Domain.Entities.PartnerAgency", "Agency")
+                        .WithMany()
+                        .HasForeignKey("AgencyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CommonService.Domain.Entities.BookingSlot", "Slot")
+                        .WithMany()
+                        .HasForeignKey("SlotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Agency");
+
+                    b.Navigation("Slot");
                 });
 
             modelBuilder.Entity("CommonService.Domain.Entities.CheckInLog", b =>

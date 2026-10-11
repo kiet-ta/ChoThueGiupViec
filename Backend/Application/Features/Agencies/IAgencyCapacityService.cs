@@ -1,4 +1,4 @@
-namespace CommonService.Application.Interfaces.Ports;
+namespace CommonService.Application.Features.Agencies;
 
 /// <param name="Date">Shift date.</param>
 /// <param name="ShiftCode">Shift code as stored in BOOKING_SLOT.shift_code.</param>

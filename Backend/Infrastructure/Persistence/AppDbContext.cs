@@ -43,6 +43,7 @@ public class AppDbContext : DbContext
     public DbSet<TwoWayRating> TwoWayRatings => Set<TwoWayRating>();
     public DbSet<Worker> Workers => Set<Worker>();
     public DbSet<WorkerSkill> WorkerSkills => Set<WorkerSkill>();
+    public DbSet<CapacityReservation> CapacityReservations => Set<CapacityReservation>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
