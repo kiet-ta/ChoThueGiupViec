@@ -36,6 +36,30 @@ public class AgencyEligibilityTests
         Assert.NotEqual(AgencyStatuses.Suspended, AgencyEligibility.StatusFor(0m, 5_000_000m));
     }
 
+    [Theory]
+    [InlineData("ACTIVE", 5_000_000, false)] // exactly the minimum: no warning
+    [InlineData("ACTIVE", 6_000_000, false)]
+    [InlineData("ACTIVE", 4_999_999, true)]
+    [InlineData("ACTIVE", 3_000_000, true)] // still operating, below the minimum
+    [InlineData("ACTIVE", 1, true)]
+    [InlineData("PENDING", 0, false)] // status already says the minimum is not met
+    [InlineData("PENDING", 3_000_000, false)]
+    [InlineData("SUSPENDED", 0, false)]
+    [InlineData("SUSPENDED", 3_000_000, false)]
+    [InlineData("active", 3_000_000, false)] // values are exact, upper case
+    public void Escrow_warning_is_only_for_an_active_agency_below_the_minimum(string status, long balance, bool expected)
+    {
+        Assert.Equal(expected, AgencyEligibility.HasEscrowWarning(status, balance, 5_000_000m));
+    }
+
+    [Fact]
+    public void Escrow_warning_follows_a_configured_minimum()
+    {
+        Assert.True(AgencyEligibility.HasEscrowWarning(AgencyStatuses.Active, 9_000_000m, 10_000_000m));
+        Assert.False(AgencyEligibility.HasEscrowWarning(AgencyStatuses.Active, 9_000_000m, 8_000_000m));
+        Assert.False(AgencyEligibility.HasEscrowWarning(AgencyStatuses.Active, 0m, 0m));
+    }
+
     [Fact]
     public void Status_values_fit_the_VARCHAR_10_column()
     {
