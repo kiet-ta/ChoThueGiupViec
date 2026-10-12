@@ -1,4 +1,6 @@
 using Backend.Application.Features.Agencies.Dtos;
+using CommonService.Application.Common.Models;
+using MediatR;
 
 namespace Backend.Application.Features.Agencies.Commands;
 
@@ -13,4 +15,4 @@ public record RegisterAgencyCommand(
     string ContactPhone,
     string ContactEmail,
     string Password
-) : IRequest<RegisterAgencyResponse>;
+) : IRequest<ApiResponse<RegisterAgencyResponse>>;
