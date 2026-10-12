@@ -4,7 +4,6 @@ using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Application.Features.Booking;
 
@@ -20,7 +19,7 @@ public sealed class AssignmentFailedHandler(
     IOrderRepository orders,
     IUnitOfWork unitOfWork,
     IRefundService refunds,
-    CommonService.Application.Features.Agencies.IAgencyCapacityService capacity,
+    IAgencyCapacityService capacity,
     IClock clock,
     IPublisher publisher,
     ILogger<AssignmentFailedHandler> logger) : INotificationHandler<AssignmentFailed>
