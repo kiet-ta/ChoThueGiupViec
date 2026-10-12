@@ -1,40 +1,31 @@
-using Backend.Application.Features.Agencies.Commands;
-using Backend.Application.Features.Agencies.Dtos;
 using CommonService.Application.Common.Models;
-using CommonService.WebAPI;
+using CommonService.Application.Features.Agencies.Commands;
+using CommonService.Application.Features.Agencies.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Backend.WebAPI.Controllers.Agencies;
+namespace CommonService.WebAPI.Controllers.Agencies;
 
-/// <summary>
-/// Controller for agency-related operations
-/// </summary>
+/// <summary>Partner Agency endpoints (contract agencies.md).</summary>
 [ApiController]
 [Route("api/agencies")]
-public class AgenciesController : ControllerBase
+public class AgenciesController(ISender sender) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public AgenciesController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
-    /// Registers a new agency
+    /// Public self-service registration of a Partner Agency (BE-M5-01; leader decision). The agency is created
+    /// <c>PENDING</c>; it becomes <c>ACTIVE</c> only when its escrow reaches the minimum (decisions Q09, BE-M5-07).
+    /// 400 on invalid fields, 409 (<c>data.code</c> AGENCY_TAX_CODE_EXISTS / AGENCY_EMAIL_EXISTS) on a duplicate.
     /// </summary>
-    /// <param name="command">The agency registration command</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>The registration response</returns>
     [HttpPost("registration")]
-    [AllowAnonymous] // Registration is typically public/self-service
-    public async Task<ActionResult<ApiResponse<RegisterAgencyResponse>>> RegisterAgency(
-        [FromBody] RegisterAgencyCommand command,
-        CancellationToken cancellationToken)
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<RegisterAgencyResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Register([FromBody] RegisterAgencyRequest? request, CancellationToken ct)
     {
-        var response = await _mediator.Send(command, cancellationToken);
-        return Ok(response);
+        var result = await sender.Send(new RegisterAgencyCommand(request), ct);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 }

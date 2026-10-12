@@ -1,30 +1,20 @@
 using CommonService.Domain.Entities;
 
-namespace Backend.Application.Features.Agencies;
+namespace CommonService.Application.Features.Agencies;
 
-/// <summary>
-/// Repository for agency-related operations
-/// </summary>
+/// <summary>Persistence port of the Agencies module (registration part; later M5 tickets extend it).</summary>
 public interface IAgencyRepository
 {
-    /// <summary>
-    /// Checks if an agency with the specified tax code already exists
-    /// </summary>
-    /// <param name="taxCode">The tax code to check</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if an agency with the tax code exists, false otherwise</returns>
+    /// <summary>True when an agency with this exact tax code exists.</summary>
     Task<bool> TaxCodeExistsAsync(string taxCode, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Adds a new agency to the repository
-    /// </summary>
-    /// <param name="agency">The agency to add</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    Task AddAsync(PartnerAgency agency, CancellationToken cancellationToken = default);
+    /// <summary>True when an agency with this contact email exists (the caller passes the lower-cased email).</summary>
+    Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Saves all changes made in this repository
+    /// Inserts the agency and saves. When the unique index on <c>tax_code</c> is violated by a concurrent registration,
+    /// throws <see cref="CommonService.Application.Exceptions.BusinessRuleViolationException"/> with code
+    /// <see cref="AgencyErrorCodes.TaxCodeExists"/> (HTTP 409), never a 500.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token</param>
-    Task SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task AddAsync(PartnerAgency agency, CancellationToken cancellationToken = default);
 }

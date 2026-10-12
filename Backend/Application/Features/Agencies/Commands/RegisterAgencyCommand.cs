@@ -1,18 +1,9 @@
-using Backend.Application.Features.Agencies.Dtos;
 using CommonService.Application.Common.Models;
+using CommonService.Application.Features.Agencies.Dtos;
 using MediatR;
 
-namespace Backend.Application.Features.Agencies.Commands;
+namespace CommonService.Application.Features.Agencies.Commands;
 
-/// <summary>
-/// Command to register a new agency
-/// </summary>
-public record RegisterAgencyCommand(
-    string BusinessRegistrationCertificate,
-    string TaxCode,
-    string LegalName,
-    string LegalRepresentative,
-    string ContactPhone,
-    string ContactEmail,
-    string Password
-) : IRequest<ApiResponse<RegisterAgencyResponse>>;
+/// <summary>Registers a new Partner Agency (BE-M5-01). Handled by <c>RegisterAgencyCommandHandler</c>.</summary>
+public sealed record RegisterAgencyCommand(RegisterAgencyRequest? Request)
+    : IRequest<ApiResponse<RegisterAgencyResponse>>;

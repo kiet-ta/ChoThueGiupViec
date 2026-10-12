@@ -1,72 +1,79 @@
-using Backend.Application.Features.Agencies.Dtos;
-using Backend.Application.Features.Agencies.Commands;
 using CommonService.Application.Common.Models;
+using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
+using CommonService.Application.Features.Agencies.Commands;
+using CommonService.Application.Features.Agencies.Dtos;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using MediatR;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
-namespace Backend.Application.Features.Agencies.Handlers;
+namespace CommonService.Application.Features.Agencies.Handlers;
 
 /// <summary>
-/// Handles the registration of a new agency
+/// Creates a <c>PARTNER_AGENCY</c> row from a public registration (decisions Q09, Q16; leader decisions for BE-M5-01).
+/// The agency starts with a zero escrow balance, so it is <c>PENDING</c> until a deposit reaches
+/// <c>Agency.MinEscrowBalance</c> (the deposit itself is BE-M5-07). <c>worker_quota</c> starts at 0 and is set by BE-M5-02.
 /// </summary>
 public sealed class RegisterAgencyCommandHandler(
-    IAgencyRepository agencyRepository,
+    IAgencyRepository agencies,
     IPasswordHasher passwordHasher,
-    IConfiguration configuration)
+    IClock clock,
+    IOptions<BusinessRules> options)
     : IRequestHandler<RegisterAgencyCommand, ApiResponse<RegisterAgencyResponse>>
 {
-    public async Task<ApiResponse<RegisterAgencyResponse>> Handle(RegisterAgencyCommand command, CancellationToken cancellationToken)
+    public async Task<ApiResponse<RegisterAgencyResponse>> Handle(
+        RegisterAgencyCommand command,
+        CancellationToken cancellationToken)
     {
-        // 1. Check if tax code already exists
-        var taxCodeExists = await agencyRepository.TaxCodeExistsAsync(command.TaxCode, cancellationToken);
-        if (taxCodeExists)
+        var rules = options.Value;
+        var input = AgencyRegistrationValidator.Validate(command.Request, rules.Auth.MinPasswordLength);
+
+        if (await agencies.TaxCodeExistsAsync(input.TaxCode, cancellationToken))
         {
-            throw new ValidationException(new Dictionary<string, string[]>
-            {
-                { "taxCode", ["An agency with this tax code already exists."] }
-            });
+            throw new BusinessRuleViolationException(
+                "An agency with this tax code is already registered.",
+                AgencyErrorCodes.TaxCodeExists);
         }
 
-        // 2. Create agency entity
+        if (await agencies.EmailExistsAsync(input.ContactEmail, cancellationToken))
+        {
+            throw new BusinessRuleViolationException(
+                "An agency with this contact email is already registered.",
+                AgencyErrorCodes.EmailExists);
+        }
+
+        const decimal initialEscrowBalance = 0m;
         var agency = new PartnerAgency
         {
-            BusinessRegistrationCertificate = command.BusinessRegistrationCertificate.Trim(),
-            TaxCode = command.TaxCode.Trim(),
-            LegalName = command.LegalName.Trim(),
-            LegalRepresentative = command.LegalRepresentative.Trim(),
-            ContactPhone = command.ContactPhone.Trim(),
-            ContactEmail = command.ContactEmail.Trim().ToLowerInvariant(),
-            EscrowDepositBalance = 0m, // Start with zero balance
-            SlaScore = 100.00m, // Initial SLA score from decisions.md Q09
-            AgencyStatus = "PENDING", // Not active until escrow minimum is met
-            CreatedAt = DateTime.UtcNow
+            TaxCode = input.TaxCode,
+            LegalName = input.LegalName,
+            LegalRepresentative = input.LegalRepresentative,
+            ContactPhone = input.ContactPhone,
+            ContactEmail = input.ContactEmail,
+            EscrowDepositBalance = initialEscrowBalance,
+            SlaScore = rules.Sla.InitialScore,
+            WorkerQuota = 0,
+            IsVerifiedPartner = false,
+            AgencyStatus = AgencyEligibility.StatusFor(initialEscrowBalance, rules.Agency.MinEscrowBalance),
+            PasswordHash = passwordHasher.Hash(input.Password),
+            CreatedAt = clock.UtcNow
         };
 
-        // 3. Hash the password using the password hasher service
-        agency.PasswordHash = passwordHasher.Hash(command.Password);
+        await agencies.AddAsync(agency, cancellationToken);
 
-        // 4. Save to database
-        await agencyRepository.AddAsync(agency, cancellationToken);
-        await agencyRepository.SaveChangesAsync(cancellationToken);
-
-        // 5. Return response
-        var response = new RegisterAgencyResponse
-        {
-            AgencyId = agency.AgencyId,
-            BusinessRegistrationCertificate = agency.BusinessRegistrationCertificate,
-            TaxCode = agency.TaxCode,
-            LegalName = agency.LegalName,
-            LegalRepresentative = agency.LegalRepresentative,
-            ContactPhone = agency.ContactPhone,
-            ContactEmail = agency.ContactEmail,
-            EscrowDepositBalance = agency.EscrowDepositBalance,
-            SlaScore = agency.SlaScore,
-            AgencyStatus = agency.AgencyStatus,
-            CreatedAt = agency.CreatedAt
-        };
+        var response = new RegisterAgencyResponse(
+            agency.AgencyId,
+            agency.TaxCode,
+            agency.LegalName,
+            agency.LegalRepresentative,
+            agency.ContactPhone,
+            agency.ContactEmail,
+            agency.AgencyStatus,
+            agency.EscrowDepositBalance,
+            agency.SlaScore,
+            agency.WorkerQuota,
+            agency.CreatedAt);
 
         return ApiResponse<RegisterAgencyResponse>.Ok(response, "Agency registered successfully.");
     }

@@ -8,9 +8,6 @@ public partial class PartnerAgency
     /// <summary>partner_agency.agency_id INT (PK)</summary>
     public int AgencyId { get; set; }
 
-    /// <summary>partner_agency.business_registration_certificate VARCHAR(50)</summary>
-    public string BusinessRegistrationCertificate { get; set; } = string.Empty;
-
     /// <summary>partner_agency.tax_code VARCHAR(14) (UNIQUE)</summary>
     public string TaxCode { get; set; } = string.Empty;
 

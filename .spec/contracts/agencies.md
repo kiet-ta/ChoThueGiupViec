@@ -17,7 +17,7 @@ The path and method are proposals solely to make the review concrete. The leader
 
 | Capability | Candidate endpoint | Access | Source-backed behavior |
 |---|---|---|---|
-| Agency registration | `POST /api/agencies/registration` | Access policy and whether registration is self-service: **leader decision required** | Agency is a legal business with business registration, tax ID, and legal representative (PRD §2.1). Partner identity uses `contact_email` + password (Q16). Agency becomes `ACTIVE` only when escrow reaches the minimum (Q09). |
+| Agency registration | `POST /api/agencies/registration` | Public, no token (`AllowAnonymous`); leader decision 2026-10-12, decisions Q25 R5 | Agency is a legal business identified by its tax code (PRD §2.1; decisions Q25 R1). Partner identity uses `contact_email` + password (Q16). Created `PENDING`; `ACTIVE` only when escrow reaches the minimum (Q09, Q25 R3/R4). Implemented by BE-M5-01. |
 | Current Agency / profile | `GET /api/agencies/me` | `PartnerOnly` candidate | Agency-scoped access; return only the caller's Agency data. Exact profile DTO is open. |
 | Subscription packages | `GET /api/agencies/packages` | `PartnerOnly` candidate | Lists the package defaults in §3. Admin edits are audited (G-5, Q08). |
 | Buy / renew subscription | `POST /api/agencies/subscriptions` | `PartnerOnly` candidate | Payment via `IPaymentGateway`; successful activation emits `SubscriptionActivated` (overview §4–§5). Payment request/callback shapes are not defined here. |
@@ -35,18 +35,20 @@ The path and method are proposals solely to make the review concrete. The leader
 
 These shapes map existing PRD concepts and schema fields; they remain proposals until approval. No password hash, internal login-lock fields, or another Agency's data is returned.
 
-`POST /api/agencies/registration` request:
+`POST /api/agencies/registration` request (decided, decisions Q25):
 ```json
 {
-  "taxCode": "string",
+  "taxCode": "0312345678",
   "legalName": "string",
   "legalRepresentative": "string",
-  "contactPhone": "string",
+  "contactPhone": "0901234567",
   "contactEmail": "partner@example.com",
   "password": "string"
 }
 ```
-Known validation: required business identity/contact fields; `taxCode` is unique (schema, max 14 chars); password follows Q16 (minimum 10 characters with uppercase, lowercase, and a digit). Exact tax-code/phone/email format rules and whether this public registration route is permitted remain open.
+Validation (all errors returned together, **400**, shared envelope): `taxCode` matches `^[0-9]{10}(-[0-9]{3})?$` (Q25 R2); `legalName` required, at most 200 characters; `legalRepresentative` required, at most 100; `contactPhone` is a Vietnamese mobile number, stored as `0XXXXXXXXX` (O4); `contactEmail` is a plain address of at most 255 characters, stored lower-cased; `password` has at least `Auth.MinPasswordLength` characters with an upper-case letter, a lower-case letter and a digit (Q16). There is no separate business-registration field (Q25 R1).
+
+Success **201**, `data`: `agencyId, taxCode, legalName, legalRepresentative, contactPhone, contactEmail, agencyStatus` (`PENDING`), `escrowDepositBalance` (0), `slaScore` (`Sla.InitialScore`), `workerQuota` (0), `createdAt`. No password, hash or token is returned; the agency signs in through the Partner login. Duplicate `taxCode` or `contactEmail`: **409** with `data.code` `AGENCY_TAX_CODE_EXISTS` / `AGENCY_EMAIL_EXISTS`.
 
 `GET /api/agencies/packages` candidate item: `packageId, packageCode, packageName, tier, billingCycle, price, workerQuota, commissionRate, hasRosterDashboard, hasAnalytics, priorityDispatch, isActive` (camelCase mappings of the existing package schema). Only active package visibility and public-vs-Partner access are unresolved.
 
@@ -144,14 +146,14 @@ These endpoint-specific status assignments are proposals where not explicitly se
 
 ## 8. Leader questions (must resolve before implementation)
 
-1. Is Agency registration self-service, Admin-created, or invitation-based; which role/policy applies? What exact business-registration, tax-ID, legal-representative, contact and password fields/validation are required, and what is the registration state flow before escrow qualifies the Agency?
+1. **Resolved 2026-10-12 (decisions Q25, ticket #237):** public self-service registration, no separate business-registration field, status `PENDING` until escrow qualifies. Original question: Is Agency registration self-service, Admin-created, or invitation-based; which role/policy applies? What exact business-registration, tax-ID, legal-representative, contact and password fields/validation are required, and what is the registration state flow before escrow qualifies the Agency?
 2. Approve or replace every candidate method/path in §2. Which registration and package listing capabilities are actually exposed?
 3. What exact subscription request/response fields, renewal semantics, payment callback ownership, and `SubscriptionActivated` payload apply? Which route/payload semantics should Admin package edits use beyond the required non-empty `reason` and same-transaction audit?
 4. Approve the `.xlsx` template columns and their exact mapping/validation to existing `WORKER` fields. What defines duplicate rows, and what is the per-row error DTO? Which HTTP status/error code covers missing guarantee and quota overflow?
 5. What exact roster request/response DTO, `shift_code` wire values, date/week boundaries, and conflict response are required? Can an Agency edit a slot after a job has reserved it?
 6. What is the escrow deposit request/callback contract and transaction visibility? Does the platform-fee item in Q09's deduction priority ever debit escrow, given Q09's stated formula excludes it?
 7. What does the Agency dashboard include (metrics, date range, filtering, pagination, worker/job detail)? Which fields are returned to Partner users?
-8. What exact Agency status values and transition rules are intended beyond `ACTIVE` and `SUSPENDED` stated in Q09?
+8. What exact Agency status values and transition rules are intended beyond `ACTIVE` and `SUSPENDED` stated in Q09? **Partly resolved (Q25 R3):** `PENDING`, `ACTIVE`, `SUSPENDED`; the way back from `SUSPENDED` and the effect of penalties on `ACTIVE` are still open.
 9. The PRD requires capacity matching by Skill, but the existing `IAgencyCapacityService.CapacityRequest` has no Skill identifier. Does M1 need a scoped port change before capacity implementation, and which approved contract supplies the requested Skill ID?
 10. Q19 requires the legal representative to upload the guarantee, but Partner authentication is by Agency contact email. How is the authenticated account linked to or authorized by the legal representative, and how is that requirement enforced?
 11. Who persists/associates the capacity `ReservationId` with the order, and what is the required behavior for repeated `ReleaseAsync` calls? Align with booking contract B8 before implementation.

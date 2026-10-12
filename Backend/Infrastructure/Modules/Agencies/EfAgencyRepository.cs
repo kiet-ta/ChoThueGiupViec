@@ -1,35 +1,36 @@
-using Backend.Application.Features.Agencies;
+using CommonService.Application.Exceptions;
+using CommonService.Application.Features.Agencies;
 using CommonService.Domain.Entities;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace Backend.Infrastructure.Modules.Agencies;
+namespace CommonService.Infrastructure.Modules.Agencies;
 
-/// <summary>
-/// Entity Framework implementation of the agency repository
-/// </summary>
-public class EfAgencyRepository : IAgencyRepository
+/// <summary>EF Core implementation of <see cref="IAgencyRepository"/> on <c>PARTNER_AGENCY</c>.</summary>
+public sealed class EfAgencyRepository(AppDbContext dbContext) : IAgencyRepository
 {
-    private readonly AppDbContext _dbContext;
+    public Task<bool> TaxCodeExistsAsync(string taxCode, CancellationToken cancellationToken = default) =>
+        dbContext.PartnerAgencies.AsNoTracking().AnyAsync(a => a.TaxCode == taxCode, cancellationToken);
 
-    public EfAgencyRepository(AppDbContext dbContext)
-    {
-        _dbContext = dbContext;
-    }
-
-    public async Task<bool> TaxCodeExistsAsync(string taxCode, CancellationToken cancellationToken = default)
-    {
-        return await _dbContext.Set<PartnerAgency>()
-            .AnyAsync(a => a.TaxCode == taxCode, cancellationToken);
-    }
+    public Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default) =>
+        dbContext.PartnerAgencies.AsNoTracking().AnyAsync(a => a.ContactEmail == email, cancellationToken);
 
     public async Task AddAsync(PartnerAgency agency, CancellationToken cancellationToken = default)
     {
-        await _dbContext.Set<PartnerAgency>().AddAsync(agency, cancellationToken);
-    }
-
-    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        dbContext.PartnerAgencies.Add(agency);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (SqlUniqueViolation.IsUniqueViolation(ex))
+        {
+            // Two registrations with the same tax code passed the existence check at the same time.
+            // PARTNER_AGENCY has exactly one unique index besides the primary key (tax_code).
+            dbContext.Entry(agency).State = EntityState.Detached;
+            throw new BusinessRuleViolationException(
+                "An agency with this tax code is already registered.",
+                ex,
+                AgencyErrorCodes.TaxCodeExists);
+        }
     }
 }
