@@ -25,7 +25,7 @@ public sealed class OrderCancellationService(
     IPaymentRepository payments,
     IUnitOfWork unitOfWork,
     IRefundService refunds,
-    IAgencyCapacityService capacity,
+    CommonService.Application.Features.Agencies.IAgencyCapacityService capacity,
     IClock clock,
     IPublisher publisher,
     IOptions<BusinessRules> rules,

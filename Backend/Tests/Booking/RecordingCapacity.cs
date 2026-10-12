@@ -1,4 +1,5 @@
 using CommonService.Application.Interfaces.Ports;
+using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Tests.Booking;
 

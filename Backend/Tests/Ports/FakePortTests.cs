@@ -1,4 +1,5 @@
 using CommonService.Application.Interfaces.Ports;
+using CommonService.Application.Features.Agencies;
 using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modularity;
@@ -41,7 +42,7 @@ public class FakePortTests
             .Where(t => t.IsInterface && t.Namespace == typeof(IClock).Namespace)
             .ToList();
 
-        Assert.Equal(18, ports.Count);
+        Assert.Equal(17, ports.Count);
         foreach (var port in ports)
         {
             var instance = provider.GetRequiredService(port);

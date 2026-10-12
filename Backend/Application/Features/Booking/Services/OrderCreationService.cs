@@ -2,9 +2,10 @@ using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
-using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using Microsoft.Extensions.Options;
+using CommonService.Application.Features.Agencies;
+using JobOrder = CommonService.Domain.Entities.JobOrder;
 
 namespace CommonService.Application.Features.Booking.Services;
 

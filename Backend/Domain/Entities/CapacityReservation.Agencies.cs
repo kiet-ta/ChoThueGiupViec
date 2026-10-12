@@ -16,6 +16,9 @@ namespace CommonService.Domain.Entities
         /// <summary>capacity_reservation.slot_id FK</summary>
         public int SlotId { get; set; }
 
+        /// <summary>capacity_reservation.order_id FK</summary>
+        public long OrderId { get; set; }
+
         /// <summary>capacity_reservation.expires_at DATETIME2</summary>
         public DateTime ExpiresAt { get; set; }
 

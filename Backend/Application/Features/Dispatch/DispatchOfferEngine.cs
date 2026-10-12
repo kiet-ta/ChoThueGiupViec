@@ -38,7 +38,7 @@ public class DispatchOfferEngine
     private readonly IClock _clock;
     private readonly IMediator _mediator;
     private readonly BusinessRules _businessRules;
-    private readonly IAgencyCapacityService? _agencyCapacityService;
+    private readonly CommonService.Application.Features.Agencies.IAgencyCapacityService? _agencyCapacityService;
     private readonly ILogger<DispatchOfferEngine> _logger;
     private readonly object _lock = new();
 
@@ -49,7 +49,7 @@ public class DispatchOfferEngine
         IClock clock,
         IMediator mediator,
         IOptions<BusinessRules> businessRules,
-        IAgencyCapacityService? agencyCapacityService = null,
+        CommonService.Application.Features.Agencies.IAgencyCapacityService? agencyCapacityService = null,
         ILogger<DispatchOfferEngine>? logger = null)
     {
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
@@ -190,7 +190,7 @@ public class DispatchOfferEngine
             return null;
         }
 
-        var capacityRequest = new CapacityRequest(date, shiftCode, RequiredWorkers: 1, OrderId: orderId);
+        var capacityRequest = new CommonService.Application.Features.Agencies.CapacityRequest(date, shiftCode, RequiredWorkers: 1, OrderId: orderId);
         var reservation = await _agencyCapacityService.TryReserveAsync(capacityRequest, cancellationToken);
 
         if (reservation == null)

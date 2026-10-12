@@ -1,10 +1,11 @@
 using System.Collections.Concurrent;
 using CommonService.Application.Interfaces.Ports;
+using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>One fake agency (id 1) with a settable number of free slots; holds are atomic.</summary>
-public sealed class FakeAgencyCapacityService : IAgencyCapacityService
+public sealed class FakeAgencyCapacityService : CommonService.Application.Features.Agencies.IAgencyCapacityService
 {
     private const int FakeAgencyId = 1;
     private readonly object _gate = new();
@@ -19,10 +20,10 @@ public sealed class FakeAgencyCapacityService : IAgencyCapacityService
         set { lock (_gate) { _remainingSlots = value; } }
     }
 
-    public Task<bool> HasCapacityAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
+    public Task<bool> HasCapacityAsync(CommonService.Application.Features.Agencies.CapacityRequest request, CancellationToken cancellationToken = default) =>
         Task.FromResult(RemainingSlots >= request.RequiredWorkers);
 
-    public Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default)
+    public Task<CommonService.Application.Features.Agencies.CapacityReservation?> TryReserveAsync(CommonService.Application.Features.Agencies.CapacityRequest request, CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {

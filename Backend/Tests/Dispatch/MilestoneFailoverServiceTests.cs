@@ -10,7 +10,8 @@ using MicrosoftOptions = Microsoft.Extensions.Options.Options;
 using Xunit;
 // Aliases to disambiguate CapacityReservation
 using EntityCapacityReservation = CommonService.Domain.Entities.CapacityReservation;
-using PortCapacityReservation = CommonService.Application.Interfaces.Ports.CapacityReservation;
+using PortCapacityReservation = CommonService.Application.Features.Agencies.CapacityReservation;
+using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Tests.Dispatch;
 
