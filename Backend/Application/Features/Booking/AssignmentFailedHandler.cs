@@ -4,6 +4,7 @@ using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Application.Features.Booking;
 

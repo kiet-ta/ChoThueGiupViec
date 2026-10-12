@@ -2182,115 +2182,6 @@
         }
       }
     },
-    "/api/admin/AdminSkills": {
-      "post": {
-        "tags": [
-          "AdminSkills"
-        ],
-        "operationId": "AdminSkills_CreateSkill",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSkillCommand"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSkillCommand"
-              }
-            },
-            "application/*\u002Bjson": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSkillCommand"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillDto"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillDto"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/AdminSkills/{id}": {
-      "patch": {
-        "tags": [
-          "AdminSkills"
-        ],
-        "operationId": "AdminSkills_UpdateSkill",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateSkillCommand"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateSkillCommand"
-              }
-            },
-            "application/*\u002Bjson": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateSkillCommand"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillDto"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillDto"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/admin/workers/{workerId}/super-freelancer": {
       "post": {
         "tags": [
@@ -7130,38 +7021,69 @@
         }
       }
     },
-    "/api/Skills": {
+    "/api/skills": {
       "get": {
         "tags": [
           "Skills"
         ],
-        "operationId": "Skills_GetSkills",
+        "operationId": "Skills_GetAll",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SkillDto"
-                  }
+                  "$ref": "#/components/schemas/SkillDtoIReadOnlyListApiResponse"
                 }
               },
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SkillDto"
-                  }
+                  "$ref": "#/components/schemas/SkillDtoIReadOnlyListApiResponse"
                 }
               },
               "text/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SkillDto"
-                  }
+                  "$ref": "#/components/schemas/SkillDtoIReadOnlyListApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
                 }
               }
             }
@@ -9052,97 +8974,6 @@
           }
         }
       }
-    },
-    "/api/workers/{workerId}/skills": {
-      "get": {
-        "tags": [
-          "WorkerSkills"
-        ],
-        "operationId": "WorkerSkills_GetWorkerSkills",
-        "parameters": [
-          {
-            "name": "workerId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WorkerSkillDto"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WorkerSkillDto"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WorkerSkillDto"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "WorkerSkills"
-        ],
-        "operationId": "WorkerSkills_UpdateWorkerSkills",
-        "parameters": [
-          {
-            "name": "workerId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateWorkerSkillsCommand"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateWorkerSkillsCommand"
-              }
-            },
-            "application/*\u002Bjson": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateWorkerSkillsCommand"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
     }
   },
   "components": {
@@ -10013,33 +9844,6 @@
             "nullable": true
           },
           "requiredSkill": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "CreateSkillCommand": {
-        "required": [
-          "category",
-          "skillCode",
-          "skillName"
-        ],
-        "type": "object",
-        "properties": {
-          "skillCode": {
-            "type": "string",
-            "nullable": true
-          },
-          "skillName": {
-            "type": "string",
-            "nullable": true
-          },
-          "category": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
             "type": "string",
             "nullable": true
           }
@@ -12157,14 +11961,9 @@
         "additionalProperties": false
       },
       "SkillDto": {
-        "required": [
-          "category",
-          "skillCode",
-          "skillName"
-        ],
         "type": "object",
         "properties": {
-          "id": {
+          "skillId": {
             "type": "integer",
             "format": "int32"
           },
@@ -12190,6 +11989,26 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillDtoIReadOnlyListApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillDto"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12329,42 +12148,6 @@
         },
         "additionalProperties": false
       },
-      "UpdateSkillCommand": {
-        "required": [
-          "category",
-          "id",
-          "isActive",
-          "skillCode",
-          "skillName"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "skillCode": {
-            "type": "string",
-            "nullable": true
-          },
-          "skillName": {
-            "type": "string",
-            "nullable": true
-          },
-          "category": {
-            "type": "string",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "isActive": {
-            "type": "boolean"
-          }
-        },
-        "additionalProperties": false
-      },
       "UpdateWorkerProfileRequest": {
         "type": "object",
         "properties": {
@@ -12378,27 +12161,6 @@
           },
           "bio": {
             "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "UpdateWorkerSkillsCommand": {
-        "required": [
-          "skills",
-          "workerId"
-        ],
-        "type": "object",
-        "properties": {
-          "workerId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "skills": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WorkerSkillDto"
-            },
             "nullable": true
           }
         },
@@ -12721,29 +12483,6 @@
           },
           "data": {
             "$ref": "#/components/schemas/WorkerPublicProfileResponse"
-          }
-        },
-        "additionalProperties": false
-      },
-      "WorkerSkillDto": {
-        "required": [
-          "isVerified",
-          "skillId",
-          "yearsOfExperience"
-        ],
-        "type": "object",
-        "properties": {
-          "skillId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "yearsOfExperience": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "isVerified": {
-            "type": "boolean"
           }
         },
         "additionalProperties": false
