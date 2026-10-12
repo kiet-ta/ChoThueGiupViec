@@ -9,6 +9,7 @@ public sealed class FakeAgencyCapacityService : IAgencyCapacityService
     private const int FakeAgencyId = 1;
     private readonly object _gate = new();
     private readonly ConcurrentDictionary<Guid, int> _holds = new();
+    private readonly Dictionary<Guid, long> _orderOfHold = new();
     private int _remainingSlots = 100;
     private int _nextSlotId = 1;
 
@@ -34,6 +35,7 @@ public sealed class FakeAgencyCapacityService : IAgencyCapacityService
             var slotIds = Enumerable.Range(0, request.RequiredWorkers).Select(_ => _nextSlotId++).ToArray();
             var id = Guid.NewGuid();
             _holds[id] = request.RequiredWorkers;
+            _orderOfHold[id] = request.OrderId;
             return Task.FromResult<CapacityReservation?>(new CapacityReservation(id, FakeAgencyId, slotIds));
         }
     }
@@ -42,12 +44,32 @@ public sealed class FakeAgencyCapacityService : IAgencyCapacityService
     {
         lock (_gate)
         {
-            if (_holds.TryRemove(reservationId, out var count))
+            ReleaseHold(reservationId);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task ReleaseByOrderAsync(long orderId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            foreach (var reservationId in _orderOfHold.Where(hold => hold.Value == orderId).Select(hold => hold.Key).ToArray())
             {
-                _remainingSlots += count;
+                ReleaseHold(reservationId);
             }
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>Call inside the gate.</summary>
+    private void ReleaseHold(Guid reservationId)
+    {
+        _orderOfHold.Remove(reservationId);
+        if (_holds.TryRemove(reservationId, out var count))
+        {
+            _remainingSlots += count;
+        }
     }
 }

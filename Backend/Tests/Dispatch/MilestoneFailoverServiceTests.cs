@@ -149,6 +149,9 @@ public class MilestoneFailoverServiceTests
 
         public Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task ReleaseByOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class MockSlaPenaltyService : ISlaPenaltyService

@@ -24,6 +24,7 @@ public sealed class BusinessRules
     public SlaRules Sla { get; set; } = new();
     public SuperFreelancerRules SuperFreelancer { get; set; } = new();
     public PremiumRules Premium { get; set; } = new();
+    public BookingRules Booking { get; set; } = new();
     public RatingRules Rating { get; set; } = new();
     public CancelRules Cancel { get; set; } = new();
     public AuthRules Auth { get; set; } = new();
@@ -164,6 +165,12 @@ public sealed class SuperFreelancerRules
 public sealed class PremiumRules
 {
     public int MinLeadHours { get; set; } = 4;
+}
+
+public sealed class BookingRules
+{
+    /// <summary>Booking horizon in days for both tiers (contract booking.md B3).</summary>
+    public int MaxDaysAhead { get; set; } = 14;
 }
 
 public sealed class RatingMinAvgAfterJobsRules

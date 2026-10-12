@@ -5,6 +5,7 @@ import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../models/booking_slot_models.dart';
 import '../services/workers_slots_service.dart';
+import '../widgets/tinted_card.dart';
 
 /// Screen for managing Worker Weekly Availability Block Slots (contract workers.md §2.3).
 /// Implements MOB-M4-02: weekly grid toggle for Sáng/Chiều/Tối shifts.
@@ -166,7 +167,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               const SizedBox(height: 6.0),
               const Text(
                 'Bật ca làm để nhận công việc tự động từ hệ thống. Tắt ca làm khi bạn bận.',
-                style: NordicTypography.bodyMuted,
+                style: NordicTypography.bodySmall,
               ),
               const SizedBox(height: 16.0),
 
@@ -174,7 +175,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               const SizedBox(height: 16.0),
 
               if (_errorMessage != null) ...[
-                NordicCard(
+                TintedCard(
                   backgroundColor: const Color(0xFFFEE2E2),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -219,7 +220,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
             ),
             Text(
               '${_weekStartDate.day}/${_weekStartDate.month} – ${endDate.day}/${endDate.month}/${endDate.year}',
-              style: NordicTypography.bodyBold,
+              style: NordicTypography.labelMedium,
             ),
             IconButton(
               icon: const Icon(Icons.chevron_right),
@@ -239,12 +240,12 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0),
-      child: NordicCard(
+      child: TintedCard(
         backgroundColor: isToday ? const Color(0xFFF0FDF4) : Colors.white,
         child: Padding(
           padding: const EdgeInsets.all(14.0),
           child: Column(
-            crossAlignment: CrossAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -308,11 +309,11 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               Icon(
                 isActive ? Icons.event_available : Icons.event_busy,
                 size: 20.0,
-                color: isActive ? const Color(0xFF15803D) : NordicColors.textMuted,
+                color: isActive ? const Color(0xFF15803D) : NordicColors.textSecondary,
               ),
               const SizedBox(width: 8.0),
               Column(
-                crossAlignment: CrossAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     shiftName,
@@ -324,7 +325,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                   ),
                   Text(
                     shiftTime,
-                    style: const TextStyle(fontSize: 11.0, color: NordicColors.textMuted),
+                    style: const TextStyle(fontSize: 11.0, color: NordicColors.textSecondary),
                   ),
                 ],
               ),

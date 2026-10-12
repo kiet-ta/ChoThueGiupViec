@@ -3,7 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/features/disputes/models/dispute_models.dart';
+import 'package:mobile/features/disputes/routes.dart';
+import 'package:mobile/features/disputes/screens/dispute_screen.dart';
 import 'package:mobile/features/payouts/models/payout_models.dart';
+import 'package:mobile/features/ratings/models/rating_models.dart';
+import 'package:mobile/features/ratings/routes.dart';
+import 'package:mobile/features/ratings/screens/rating_screen.dart';
 import 'package:mobile/features/payouts/screens/payout_history_screen.dart';
 import 'package:mobile/features/payouts/screens/payout_screen.dart';
 import 'package:mobile/features/payouts/services/payouts_service.dart';
@@ -273,6 +279,65 @@ void main() {
       expect(find.byKey(const Key('history-error')), findsOneWidget);
       expect(find.text('Tháng 9/2026'), findsOneWidget);
       expect(find.byKey(const Key('history-more')), findsOneWidget);
+    });
+  });
+
+  group('PayoutScreen entry points to rating and dispute', () {
+    Future<void> pump(WidgetTester tester, {void Function(EarningsJob)? onRate, void Function(EarningsJob)? onDispute, Route<dynamic>? Function(RouteSettings)? onGenerateRoute}) async {
+      tester.view.physicalSize = const Size(390, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(MaterialApp(
+        theme: NordicTheme.lightTheme,
+        onGenerateRoute: onGenerateRoute,
+        home: PayoutScreen(service: FakePayoutsService(), now: () => DateTime.utc(2026, 10, 15, 3), onRate: onRate, onDispute: onDispute),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('each finished job has the two buttons and an absence-fee job has neither', (tester) async {
+      await pump(tester);
+
+      expect(find.byKey(const Key('job-rate-1')), findsOneWidget);
+      expect(find.byKey(const Key('job-dispute-1')), findsOneWidget);
+      expect(find.byKey(const Key('job-rate-2')), findsNothing); // job 2 is an absence fee
+      expect(find.byKey(const Key('job-dispute-2')), findsNothing);
+    });
+
+    testWidgets('the callbacks receive the job that was tapped', (tester) async {
+      final rated = <int>[];
+      final disputed = <int>[];
+      await pump(tester, onRate: (j) => rated.add(j.assignmentId), onDispute: (j) => disputed.add(j.orderId));
+
+      await tester.tap(find.byKey(const Key('job-rate-1')));
+      await tester.tap(find.byKey(const Key('job-dispute-1')));
+
+      expect(rated, [1]);
+      expect(disputed, [10]);
+    });
+
+    testWidgets('by default the buttons open /ratings and /disputes with the worker role and the ids of the job', (tester) async {
+      final opened = <RouteSettings>[];
+      await pump(tester, onGenerateRoute: (settings) {
+        opened.add(settings);
+        return MaterialPageRoute<void>(settings: settings, builder: (_) => const Scaffold(body: Text('opened')));
+      });
+
+      await tester.tap(find.byKey(const Key('job-rate-1')));
+      await tester.pumpAndSettle();
+      Navigator.of(tester.element(find.text('opened'))).pop();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('job-dispute-1')));
+      await tester.pumpAndSettle();
+
+      expect(opened.map((r) => r.name), [RatingRoutes.ratings, DisputeRoutes.disputes]);
+      final rating = opened[0].arguments as RatingScreenArgs;
+      expect((rating.role, rating.assignmentId), (RatingRole.worker, 1));
+      final dispute = opened[1].arguments as DisputeScreenArgs;
+      expect((dispute.role, dispute.orderId), (DisputeRole.worker, 10));
     });
   });
 }

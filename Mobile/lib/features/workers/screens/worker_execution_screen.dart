@@ -5,6 +5,7 @@ import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../widgets/tinted_card.dart';
 
 class ExecutionChecklistItem {
   final String id;
@@ -25,7 +26,7 @@ class ExecutionChecklistItem {
 /// Screen for Worker Job Execution during active shift (contract workers.md §2.5).
 /// Implements MOB-M4-03: execution checklist + 4-hour shift timer tracking.
 class WorkerExecutionScreen extends StatefulWidget {
-  final long assignmentId;
+  final int assignmentId;
   final String workZone;
   final int maxShiftMinutes; // Default 240 mins (4 hours) per PRD BR-01
   final int initialElapsedSeconds;
@@ -197,7 +198,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
   }
 
   Widget _buildShiftTimerCard(int maxSeconds, double progress, bool isNearLimit) {
-    return NordicCard(
+    return TintedCard(
       backgroundColor: isNearLimit ? const Color(0xFFFEF2F2) : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -213,12 +214,12 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                       color: isNearLimit ? const Color(0xFFDC2626) : NordicColors.primary,
                     ),
                     const SizedBox(width: 8.0),
-                    const Text('Thời Gian Thi Công', style: NordicTypography.bodyBold),
+                    const Text('Thời Gian Thi Công', style: NordicTypography.labelMedium),
                   ],
                 ),
                 Text(
                   'Tối đa ${widget.maxShiftMinutes ~/ 60}h',
-                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textMuted),
+                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
                 ),
               ],
             ),
@@ -250,7 +251,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
               children: [
                 Text(
                   'Đã làm: ${(_elapsedSeconds / 60).toStringAsFixed(0)} phút',
-                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textMuted),
+                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
                 ),
                 IconButton(
                   icon: Icon(
@@ -274,7 +275,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -308,7 +309,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
         });
       },
       child: Row(
-        crossAxisAlignment: CrossAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Checkbox(
             value: item.isCompleted,
@@ -322,7 +323,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
           const SizedBox(width: 4.0),
           Expanded(
             child: Column(
-              crossAlignment: CrossAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
@@ -333,7 +334,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                           fontWeight: FontWeight.bold,
                           fontSize: 14.0,
                           decoration: item.isCompleted ? TextDecoration.lineThrough : null,
-                          color: item.isCompleted ? NordicColors.textMuted : NordicColors.textTitle,
+                          color: item.isCompleted ? NordicColors.textSecondary : NordicColors.textTitle,
                         ),
                       ),
                     ),
@@ -354,7 +355,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                 const SizedBox(height: 2.0),
                 Text(
                   item.subtitle,
-                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textMuted),
+                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
                 ),
               ],
             ),

@@ -190,7 +190,7 @@ public class DispatchOfferEngine
             return null;
         }
 
-        var capacityRequest = new CapacityRequest(date, shiftCode, RequiredWorkers: 1);
+        var capacityRequest = new CapacityRequest(date, shiftCode, RequiredWorkers: 1, OrderId: orderId);
         var reservation = await _agencyCapacityService.TryReserveAsync(capacityRequest, cancellationToken);
 
         if (reservation == null)

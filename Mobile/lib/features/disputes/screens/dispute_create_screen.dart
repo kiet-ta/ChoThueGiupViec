@@ -8,11 +8,12 @@ import '../../payouts/logic/payout_logic.dart';
 import '../logic/dispute_logic.dart';
 import '../models/dispute_models.dart';
 import '../services/disputes_service.dart';
+import '../services/api_evidence_uploader.dart';
 import '../services/evidence_uploader.dart';
 
 /// The form that files a dispute about one order (MOB-M6-03); contract disputes.md 2.1.
-/// Evidence photos go through [IEvidenceUploader]: until an upload endpoint exists the production uploader is unavailable
-/// and the form says so instead of offering a send that could not work.
+/// Evidence photos go through [IEvidenceUploader] (by default [ApiEvidenceUploader]); when the uploader is unavailable the form
+/// says so instead of offering a send that could not work.
 class DisputeCreateScreen extends StatefulWidget {
   final DisputeRole role;
   final int orderId;
@@ -43,7 +44,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
   void initState() {
     super.initState();
     _service = widget.service ?? DisputesService();
-    _uploader = widget.uploader ?? const UnavailableEvidenceUploader();
+    _uploader = widget.uploader ?? ApiEvidenceUploader(role: widget.role);
   }
 
   @override

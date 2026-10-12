@@ -4,6 +4,7 @@ import 'package:mobile/app/app.dart';
 import 'package:mobile/app/feature_registry.dart';
 import 'package:mobile/app/routes.dart';
 import 'package:mobile/features/booking/routes.dart';
+import 'package:mobile/features/booking/screens/booking_screen.dart';
 import 'package:mobile/features/customers/routes.dart';
 import 'package:mobile/features/dispatch/routes.dart';
 import 'package:mobile/features/identity/routes.dart';
@@ -116,7 +117,7 @@ void main() {
       navigatorState.pushNamed(BookingRoutes.booking);
       await tester.pumpAndSettle();
 
-      expect(find.text('Đặt Ca Làm Việc'), findsOneWidget);
+      expect(find.byType(BookingScreen), findsOneWidget);
     });
 
     testWidgets('ToAmApp can navigate to dispatch route', (tester) async {

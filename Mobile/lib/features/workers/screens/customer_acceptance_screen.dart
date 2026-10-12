@@ -9,6 +9,7 @@ import '../models/customer_acceptance_models.dart';
 import '../models/job_photo_models.dart';
 import '../services/customer_acceptance_service.dart';
 import '../services/workers_photos_service.dart';
+import '../widgets/tinted_card.dart';
 
 /// Screen for Customer to view Before/After photos and confirm acceptance or request redo (MOB-M4-05, contract workers.md §2.5).
 class CustomerAcceptanceScreen extends StatefulWidget {
@@ -238,7 +239,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               const SizedBox(height: 6.0),
               const Text(
                 'Vui lòng kiểm tra kỹ chất lượng vệ sinh theo từng góc chụp trước khi xác nhận nghiệm thu.',
-                style: NordicTypography.bodyMuted,
+                style: NordicTypography.bodySmall,
               ),
               const SizedBox(height: 16.0),
 
@@ -252,7 +253,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
 
               // Error or Success Alerts
               if (_errorMessage != null) ...[
-                NordicCard(
+                TintedCard(
                   backgroundColor: const Color(0xFFFEE2E2),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -270,7 +271,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                 const SizedBox(height: 16.0),
               ],
               if (_successMessage != null) ...[
-                NordicCard(
+                TintedCard(
                   backgroundColor: const Color(0xFFDCFCE7),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -406,7 +407,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title!, style: NordicTypography.h3),
             const SizedBox(height: 12.0),
@@ -450,7 +451,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       decoration: BoxDecoration(
         color: NordicColors.surface,
         borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: NordicColors.borderMuted),
+        border: Border.all(color: NordicColors.borderVariant),
       ),
       child: Column(
         children: [
@@ -494,7 +495,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 6.0),
               child: Text(
                 'VoL: ${volScore.toStringAsFixed(1)} (ĐẠT)',
-                style: const TextStyle(fontSize: 10.0, color: NordicColors.textMuted, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 10.0, color: NordicColors.textSecondary, fontWeight: FontWeight.bold),
               ),
             ),
         ],
@@ -507,12 +508,12 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     final gross = result?.grossAmount ?? 260000;
     final payout = result?.payoutAmount ?? 208000;
 
-    return NordicCard(
+    return TintedCard(
       backgroundColor: const Color(0xFFF0FDF4),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Row(
               children: [
@@ -538,26 +539,26 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: isBold ? NordicTypography.bodyBold : NordicTypography.bodyMuted),
-          Text(val, style: isBold ? NordicTypography.h3 : NordicTypography.bodyBold),
+          Text(title, style: isBold ? NordicTypography.labelMedium : NordicTypography.bodySmall),
+          Text(val, style: isBold ? NordicTypography.h3 : NordicTypography.labelMedium),
         ],
       ),
     );
   }
 
   Widget _buildRedoFormCard() {
-    return NordicCard(
+    return TintedCard(
       backgroundColor: const Color(0xFFFEF2F2),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Yêu Cầu Dọn Lại (15–30 phút)', style: NordicTypography.h3),
             const SizedBox(height: 6.0),
             const Text(
               'Ghi rõ các khu vực thợ cần làm lại để hoàn thiện chất lượng ca làm.',
-              style: NordicTypography.bodyMuted,
+              style: NordicTypography.bodySmall,
             ),
             const SizedBox(height: 12.0),
             NordicTextInput(

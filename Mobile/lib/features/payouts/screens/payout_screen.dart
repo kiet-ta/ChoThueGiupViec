@@ -6,6 +6,12 @@ import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../disputes/models/dispute_models.dart';
+import '../../disputes/routes.dart';
+import '../../disputes/screens/dispute_screen.dart';
+import '../../ratings/models/rating_models.dart';
+import '../../ratings/routes.dart';
+import '../../ratings/screens/rating_screen.dart';
 import '../logic/payout_logic.dart';
 import '../models/payout_models.dart';
 import '../services/payouts_service.dart';
@@ -19,7 +25,12 @@ class PayoutScreen extends StatefulWidget {
   /// The clock, so the default month can be tested; the real screen uses the device time.
   final DateTime Function()? now;
 
-  const PayoutScreen({super.key, this.service, this.now});
+  /// What the two buttons of a job do; by default they open the rating and dispute screens of the Ratings and Disputes features
+  /// (nothing else in the app opens them yet: the booking and tracking screens belong to other slots).
+  final void Function(EarningsJob job)? onRate;
+  final void Function(EarningsJob job)? onDispute;
+
+  const PayoutScreen({super.key, this.service, this.now, this.onRate, this.onDispute});
 
   @override
   State<PayoutScreen> createState() => _PayoutScreenState();
@@ -70,6 +81,22 @@ class _PayoutScreenState extends State<PayoutScreen> {
         _loading = false;
       });
     }
+  }
+
+  void _rate(EarningsJob job) {
+    if (widget.onRate != null) return widget.onRate!(job);
+    Navigator.of(context).pushNamed(
+      RatingRoutes.ratings,
+      arguments: RatingScreenArgs(role: RatingRole.worker, assignmentId: job.assignmentId),
+    );
+  }
+
+  void _dispute(EarningsJob job) {
+    if (widget.onDispute != null) return widget.onDispute!(job);
+    Navigator.of(context).pushNamed(
+      DisputeRoutes.disputes,
+      arguments: DisputeScreenArgs(role: DisputeRole.worker, orderId: job.orderId),
+    );
   }
 
   void _go(int delta) {
@@ -222,6 +249,22 @@ class _PayoutScreenState extends State<PayoutScreen> {
                     'Tiền công ${formatVnd(job.grossAmount)} · Hoa hồng ${formatVnd(job.commissionAmount)}',
                     style: NordicTypography.bodySmall,
                   ),
+                  if (!job.absenceFee)
+                    Wrap(
+                      spacing: 8.0,
+                      children: [
+                        TextButton(
+                          key: Key('job-rate-${job.assignmentId}'),
+                          onPressed: () => _rate(job),
+                          child: const Text('Đánh giá khách'),
+                        ),
+                        TextButton(
+                          key: Key('job-dispute-${job.assignmentId}'),
+                          onPressed: () => _dispute(job),
+                          child: const Text('Khiếu nại'),
+                        ),
+                      ],
+                    ),
                   if (job.absenceFee)
                     Padding(
                       padding: const EdgeInsets.only(top: 6.0),

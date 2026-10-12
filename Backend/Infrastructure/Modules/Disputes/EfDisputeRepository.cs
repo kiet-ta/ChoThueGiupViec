@@ -122,6 +122,25 @@ public sealed class EfDisputeRepository(AppDbContext db) : IDisputeRepository
         return await db.DisputeTickets.AsNoTracking().FirstAsync(d => d.DisputeId == disputeId, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<int>> LockFreelancersAsync(IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default)
+    {
+        if (workerIds.Count == 0) return [];
+        var ids = workerIds.Distinct().ToList();
+
+        // Candidates first (to report which workers changed), then the same condition again inside the UPDATE so a worker locked
+        // meanwhile by somebody else is not counted twice.
+        var candidates = await db.Workers.AsNoTracking()
+            .Where(w => ids.Contains(w.WorkerId) && w.WorkerType == WorkerType.Freelancer && w.WorkStatus != WorkStatus.Locked)
+            .Select(w => w.WorkerId)
+            .ToListAsync(cancellationToken);
+        if (candidates.Count == 0) return [];
+
+        await db.Workers
+            .Where(w => candidates.Contains(w.WorkerId) && w.WorkerType == WorkerType.Freelancer && w.WorkStatus != WorkStatus.Locked)
+            .ExecuteUpdateAsync(s => s.SetProperty(w => w.WorkStatus, WorkStatus.Locked), cancellationToken);
+        return candidates;
+    }
+
     public async Task<IReadOnlyDictionary<long, DisputeSummaryData>> GetSummaryDataAsync(
         IReadOnlyCollection<long> orderIds, CancellationToken cancellationToken = default)
     {

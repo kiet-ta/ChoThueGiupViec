@@ -1,8 +1,7 @@
 /// Puts one evidence photo on the server and returns the address to send in `evidenceUrls`.
 ///
-/// The contract says no upload endpoint exists yet (disputes.md 2.1) and the app has no photo picker package,
-/// so the production implementation below says so instead of pretending. When a leader-approved upload endpoint and
-/// picker exist, only this class changes.
+/// The production implementation is [ApiEvidenceUploader] (contract disputes.md 2.1a). [UnavailableEvidenceUploader] is what a
+/// build without any upload would use: the form then explains it and does not offer to send.
 abstract class IEvidenceUploader {
   /// False when photos cannot be attached at all; the form then explains it and does not offer to send.
   bool get isAvailable;
@@ -11,7 +10,7 @@ abstract class IEvidenceUploader {
   Future<String?> pickAndUpload();
 }
 
-/// The honest production implementation until an upload endpoint exists.
+/// For a build that cannot attach photos at all.
 class UnavailableEvidenceUploader implements IEvidenceUploader {
   const UnavailableEvidenceUploader();
 
