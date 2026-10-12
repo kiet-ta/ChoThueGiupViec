@@ -1,6 +1,7 @@
 # Contract: Agencies (module `Agencies`, owner M5)
 
 > Status: **DRAFT — proposed for leader approval** (ticket BE-M5-00, issue #231). No endpoint in this document is approved for implementation until the leader approves this contract.
+> Approval note (2026-10-12, leader, ticket #237, decisions Q25): **only the registration capability** (`POST /api/agencies/registration`, section 2 and leader question 1) is approved and implemented by BE-M5-01. Everything else in this document is still DRAFT.
 > Sources: `.spec/spec.md` §1.3, §2.1, §2.3–§2.5, §2.8, §4.3–§4.4, §5.1–§5.4; `.spec/decisions.md` G-1–G-7, Q08, Q09, Q11, Q16, Q18, Q19, SC-1, SC-3, SC-4; `.spec/plan/00-overview.md` §4–§6; `.spec/contracts/identity.md` §1.
 > Implements: BE-M5-01..09 and relevant Partner Portal work, after contract approval and required gates.
 

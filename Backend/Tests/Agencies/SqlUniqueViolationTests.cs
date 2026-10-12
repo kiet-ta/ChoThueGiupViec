@@ -42,7 +42,7 @@ public class SqlUniqueViolationTests
         Assert.False(SqlUniqueViolation.IsUniqueViolation(new DbUpdateException("no inner")));
     }
 
-    private static SqlException CreateSqlException(int number)
+    internal static SqlException CreateSqlException(int number)
     {
         var errorType = typeof(SqlError);
         var error = (SqlError)RuntimeHelpers.GetUninitializedObject(errorType);
