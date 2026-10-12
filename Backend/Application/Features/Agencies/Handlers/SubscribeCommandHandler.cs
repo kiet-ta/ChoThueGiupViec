@@ -4,6 +4,7 @@ using Backend.Application.Features.Agencies.Repositories;
 using CommonService.Application.Common.Models;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -46,7 +47,7 @@ public sealed class SubscribeCommandHandler(
 
         // 3. Check if agency already has an active subscription
         var existingSubscription = await subscriptionRepository.GetActiveSubscriptionByAgencyIdAsync(agency.AgencyId, cancellationToken);
-        if (existingSubscription != null && !existingSubscription.IsExpired)
+        if (existingSubscription != null && existingSubscription.EndDate >= DateOnly.FromDateTime(DateTime.UtcNow))
         {
             return ApiResponse<SubscriptionDto>.Fail("Agency already has an active subscription");
         }

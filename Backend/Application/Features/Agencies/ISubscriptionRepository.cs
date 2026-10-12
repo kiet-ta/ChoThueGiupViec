@@ -1,5 +1,5 @@
 using Backend.Application.Features.Agencies.Dtos;
-using Backend.Domain.Entities;
+using CommonService.Domain.Entities;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;

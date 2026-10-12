@@ -1,5 +1,5 @@
 using Backend.Application.Features.Agencies;
-using Backend.Domain.Entities;
+using CommonService.Domain.Entities;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 

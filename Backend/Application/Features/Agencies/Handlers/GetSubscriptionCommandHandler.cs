@@ -55,7 +55,7 @@ public sealed class GetSubscriptionCommandHandler(
         // Check if subscription is expired but still in grace period
         var isExpired = subscription.EndDate < DateOnly.FromDateTime(DateTime.UtcNow);
         var isInGracePeriod = isExpired &&
-            (DateOnly.FromDateTime(DateTime.UtcNow) - subscription.EndDate).Days <= 7;
+            (DateOnly.FromDateTime(DateTime.UtcNow).DayNumber - subscription.EndDate.DayNumber) <= 7;
 
         var effectiveStatus = subscription.SubStatus;
         if (isExpired && !isInGracePeriod)
@@ -67,23 +67,26 @@ public sealed class GetSubscriptionCommandHandler(
             effectiveStatus = "ExpiredGracePeriod";
         }
 
+        // Get the subscription package details
+        var package = await subscriptionRepository.GetPackageByIdAsync(subscription.PackageId, cancellationToken);
+
         // Map the subscription entity to DTO
         var subscriptionDto = new SubscriptionDto
         {
             SubscriptionId = subscription.SubscriptionId,
             AgencyId = subscription.AgencyId,
             PackageId = subscription.PackageId,
-            PackageCode = subscription.PackageCode,
-            PackageName = subscription.PackageName,
-            Tier = subscription.Tier,
-            BillingCycle = subscription.BillingCycle,
-            Price = subscription.Price,
-            WorkerQuota = subscription.WorkerQuota,
-            CommissionRate = subscription.CommissionRate,
-            HasRosterDashboard = subscription.HasRosterDashboard,
-            HasAnalytics = subscription.HasAnalytics,
-            PriorityDispatch = subscription.PriorityDispatch,
-            IsActive = subscription.IsActive,
+            PackageCode = package?.PackageCode ?? string.Empty,
+            PackageName = package?.PackageName ?? string.Empty,
+            Tier = package?.Tier ?? string.Empty,
+            BillingCycle = package?.BillingCycle ?? string.Empty,
+            Price = package?.Price ?? 0,
+            WorkerQuota = package?.WorkerQuota ?? 0,
+            CommissionRate = package?.CommissionRate ?? 0,
+            HasRosterDashboard = package?.HasRosterDashboard ?? false,
+            HasAnalytics = package?.HasAnalytics ?? false,
+            PriorityDispatch = package?.PriorityDispatch ?? false,
+            IsActive = effectiveStatus == "Active",
             StartDate = subscription.StartDate,
             EndDate = subscription.EndDate,
             SubStatus = effectiveStatus,
