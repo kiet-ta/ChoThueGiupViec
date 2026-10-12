@@ -1,0 +1,50 @@
+title:	[ticket] BE-M5-01 Đăng ký Agency (ĐKKD, MST, đại diện pháp luật); chỉ thành "đạt chuẩn" khi đủ ký quỹ tối thiểu
+state:	OPEN
+author:	NguyenTuanHoang71 (Nguyen Tuan Hoang)
+labels:	in-progress, ticket
+comments:	0
+assignees:	kiet-ta (KIETTA-TAK), NguyenTuanHoang71 (Nguyen Tuan Hoang)
+projects:	
+milestone:	
+issue-type:	
+parent:	
+sub-issues:	
+sub-issues-completed:	
+blocked-by:	
+blocking:	
+number:	237
+--
+### Area
+
+backend
+
+### Blocked by
+
+_No response_
+
+### Allowed paths
+
+Backend/Application/Features/Agencies/**
+Backend/WebAPI/Controllers/Agencies/**
+Backend/Infrastructure/Modules/Agencies/**
+Backend/Tests/Agencies/**
+Backend/Domain/Entities/PartnerAgency.cs
+.spec/plan/M5-agencies-b2b.md
+.spec/contracts/agencies.md
+.spec/contracts/openapi.json
+.spec/decisions.md
+
+### Acceptance criteria
+
+POST /api/agencies/registration ([AllowAnonymous]) nhận { taxCode, legalName, legalRepresentative, contactPhone, contactEmail, password }; KHÔNG có field businessRegistrationCertificate; không đổi schema, không migration (PartnerAgency.cs có trong allowed chỉ để gỡ cột BusinessRegistrationCertificate mà commit cũ của PR đã thêm; kết quả so với main là không đổi) (leader chốt: taxCode đóng vai trò định danh ĐKKD/MST)
+Validation nằm trong AgencyRegistrationValidator (hàm thuần, có unit test, trả mọi lỗi cùng lúc, 400 theo envelope chung): taxCode khớp ^[0-9]{10}(-[0-9]{3})?$ (MST 10 số hoặc 10+3 số của đơn vị phụ thuộc; không kiểm số kiểm tra; chỉ chữ số ASCII); contactPhone qua PhoneValidator (decisions O4); password theo Q16 (Auth.MinPasswordLength, có hoa/thường/số); contactEmail hợp lệ, tối đa 255; legalName/legalRepresentative bắt buộc và không vượt độ dài cột (200/100)
+taxCode trùng hoặc contactEmail trùng (sau Trim + chữ thường) trả 409 với data.code = AGENCY_TAX_CODE_EXISTS / AGENCY_EMAIL_EXISTS; race trên unique index tax_code cũng trả 409, không 500
+Agency tạo ra có agency_status = PENDING, escrow_deposit_balance = 0, sla_score = Sla.InitialScore (đọc từ BusinessRules, không hard-code), worker_quota = 0 (BE-M5-02 gán sau), password_hash từ IPasswordHasher; response không chứa password hay hash
+Hàm thuần AgencyEligibility.StatusFor(balance, minEscrow) trả ACTIVE khi balance >= Agency.MinEscrowBalance, ngược lại PENDING; test biên 4.999.999 / 5.000.000 / 5.000.001; ticket này KHÔNG có đường nạp ký quỹ (thuộc BE-M5-07)
+Test xUnit trong Backend/Tests/Agencies/ (không DB thật), tên test được trích trong PR; sh harness/verify.sh L3 PASS, dán dòng cuối và đường dẫn .harness/evidence/*.log vào PR
+.spec/decisions.md ghi quyết định của ticket (status PENDING, mã 409, định dạng MST và căn cứ, đăng ký công khai, worker_quota = 0); .spec/contracts/agencies.md cập nhật request/response/lỗi khớp; .spec/contracts/openapi.json là snapshot sinh ra từ code (OpenApiSnapshotTests phải khớp); ô BE-M5-01 trong .spec/plan/M5-agencies-b2b.md tick [x] kèm evidence là đường dẫn log
+
+### Slice
+
+tracer-bullet (thin end-to-end)
+
