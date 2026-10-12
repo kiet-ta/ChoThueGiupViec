@@ -1,22 +1,19 @@
-using CommonService.Application.Interfaces.Ports;
 using CommonService.Application.Features.Agencies;
-using CommonService.Infrastructure.Modules.Agencies;
 using CommonService.Infrastructure.Modularity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CommonService.Infrastructure.Modules.Agencies
-{
-    /// <summary>
-    /// Agencies module service registrations.
-    /// </summary>
-    public class AgenciesModule : IModule
-    {
-        public string Name => "Agencies";
+namespace CommonService.Infrastructure.Modules.Agencies;
 
-        public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
-        {
-            services.AddScoped<IAgencyCapacityService, AgencyCapacityService>();
-            services.AddScoped<IWorkerImportService, WorkerImportService>();
-        }
+/// <summary>
+/// Module registration for Agencies (M5). Self-registers via <see cref="IModule"/> (BASE-02).
+/// </summary>
+public sealed class AgenciesModule : IModule
+{
+    public string Name => "Agencies";
+
+    public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddScoped<IAgencyRepository, EfAgencyRepository>();
     }
 }
