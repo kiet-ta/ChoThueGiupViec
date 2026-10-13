@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 
 /// Customer profile data shape per .spec/contracts/customers.md §1 & §2.1.

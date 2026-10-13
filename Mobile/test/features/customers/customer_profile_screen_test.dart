@@ -15,7 +15,9 @@ void main() {
       tokenStorage = TokenStorage();
     });
 
-    testWidgets('renders customer profile, badges, and form fields', (tester) async {
+    testWidgets('renders customer profile, badges, and form fields', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -43,7 +45,9 @@ void main() {
       expect(find.text('Đăng Xuất'), findsOneWidget);
     });
 
-    testWidgets('edits full name, submits, and shows success snackbar', (tester) async {
+    testWidgets('edits full name, submits, and shows success snackbar', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -77,7 +81,9 @@ void main() {
       expect(find.text('Nguyễn Kiệt Mới'), findsWidgets);
     });
 
-    testWidgets('validates empty full name and shows error message', (tester) async {
+    testWidgets('validates empty full name and shows error message', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -110,7 +116,9 @@ void main() {
       expect(find.text('Vui lòng nhập họ và tên'), findsOneWidget);
     });
 
-    testWidgets('triggers logout dialog when tapping logout button', (tester) async {
+    testWidgets('triggers logout dialog when tapping logout button', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

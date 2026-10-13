@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -20,7 +21,13 @@ class DisputeCreateScreen extends StatefulWidget {
   final IDisputesService? service;
   final IEvidenceUploader? uploader;
 
-  const DisputeCreateScreen({super.key, required this.role, required this.orderId, this.service, this.uploader});
+  const DisputeCreateScreen({
+    super.key,
+    required this.role,
+    required this.orderId,
+    this.service,
+    this.uploader,
+  });
 
   @override
   State<DisputeCreateScreen> createState() => _DisputeCreateScreenState();
@@ -54,7 +61,10 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
   }
 
   bool get _complete =>
-      _category != null && _description.text.trim().isNotEmpty && _evidence.isNotEmpty && _evidence.length <= maxEvidenceCount;
+      _category != null &&
+      _description.text.trim().isNotEmpty &&
+      _evidence.isNotEmpty &&
+      _evidence.length <= maxEvidenceCount;
 
   Future<void> _addPhoto() async {
     if (_uploading || _evidence.length >= maxEvidenceCount) return;
@@ -78,7 +88,12 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
 
   Future<void> _submit() async {
     if (_sending) return; // one request per tap
-    final errors = validateDispute(widget.role, _category, _description.text, _evidence.length);
+    final errors = validateDispute(
+      widget.role,
+      _category,
+      _description.text,
+      _evidence.length,
+    );
     setState(() {
       _errors = errors;
       _serverFields = const {};
@@ -88,7 +103,10 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
 
     setState(() => _sending = true);
     try {
-      final created = await _service.create(widget.role, buildDispute(widget.orderId, _category!, _description.text, _evidence));
+      final created = await _service.create(
+        widget.role,
+        buildDispute(widget.orderId, _category!, _description.text, _evidence),
+      );
       if (!mounted) return;
       setState(() => _created = created);
     } on ApiException catch (e) {
@@ -124,9 +142,17 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
         NordicCard(
           child: Column(
             children: [
-              const Icon(Icons.check_circle_rounded, size: 48.0, color: NordicColors.secondaryAccent),
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 48.0,
+                color: NordicColors.secondaryAccent,
+              ),
               const SizedBox(height: 12.0),
-              const Text('Đã gửi khiếu nại', key: Key('dispute-sent'), style: NordicTypography.h3),
+              const Text(
+                'Đã gửi khiếu nại',
+                key: Key('dispute-sent'),
+                style: NordicTypography.h3,
+              ),
               const SizedBox(height: 8.0),
               Text(
                 'Admin sẽ xem xét. Hạn xử lý dự kiến: ${formatVietnamDateTime(d.slaDueAt)}.',
@@ -134,7 +160,11 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                 style: NordicTypography.bodyRegular,
               ),
               const SizedBox(height: 16.0),
-              NordicButton(key: const Key('dispute-done'), label: 'Xong', onPressed: () => Navigator.of(context).pop(true)),
+              NordicButton(
+                key: const Key('dispute-done'),
+                label: 'Xong',
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
             ],
           ),
         ),
@@ -181,12 +211,16 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
           decoration: InputDecoration(
             border: const OutlineInputBorder(),
             hintText: 'Chuyện gì đã xảy ra?',
-            counterText: '${_description.text.trim().length}/$maxDescriptionLength',
+            counterText:
+                '${_description.text.trim().length}/$maxDescriptionLength',
           ),
         ),
         _error(_errors.description ?? fieldError('description')),
         const SizedBox(height: 16.0),
-        Text('Ảnh bằng chứng (${_evidence.length}/$maxEvidenceCount)', style: NordicTypography.labelMedium),
+        Text(
+          'Ảnh bằng chứng (${_evidence.length}/$maxEvidenceCount)',
+          style: NordicTypography.labelMedium,
+        ),
         const SizedBox(height: 8.0),
         for (var i = 0; i < _evidence.length; i++)
           ListTile(
@@ -208,7 +242,9 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
             label: 'Thêm ảnh',
             variant: NordicButtonVariant.secondary,
             isLoading: _uploading,
-            onPressed: _uploading || _evidence.length >= maxEvidenceCount ? null : _addPhoto,
+            onPressed: _uploading || _evidence.length >= maxEvidenceCount
+                ? null
+                : _addPhoto,
           )
         else
           const NordicCard(
@@ -223,13 +259,21 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
         if (_failure != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
-            child: Text(_failure!, key: const Key('dispute-failure'), style: NordicTypography.bodyRegular.copyWith(color: NordicColors.error)),
+            child: Text(
+              _failure!,
+              key: const Key('dispute-failure'),
+              style: NordicTypography.bodyRegular.copyWith(
+                color: NordicColors.error,
+              ),
+            ),
           ),
         NordicButton(
           key: const Key('dispute-submit'),
           label: 'Gửi khiếu nại',
           isLoading: _sending,
-          onPressed: _sending || !_uploader.isAvailable || !_complete ? null : _submit,
+          onPressed: _sending || !_uploader.isAvailable || !_complete
+              ? null
+              : _submit,
         ),
       ],
     );
@@ -239,6 +283,11 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
       ? const SizedBox.shrink()
       : Padding(
           padding: const EdgeInsets.only(top: 4.0),
-          child: Text(message, style: NordicTypography.bodySmall.copyWith(color: NordicColors.error)),
+          child: Text(
+            message,
+            style: NordicTypography.bodySmall.copyWith(
+              color: NordicColors.error,
+            ),
+          ),
         );
 }

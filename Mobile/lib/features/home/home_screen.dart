@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/models/user_role.dart';
 import '../../core/theme/nordic_colors.dart';
 import '../../core/theme/nordic_typography.dart';
@@ -66,7 +67,10 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
             children: [
               // Eyebrow badge
               const Align(
@@ -112,7 +116,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24.0),
 
               // Role selector toggle
-              Text('Chọn vai trò trải nghiệm:', style: NordicTypography.labelMedium),
+              Text(
+                'Chọn vai trò trải nghiệm:',
+                style: NordicTypography.labelMedium,
+              ),
               const SizedBox(height: 8.0),
               Container(
                 padding: const EdgeInsets.all(4.0),
@@ -125,7 +132,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _selectedRole = AppRole.customer),
+                        onTap: () =>
+                            setState(() => _selectedRole = AppRole.customer),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
                           padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -137,10 +145,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             boxShadow: _selectedRole == AppRole.customer
                                 ? [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.05),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
                                       blurRadius: 4.0,
                                       offset: const Offset(0, 1),
-                                    )
+                                    ),
                                   ]
                                 : null,
                           ),
@@ -163,7 +173,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _selectedRole = AppRole.worker),
+                        onTap: () =>
+                            setState(() => _selectedRole = AppRole.worker),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
                           padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -175,10 +186,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             boxShadow: _selectedRole == AppRole.worker
                                 ? [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.05),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
                                       blurRadius: 4.0,
                                       offset: const Offset(0, 1),
-                                    )
+                                    ),
                                   ]
                                 : null,
                           ),
@@ -221,17 +234,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(width: 4.0),
                           Expanded(
-                            child: Text('GÓI ĐƯỢC CHỌN NHIỀU NHẤT', style: NordicTypography.labelSmall),
+                            child: Text(
+                              'GÓI ĐƯỢC CHỌN NHIỀU NHẤT',
+                              style: NordicTypography.labelSmall,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6.0),
                       Text('Căn Hộ Chung Cư', style: NordicTypography.h3),
                       const SizedBox(height: 4.0),
-                      Text(
-                        '240.000 đ',
-                        style: NordicTypography.priceHighlight,
-                      ),
+                      Text('240.000 đ', style: NordicTypography.priceHighlight),
                       const Text(
                         'Ca 3 giờ tiêu chuẩn • Hút bụi khe hẹp sofa, gầm giường',
                         style: NordicTypography.bodySmall,
@@ -259,12 +272,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Nhà Phố Liền Kề & Biệt Thự', style: NordicTypography.h3),
-                      const SizedBox(height: 4.0),
                       Text(
-                        '360.000 đ',
-                        style: NordicTypography.priceHighlight,
+                        'Nhà Phố Liền Kề & Biệt Thự',
+                        style: NordicTypography.h3,
                       ),
+                      const SizedBox(height: 4.0),
+                      Text('360.000 đ', style: NordicTypography.priceHighlight),
                       const Text(
                         'Ca 4 giờ • Khử khuẩn sinh học và nghiệm thu quang học',
                         style: NordicTypography.bodySmall,
@@ -294,7 +307,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Sổ Địa Chỉ Của Bạn', style: NordicTypography.h3),
+                            Text(
+                              'Sổ Địa Chỉ Của Bạn',
+                              style: NordicTypography.h3,
+                            ),
                             Text(
                               'Quản lý địa chỉ, loại nhà & toạ độ GPS',
                               style: NordicTypography.bodySmall,
@@ -339,7 +355,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Thợ Quen Yêu Thích', style: NordicTypography.h3),
+                            Text(
+                              'Thợ Quen Yêu Thích',
+                              style: NordicTypography.h3,
+                            ),
                             Text(
                               'Chuyên viên uy tín bạn đã lưu để đặt lại',
                               style: NordicTypography.bodySmall,
@@ -354,7 +373,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const FavoriteWorkersScreen(),
+                              builder: (context) =>
+                                  const FavoriteWorkersScreen(),
                             ),
                           );
                         },
@@ -399,7 +419,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const CustomerProfileScreen(),
+                              builder: (context) =>
+                                  const CustomerProfileScreen(),
                             ),
                           );
                         },
@@ -416,10 +437,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.work_history_rounded, color: NordicColors.primary),
+                          const Icon(
+                            Icons.work_history_rounded,
+                            color: NordicColors.primary,
+                          ),
                           const SizedBox(width: 8.0),
                           Expanded(
-                            child: Text('Bàn Điều Phối Ca Làm', style: NordicTypography.h3),
+                            child: Text(
+                              'Bàn Điều Phối Ca Làm',
+                              style: NordicTypography.h3,
+                            ),
                           ),
                         ],
                       ),
@@ -436,9 +463,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const PhoneInputScreen(
-                                role: AppRole.worker,
-                              ),
+                              builder: (context) =>
+                                  const PhoneInputScreen(role: AppRole.worker),
                             ),
                           );
                         },
@@ -469,16 +495,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 6.0),
                     Text(
                       'Chăm sóc tổ ấm theo tiêu chuẩn an toàn cao nhất',
-                      style: NordicTypography.h3.copyWith(
-                        color: Colors.white,
-                      ),
+                      style: NordicTypography.h3.copyWith(color: Colors.white),
                     ),
                     const SizedBox(height: 16.0),
-                    _buildDarkPillar('01', 'Lý lịch & tay nghề', '100% chuyên viên xác thực eKYC và đào tạo.'),
+                    _buildDarkPillar(
+                      '01',
+                      'Lý lịch & tay nghề',
+                      '100% chuyên viên xác thực eKYC và đào tạo.',
+                    ),
                     const SizedBox(height: 12.0),
-                    _buildDarkPillar('02', 'Đúng giờ & chuẩn vị trí', 'Kiểm tra GPS hiện trường sai số ≤ 100m.'),
+                    _buildDarkPillar(
+                      '02',
+                      'Đúng giờ & chuẩn vị trí',
+                      'Kiểm tra GPS hiện trường sai số ≤ 100m.',
+                    ),
                     const SizedBox(height: 12.0),
-                    _buildDarkPillar('03', 'Nghiệm thu quang học', 'Chụp ảnh trước/sau và đánh giá hài lòng.'),
+                    _buildDarkPillar(
+                      '03',
+                      'Nghiệm thu quang học',
+                      'Chụp ảnh trước/sau và đánh giá hài lòng.',
+                    ),
                   ],
                 ),
               ),

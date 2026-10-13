@@ -7,7 +7,7 @@ class WorkersSlotsService {
   final ApiClient _apiClient;
 
   WorkersSlotsService({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   /// Fetches active availability slots for a date range (contract workers.md §2.3.1).
   Future<ApiResponse<List<BookingSlotDto>>> getSlots({
@@ -16,10 +16,7 @@ class WorkersSlotsService {
   }) {
     return _apiClient.get<List<BookingSlotDto>>(
       '/api/workers/me/slots',
-      queryParams: {
-        'startDate': startDate,
-        'endDate': endDate,
-      },
+      queryParams: {'startDate': startDate, 'endDate': endDate},
       fromJson: (json) {
         if (json is List) {
           return json
@@ -32,7 +29,9 @@ class WorkersSlotsService {
   }
 
   /// Toggles availability status for a slot (contract §2.3.2).
-  Future<ApiResponse<BookingSlotDto>> toggleSlot(ToggleBookingSlotRequest request) {
+  Future<ApiResponse<BookingSlotDto>> toggleSlot(
+    ToggleBookingSlotRequest request,
+  ) {
     return _apiClient.post<BookingSlotDto>(
       '/api/workers/me/slots/toggle',
       body: request.toJson(),

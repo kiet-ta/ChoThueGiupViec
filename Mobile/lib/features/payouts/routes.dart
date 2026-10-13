@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+
 import '../../app/feature_module.dart';
 import 'screens/payout_history_screen.dart';
 import 'screens/payout_screen.dart';
@@ -18,7 +19,7 @@ class PayoutsFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        PayoutRoutes.payouts: (context) => const PayoutScreen(),
-        PayoutRoutes.history: (context) => const PayoutHistoryScreen(),
-      };
+    PayoutRoutes.payouts: (context) => const PayoutScreen(),
+    PayoutRoutes.history: (context) => const PayoutHistoryScreen(),
+  };
 }

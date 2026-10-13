@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/nordic_colors.dart';
 import '../theme/nordic_typography.dart';
 
@@ -7,11 +8,7 @@ class LoadingStateWidget extends StatelessWidget {
   final String? message;
   final double size;
 
-  const LoadingStateWidget({
-    super.key,
-    this.message,
-    this.size = 36.0,
-  });
+  const LoadingStateWidget({super.key, this.message, this.size = 36.0});
 
   @override
   Widget build(BuildContext context) {
@@ -168,10 +165,7 @@ class EmptyStateWidget extends StatelessWidget {
                 ),
               ),
             ],
-            if (action != null) ...[
-              const SizedBox(height: 20.0),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: 20.0), action!],
           ],
         ),
       ),

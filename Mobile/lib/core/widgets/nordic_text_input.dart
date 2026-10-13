@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/nordic_colors.dart';
 import '../theme/nordic_typography.dart';
 

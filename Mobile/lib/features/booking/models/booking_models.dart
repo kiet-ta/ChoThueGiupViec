@@ -23,7 +23,8 @@ class OrderStatus {
 
 int _int(dynamic v) => (v as num?)?.toInt() ?? 0;
 double _double(dynamic v) => (v as num?)?.toDouble() ?? 0;
-DateTime? _date(dynamic v) => v is String ? DateTime.tryParse(v)?.toUtc() : null;
+DateTime? _date(dynamic v) =>
+    v is String ? DateTime.tryParse(v)?.toUtc() : null;
 
 /// One shift of GET /api/booking/options: the code and its local (Asia/Ho_Chi_Minh) start and end, "HH:mm".
 class ShiftOption {
@@ -31,13 +32,17 @@ class ShiftOption {
   final String startLocal;
   final String endLocal;
 
-  const ShiftOption({required this.shiftCode, required this.startLocal, required this.endLocal});
+  const ShiftOption({
+    required this.shiftCode,
+    required this.startLocal,
+    required this.endLocal,
+  });
 
   factory ShiftOption.fromJson(Map<String, dynamic> json) => ShiftOption(
-        shiftCode: json['shiftCode'] as String? ?? '',
-        startLocal: json['startLocal'] as String? ?? '',
-        endLocal: json['endLocal'] as String? ?? '',
-      );
+    shiftCode: json['shiftCode'] as String? ?? '',
+    startLocal: json['startLocal'] as String? ?? '',
+    endLocal: json['endLocal'] as String? ?? '',
+  );
 }
 
 /// GET /api/booking/options (booking.md 3.1): the app hard-codes none of these values.
@@ -61,17 +66,19 @@ class BookingOptions {
   });
 
   factory BookingOptions.fromJson(Map<String, dynamic> json) => BookingOptions(
-        serviceTiers: (json['serviceTiers'] as List? ?? const []).map((e) => e.toString()).toList(),
-        shifts: (json['shifts'] as List? ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(ShiftOption.fromJson)
-            .toList(),
-        premiumMinLeadHours: _int(json['premiumMinLeadHours']),
-        shiftMaxHours: _int(json['shiftMaxHours']),
-        standardMaxAreaM2: _double(json['standardMaxAreaM2']),
-        paymentQrExpiryMinutes: _int(json['paymentQrExpiryMinutes']),
-        sandbox: json['sandbox'] as bool? ?? true,
-      );
+    serviceTiers: (json['serviceTiers'] as List? ?? const [])
+        .map((e) => e.toString())
+        .toList(),
+    shifts: (json['shifts'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ShiftOption.fromJson)
+        .toList(),
+    premiumMinLeadHours: _int(json['premiumMinLeadHours']),
+    shiftMaxHours: _int(json['shiftMaxHours']),
+    standardMaxAreaM2: _double(json['standardMaxAreaM2']),
+    paymentQrExpiryMinutes: _int(json['paymentQrExpiryMinutes']),
+    sandbox: json['sandbox'] as bool? ?? true,
+  );
 }
 
 /// `PriceQuote` (booking.md section 2): the fixed price shown before the order is created.
@@ -97,15 +104,15 @@ class PriceQuote {
   });
 
   factory PriceQuote.fromJson(Map<String, dynamic> json) => PriceQuote(
-        addressId: _int(json['addressId']),
-        serviceTier: json['serviceTier'] as String? ?? '',
-        totalAreaM2: _double(json['totalAreaM2']),
-        areaBracket: json['areaBracket'] as String? ?? '',
-        requiredWorkers: _int(json['requiredWorkers']),
-        unitPrice: _int(json['unitPrice']),
-        totalAmount: _int(json['totalAmount']),
-        currency: json['currency'] as String? ?? 'VND',
-      );
+    addressId: _int(json['addressId']),
+    serviceTier: json['serviceTier'] as String? ?? '',
+    totalAreaM2: _double(json['totalAreaM2']),
+    areaBracket: json['areaBracket'] as String? ?? '',
+    requiredWorkers: _int(json['requiredWorkers']),
+    unitPrice: _int(json['unitPrice']),
+    totalAmount: _int(json['totalAmount']),
+    currency: json['currency'] as String? ?? 'VND',
+  );
 }
 
 /// `Order` (booking.md section 2). Times are UTC instants.
@@ -151,24 +158,24 @@ class BookingOrder {
   });
 
   factory BookingOrder.fromJson(Map<String, dynamic> json) => BookingOrder(
-        orderId: _int(json['orderId']),
-        orderCode: json['orderCode'] as String? ?? '',
-        serviceTier: json['serviceTier'] as String? ?? '',
-        addressId: _int(json['addressId']),
-        scheduledDate: json['scheduledDate'] as String? ?? '',
-        shiftCode: json['shiftCode'] as String? ?? '',
-        shiftStartAt: _date(json['shiftStartAt']),
-        shiftEndAt: _date(json['shiftEndAt']),
-        areaSnapshotM2: _double(json['areaSnapshotM2']),
-        requiredWorkers: _int(json['requiredWorkers']),
-        requiredSkill: json['requiredSkill'] as String?,
-        totalAmount: _int(json['totalAmount']),
-        orderStatus: json['orderStatus'] as String? ?? '',
-        customerNote: json['customerNote'] as String?,
-        cancelReason: json['cancelReason'] as String?,
-        paymentDeadlineAt: _date(json['paymentDeadlineAt']),
-        createdAt: _date(json['createdAt']),
-      );
+    orderId: _int(json['orderId']),
+    orderCode: json['orderCode'] as String? ?? '',
+    serviceTier: json['serviceTier'] as String? ?? '',
+    addressId: _int(json['addressId']),
+    scheduledDate: json['scheduledDate'] as String? ?? '',
+    shiftCode: json['shiftCode'] as String? ?? '',
+    shiftStartAt: _date(json['shiftStartAt']),
+    shiftEndAt: _date(json['shiftEndAt']),
+    areaSnapshotM2: _double(json['areaSnapshotM2']),
+    requiredWorkers: _int(json['requiredWorkers']),
+    requiredSkill: json['requiredSkill'] as String?,
+    totalAmount: _int(json['totalAmount']),
+    orderStatus: json['orderStatus'] as String? ?? '',
+    customerNote: json['customerNote'] as String?,
+    cancelReason: json['cancelReason'] as String?,
+    paymentDeadlineAt: _date(json['paymentDeadlineAt']),
+    createdAt: _date(json['createdAt']),
+  );
 }
 
 /// What the customer chose; the body of POST /api/booking/orders (booking.md 3.3).
@@ -192,13 +199,13 @@ class CreateOrderInput {
   });
 
   Map<String, dynamic> toJson() => {
-        'addressId': addressId,
-        'serviceTier': serviceTier,
-        'scheduledDate': scheduledDate,
-        'shiftCode': shiftCode,
-        'customerNote': customerNote,
-        'requiredSkill': requiredSkill,
-      };
+    'addressId': addressId,
+    'serviceTier': serviceTier,
+    'scheduledDate': scheduledDate,
+    'shiftCode': shiftCode,
+    'customerNote': customerNote,
+    'requiredSkill': requiredSkill,
+  };
 }
 
 /// The address the booking screen needs; it comes from the Customers feature's address book.
@@ -268,16 +275,16 @@ class OrderSummary {
   });
 
   factory OrderSummary.fromJson(Map<String, dynamic> json) => OrderSummary(
-        orderId: _int(json['orderId']),
-        orderCode: json['orderCode'] as String? ?? '',
-        serviceTier: json['serviceTier'] as String? ?? '',
-        scheduledDate: json['scheduledDate'] as String? ?? '',
-        shiftCode: json['shiftCode'] as String? ?? '',
-        requiredWorkers: _int(json['requiredWorkers']),
-        totalAmount: _int(json['totalAmount']),
-        orderStatus: json['orderStatus'] as String? ?? '',
-        createdAt: _date(json['createdAt']),
-      );
+    orderId: _int(json['orderId']),
+    orderCode: json['orderCode'] as String? ?? '',
+    serviceTier: json['serviceTier'] as String? ?? '',
+    scheduledDate: json['scheduledDate'] as String? ?? '',
+    shiftCode: json['shiftCode'] as String? ?? '',
+    requiredWorkers: _int(json['requiredWorkers']),
+    totalAmount: _int(json['totalAmount']),
+    orderStatus: json['orderStatus'] as String? ?? '',
+    createdAt: _date(json['createdAt']),
+  );
 }
 
 /// One page of GET /api/booking/orders (booking.md 3.4).
@@ -287,14 +294,22 @@ class OrderPage {
   final int pageSize;
   final int total;
 
-  const OrderPage({required this.items, required this.page, required this.pageSize, required this.total});
+  const OrderPage({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    required this.total,
+  });
 
   factory OrderPage.fromJson(Map<String, dynamic> json) => OrderPage(
-        items: (json['items'] as List? ?? const []).whereType<Map<String, dynamic>>().map(OrderSummary.fromJson).toList(),
-        page: _int(json['page']),
-        pageSize: _int(json['pageSize']),
-        total: _int(json['total']),
-      );
+    items: (json['items'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(OrderSummary.fromJson)
+        .toList(),
+    page: _int(json['page']),
+    pageSize: _int(json['pageSize']),
+    total: _int(json['total']),
+  );
 }
 
 /// One visible assignment of `OrderProgress`. There is no worker phone here (Q17).
@@ -319,7 +334,8 @@ class ProgressAssignment {
     required this.completedAt,
   });
 
-  factory ProgressAssignment.fromJson(Map<String, dynamic> json) => ProgressAssignment(
+  factory ProgressAssignment.fromJson(Map<String, dynamic> json) =>
+      ProgressAssignment(
         assignmentId: _int(json['assignmentId']),
         assignmentSeq: _int(json['assignmentSeq']),
         workerId: _int(json['workerId']),
@@ -356,16 +372,16 @@ class OrderExtension {
   });
 
   factory OrderExtension.fromJson(Map<String, dynamic> json) => OrderExtension(
-        extensionId: _int(json['extensionId']),
-        orderId: _int(json['orderId']),
-        workerId: _int(json['workerId']),
-        extraHours: _double(json['extraHours']),
-        extraAmount: _int(json['extraAmount']),
-        extStatus: json['extStatus'] as String? ?? '',
-        workerDecision: json['workerDecision'] as String? ?? '',
-        requestedAt: _date(json['requestedAt']),
-        decidedAt: _date(json['decidedAt']),
-      );
+    extensionId: _int(json['extensionId']),
+    orderId: _int(json['orderId']),
+    workerId: _int(json['workerId']),
+    extraHours: _double(json['extraHours']),
+    extraAmount: _int(json['extraAmount']),
+    extStatus: json['extStatus'] as String? ?? '',
+    workerDecision: json['workerDecision'] as String? ?? '',
+    requestedAt: _date(json['requestedAt']),
+    decidedAt: _date(json['decidedAt']),
+  );
 }
 
 /// `OrderProgress` (booking.md 3.6).
@@ -385,13 +401,17 @@ class OrderProgress {
   });
 
   factory OrderProgress.fromJson(Map<String, dynamic> json) => OrderProgress(
-        orderId: _int(json['orderId']),
-        orderStatus: json['orderStatus'] as String? ?? '',
-        requiredWorkers: _int(json['requiredWorkers']),
-        assignments:
-            (json['assignments'] as List? ?? const []).whereType<Map<String, dynamic>>().map(ProgressAssignment.fromJson).toList(),
-        extension: json['extension'] is Map<String, dynamic> ? OrderExtension.fromJson(json['extension'] as Map<String, dynamic>) : null,
-      );
+    orderId: _int(json['orderId']),
+    orderStatus: json['orderStatus'] as String? ?? '',
+    requiredWorkers: _int(json['requiredWorkers']),
+    assignments: (json['assignments'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ProgressAssignment.fromJson)
+        .toList(),
+    extension: json['extension'] is Map<String, dynamic>
+        ? OrderExtension.fromJson(json['extension'] as Map<String, dynamic>)
+        : null,
+  );
 }
 
 /// What opens the order screen.

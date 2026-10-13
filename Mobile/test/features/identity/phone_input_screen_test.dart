@@ -8,7 +8,9 @@ import 'package:mobile/features/identity/services/auth_service.dart';
 
 void main() {
   group('PhoneInputScreen Widget Tests', () {
-    testWidgets('renders phone input screen and validates phone', (tester) async {
+    testWidgets('renders phone input screen and validates phone', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -19,7 +21,10 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: NordicTheme.lightTheme,
-          home: PhoneInputScreen(role: AppRole.customer, authService: AuthService(useMockFallback: true)),
+          home: PhoneInputScreen(
+            role: AppRole.customer,
+            authService: AuthService(useMockFallback: true),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -31,7 +36,10 @@ void main() {
       await tester.tap(find.text('Gửi Mã Xác Thực'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Vui lòng nhập số điện thoại'), findsOneWidget);
+      expect(
+        find.textContaining('Vui lòng nhập số điện thoại'),
+        findsOneWidget,
+      );
 
       // Enter valid phone
       await tester.enterText(find.byType(TextField), '0912345678');
@@ -45,7 +53,9 @@ void main() {
       expect(find.text('Nhập mã xác thực'), findsOneWidget);
     });
 
-    testWidgets('displays worker role indicator when role is Worker', (tester) async {
+    testWidgets('displays worker role indicator when role is Worker', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

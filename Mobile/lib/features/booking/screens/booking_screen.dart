@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -30,7 +31,14 @@ class BookingScreen extends StatefulWidget {
   /// What "Thêm địa chỉ" does; by default the Customers feature's address book opens.
   final VoidCallback? onManageAddresses;
 
-  const BookingScreen({super.key, this.service, this.addresses, this.now, this.onOrderCreated, this.onManageAddresses});
+  const BookingScreen({
+    super.key,
+    this.service,
+    this.addresses,
+    this.now,
+    this.onOrderCreated,
+    this.onManageAddresses,
+  });
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -85,14 +93,20 @@ class _BookingScreenState extends State<BookingScreen> {
       _loadError = null;
     });
     try {
-      final results = await Future.wait([_service.getOptions(), _addressSource.getAddresses()]);
+      final results = await Future.wait([
+        _service.getOptions(),
+        _addressSource.getAddresses(),
+      ]);
       if (!mounted) return;
       final addresses = results[1] as List<BookingAddress>;
       setState(() {
         _options = results[0] as BookingOptions;
         _addresses = addresses;
         // The default address is preselected; the customer can change it.
-        _addressId ??= addresses.where((a) => a.isDefault).map((a) => a.addressId).firstOrNull;
+        _addressId ??= addresses
+            .where((a) => a.isDefault)
+            .map((a) => a.addressId)
+            .firstOrNull;
         _loading = false;
       });
       _refreshQuote();
@@ -122,7 +136,10 @@ class _BookingScreenState extends State<BookingScreen> {
       _quoteError = null;
     });
     try {
-      final quote = await _service.getQuote(addressId: addressId, serviceTier: tier);
+      final quote = await _service.getQuote(
+        addressId: addressId,
+        serviceTier: tier,
+      );
       if (!mounted || id != _quoteRequest) return;
       setState(() {
         _quote = quote;
@@ -143,7 +160,9 @@ class _BookingScreenState extends State<BookingScreen> {
       _tier = tier;
       _failure = null;
       _hint = null;
-      if (tier != ServiceTier.premium) _skillController.clear(); // a required skill is a Premium-only field
+      if (tier != ServiceTier.premium) {
+        _skillController.clear(); // a required skill is a Premium-only field
+      }
     });
     _refreshQuote();
   }
@@ -161,11 +180,19 @@ class _BookingScreenState extends State<BookingScreen> {
     if (_submitting) return;
     final noteError = validateNote(_noteController.text);
     final skillError = validateSkill(_skillController.text);
-    final missing = missingChoice(tier: _tier, addressId: _addressId, day: _day, shiftCode: _shiftCode, hasQuote: _quote != null);
+    final missing = missingChoice(
+      tier: _tier,
+      addressId: _addressId,
+      day: _day,
+      shiftCode: _shiftCode,
+      hasQuote: _quote != null,
+    );
     if (missing != null || noteError != null || skillError != null) {
       setState(() {
         _hint = missing;
-        _failure = CreateOrderFailure(fields: {'customerNote': ?noteError, 'requiredSkill': ?skillError});
+        _failure = CreateOrderFailure(
+          fields: {'customerNote': ?noteError, 'requiredSkill': ?skillError},
+        );
       });
       return;
     }
@@ -178,7 +205,9 @@ class _BookingScreenState extends State<BookingScreen> {
       scheduledDate: dateKey(_day!),
       shiftCode: _shiftCode!,
       customerNote: note.isEmpty ? null : note,
-      requiredSkill: _tier == ServiceTier.premium && skill.isNotEmpty ? skill : null,
+      requiredSkill: _tier == ServiceTier.premium && skill.isNotEmpty
+          ? skill
+          : null,
     );
 
     setState(() {
@@ -195,7 +224,10 @@ class _BookingScreenState extends State<BookingScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _failure = createOrderFailure(e, premiumMinLeadHours: _options?.premiumMinLeadHours ?? 4);
+        _failure = createOrderFailure(
+          e,
+          premiumMinLeadHours: _options?.premiumMinLeadHours ?? 4,
+        );
       });
     }
   }
@@ -203,11 +235,22 @@ class _BookingScreenState extends State<BookingScreen> {
   void _opened(BookingOrder order) {
     if (widget.onOrderCreated != null) return widget.onOrderCreated!(order);
     Navigator.of(context)
-        .pushNamed(PaymentRoutes.payment, arguments: PaymentScreenArgs(orderId: order.orderId, orderCode: order.orderCode))
+        .pushNamed(
+          PaymentRoutes.payment,
+          arguments: PaymentScreenArgs(
+            orderId: order.orderId,
+            orderCode: order.orderCode,
+          ),
+        )
         .then((_) {
-      // Paid or not, the order exists: the customer follows it (and can pay or cancel it) on its own screen.
-      if (mounted) Navigator.of(context).pushReplacementNamed(BookingRoutes.bookingDetail, arguments: OrderDetailArgs(orderId: order.orderId));
-    });
+          // Paid or not, the order exists: the customer follows it (and can pay or cancel it) on its own screen.
+          if (mounted) {
+            Navigator.of(context).pushReplacementNamed(
+              BookingRoutes.bookingDetail,
+              arguments: OrderDetailArgs(orderId: order.orderId),
+            );
+          }
+        });
   }
 
   void _manageAddresses() {
@@ -232,8 +275,16 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _content() {
-    if (_loading && _options == null) return const LoadingStateWidget(message: 'Đang tải lựa chọn đặt đơn…');
-    if (_loadError != null) return ErrorStateWidget(title: 'Chưa tải được', message: _loadError!, onRetry: _load);
+    if (_loading && _options == null) {
+      return const LoadingStateWidget(message: 'Đang tải lựa chọn đặt đơn…');
+    }
+    if (_loadError != null) {
+      return ErrorStateWidget(
+        title: 'Chưa tải được',
+        message: _loadError!,
+        onRetry: _load,
+      );
+    }
     final options = _options!;
     final addresses = _addresses ?? const <BookingAddress>[];
 
@@ -265,7 +316,10 @@ class _BookingScreenState extends State<BookingScreen> {
             title: 'Bạn chưa có địa chỉ nào',
             subtitle: 'Thêm địa chỉ để hệ thống tính diện tích và báo giá.',
             icon: Icons.home_outlined,
-            action: NordicButton(label: 'Thêm địa chỉ', onPressed: _manageAddresses),
+            action: NordicButton(
+              label: 'Thêm địa chỉ',
+              onPressed: _manageAddresses,
+            ),
           )
         else ...[
           for (final address in addresses) ...[
@@ -273,14 +327,19 @@ class _BookingScreenState extends State<BookingScreen> {
               key: Key('address-${address.addressId}'),
               selected: _addressId == address.addressId,
               title: address.label,
-              subtitle: '${address.addressLine} · ${formatArea(address.totalAreaM2)}',
+              subtitle:
+                  '${address.addressLine} · ${formatArea(address.totalAreaM2)}',
               onTap: () => _chooseAddress(address.addressId),
             ),
             const SizedBox(height: 8.0),
           ],
           Align(
             alignment: Alignment.centerLeft,
-            child: NordicButton(label: 'Sổ địa chỉ', variant: NordicButtonVariant.ghost, onPressed: _manageAddresses),
+            child: NordicButton(
+              label: 'Sổ địa chỉ',
+              variant: NordicButtonVariant.ghost,
+              onPressed: _manageAddresses,
+            ),
           ),
         ],
         _fieldError('addressId'),
@@ -352,7 +411,12 @@ class _BookingScreenState extends State<BookingScreen> {
         const SizedBox(height: 16.0),
 
         if (_hint != null) _message(_hint!, key: const Key('booking-hint')),
-        if (_failure?.message != null) _message(_failure!.message!, key: const Key('booking-error'), isError: true),
+        if (_failure?.message != null)
+          _message(
+            _failure!.message!,
+            key: const Key('booking-error'),
+            isError: true,
+          ),
         NordicButton(
           key: const Key('submit-order'),
           label: 'Đặt đơn',
@@ -360,7 +424,10 @@ class _BookingScreenState extends State<BookingScreen> {
           onPressed: _submitting ? null : _submit,
         ),
         const SizedBox(height: 8.0),
-        const Text('Bạn thanh toán sau khi đặt đơn. Giá trên là giá cuối cùng, không có phụ phí.', style: NordicTypography.bodySmall),
+        const Text(
+          'Bạn thanh toán sau khi đặt đơn. Giá trên là giá cuối cùng, không có phụ phí.',
+          style: NordicTypography.bodySmall,
+        ),
         const SizedBox(height: 24.0),
       ],
     );
@@ -369,23 +436,41 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _quoteCard(BookingOptions options) {
     final quote = _quote;
     if (_quoteLoading) {
-      return const NordicCard(child: Text('Đang tính giá…', key: Key('quote-loading'), style: NordicTypography.bodyRegular));
+      return const NordicCard(
+        child: Text(
+          'Đang tính giá…',
+          key: Key('quote-loading'),
+          style: NordicTypography.bodyRegular,
+        ),
+      );
     }
     if (_quoteError != null) {
       return NordicCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Chưa lấy được giá: $_quoteError', key: const Key('quote-error'), style: NordicTypography.bodyRegular),
+            Text(
+              'Chưa lấy được giá: $_quoteError',
+              key: const Key('quote-error'),
+              style: NordicTypography.bodyRegular,
+            ),
             const SizedBox(height: 8.0),
-            NordicButton(label: 'Thử lại', variant: NordicButtonVariant.secondary, onPressed: _refreshQuote),
+            NordicButton(
+              label: 'Thử lại',
+              variant: NordicButtonVariant.secondary,
+              onPressed: _refreshQuote,
+            ),
           ],
         ),
       );
     }
     if (quote == null) {
       return const NordicCard(
-        child: Text('Chọn phân khúc và địa chỉ để xem giá.', key: Key('quote-empty'), style: NordicTypography.bodyRegular),
+        child: Text(
+          'Chọn phân khúc và địa chỉ để xem giá.',
+          key: Key('quote-empty'),
+          style: NordicTypography.bodyRegular,
+        ),
       );
     }
     return NordicCard(
@@ -393,7 +478,11 @@ class _BookingScreenState extends State<BookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(formatVnd(quote.totalAmount), key: const Key('quote-total'), style: NordicTypography.priceHighlight),
+          Text(
+            formatVnd(quote.totalAmount),
+            key: const Key('quote-total'),
+            style: NordicTypography.priceHighlight,
+          ),
           const SizedBox(height: 4.0),
           Text(
             '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} thợ · ${tierLabel(quote.serviceTier)}',
@@ -401,39 +490,52 @@ class _BookingScreenState extends State<BookingScreen> {
             style: NordicTypography.bodyRegular,
           ),
           const SizedBox(height: 4.0),
-          Text(workersNote(quote, options), key: const Key('quote-workers-note'), style: NordicTypography.bodySmall),
+          Text(
+            workersNote(quote, options),
+            key: const Key('quote-workers-note'),
+            style: NordicTypography.bodySmall,
+          ),
         ],
       ),
     );
   }
 
   Widget _heading(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8.0),
-        child: Text(text, style: NordicTypography.h3),
-      );
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Text(text, style: NordicTypography.h3),
+  );
 
   Widget _fieldError(String field) {
     final message = _failure?.fields[field];
     if (message == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 4.0),
-      child: Text(message, key: Key('field-error-$field'), style: NordicTypography.bodySmall.copyWith(color: NordicColors.error)),
+      child: Text(
+        message,
+        key: Key('field-error-$field'),
+        style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+      ),
     );
   }
 
-  Widget _message(String text, {required Key key, bool isError = false}) => Padding(
+  Widget _message(String text, {required Key key, bool isError = false}) =>
+      Padding(
         padding: const EdgeInsets.only(bottom: 12.0),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(12.0),
           decoration: BoxDecoration(
-            color: isError ? NordicColors.errorContainer : NordicColors.surfaceSubtle,
+            color: isError
+                ? NordicColors.errorContainer
+                : NordicColors.surfaceSubtle,
             borderRadius: BorderRadius.circular(12.0),
           ),
           child: Text(
             text,
             key: key,
-            style: NordicTypography.bodyRegular.copyWith(color: isError ? NordicColors.error : NordicColors.textTitle),
+            style: NordicTypography.bodyRegular.copyWith(
+              color: isError ? NordicColors.error : NordicColors.textTitle,
+            ),
           ),
         ),
       );
@@ -446,7 +548,13 @@ class _ChoiceCard extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
 
-  const _ChoiceCard({super.key, required this.selected, required this.title, this.subtitle, required this.onTap});
+  const _ChoiceCard({
+    super.key,
+    required this.selected,
+    required this.title,
+    this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -459,8 +567,12 @@ class _ChoiceCard extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-              color: selected ? NordicColors.primary : NordicColors.textSecondary,
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: selected
+                  ? NordicColors.primary
+                  : NordicColors.textSecondary,
             ),
             const SizedBox(width: 12.0),
             Expanded(

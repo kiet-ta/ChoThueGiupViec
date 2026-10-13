@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -89,7 +91,9 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
     });
 
     try {
-      final report = await _dispatchService.reportCustomerAbsent(widget.assignmentId);
+      final report = await _dispatchService.reportCustomerAbsent(
+        widget.assignmentId,
+      );
       if (!mounted) return;
       setState(() {
         _absentReport = report;
@@ -121,13 +125,13 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: const Text('Báo Khách Vắng Mặt'),
-      ),
+      appBar: AppBar(title: const Text('Báo Khách Vắng Mặt')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _absentReport != null ? _buildSuccessView() : _buildReportingView(),
+          child: _absentReport != null
+              ? _buildSuccessView()
+              : _buildReportingView(),
         ),
       ),
     );
@@ -139,10 +143,7 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
       children: [
         const EyebrowBadge(text: 'HIỆN TRƯỜNG (BR-05)'),
         const SizedBox(height: 8.0),
-        const Text(
-          'Khách hàng chưa mở cửa?',
-          style: NordicTypography.h2,
-        ),
+        const Text('Khách hàng chưa mở cửa?', style: NordicTypography.h2),
         const SizedBox(height: 4.0),
         Text(
           'Để đảm bảo quyền lợi và nhận bồi hoàn 40% giá trị ca, vui lòng tuân thủ 2 điều kiện bên dưới.',
@@ -200,8 +201,12 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
                 Row(
                   children: [
                     Icon(
-                      _hasMade2Calls ? Icons.check_circle : Icons.phone_callback_outlined,
-                      color: _hasMade2Calls ? NordicColors.success : NordicColors.accentAmber,
+                      _hasMade2Calls
+                          ? Icons.check_circle
+                          : Icons.phone_callback_outlined,
+                      color: _hasMade2Calls
+                          ? NordicColors.success
+                          : NordicColors.accentAmber,
                       size: 28.0,
                     ),
                     const SizedBox(width: 12.0),
@@ -251,7 +256,9 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
             ),
             child: Text(
               _errorMessage!,
-              style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
             ),
           ),
         ],
@@ -260,9 +267,13 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
         NordicButton(
           key: const Key('report_absent_button'),
           label: _canReportAbsent ? 'Báo Vắng Mặt (40%)' : 'Chưa đủ điều kiện',
-          variant: _canReportAbsent ? NordicButtonVariant.primary : NordicButtonVariant.secondary,
+          variant: _canReportAbsent
+              ? NordicButtonVariant.primary
+              : NordicButtonVariant.secondary,
           isLoading: _isSubmittingReport,
-          onPressed: _canReportAbsent && !_isSubmittingReport ? _handleReportAbsent : null,
+          onPressed: _canReportAbsent && !_isSubmittingReport
+              ? _handleReportAbsent
+              : null,
         ),
       ],
     );
@@ -307,8 +318,14 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Thời gian chờ:', style: NordicTypography.bodySmall),
-                    Text('${report.elapsedMinutes} phút', style: NordicTypography.labelMedium),
+                    const Text(
+                      'Thời gian chờ:',
+                      style: NordicTypography.bodySmall,
+                    ),
+                    Text(
+                      '${report.elapsedMinutes} phút',
+                      style: NordicTypography.labelMedium,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8.0),
@@ -316,9 +333,15 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text('Cuộc gọi liên hệ:', style: NordicTypography.bodySmall),
+                      child: Text(
+                        'Cuộc gọi liên hệ:',
+                        style: NordicTypography.bodySmall,
+                      ),
                     ),
-                    Text('${report.callAttempts} cuộc', style: NordicTypography.labelMedium),
+                    Text(
+                      '${report.callAttempts} cuộc',
+                      style: NordicTypography.labelMedium,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8.0),
@@ -327,8 +350,14 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Tỷ lệ bồi hoàn thợ:', style: NordicTypography.bodySmall),
-                    Text('${(report.workerFeeRate * 100).round()}%', style: NordicTypography.labelMedium),
+                    const Text(
+                      'Tỷ lệ bồi hoàn thợ:',
+                      style: NordicTypography.bodySmall,
+                    ),
+                    Text(
+                      '${(report.workerFeeRate * 100).round()}%',
+                      style: NordicTypography.labelMedium,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8.0),
@@ -344,7 +373,9 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
                     const SizedBox(width: 8.0),
                     Text(
                       _formatCurrency(report.absenceFeeAmount),
-                      style: NordicTypography.h3.copyWith(color: NordicColors.primary),
+                      style: NordicTypography.h3.copyWith(
+                        color: NordicColors.primary,
+                      ),
                     ),
                   ],
                 ),

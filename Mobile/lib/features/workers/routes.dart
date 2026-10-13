@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+
 import '../../app/feature_module.dart';
 import 'screens/customer_acceptance_screen.dart';
 import 'screens/worker_ekyc_screen.dart';
@@ -28,14 +29,13 @@ class WorkersFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        WorkerRoutes.profile: (context) => const WorkerScreen(),
-        WorkerRoutes.ekyc: (context) => const WorkerEkycScreen(),
-        WorkerRoutes.slots: (context) => const WorkerSlotsScreen(),
-        WorkerRoutes.execution: (context) => const WorkerExecutionScreen(),
-        WorkerRoutes.photos: (context) => const WorkerPhotosScreen(),
-        WorkerRoutes.extension: (context) => const WorkerExtensionScreen(),
-        WorkerRoutes.customerAcceptance: (context) => const CustomerAcceptanceScreen(),
-      };
+    WorkerRoutes.profile: (context) => const WorkerScreen(),
+    WorkerRoutes.ekyc: (context) => const WorkerEkycScreen(),
+    WorkerRoutes.slots: (context) => const WorkerSlotsScreen(),
+    WorkerRoutes.execution: (context) => const WorkerExecutionScreen(),
+    WorkerRoutes.photos: (context) => const WorkerPhotosScreen(),
+    WorkerRoutes.extension: (context) => const WorkerExtensionScreen(),
+    WorkerRoutes.customerAcceptance: (context) =>
+        const CustomerAcceptanceScreen(),
+  };
 }
-
-

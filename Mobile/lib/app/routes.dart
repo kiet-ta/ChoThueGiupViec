@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+
 import 'feature_registry.dart';
 
 /// Central route names and routing table delegate for the Mobile application.

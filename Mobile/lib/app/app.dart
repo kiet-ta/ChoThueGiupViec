@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../core/theme/nordic_theme.dart';
 import '../features/home/home_screen.dart';
 import 'routes.dart';

@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app/app.dart';
 
 void main() {
-  testWidgets('ToAmApp boots up and displays Nordic Care home screen', (tester) async {
+  testWidgets('ToAmApp boots up and displays Nordic Care home screen', (
+    tester,
+  ) async {
     // Target 390x844 mobile design frame
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;

@@ -4,6 +4,7 @@ import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/features/workers/models/ekyc_models.dart';
 import 'package:mobile/features/workers/screens/worker_ekyc_screen.dart';
 import 'package:mobile/features/workers/services/workers_ekyc_service.dart';
+
 import 'design_frame.dart';
 
 class MockWorkersEkycService extends WorkersEkycService {
@@ -11,12 +12,15 @@ class MockWorkersEkycService extends WorkersEkycService {
   EkycResultResponse? responseToReturn;
 
   @override
-  Future<ApiResponse<EkycResultResponse>> submitEkyc(SubmitEkycRequest request) async {
+  Future<ApiResponse<EkycResultResponse>> submitEkyc(
+    SubmitEkycRequest request,
+  ) async {
     lastRequest = request;
     return ApiResponse<EkycResultResponse>(
       success: true,
       message: 'OK',
-      data: responseToReturn ??
+      data:
+          responseToReturn ??
           const EkycResultResponse(
             workerId: 101,
             confidenceScore: 92.0,
@@ -35,41 +39,42 @@ void main() {
       mockService = MockWorkersEkycService();
     });
 
-    testWidgets('WorkerEkycScreen renders steps and navigates forward/backward', (tester) async {
+    testWidgets(
+      'WorkerEkycScreen renders steps and navigates forward/backward',
+      (tester) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          MaterialApp(home: WorkerEkycScreen(ekycService: mockService)),
+        );
+
+        // Initial state: Step 1 (Mặt Trước CCCD)
+        expect(find.text('Xác Thực eKYC'), findsOneWidget);
+        expect(find.text('Mặt Trước CCCD'), findsOneWidget);
+
+        // Tap 'Tiếp theo' -> Step 2 (Mặt Sau CCCD)
+        await tapVisible(tester, find.text('Tiếp theo'));
+        await tester.pumpAndSettle();
+        expect(find.text('Mặt Sau CCCD'), findsOneWidget);
+
+        // Tap 'Tiếp theo' -> Step 3 (Selfie)
+        await tapVisible(tester, find.text('Tiếp theo'));
+        await tester.pumpAndSettle();
+        expect(find.text('Ảnh Chân Dung (Selfie)'), findsOneWidget);
+
+        // Tap 'Tiếp theo' -> Step 4 (Summary & Confirm)
+        await tapVisible(tester, find.text('Tiếp theo'));
+        await tester.pumpAndSettle();
+        expect(find.text('Xác Nhận Thông Tin Ảnh eKYC'), findsOneWidget);
+        expect(find.text('Gửi Xác Thực eKYC'), findsOneWidget);
+      },
+    );
+
+    testWidgets('WorkerEkycScreen submits eKYC and displays APPROVED result', (
+      tester,
+    ) async {
       useDesignFrame(tester);
       await tester.pumpWidget(
-        MaterialApp(
-          home: WorkerEkycScreen(ekycService: mockService),
-        ),
-      );
-
-      // Initial state: Step 1 (Mặt Trước CCCD)
-      expect(find.text('Xác Thực eKYC'), findsOneWidget);
-      expect(find.text('Mặt Trước CCCD'), findsOneWidget);
-
-      // Tap 'Tiếp theo' -> Step 2 (Mặt Sau CCCD)
-      await tapVisible(tester, find.text('Tiếp theo'));
-      await tester.pumpAndSettle();
-      expect(find.text('Mặt Sau CCCD'), findsOneWidget);
-
-      // Tap 'Tiếp theo' -> Step 3 (Selfie)
-      await tapVisible(tester, find.text('Tiếp theo'));
-      await tester.pumpAndSettle();
-      expect(find.text('Ảnh Chân Dung (Selfie)'), findsOneWidget);
-
-      // Tap 'Tiếp theo' -> Step 4 (Summary & Confirm)
-      await tapVisible(tester, find.text('Tiếp theo'));
-      await tester.pumpAndSettle();
-      expect(find.text('Xác Nhận Thông Tin Ảnh eKYC'), findsOneWidget);
-      expect(find.text('Gửi Xác Thực eKYC'), findsOneWidget);
-    });
-
-    testWidgets('WorkerEkycScreen submits eKYC and displays APPROVED result', (tester) async {
-      useDesignFrame(tester);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: WorkerEkycScreen(ekycService: mockService),
-        ),
+        MaterialApp(home: WorkerEkycScreen(ekycService: mockService)),
       );
 
       // Navigate to Step 4
@@ -85,7 +90,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(mockService.lastRequest, isNotNull);
-      expect(mockService.lastRequest!.frontCccdUrl, contains('front_sample.jpg'));
+      expect(
+        mockService.lastRequest!.frontCccdUrl,
+        contains('front_sample.jpg'),
+      );
       expect(mockService.lastRequest!.backCccdUrl, contains('back_sample.jpg'));
       expect(mockService.lastRequest!.selfieUrl, contains('selfie_sample.jpg'));
 

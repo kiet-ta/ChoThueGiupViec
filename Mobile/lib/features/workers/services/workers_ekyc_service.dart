@@ -7,14 +7,17 @@ class WorkersEkycService {
   final ApiClient _apiClient;
 
   WorkersEkycService({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   /// Submits front/back CCCD and selfie photo URLs for automated eKYC verification.
-  Future<ApiResponse<EkycResultResponse>> submitEkyc(SubmitEkycRequest request) {
+  Future<ApiResponse<EkycResultResponse>> submitEkyc(
+    SubmitEkycRequest request,
+  ) {
     return _apiClient.post<EkycResultResponse>(
       '/api/workers/me/ekyc',
       body: request.toJson(),
-      fromJson: (json) => EkycResultResponse.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) =>
+          EkycResultResponse.fromJson(json as Map<String, dynamic>),
     );
   }
 }

@@ -26,7 +26,9 @@ class CheckInResult {
     return CheckInResult(
       checkInId: json['checkInId'] as int? ?? 0,
       assignmentId: json['assignmentId'] as int,
-      checkedInAt: DateTime.tryParse(json['checkedInAt'] as String? ?? '') ?? DateTime.now(),
+      checkedInAt:
+          DateTime.tryParse(json['checkedInAt'] as String? ?? '') ??
+          DateTime.now(),
       distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0.0,
       isGpsVerified: json['isGpsVerified'] as bool? ?? false,
       requiresAlternativeVerification:
