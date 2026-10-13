@@ -85,6 +85,17 @@ public class WorkerDispatchServiceTests
             return Task.FromResult(true);
         }
 
+        public Task<bool> TryMarkCustomerAbsentAsync(long assignmentId, DateTime reportedAtUtc, CancellationToken cancellationToken = default)
+        {
+            if (Logs.TryGetValue(assignmentId, out var log) && log.CustomerAbsentAt == null)
+            {
+                log.CustomerAbsentAt = reportedAtUtc;
+                return Task.FromResult(true);
+            }
+
+            return Task.FromResult(false);
+        }
+
         public Task<bool> UpdateAssignmentAbsentFeeAsync(long assignmentId, decimal absenceFeeAmount, CancellationToken cancellationToken = default)
         {
             dispatch.Assignments[assignmentId].AbsenceFeeAmount = absenceFeeAmount;
@@ -310,5 +321,79 @@ public class WorkerDispatchServiceTests
         h.User.Role = UserRole.Customer;
 
         await Assert.ThrowsAsync<ForbiddenAccessException>(() => h.Service.GetCurrentOfferAsync());
+    }
+
+    [Fact]
+    public async Task Plate_photo_check_in_starts_the_15_minute_wait_when_it_completes()
+    {
+        var h = new Harness();
+        var id = await h.AssignedAsync(509, workerId: 42, slotId: 7);
+        await h.Service.CheckInAsync(id, 21.0400, 105.8000); // GPS miss
+        h.Clock.Advance(TimeSpan.FromMinutes(20)); // the worker waits before sending the photo
+
+        var plate = await h.Service.SubmitPlatePhotoAsync(id, "https://storage.local/plates/509.jpg");
+        Assert.Equal(h.Clock.UtcNow, plate.CheckedInAt);
+
+        await h.Service.LogCallAsync(id);
+        await h.Service.LogCallAsync(id);
+        var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => h.Service.ReportAbsentAsync(id));
+        Assert.Equal(DispatchErrorCodes.AbsentConditionsNotMet, ex.Code); // 0 minutes since the completed check-in
+    }
+
+    [Theory]
+    [InlineData("not a url")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("ftp://storage.local/p.jpg")]
+    public async Task Plate_photo_url_must_be_an_absolute_http_url(string url)
+    {
+        var h = new Harness();
+        var id = await h.AssignedAsync(510, workerId: 42, slotId: 7);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => h.Service.SubmitPlatePhotoAsync(id, url));
+        await Assert.ThrowsAsync<ArgumentException>(() => h.Service.SubmitPlatePhotoAsync(id, "https://s/" + new string('a', 500)));
+    }
+
+    [Fact]
+    public async Task A_check_in_from_very_far_away_is_stored_within_the_distance_column()
+    {
+        var h = new Harness();
+        var id = await h.AssignedAsync(511, workerId: 42, slotId: 7);
+
+        var result = await h.Service.CheckInAsync(id, 0, 0); // emulator default location, thousands of km away
+
+        Assert.True(result.RequiresAlternativeVerification);
+        Assert.Equal(99999.99m, result.DistanceMeters); // CHECK_IN_LOG.distance_m DECIMAL(7,2) maximum
+    }
+
+    [Fact]
+    public async Task Absent_report_that_loses_the_race_is_ABSENT_ALREADY_REPORTED()
+    {
+        var h = new Harness();
+        var id = await h.AssignedAsync(512, workerId: 42, slotId: 7);
+        await h.Service.CheckInAsync(id, Home.Latitude, Home.Longitude);
+        await h.Service.LogCallAsync(id);
+        await h.Service.LogCallAsync(id);
+        h.Clock.Advance(TimeSpan.FromMinutes(16));
+        // Another request set customer_absent_at between this request's read and its write.
+        var log = h.Field.Logs[id];
+        var racing = new CustomerAbsentService(new RacingAbsentRepository(h.Field, log), h.Clock, h.Mediator,
+            MicrosoftOptions.Create(new BusinessRules()));
+
+        var result = await racing.ReportCustomerAbsentAsync(id, 42);
+
+        Assert.False(result.Success);
+        Assert.True(result.AlreadyReported);
+        Assert.DoesNotContain(h.Mediator.Published, e => e is CommonService.Domain.Events.CustomerAbsentReported);
+    }
+
+    /// <summary>Returns the log as it was before a concurrent report, then refuses the conditional write.</summary>
+    private sealed class RacingAbsentRepository(InMemoryFieldRepository inner, CheckInLog snapshot) : ICustomerAbsentRepository
+    {
+        public Task<JobAssignment?> GetAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default) => inner.GetAssignmentAsync(assignmentId, cancellationToken);
+        public Task<CheckInLog?> GetCheckInLogAsync(long assignmentId, CancellationToken cancellationToken = default) => Task.FromResult<CheckInLog?>(snapshot);
+        public Task<CheckInLog> SaveCheckInLogAsync(CheckInLog log, CancellationToken cancellationToken = default) => inner.SaveCheckInLogAsync(log, cancellationToken);
+        public Task<bool> UpdateAssignmentAbsentFeeAsync(long assignmentId, decimal absenceFeeAmount, CancellationToken cancellationToken = default) => inner.UpdateAssignmentAbsentFeeAsync(assignmentId, absenceFeeAmount, cancellationToken);
+        public Task<bool> RecordCallAttemptAsync(long assignmentId, CancellationToken cancellationToken = default) => inner.RecordCallAttemptAsync(assignmentId, cancellationToken);
+        public Task<bool> TryMarkCustomerAbsentAsync(long assignmentId, DateTime reportedAtUtc, CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
 }

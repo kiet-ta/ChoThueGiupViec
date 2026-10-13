@@ -40,6 +40,9 @@ public interface IFieldCheckInRepository
 /// </summary>
 public class FieldCheckInService
 {
+    /// <summary>provenance: the largest value of <c>CHECK_IN_LOG.distance_m</c> DECIMAL(7,2) (CheckInLogConfiguration).</summary>
+    private const decimal MaxStoredDistanceMeters = 99999.99m;
+
     private readonly IFieldCheckInRepository _repository;
     private readonly IGeoService _geoService;
     private readonly IClock _clock;
@@ -116,7 +119,8 @@ public class FieldCheckInService
         };
         checkInLog.DeviceLat = (decimal)deviceLocation.Latitude;
         checkInLog.DeviceLng = (decimal)deviceLocation.Longitude;
-        checkInLog.DistanceM = Math.Round((decimal)distanceMeters, 2);
+        // CHECK_IN_LOG.distance_m is DECIMAL(7,2): a device more than ~100 km away (emulator, 0,0) is stored at the column maximum.
+        checkInLog.DistanceM = Math.Min(Math.Round((decimal)distanceMeters, 2), MaxStoredDistanceMeters);
         checkInLog.GpsVerified = isGpsVerified;
         checkInLog.FallbackMethod = null;
         checkInLog.FallbackPhotoUrl = null;
@@ -126,7 +130,16 @@ public class FieldCheckInService
         {
             // Transition directly to CHECKED_IN
             await _repository.SaveCheckInLogAsync(checkInLog, cancellationToken);
-            await _repository.TransitionToCheckedInAsync(assignmentId, nowUtc, cancellationToken);
+            if (!await _repository.TransitionToCheckedInAsync(assignmentId, nowUtc, cancellationToken))
+            {
+                return new FieldCheckInResult
+                {
+                    Success = false,
+                    AssignmentId = assignmentId,
+                    Status = assignment.AssignmentStatus,
+                    ErrorMessage = "Ca làm đã thay đổi trạng thái trong lúc check-in."
+                };
+            }
 
             _logger.LogInformation(
                 "Check-in verified via GPS for assignment {AssignmentId}. Distance={Distance:F1}m (tolerance {Tolerance}m).",
@@ -211,9 +224,19 @@ public class FieldCheckInService
         var nowUtc = _clock.UtcNow;
         log.FallbackMethod = fallbackMethod;
         log.FallbackPhotoUrl = photoUrl;
+        log.CheckedInAt = nowUtc; // the BR-05 15-minute wait starts when the check-in is completed, not at the failed GPS attempt
 
         await _repository.SaveCheckInLogAsync(log, cancellationToken);
-        await _repository.TransitionToCheckedInAsync(assignmentId, nowUtc, cancellationToken);
+        if (!await _repository.TransitionToCheckedInAsync(assignmentId, nowUtc, cancellationToken))
+        {
+            return new FieldCheckInResult
+            {
+                Success = false,
+                AssignmentId = assignmentId,
+                Status = assignment.AssignmentStatus,
+                ErrorMessage = "Ca làm đã thay đổi trạng thái trong lúc check-in."
+            };
+        }
 
         _logger.LogInformation(
             "Fallback check-in confirmed via {Method} for assignment {AssignmentId}.",

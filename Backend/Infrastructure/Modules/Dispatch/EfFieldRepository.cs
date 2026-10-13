@@ -49,6 +49,11 @@ public sealed class EfFieldRepository(AppDbContext db) : IFieldCheckInRepository
             .Where(l => l.AssignmentId == assignmentId && l.CallAttempts < byte.MaxValue)
             .ExecuteUpdateAsync(s => s.SetProperty(l => l.CallAttempts, l => (byte)(l.CallAttempts + 1)), cancellationToken) == 1;
 
+    public async Task<bool> TryMarkCustomerAbsentAsync(long assignmentId, DateTime reportedAtUtc, CancellationToken cancellationToken = default) =>
+        await db.CheckInLogs
+            .Where(l => l.AssignmentId == assignmentId && l.CustomerAbsentAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.CustomerAbsentAt, (DateTime?)reportedAtUtc), cancellationToken) == 1;
+
     public async Task<bool> UpdateAssignmentAbsentFeeAsync(long assignmentId, decimal absenceFeeAmount, CancellationToken cancellationToken = default) =>
         await db.JobAssignments
             .Where(a => a.AssignmentId == assignmentId && a.AssignmentStatus == JobAssignmentStatus.CheckedIn)

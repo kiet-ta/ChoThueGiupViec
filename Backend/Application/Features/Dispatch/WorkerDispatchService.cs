@@ -103,6 +103,9 @@ public sealed class WorkerDispatchService(
 {
     private const string PlatePhotoMethod = "PLATE_PHOTO";
 
+    /// <summary>provenance: <c>CHECK_IN_LOG.fallback_photo_url</c> is NVARCHAR(500) (CheckInLogConfiguration).</summary>
+    private const int MaxPhotoUrlLength = 500;
+
     private int WorkerId => currentUser.UserId is int id && currentUser.Role == UserRole.Worker
         ? id
         : throw new ForbiddenAccessException("Authenticated worker user ID is required.");
@@ -178,7 +181,7 @@ public sealed class WorkerDispatchService(
 
     public async Task<CheckInResultDto> CheckInAsync(long assignmentId, double latitude, double longitude, CancellationToken cancellationToken = default)
     {
-        if (double.IsNaN(latitude) || double.IsNaN(longitude) || latitude is < -90 or > 90 || longitude is < -180 or > 180)
+        if (!double.IsFinite(latitude) || !double.IsFinite(longitude) || latitude is < -90 or > 90 || longitude is < -180 or > 180)
         {
             throw new ArgumentException("Tọa độ GPS không hợp lệ.");
         }
@@ -215,9 +218,13 @@ public sealed class WorkerDispatchService(
 
     public async Task<CheckInResultDto> SubmitPlatePhotoAsync(long assignmentId, string? platePhotoUrl, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(platePhotoUrl))
+        var url = platePhotoUrl?.Trim();
+        if (string.IsNullOrEmpty(url)
+            || url.Length > MaxPhotoUrlLength
+            || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
-            throw new ArgumentException("platePhotoUrl là bắt buộc.");
+            throw new ArgumentException($"platePhotoUrl phải là một URL http(s) tuyệt đối, tối đa {MaxPhotoUrlLength} ký tự.");
         }
 
         var workerId = WorkerId;
@@ -228,7 +235,7 @@ public sealed class WorkerDispatchService(
                 $"Trạng thái ca làm ({assignment.AssignmentStatus}) không hợp lệ để check-in.", DispatchErrorCodes.InvalidAssignmentState);
         }
 
-        var result = await checkIn.ResolveFallbackCheckInAsync(assignmentId, PlatePhotoMethod, platePhotoUrl.Trim(), cancellationToken);
+        var result = await checkIn.ResolveFallbackCheckInAsync(assignmentId, PlatePhotoMethod, url, cancellationToken);
         if (!result.Success)
         {
             throw new BusinessRuleViolationException(result.ErrorMessage ?? "Check-in failed.", DispatchErrorCodes.InvalidAssignmentState);

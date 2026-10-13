@@ -10,7 +10,7 @@ namespace CommonService.WebAPI.Controllers.Dispatch;
 public sealed record DeclineOfferRequest(string? Reason);
 
 /// <summary>Request body of the GPS check-in endpoint (contract dispatch.md 3.1).</summary>
-public sealed record CheckInRequest(double Latitude, double Longitude);
+public sealed record CheckInRequest(double? Latitude, double? Longitude);
 
 /// <summary>Request body of the plate-photo fallback (contract dispatch.md 3.1).</summary>
 public sealed record PlatePhotoRequest(string? PlatePhotoUrl);
@@ -53,7 +53,11 @@ public class WorkerDispatchController(WorkerDispatchService service) : Controlle
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CheckIn(long assignmentId, [FromBody] CheckInRequest request, CancellationToken ct) =>
-        Ok(ApiResponse<CheckInResultDto>.Ok(await service.CheckInAsync(assignmentId, request.Latitude, request.Longitude, ct)));
+        Ok(ApiResponse<CheckInResultDto>.Ok(await service.CheckInAsync(
+            assignmentId,
+            request.Latitude ?? throw new ArgumentException("latitude là bắt buộc."),
+            request.Longitude ?? throw new ArgumentException("longitude là bắt buộc."),
+            ct)));
 
     /// <summary>House-plate photo when GPS is more than 100 m off.</summary>
     [HttpPost("assignments/{assignmentId:long}/check-in/plate-photo")]

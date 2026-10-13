@@ -40,6 +40,9 @@ public interface ICustomerAbsentRepository
     Task<CheckInLog> SaveCheckInLogAsync(CheckInLog log, CancellationToken cancellationToken = default);
     Task<bool> UpdateAssignmentAbsentFeeAsync(long assignmentId, decimal absenceFeeAmount, CancellationToken cancellationToken = default);
     Task<bool> RecordCallAttemptAsync(long assignmentId, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets <c>customer_absent_at</c> only while it is still null; false when the absence was already reported (two requests race).</summary>
+    Task<bool> TryMarkCustomerAbsentAsync(long assignmentId, DateTime reportedAtUtc, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -187,8 +190,17 @@ public class CustomerAbsentService
         }
 
         // Record customer_absent_at in CheckInLog
-        log.CustomerAbsentAt = nowUtc;
-        await _repository.SaveCheckInLogAsync(log, cancellationToken);
+        if (!await _repository.TryMarkCustomerAbsentAsync(assignmentId, nowUtc, cancellationToken))
+        {
+            return new CustomerAbsentReportResult
+            {
+                Success = false,
+                AssignmentId = assignmentId,
+                AlreadyReported = true,
+                CallAttempts = log.CallAttempts,
+                ErrorMessage = "Đã báo khách vắng mặt cho ca này; đang chờ Admin duyệt."
+            };
+        }
 
         // Calculate 40% compensation fee for worker and 60% refund for customer (Q10)
         decimal feeRate = _rules.Absence.FeeRate > 0 ? _rules.Absence.FeeRate : 0.40m;
