@@ -175,12 +175,16 @@ internal sealed class InMemoryDispatchRepository : IDispatchRepository
         }
     }
 
-    public Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, CancellationToken cancellationToken = default)
+    /// <summary><c>JOB_ORDER.updated_at</c> per order (default: long ago), for the sweep's quiet window.</summary>
+    public Dictionary<long, DateTime> OrderUpdatedAt { get; } = new();
+
+    public Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, DateOnly scheduledFrom, CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
             return Task.FromResult<IReadOnlyList<long>>(Orders.Values
-                .Where(o => o.OrderStatus == JobOrderStatus.Dispatching)
+                .Where(o => o.OrderStatus == JobOrderStatus.Dispatching && o.ScheduledDate >= scheduledFrom)
+                .Where(o => (OrderUpdatedAt.TryGetValue(o.OrderId, out var updatedAt) ? updatedAt : DateTime.MinValue) <= quietSinceUtc)
                 .Where(o => Assignments.Values.Count(a => a.OrderId == o.OrderId && IsLive(a.AssignmentStatus)) < o.RequiredWorkers)
                 .Where(o => !Assignments.Values.Any(a => a.OrderId == o.OrderId && a.UpdatedAt > quietSinceUtc))
                 .Select(o => o.OrderId)

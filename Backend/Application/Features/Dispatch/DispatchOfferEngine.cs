@@ -71,10 +71,11 @@ public interface IDispatchRepository
     Task<IReadOnlyCollection<byte>> GetTakenSeatsAsync(long orderId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Dispatching orders with fewer live seats than <c>required_workers</c> and no change (order or assignment) after
-    /// <paramref name="quietSinceUtc"/>: a seat was lost (e.g. the next-candidate step failed) and must be offered again.
+    /// Dispatching orders scheduled on or after <paramref name="scheduledFrom"/> with fewer live seats than <c>required_workers</c> and no
+    /// change (order or assignment) after <paramref name="quietSinceUtc"/>: a seat was lost (e.g. the next-candidate step failed) and
+    /// must be offered again.
     /// </summary>
-    Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, DateOnly scheduledFrom, CancellationToken cancellationToken = default);
 
     /// <summary>The order was cancelled: open offers and not-started assignments become CANCELLED and their slots AVAILABLE. Returns how many rows changed.</summary>
     Task<int> CancelOpenAssignmentsOfOrderAsync(long orderId, DateTime cancelledAtUtc, CancellationToken cancellationToken = default);
@@ -146,8 +147,9 @@ public class DispatchOfferEngine
 
         if (order.ServiceTier == ServiceTier.Premium)
         {
-            // The hold covers every seat at once; a repeated OrderPaid (or a sweep) must not assign it twice.
-            return taken.Count > 0 ? [] : await StartPremiumAgencyDispatchAsync(order, grossPerSeat, cancellationToken);
+            // The hold covers every seat; seat n uses the hold's n-th slot. Seats already assigned are skipped, so a repeated
+            // OrderPaid or a sweep never assigns a seat twice and a partly assigned order is completed.
+            return taken.Count >= seats ? [] : await StartPremiumAgencyDispatchAsync(order, grossPerSeat, cancellationToken, taken);
         }
 
         var offers = new List<DispatchOffer>();
@@ -303,7 +305,8 @@ public class DispatchOfferEngine
     public async Task<IReadOnlyList<DispatchOffer>> StartPremiumAgencyDispatchAsync(
         DispatchOrderContext order,
         decimal grossPerSeat,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<byte>? takenSeats = null)
     {
         if (_agencyCapacityService == null)
         {
@@ -312,7 +315,7 @@ public class DispatchOfferEngine
         }
 
         var reservation = await _agencyCapacityService.GetReservationByOrderAsync(order.OrderId, cancellationToken);
-        return await AssignPremiumSeatsAsync(order, grossPerSeat, reservation, firstSeq: 1, cancellationToken);
+        return await AssignPremiumSeatsAsync(order, grossPerSeat, reservation, firstSeq: 1, cancellationToken, takenSeats);
     }
 
     private async Task<IReadOnlyList<DispatchOffer>> AssignPremiumSeatsAsync(
@@ -320,7 +323,8 @@ public class DispatchOfferEngine
         decimal grossPerSeat,
         CapacityReservation? reservation,
         byte firstSeq,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<byte>? takenSeats = null)
     {
         var nowUtc = _clock.UtcNow;
 
@@ -352,6 +356,11 @@ public class DispatchOfferEngine
 
         for (var i = 0; i < seats; i++)
         {
+            if (takenSeats != null && takenSeats.Contains((byte)(firstSeq + i)))
+            {
+                continue;
+            }
+
             var slotId = reservation.SlotIds[i];
             var workerId = await _dispatchRepository.GetSlotWorkerIdAsync(slotId, cancellationToken);
             if (workerId == null)
@@ -538,7 +547,7 @@ public class DispatchOfferEngine
     /// </summary>
     public async Task<int> RecoverMissingSeatsAsync(CancellationToken cancellationToken = default)
     {
-        var orderIds = await _dispatchRepository.GetOrdersMissingSeatsAsync(ExpiryCutoff(_clock.UtcNow), cancellationToken);
+        var orderIds = await _dispatchRepository.GetOrdersMissingSeatsAsync(ExpiryCutoff(_clock.UtcNow), _clock.LocalToday, cancellationToken);
         foreach (var orderId in orderIds)
         {
             try

@@ -448,4 +448,96 @@ public class DispatchOfferEngineTests
         Assert.Equal(520, offer.OrderId);
         Assert.Equal(0, await h.Engine.RecoverMissingSeatsAsync()); // the seat is live again: nothing to recover
     }
+
+    [Fact]
+    public async Task Sweep_waits_one_offer_window_after_the_last_change_before_re_offering()
+    {
+        var h = new Harness();
+        h.AddOrder(521);
+        h.AddWorker(906, slotId: 161, distanceKm: 1.0);
+        var offer = await h.OfferAsync(521);
+        await h.Repo.TryCloseOfferAsync(offer!.AssignmentId, h.Clock.UtcNow); // the seat was lost just now
+
+        h.Clock.Advance(TimeSpan.FromSeconds(10));
+        Assert.Equal(0, await h.Engine.RecoverMissingSeatsAsync()); // a decline/next-candidate may still be in flight
+
+        h.Clock.Advance(TimeSpan.FromSeconds(21));
+        Assert.Equal(1, await h.Engine.RecoverMissingSeatsAsync());
+    }
+
+    [Fact]
+    public async Task Sweep_ignores_a_recently_updated_order_and_a_past_shift()
+    {
+        var h = new Harness();
+        h.AddOrder(522);
+        h.Repo.OrderUpdatedAt[522] = h.Clock.UtcNow; // just moved to DISPATCHING: OrderPaid is being handled
+        h.Repo.Orders[523] = new DispatchOrderContext(523, 201, ServiceTier.Economy, ShiftDate.AddDays(-1), "SANG", 1, OrderLocation, 260000m);
+        h.AddWorker(907, slotId: 171, distanceKm: 1.0);
+
+        Assert.Equal(0, await h.Engine.RecoverMissingSeatsAsync());
+        Assert.Empty(h.Repo.Assignments);
+    }
+
+    [Fact]
+    public async Task Premium_partly_assigned_order_is_completed_without_assigning_a_seat_twice()
+    {
+        var h = new Harness();
+        h.AddOrder(524, tier: ServiceTier.Premium, requiredWorkers: 2, total: 520000m);
+        var hold = await h.Capacity.TryReserveAsync(new CapacityRequest(ShiftDate, "SANG", 2, OrderId: 524));
+        h.Repo.AddSlot(hold!.SlotIds[0], workerId: 81, status: DispatchSlotStatuses.Held);
+        h.Repo.AddSlot(hold.SlotIds[1], workerId: 82, status: DispatchSlotStatuses.Held);
+        await h.Repo.CreateAssignedAsync(new CommonService.Domain.Entities.JobAssignment
+        {
+            OrderId = 524,
+            CustomerId = 201,
+            WorkerId = 81,
+            AgencyId = hold.AgencyId,
+            SlotId = hold.SlotIds[0],
+            ServiceTier = ServiceTier.Premium,
+            AssignmentSeq = 1,
+            GrossAmount = 260000m,
+            CommissionRate = 0.200m,
+            PayoutAmount = 208000m,
+            CreatedAt = StartTime,
+            UpdatedAt = StartTime,
+        }); // seat 1 was assigned, then the dispatch failed before seat 2
+
+        var assigned = await h.Engine.DispatchPaidOrderAsync(524);
+
+        var seat2 = Assert.Single(assigned);
+        Assert.Equal(82, seat2.WorkerId);
+        Assert.Equal(2, h.Repo.Assignments.Count);
+        Assert.Equal([(byte)1, (byte)2], h.Repo.Assignments.Values.Select(a => a.AssignmentSeq).OrderBy(x => x));
+    }
+
+    private sealed class ThrowingDispatchRepository : IDispatchRepository
+    {
+        private static Exception Down() => new InvalidOperationException("database down");
+        public Task<DispatchOrderContext?> GetOrderContextAsync(long orderId, CancellationToken cancellationToken = default) => throw Down();
+        public Task<IReadOnlyCollection<long>> GetWorkerIdsAlreadyOfferedAsync(long orderId, CancellationToken cancellationToken = default) => throw Down();
+        public Task<CommonService.Domain.Entities.JobAssignment?> TryCreateOfferAsync(CommonService.Domain.Entities.JobAssignment offer, CancellationToken cancellationToken = default) => throw Down();
+        public Task<CommonService.Domain.Entities.JobAssignment?> GetAssignmentByIdAsync(long assignmentId, CancellationToken cancellationToken = default) => throw Down();
+        public Task<CommonService.Domain.Entities.JobAssignment?> GetOpenOfferForWorkerAsync(int workerId, DateTime offeredAfterUtc, CancellationToken cancellationToken = default) => throw Down();
+        public Task<bool> TryAcceptOfferAsync(long assignmentId, int workerId, DateTime offeredAfterUtc, DateTime acceptedAtUtc, CancellationToken cancellationToken = default) => throw Down();
+        public Task<bool> TryCloseOfferAsync(long assignmentId, DateTime closedAtUtc, CancellationToken cancellationToken = default) => throw Down();
+        public Task<IReadOnlyList<CommonService.Domain.Entities.JobAssignment>> GetOffersCreatedAtOrBeforeAsync(DateTime createdAtOrBeforeUtc, CancellationToken cancellationToken = default) => throw Down();
+        public Task<int?> GetSlotWorkerIdAsync(int slotId, CancellationToken cancellationToken = default) => throw Down();
+        public Task<CommonService.Domain.Entities.JobAssignment> CreateAssignedAsync(CommonService.Domain.Entities.JobAssignment assignment, CancellationToken cancellationToken = default) => throw Down();
+        public Task<IReadOnlyCollection<byte>> GetTakenSeatsAsync(long orderId, CancellationToken cancellationToken = default) => throw Down();
+        public Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, DateOnly scheduledFrom, CancellationToken cancellationToken = default) => throw Down();
+        public Task<int> CancelOpenAssignmentsOfOrderAsync(long orderId, DateTime cancelledAtUtc, CancellationToken cancellationToken = default) => throw Down();
+    }
+
+    [Fact]
+    public async Task Dispatch_failures_in_the_event_handlers_do_not_escape_so_payment_and_refund_flows_continue()
+    {
+        var rules = MicrosoftOptions.Create(new BusinessRules());
+        var clock = new FakeClock();
+        var engine = new DispatchOfferEngine(new SteppedRadiusDispatchScanner(new FakeWorkerAvailabilityQuery(), rules),
+            new ThrowingDispatchRepository(), clock, new TestMediator(), rules);
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<OrderCancelledDispatchHandler>.Instance;
+
+        await new OrderPaidDispatchHandler(engine).Handle(new OrderPaid(1, 1, 1m, "SANG", new DateTime(2026, 10, 15), 1), CancellationToken.None);
+        await new OrderCancelledDispatchHandler(engine, logger).Handle(new OrderCancelled(1, 1, "x", StartTime), CancellationToken.None);
+    }
 }

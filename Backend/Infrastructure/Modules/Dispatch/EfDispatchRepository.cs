@@ -191,9 +191,9 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
             .Distinct()
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, CancellationToken cancellationToken = default) =>
+    public async Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, DateOnly scheduledFrom, CancellationToken cancellationToken = default) =>
         await db.JobOrders.AsNoTracking()
-            .Where(o => o.OrderStatus == JobOrderStatus.Dispatching && o.UpdatedAt <= quietSinceUtc)
+            .Where(o => o.OrderStatus == JobOrderStatus.Dispatching && o.UpdatedAt <= quietSinceUtc && o.ScheduledDate >= scheduledFrom)
             .Where(o => db.JobAssignments.Count(a => a.OrderId == o.OrderId
                     && a.AssignmentStatus != JobAssignmentStatus.Cancelled
                     && a.AssignmentStatus != JobAssignmentStatus.CancelledByWorker

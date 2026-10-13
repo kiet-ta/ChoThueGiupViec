@@ -13,11 +13,20 @@ public sealed class OrderCancelledDispatchHandler(DispatchOfferEngine offerEngin
 {
     public async Task Handle(OrderCancelled notification, CancellationToken cancellationToken)
     {
-        var released = await offerEngine.ReleaseCancelledOrderAsync(notification.OrderId, cancellationToken);
-        if (released > 0)
+        try
         {
-            logger.LogInformation("Cancelled order {OrderId}: {Count} offer(s)/assignment(s) cancelled and their slots released.",
-                notification.OrderId, released);
+            var released = await offerEngine.ReleaseCancelledOrderAsync(notification.OrderId, cancellationToken);
+            if (released > 0)
+            {
+                logger.LogInformation("Cancelled order {OrderId}: {Count} offer(s)/assignment(s) cancelled and their slots released.",
+                    notification.OrderId, released);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Booking publishes OrderCancelled before it refunds: a Dispatch failure must not stop the refund. An offer left open on
+            // the cancelled order cannot be accepted (the accept checks the order status).
+            logger.LogError(ex, "Releasing the offers of cancelled order {OrderId} failed.", notification.OrderId);
         }
     }
 }
