@@ -436,29 +436,29 @@ public class DispatchOfferEngine
         var existing = await _dispatchRepository.GetAssignmentByIdAsync(assignmentId, cancellationToken);
         if (existing == null || existing.WorkerId != workerId)
         {
-            return new OfferAcceptResult { Success = false, ErrorMessage = "Offer not found or not assigned to this worker." };
+            return new OfferAcceptResult { Success = false, Error = OfferAcceptError.NotFound, ErrorMessage = "Offer not found or not assigned to this worker." };
         }
 
         if (existing.AssignmentStatus != JobAssignmentStatus.Offered)
         {
-            return new OfferAcceptResult { Success = false, ErrorMessage = "Offer has already been accepted or closed." };
+            return new OfferAcceptResult { Success = false, Error = OfferAcceptError.NotOpen, ErrorMessage = "Offer has already been accepted or closed." };
         }
 
         if (existing.CreatedAt <= ExpiryCutoff(nowUtc))
         {
-            return new OfferAcceptResult { Success = false, ErrorMessage = "Offer has expired (30-second window elapsed)." };
+            return new OfferAcceptResult { Success = false, Error = OfferAcceptError.Expired, ErrorMessage = "Offer has expired (30-second window elapsed)." };
         }
 
         var order = await _dispatchRepository.GetOrderContextAsync(existing.OrderId, cancellationToken);
         if (order == null || !order.AcceptsAssignments)
         {
-            return new OfferAcceptResult { Success = false, ErrorMessage = "The order is no longer being dispatched." };
+            return new OfferAcceptResult { Success = false, Error = OfferAcceptError.OrderNotDispatching, ErrorMessage = "The order is no longer being dispatched." };
         }
 
         var accepted = await _dispatchRepository.TryAcceptOfferAsync(assignmentId, workerId, ExpiryCutoff(nowUtc), nowUtc, cancellationToken);
         if (!accepted)
         {
-            return new OfferAcceptResult { Success = false, ErrorMessage = "Failed to book the slot or the offer was already modified." };
+            return new OfferAcceptResult { Success = false, Error = OfferAcceptError.NotOpen, ErrorMessage = "Failed to book the slot or the offer was already modified." };
         }
 
         var assignment = await _dispatchRepository.GetAssignmentByIdAsync(assignmentId, cancellationToken);

@@ -33,6 +33,25 @@ public sealed record OfferAcceptResult
 {
     public required bool Success { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>Why the accept failed (null on success), so the API can answer 404 or 409 with a code.</summary>
+    public OfferAcceptError? Error { get; init; }
     public JobAssignment? Assignment { get; init; }
     public BookingSlot? LockedSlot { get; init; }
+}
+
+/// <summary>Reason an offer could not be accepted.</summary>
+public enum OfferAcceptError
+{
+    /// <summary>No such offer, or it is not this worker's.</summary>
+    NotFound,
+
+    /// <summary>Already accepted, declined or closed, or another request won the race.</summary>
+    NotOpen,
+
+    /// <summary>The 30-second window has passed.</summary>
+    Expired,
+
+    /// <summary>The order was cancelled or is otherwise no longer being dispatched.</summary>
+    OrderNotDispatching,
 }

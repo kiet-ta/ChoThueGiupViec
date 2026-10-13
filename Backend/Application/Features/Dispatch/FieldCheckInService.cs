@@ -82,7 +82,7 @@ public class FieldCheckInService
             };
         }
 
-        if (assignment.WorkerId != workerId && assignment.AgencyId == null)
+        if (assignment.WorkerId != workerId)
         {
             return new FieldCheckInResult
             {
@@ -108,18 +108,19 @@ public class FieldCheckInService
         double toleranceM = _rules.Gps.CheckInToleranceMeters > 0 ? _rules.Gps.CheckInToleranceMeters : 100.0;
         bool isGpsVerified = distanceMeters <= toleranceM;
 
-        var checkInLog = new CheckInLog
+        // CHECK_IN_LOG is unique per assignment: a retry after a failed GPS check updates the same row.
+        var checkInLog = await _repository.GetCheckInLogAsync(assignmentId, cancellationToken) ?? new CheckInLog
         {
             AssignmentId = assignmentId,
-            DeviceLat = (decimal)deviceLocation.Latitude,
-            DeviceLng = (decimal)deviceLocation.Longitude,
-            DistanceM = Math.Round((decimal)distanceMeters, 2),
-            GpsVerified = isGpsVerified,
-            FallbackMethod = null,
-            FallbackPhotoUrl = null,
             CallAttempts = 0,
-            CheckedInAt = nowUtc
         };
+        checkInLog.DeviceLat = (decimal)deviceLocation.Latitude;
+        checkInLog.DeviceLng = (decimal)deviceLocation.Longitude;
+        checkInLog.DistanceM = Math.Round((decimal)distanceMeters, 2);
+        checkInLog.GpsVerified = isGpsVerified;
+        checkInLog.FallbackMethod = null;
+        checkInLog.FallbackPhotoUrl = null;
+        checkInLog.CheckedInAt = nowUtc;
 
         if (isGpsVerified)
         {
