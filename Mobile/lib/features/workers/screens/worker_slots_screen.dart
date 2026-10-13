@@ -218,9 +218,12 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               onPressed: () => _navigateWeek(-1),
               tooltip: 'Tuần trước',
             ),
-            Text(
-              '${_weekStartDate.day}/${_weekStartDate.month} – ${endDate.day}/${endDate.month}/${endDate.year}',
-              style: NordicTypography.labelMedium,
+            Expanded(
+              child: Text(
+                '${_weekStartDate.day}/${_weekStartDate.month} – ${endDate.day}/${endDate.month}/${endDate.year}',
+                style: NordicTypography.labelMedium,
+                textAlign: TextAlign.center,
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.chevron_right),

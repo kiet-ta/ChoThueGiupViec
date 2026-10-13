@@ -41,7 +41,8 @@ class NordicButton extends StatelessWidget {
                 icon!,
                 const SizedBox(width: 8.0),
               ],
-              Text(label),
+              // A long label wraps instead of overflowing a narrow (e.g. half-width) button.
+              Flexible(child: Text(label, textAlign: TextAlign.center)),
             ],
           );
 

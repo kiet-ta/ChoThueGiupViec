@@ -223,7 +223,9 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
                   children: [
                     Icon(Icons.more_time, color: Color(0xFF16A34A)),
                     SizedBox(width: 8.0),
-                    Text('Chi Tiết Tăng Giờ Ca Làm', style: NordicTypography.labelMedium),
+                    Flexible(
+                      child: Text('Chi Tiết Tăng Giờ Ca Làm', style: NordicTypography.labelMedium),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16.0),
@@ -291,13 +293,19 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14.0, color: NordicColors.textSecondary)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isHighlight ? 16.0 : 14.0,
-            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
-            color: isHighlight ? const Color(0xFF16A34A) : NordicColors.textTitle,
+        Expanded(
+          child: Text(label, style: const TextStyle(fontSize: 14.0, color: NordicColors.textSecondary)),
+        ),
+        const SizedBox(width: 8.0),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              fontSize: isHighlight ? 16.0 : 14.0,
+              fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+              color: isHighlight ? const Color(0xFF16A34A) : NordicColors.textTitle,
+            ),
           ),
         ),
       ],

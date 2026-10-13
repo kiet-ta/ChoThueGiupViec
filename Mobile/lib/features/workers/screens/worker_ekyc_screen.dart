@@ -445,8 +445,13 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: NordicTypography.bodyRegular),
-          Text(value, style: NordicTypography.labelMedium),
+          Expanded(
+            child: Text(label, style: NordicTypography.bodyRegular),
+          ),
+          const SizedBox(width: 8.0),
+          Flexible(
+            child: Text(value, textAlign: TextAlign.end, style: NordicTypography.labelMedium),
+          ),
         ],
       ),
     );

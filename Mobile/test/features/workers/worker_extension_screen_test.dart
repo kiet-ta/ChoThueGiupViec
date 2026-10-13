@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/workers/models/worker_extension_models.dart';
 import 'package:mobile/features/workers/screens/worker_extension_screen.dart';
+import 'design_frame.dart';
 
 void main() {
   group('WorkerExtensionScreen Tests (MOB-M4-06)', () {
     testWidgets('Renders offer details: customer name, work zone, extra hours, amount, buttons', (tester) async {
+      useDesignFrame(tester);
       await tester.pumpWidget(
         const MaterialApp(
           home: WorkerExtensionScreen(
@@ -25,7 +27,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Làm Lần 2 #2001'), findsOneWidget);
-      expect(find.text('Yêu Cầu Làm Lần 2 (BR-08)'), findsOneWidget);
+      expect(find.text('YÊU CẦU LÀM LẦN 2 (BR-08)'), findsOneWidget);
       expect(find.text('Khách Hàng Yêu Cầu Làm Thêm Giờ'), findsOneWidget);
       expect(find.text('Nguyễn Văn An'), findsOneWidget);
       expect(find.text('Phòng khách & Bếp - Căn hộ 402'), findsOneWidget);
@@ -37,6 +39,7 @@ void main() {
     });
 
     testWidgets('Tapping Accept button updates UI to ACCEPTED status with new end time', (tester) async {
+      useDesignFrame(tester);
       WorkerExtensionResponseDto? resultResponse;
 
       await tester.pumpWidget(
@@ -60,7 +63,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Đồng Ý Nối Ca (+130.000 đ)'));
+      await tapVisible(tester, find.text('Đồng Ý Nối Ca (+130.000 đ)'));
       await tester.pumpAndSettle();
 
       expect(find.text('Đã Đồng Ý Nối Ca!'), findsOneWidget);
@@ -70,6 +73,7 @@ void main() {
     });
 
     testWidgets('Tapping Decline button updates UI to DECLINED status', (tester) async {
+      useDesignFrame(tester);
       WorkerExtensionResponseDto? resultResponse;
 
       await tester.pumpWidget(
@@ -93,7 +97,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Từ Chối Làm Thêm'));
+      await tapVisible(tester, find.text('Từ Chối Làm Thêm'));
       await tester.pumpAndSettle();
 
       expect(find.text('Đã Từ Chối Yêu Cầu'), findsOneWidget);

@@ -207,16 +207,21 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.timer_outlined,
-                      color: isNearLimit ? const Color(0xFFDC2626) : NordicColors.primary,
-                    ),
-                    const SizedBox(width: 8.0),
-                    const Text('Thời Gian Thi Công', style: NordicTypography.labelMedium),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        color: isNearLimit ? const Color(0xFFDC2626) : NordicColors.primary,
+                      ),
+                      const SizedBox(width: 8.0),
+                      const Flexible(
+                        child: Text('Thời Gian Thi Công', style: NordicTypography.labelMedium),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8.0),
                 Text(
                   'Tối đa ${widget.maxShiftMinutes ~/ 60}h',
                   style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
@@ -280,7 +285,10 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Checklist Công Việc', style: NordicTypography.h3),
+                const Expanded(
+                  child: Text('Checklist Công Việc', style: NordicTypography.h3),
+                ),
+                const SizedBox(width: 8.0),
                 Text(
                   '$_completedCount/${_checklist.length}',
                   style: const TextStyle(

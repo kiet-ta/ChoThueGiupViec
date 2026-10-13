@@ -224,8 +224,11 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8.0,
+                runSpacing: 8.0,
                 children: [
                   const EyebrowBadge(text: 'Khách Hàng Nghiệm Thu'),
                   _buildStatusChip(),
@@ -519,7 +522,9 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               children: [
                 Icon(Icons.verified, color: Color(0xFF16A34A)),
                 SizedBox(width: 8.0),
-                Text('Chi Tiết Nghiệm Thu & Khóa Ca', style: NordicTypography.h3),
+                Flexible(
+                  child: Text('Chi Tiết Nghiệm Thu & Khóa Ca', style: NordicTypography.h3),
+                ),
               ],
             ),
             const Divider(),
@@ -539,8 +544,17 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: isBold ? NordicTypography.labelMedium : NordicTypography.bodySmall),
-          Text(val, style: isBold ? NordicTypography.h3 : NordicTypography.labelMedium),
+          Expanded(
+            child: Text(title, style: isBold ? NordicTypography.labelMedium : NordicTypography.bodySmall),
+          ),
+          const SizedBox(width: 8.0),
+          Flexible(
+            child: Text(
+              val,
+              textAlign: TextAlign.end,
+              style: isBold ? NordicTypography.h3 : NordicTypography.labelMedium,
+            ),
+          ),
         ],
       ),
     );

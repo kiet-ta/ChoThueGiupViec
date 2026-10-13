@@ -4,6 +4,7 @@ import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/features/workers/models/ekyc_models.dart';
 import 'package:mobile/features/workers/screens/worker_ekyc_screen.dart';
 import 'package:mobile/features/workers/services/workers_ekyc_service.dart';
+import 'design_frame.dart';
 
 class MockWorkersEkycService extends WorkersEkycService {
   SubmitEkycRequest? lastRequest;
@@ -35,6 +36,7 @@ void main() {
     });
 
     testWidgets('WorkerEkycScreen renders steps and navigates forward/backward', (tester) async {
+      useDesignFrame(tester);
       await tester.pumpWidget(
         MaterialApp(
           home: WorkerEkycScreen(ekycService: mockService),
@@ -46,23 +48,24 @@ void main() {
       expect(find.text('Mặt Trước CCCD'), findsOneWidget);
 
       // Tap 'Tiếp theo' -> Step 2 (Mặt Sau CCCD)
-      await tester.tap(find.text('Tiếp theo'));
+      await tapVisible(tester, find.text('Tiếp theo'));
       await tester.pumpAndSettle();
       expect(find.text('Mặt Sau CCCD'), findsOneWidget);
 
       // Tap 'Tiếp theo' -> Step 3 (Selfie)
-      await tester.tap(find.text('Tiếp theo'));
+      await tapVisible(tester, find.text('Tiếp theo'));
       await tester.pumpAndSettle();
       expect(find.text('Ảnh Chân Dung (Selfie)'), findsOneWidget);
 
       // Tap 'Tiếp theo' -> Step 4 (Summary & Confirm)
-      await tester.tap(find.text('Tiếp theo'));
+      await tapVisible(tester, find.text('Tiếp theo'));
       await tester.pumpAndSettle();
       expect(find.text('Xác Nhận Thông Tin Ảnh eKYC'), findsOneWidget);
       expect(find.text('Gửi Xác Thực eKYC'), findsOneWidget);
     });
 
     testWidgets('WorkerEkycScreen submits eKYC and displays APPROVED result', (tester) async {
+      useDesignFrame(tester);
       await tester.pumpWidget(
         MaterialApp(
           home: WorkerEkycScreen(ekycService: mockService),
@@ -70,15 +73,15 @@ void main() {
       );
 
       // Navigate to Step 4
-      await tester.tap(find.text('Tiếp theo'));
+      await tapVisible(tester, find.text('Tiếp theo'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Tiếp theo'));
+      await tapVisible(tester, find.text('Tiếp theo'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Tiếp theo'));
+      await tapVisible(tester, find.text('Tiếp theo'));
       await tester.pumpAndSettle();
 
       // Submit eKYC
-      await tester.tap(find.text('Gửi Xác Thực eKYC'));
+      await tapVisible(tester, find.text('Gửi Xác Thực eKYC'));
       await tester.pumpAndSettle();
 
       expect(mockService.lastRequest, isNotNull);
