@@ -4,6 +4,7 @@ import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/features/workers/models/booking_slot_models.dart';
 import 'package:mobile/features/workers/screens/worker_slots_screen.dart';
 import 'package:mobile/features/workers/services/workers_slots_service.dart';
+import 'design_frame.dart';
 
 class MockWorkersSlotsService extends WorkersSlotsService {
   ToggleBookingSlotRequest? lastToggleRequest;
@@ -61,6 +62,7 @@ void main() {
     });
 
     testWidgets('WorkerSlotsScreen renders weekly header and shift cards', (tester) async {
+      useDesignFrame(tester);
       await tester.pumpWidget(
         MaterialApp(
           home: WorkerSlotsScreen(
@@ -82,6 +84,7 @@ void main() {
     });
 
     testWidgets('Toggling a shift switch invokes toggleSlot API', (tester) async {
+      useDesignFrame(tester);
       await tester.pumpWidget(
         MaterialApp(
           home: WorkerSlotsScreen(
@@ -94,7 +97,7 @@ void main() {
 
       // Find first switch
       final switchFinder = find.byType(Switch).first;
-      await tester.tap(switchFinder);
+      await tapVisible(tester, switchFinder);
       await tester.pumpAndSettle();
 
       expect(mockService.lastToggleRequest, isNotNull);
@@ -103,6 +106,7 @@ void main() {
     });
 
     testWidgets('Navigating week updates week date range', (tester) async {
+      useDesignFrame(tester);
       await tester.pumpWidget(
         MaterialApp(
           home: WorkerSlotsScreen(
@@ -114,7 +118,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap next week
-      await tester.tap(find.byIcon(Icons.chevron_right));
+      await tapVisible(tester, find.byIcon(Icons.chevron_right));
       await tester.pumpAndSettle();
 
       expect(find.text('19/10 – 25/10/2026'), findsOneWidget);

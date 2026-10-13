@@ -456,7 +456,10 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Đã Tải Ảnh ($_selectedPhase)', style: NordicTypography.h3),
+                Expanded(
+                  child: Text('Đã Tải Ảnh ($_selectedPhase)', style: NordicTypography.h3),
+                ),
+                const SizedBox(width: 8.0),
                 Text(
                   '${photos.length}/5 đạt (Min 3)',
                   style: TextStyle(
