@@ -7,7 +7,9 @@ namespace CommonService.Application.Interfaces.Ports;
 public sealed record CapacityRequest(DateOnly Date, string ShiftCode, int RequiredWorkers, long OrderId);
 
 /// <summary>An atomic hold on agency slots (Premium phase 1). Release it if the order is not paid in time.</summary>
-public sealed record CapacityReservation(Guid ReservationId, int AgencyId, IReadOnlyList<int> SlotIds);
+/// <param name="CommissionRate">The agency's commission rate for this order: the <c>commission_rate</c> of its active package (decisions Q11:
+/// FREE 0.200, PRO 0.000). Dispatch copies it into <c>JOB_ASSIGNMENT.commission_rate</c>; Agencies (M5) owns the package rules.</param>
+public sealed record CapacityReservation(Guid ReservationId, int AgencyId, IReadOnlyList<int> SlotIds, decimal CommissionRate);
 
 /// <summary>Premium capacity check and atomic slot locking. Implemented by Agencies (M5); consumed by Booking (M2) and Dispatch (M3).</summary>
 public interface IAgencyCapacityService
@@ -17,6 +19,12 @@ public interface IAgencyCapacityService
 
     /// <summary>Lock slots atomically. Returns null when there is not enough capacity ("fully booked", decisions Q13).</summary>
     Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The hold Booking made for the order at creation (contract booking.md B8), or null when the order has none. Dispatch reads it when
+    /// the order is paid instead of reserving a second time.
+    /// </summary>
+    Task<CapacityReservation?> GetReservationByOrderAsync(long orderId, CancellationToken cancellationToken = default);
 
     Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default);
 

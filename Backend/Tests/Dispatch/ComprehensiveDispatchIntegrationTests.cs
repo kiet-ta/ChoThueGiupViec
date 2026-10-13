@@ -53,59 +53,6 @@ public class ComprehensiveDispatchIntegrationTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class MockDispatchRepository : IDispatchRepository
-    {
-        public Dictionary<long, JobAssignment> Assignments { get; } = new();
-        private readonly HashSet<int> _lockedSlots = [];
-        private readonly object _lock = new();
-
-        public Task<JobAssignment?> GetAssignmentByIdAsync(long assignmentId, CancellationToken cancellationToken = default)
-        {
-            Assignments.TryGetValue(assignmentId, out var a);
-            return Task.FromResult(a);
-        }
-
-        public Task<JobAssignment> CreateAssignmentAsync(JobAssignment assignment, CancellationToken cancellationToken = default)
-        {
-            if (assignment.AssignmentId == 0)
-            {
-                assignment.AssignmentId = Assignments.Count + 100;
-            }
-            Assignments[assignment.AssignmentId] = assignment;
-            return Task.FromResult(assignment);
-        }
-
-        public Task<bool> TryLockSlotAndAssignAsync(long assignmentId, int slotId, DateTime assignedAtUtc, CancellationToken cancellationToken = default)
-        {
-            lock (_lock)
-            {
-                if (_lockedSlots.Contains(slotId))
-                {
-                    return Task.FromResult(false);
-                }
-
-                if (Assignments.TryGetValue(assignmentId, out var a))
-                {
-                    _lockedSlots.Add(slotId);
-                    a.SlotId = slotId;
-                    a.TransitionTo(JobAssignmentStatus.Assigned);
-                    return Task.FromResult(true);
-                }
-                return Task.FromResult(false);
-            }
-        }
-
-        public Task<bool> CancelAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default)
-        {
-            if (Assignments.TryGetValue(assignmentId, out var a))
-            {
-                a.TransitionTo(JobAssignmentStatus.Cancelled);
-                return Task.FromResult(true);
-            }
-            return Task.FromResult(false);
-        }
-    }
-
     private sealed class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
     {
         public List<AvailableWorker> Workers { get; } = new();
@@ -115,74 +62,35 @@ public class ComprehensiveDispatchIntegrationTests
     }
 
     [Fact]
-    public async Task Scenario1_DoubleAssignGuard_PreventsRaceConditionWhenTwoWorkersAcceptSameSlot()
+    public async Task Scenario1_DoubleAssignGuard_TwoConcurrentAcceptsOfTheSameOffer_ExactlyOneWins()
     {
         var clock = new MockClock();
         var mediator = new MockMediator();
         var rules = MicrosoftOptions.Create(new BusinessRules());
         var query = new MockWorkerAvailabilityQuery();
+        query.Workers.Add(new AvailableWorker(WorkerId: 10, SlotId: 555, DistanceKm: 1.0));
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        dispatchRepo.AddSlot(555, workerId: 10);
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
-        // Prepare two assignments competing for the same slot
-        var assign1 = new JobAssignment
-        {
-            AssignmentId = 101,
-            OrderId = 1,
-            WorkerId = 10,
-            GrossAmount = 260000m
-        };
-        var assign2 = new JobAssignment
-        {
-            AssignmentId = 102,
-            OrderId = 1,
-            WorkerId = 20,
-            GrossAmount = 260000m
-        };
-        dispatchRepo.Assignments[101] = assign1;
-        dispatchRepo.Assignments[102] = assign2;
+        var offer = await offerEngine.StartDispatchForOrderAsync(1, 1, ServiceTier.Economy, new DateOnly(2026, 10, 15), "SANG",
+            new GeoPoint(10.762622, 106.660172), 260000m);
+        Assert.NotNull(offer);
 
-        offerStore.SaveOffer(new DispatchOffer
-        {
-            AssignmentId = 101,
-            OrderId = 1,
-            WorkerId = 10,
-            SlotId = 555,
-            SearchRadiusKm = 5,
-            MatchingScore = 0.9m,
-            GrossAmount = 260000m,
-            CommissionRate = 0.20m,
-            PayoutAmount = 208000m,
-            OfferedAtUtc = clock.UtcNow,
-            ExpiresAtUtc = clock.UtcNow.AddSeconds(30)
-        });
+        // A second order cannot be offered the same slot while it is held.
+        var otherOrder = await offerEngine.StartDispatchForOrderAsync(2, 1, ServiceTier.Economy, new DateOnly(2026, 10, 15), "SANG",
+            new GeoPoint(10.762622, 106.660172), 260000m);
+        Assert.Null(otherOrder);
 
-        offerStore.SaveOffer(new DispatchOffer
-        {
-            AssignmentId = 102,
-            OrderId = 1,
-            WorkerId = 20,
-            SlotId = 555,
-            SearchRadiusKm = 5,
-            MatchingScore = 0.9m,
-            GrossAmount = 260000m,
-            CommissionRate = 0.20m,
-            PayoutAmount = 208000m,
-            OfferedAtUtc = clock.UtcNow,
-            ExpiresAtUtc = clock.UtcNow.AddSeconds(30)
-        });
+        // The worker double-taps "accept": the database decides, exactly one request wins.
+        var results = await Task.WhenAll(
+            Task.Run(() => offerEngine.AcceptOfferAsync(offer.AssignmentId, workerId: 10)),
+            Task.Run(() => offerEngine.AcceptOfferAsync(offer.AssignmentId, workerId: 10)));
 
-        // Worker 1 accepts first
-        var result1 = await offerEngine.AcceptOfferAsync(101, workerId: 10, slotId: 555);
-        Assert.True(result1.Success);
-        Assert.Equal(JobAssignmentStatus.Assigned, assign1.AssignmentStatus);
-
-        // Worker 2 tries accepting the same slot -> Guard rejects
-        var result2 = await offerEngine.AcceptOfferAsync(102, workerId: 20, slotId: 555);
-        Assert.False(result2.Success);
-        Assert.Equal(JobAssignmentStatus.Offered, assign2.AssignmentStatus);
+        Assert.Single(results, r => r.Success);
+        Assert.Equal(JobAssignmentStatus.Assigned, dispatchRepo.Assignments[offer.AssignmentId].AssignmentStatus);
+        Assert.Equal(DispatchSlotStatuses.Booked, dispatchRepo.SlotStatus(555));
     }
 
     [Fact]
@@ -192,41 +100,31 @@ public class ComprehensiveDispatchIntegrationTests
         var mediator = new MockMediator();
         var rules = MicrosoftOptions.Create(new BusinessRules());
         var query = new MockWorkerAvailabilityQuery();
+        query.Workers.Add(new AvailableWorker(WorkerId: 10, SlotId: 888, DistanceKm: 1.0));
+        query.Workers.Add(new AvailableWorker(WorkerId: 20, SlotId: 889, DistanceKm: 2.0));
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        dispatchRepo.Orders[2] = new DispatchOrderContext(2, 1, ServiceTier.Economy, new DateOnly(2026, 10, 15), "SANG", 1,
+            new GeoPoint(10.762622, 106.660172), 260000m);
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
-        var assignment = new JobAssignment
-        {
-            AssignmentId = 201,
-            OrderId = 2,
-            WorkerId = 10,
-            GrossAmount = 260000m
-        };
-        dispatchRepo.Assignments[201] = assignment;
-
-        offerStore.SaveOffer(new DispatchOffer
-        {
-            AssignmentId = 201,
-            OrderId = 2,
-            WorkerId = 10,
-            SlotId = 888,
-            SearchRadiusKm = 5,
-            MatchingScore = 0.95m,
-            GrossAmount = 260000m,
-            CommissionRate = 0.20m,
-            PayoutAmount = 208000m,
-            OfferedAtUtc = clock.UtcNow,
-            ExpiresAtUtc = clock.UtcNow.AddSeconds(30)
-        });
+        var first = await offerEngine.StartDispatchForOrderAsync(2, 1, ServiceTier.Economy, new DateOnly(2026, 10, 15), "SANG",
+            new GeoPoint(10.762622, 106.660172), 260000m);
+        Assert.Equal(10, first!.WorkerId);
 
         // Advance clock by 31 seconds -> Timeout
         clock.UtcNow = clock.UtcNow.AddSeconds(31);
 
-        var acceptResult = await offerEngine.AcceptOfferAsync(201, workerId: 10, slotId: 888);
+        var acceptResult = await offerEngine.AcceptOfferAsync(first.AssignmentId, workerId: 10);
         Assert.False(acceptResult.Success);
-        Assert.Equal(JobAssignmentStatus.Offered, assignment.AssignmentStatus);
+
+        // BR-03: the sweep closes the expired offer and the seat goes to the next ranked worker.
+        Assert.Equal(1, await offerEngine.ExpirePendingOffersAsync());
+        Assert.Equal(JobAssignmentStatus.Cancelled, dispatchRepo.Assignments[first.AssignmentId].AssignmentStatus);
+        Assert.Equal(DispatchSlotStatuses.Available, dispatchRepo.SlotStatus(888));
+        var next = Assert.Single(dispatchRepo.Assignments.Values, a => a.AssignmentStatus == JobAssignmentStatus.Offered);
+        Assert.Equal(20, next.WorkerId);
+        Assert.Equal(889, next.SlotId);
     }
 
     [Fact]
@@ -274,9 +172,8 @@ public class ComprehensiveDispatchIntegrationTests
         var rules = MicrosoftOptions.Create(new BusinessRules());
         var query = new MockWorkerAvailabilityQuery();
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var inMemIncidentRepo = new InMemoryIncidentRepositoryHelper();
         var assignment = new JobAssignment
