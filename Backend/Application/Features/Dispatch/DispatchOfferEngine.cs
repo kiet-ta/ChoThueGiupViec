@@ -19,7 +19,15 @@ public sealed record DispatchOrderContext(
     string ShiftCode,
     int RequiredWorkers,
     GeoPoint Location,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    JobOrderStatus OrderStatus = JobOrderStatus.Dispatching)
+{
+    /// <summary>Seats are offered only while the order is being dispatched (contract booking.md B4: PAID -&gt; DISPATCHING before OrderPaid).</summary>
+    public bool IsDispatchable => OrderStatus is JobOrderStatus.Paid or JobOrderStatus.Dispatching;
+
+    /// <summary>An accept is still valid while the order is dispatching or already partly assigned.</summary>
+    public bool AcceptsAssignments => IsDispatchable || OrderStatus == JobOrderStatus.Assigned;
+}
 
 /// <summary>
 /// Persistence for the Dispatch Offer Engine. An offer is a <see cref="JobAssignment"/> in <c>OFFERED</c> whose slot is <c>HELD</c>; it
@@ -58,6 +66,18 @@ public interface IDispatchRepository
 
     /// <summary>Premium: inserts the assignment already <c>ASSIGNED</c> and marks its slot <c>BOOKED</c> in one transaction.</summary>
     Task<JobAssignment> CreateAssignedAsync(JobAssignment assignment, CancellationToken cancellationToken = default);
+
+    /// <summary>Seats (<c>assignment_seq</c>) of the order that have a live row (not CANCELLED, CANCELLED_BY_WORKER or REASSIGNED).</summary>
+    Task<IReadOnlyCollection<byte>> GetTakenSeatsAsync(long orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Dispatching orders with fewer live seats than <c>required_workers</c> and no change (order or assignment) after
+    /// <paramref name="quietSinceUtc"/>: a seat was lost (e.g. the next-candidate step failed) and must be offered again.
+    /// </summary>
+    Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>The order was cancelled: open offers and not-started assignments become CANCELLED and their slots AVAILABLE. Returns how many rows changed.</summary>
+    Task<int> CancelOpenAssignmentsOfOrderAsync(long orderId, DateTime cancelledAtUtc, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -114,24 +134,39 @@ public class DispatchOfferEngine
             return [];
         }
 
+        if (!order.IsDispatchable)
+        {
+            _logger.LogInformation("Order {OrderId} is {Status}; nothing to dispatch.", orderId, order.OrderStatus);
+            return [];
+        }
+
         var seats = Math.Max(1, order.RequiredWorkers);
         var grossPerSeat = order.TotalAmount / seats;
+        var taken = await _dispatchRepository.GetTakenSeatsAsync(orderId, cancellationToken);
 
         if (order.ServiceTier == ServiceTier.Premium)
         {
-            return await StartPremiumAgencyDispatchAsync(order, grossPerSeat, cancellationToken);
+            // The hold covers every seat at once; a repeated OrderPaid (or a sweep) must not assign it twice.
+            return taken.Count > 0 ? [] : await StartPremiumAgencyDispatchAsync(order, grossPerSeat, cancellationToken);
         }
 
         var offers = new List<DispatchOffer>();
         for (byte seq = 1; seq <= seats; seq++)
         {
+            if (taken.Contains(seq))
+            {
+                continue; // idempotent: a repeated OrderPaid or a sweep only fills missing seats
+            }
+
             var offer = await StartDispatchForOrderAsync(
                 order.OrderId, order.CustomerId, order.ServiceTier, order.ScheduledDate, order.ShiftCode, order.Location,
                 grossPerSeat, seq, cancellationToken);
-            if (offer != null)
+            if (offer == null)
             {
-                offers.Add(offer);
+                break; // AssignmentFailed was published for the order; the other seats are not offered
             }
+
+            offers.Add(offer);
         }
 
         return offers;
@@ -300,7 +335,19 @@ public class DispatchOfferEngine
             return [];
         }
 
-        var seats = Math.Min(Math.Max(1, order.RequiredWorkers), reservation.SlotIds.Count);
+        var seats = Math.Max(1, order.RequiredWorkers);
+        if (reservation.SlotIds.Count < seats)
+        {
+            _logger.LogError("Agency hold {ReservationId} for order {OrderId} has {Held} slot(s) for {Seats} seat(s).",
+                reservation.ReservationId, order.OrderId, reservation.SlotIds.Count, seats);
+            await _mediator.Publish(new AssignmentFailed(
+                OrderId: order.OrderId,
+                Reason: "Lịch ca của Agency cho đơn Premium không đủ số thợ yêu cầu.",
+                FailedAtUtc: nowUtc
+            ), cancellationToken);
+            return [];
+        }
+
         var assignedOffers = new List<DispatchOffer>();
 
         for (var i = 0; i < seats; i++)
@@ -393,6 +440,12 @@ public class DispatchOfferEngine
             return new OfferAcceptResult { Success = false, ErrorMessage = "Offer has expired (30-second window elapsed)." };
         }
 
+        var order = await _dispatchRepository.GetOrderContextAsync(existing.OrderId, cancellationToken);
+        if (order == null || !order.AcceptsAssignments)
+        {
+            return new OfferAcceptResult { Success = false, ErrorMessage = "The order is no longer being dispatched." };
+        }
+
         var accepted = await _dispatchRepository.TryAcceptOfferAsync(assignmentId, workerId, ExpiryCutoff(nowUtc), nowUtc, cancellationToken);
         if (!accepted)
         {
@@ -435,7 +488,16 @@ public class DispatchOfferEngine
 
         _logger.LogInformation("Worker {WorkerId} declined offer {AssignmentId}. Reason: {Reason}", workerId, assignmentId, reason ?? "None");
 
-        await OfferToNextCandidateAsync(offer, cancellationToken);
+        try
+        {
+            await OfferToNextCandidateAsync(offer, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The decline stands; RecoverMissingSeatsAsync offers the seat again after one quiet offer window.
+            _logger.LogError(ex, "Moving declined offer {AssignmentId} to the next candidate failed.", assignmentId);
+        }
+
         return true;
     }
 
@@ -444,21 +506,58 @@ public class DispatchOfferEngine
     /// </summary>
     public async Task<int> ExpirePendingOffersAsync(CancellationToken cancellationToken = default)
     {
-        var expiredOffers = await _dispatchRepository.GetOffersCreatedAtOrBeforeAsync(ExpiryCutoff(_clock.UtcNow), cancellationToken);
+        var nowUtc = _clock.UtcNow;
+        var expiredOffers = await _dispatchRepository.GetOffersCreatedAtOrBeforeAsync(ExpiryCutoff(nowUtc), cancellationToken);
         int expiredCount = 0;
 
         foreach (var offer in expiredOffers)
         {
-            if (await _dispatchRepository.TryCloseOfferAsync(offer.AssignmentId, _clock.UtcNow, cancellationToken))
+            try
             {
-                expiredCount++;
-                _logger.LogInformation("Offer {AssignmentId} expired after {Timeout} seconds and was closed.", offer.AssignmentId, OfferTimeoutSeconds);
-                await OfferToNextCandidateAsync(offer, cancellationToken);
+                if (await _dispatchRepository.TryCloseOfferAsync(offer.AssignmentId, nowUtc, cancellationToken))
+                {
+                    expiredCount++;
+                    _logger.LogInformation("Offer {AssignmentId} expired after {Timeout} seconds and was closed.", offer.AssignmentId, OfferTimeoutSeconds);
+                    await OfferToNextCandidateAsync(offer, cancellationToken);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The seat is recovered by RecoverMissingSeatsAsync once the order has been quiet for one offer window.
+                _logger.LogError(ex, "Moving expired offer {AssignmentId} to the next candidate failed.", offer.AssignmentId);
             }
         }
 
+        await RecoverMissingSeatsAsync(cancellationToken);
         return expiredCount;
     }
+
+    /// <summary>
+    /// Re-offers seats that were lost: a dispatching order with fewer live seats than required and no change for one offer window
+    /// (the OrderPaid handler or a next-candidate step failed). Returns how many orders were dispatched again.
+    /// </summary>
+    public async Task<int> RecoverMissingSeatsAsync(CancellationToken cancellationToken = default)
+    {
+        var orderIds = await _dispatchRepository.GetOrdersMissingSeatsAsync(ExpiryCutoff(_clock.UtcNow), cancellationToken);
+        foreach (var orderId in orderIds)
+        {
+            try
+            {
+                _logger.LogWarning("Order {OrderId} is dispatching with a seat missing; offering it again.", orderId);
+                await DispatchPaidOrderAsync(orderId, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Re-dispatching order {OrderId} failed; it will be retried at the next sweep.", orderId);
+            }
+        }
+
+        return orderIds.Count;
+    }
+
+    /// <summary>The order was cancelled (customer cancel, AssignmentFailed, ...): its open offers and assignments release their slots.</summary>
+    public Task<int> ReleaseCancelledOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
+        _dispatchRepository.CancelOpenAssignmentsOfOrderAsync(orderId, _clock.UtcNow, cancellationToken);
 
     private async Task OfferToNextCandidateAsync(JobAssignment closedOffer, CancellationToken cancellationToken)
     {
@@ -466,6 +565,12 @@ public class DispatchOfferEngine
         if (order == null)
         {
             _logger.LogError("Order {OrderId} of closed offer {AssignmentId} was not found.", closedOffer.OrderId, closedOffer.AssignmentId);
+            return;
+        }
+
+        if (!order.IsDispatchable)
+        {
+            _logger.LogInformation("Order {OrderId} is {Status}; the seat is not offered again.", order.OrderId, order.OrderStatus);
             return;
         }
 

@@ -28,6 +28,15 @@ public sealed class OrderPaidDispatchHandler : INotificationHandler<OrderPaid>
             notification.OrderId);
 
         // Tier, address coordinates and seats are read from the order itself (Premium -> agency hold, BR-02 -> 2 seats).
-        await _offerEngine.DispatchPaidOrderAsync(notification.OrderId, cancellationToken);
+        try
+        {
+            await _offerEngine.DispatchPaidOrderAsync(notification.OrderId, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // OrderPaid is published after the payment commit, so the payment stands; the sweep (RecoverMissingSeatsAsync) dispatches
+            // the order once it has been quiet for one offer window.
+            _logger.LogError(ex, "Dispatch of paid order {OrderId} failed; the offer sweep will retry it.", notification.OrderId);
+        }
     }
 }

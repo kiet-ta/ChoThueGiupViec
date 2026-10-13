@@ -88,8 +88,15 @@ public class DispatchOfferEngineTests
         public void AddOrder(long orderId, ServiceTier tier = ServiceTier.Economy, int requiredWorkers = 1, decimal total = 260000m, GeoPoint? at = null) =>
             Repo.Orders[orderId] = new DispatchOrderContext(orderId, 201, tier, ShiftDate, "SANG", requiredWorkers, at ?? OrderLocation, total);
 
-        public Task<DispatchOffer?> OfferAsync(long orderId) =>
-            Engine.StartDispatchForOrderAsync(orderId, 201, ServiceTier.Economy, ShiftDate, "SANG", OrderLocation, 260000m);
+        public Task<DispatchOffer?> OfferAsync(long orderId)
+        {
+            if (!Repo.Orders.ContainsKey(orderId))
+            {
+                AddOrder(orderId);
+            }
+
+            return Engine.StartDispatchForOrderAsync(orderId, 201, ServiceTier.Economy, ShiftDate, "SANG", OrderLocation, 260000m);
+        }
     }
 
     [Fact]
@@ -324,6 +331,7 @@ public class DispatchOfferEngineTests
         Assert.Empty(h.Repo.Assignments);
         var evt = Assert.IsType<AssignmentFailed>(Assert.Single(h.Mediator.PublishedEvents));
         Assert.Equal(513, evt.OrderId);
+        Assert.Contains("Agency", evt.Reason);
     }
 
     [Fact]
@@ -333,5 +341,111 @@ public class DispatchOfferEngineTests
 
         Assert.Empty(await h.Engine.DispatchPaidOrderAsync(999));
         Assert.Empty(h.Mediator.PublishedEvents);
+    }
+
+    [Fact]
+    public async Task Premium_hold_with_fewer_slots_than_seats_publishes_AssignmentFailed_and_assigns_nobody()
+    {
+        var h = new Harness();
+        h.AddOrder(514, tier: ServiceTier.Premium, requiredWorkers: 2, total: 520000m);
+        var hold = await h.Capacity.TryReserveAsync(new CapacityRequest(ShiftDate, "SANG", 1, OrderId: 514));
+        h.Repo.AddSlot(hold!.SlotIds[0], workerId: 78, status: DispatchSlotStatuses.Held);
+
+        Assert.Empty(await h.Engine.DispatchPaidOrderAsync(514));
+
+        Assert.Empty(h.Repo.Assignments);
+        Assert.Equal(514, Assert.IsType<AssignmentFailed>(Assert.Single(h.Mediator.PublishedEvents)).OrderId);
+    }
+
+    [Fact]
+    public async Task DispatchPaidOrder_is_idempotent_a_repeated_OrderPaid_offers_no_second_set()
+    {
+        var h = new Harness();
+        h.AddOrder(515);
+        h.AddWorker(701, slotId: 111, distanceKm: 1.0);
+        h.AddWorker(702, slotId: 112, distanceKm: 2.0);
+
+        await h.Engine.DispatchPaidOrderAsync(515);
+        await h.Engine.DispatchPaidOrderAsync(515);
+
+        var row = Assert.Single(h.Repo.Assignments.Values);
+        Assert.Equal(701, row.WorkerId);
+    }
+
+    [Fact]
+    public async Task Two_seat_order_stops_after_the_seat_that_finds_nobody()
+    {
+        var h = new Harness();
+        h.AddOrder(516, requiredWorkers: 2, total: 520000m);
+        h.AddWorker(801, slotId: 121, distanceKm: 1.0); // only one worker for two seats
+
+        var offers = await h.Engine.DispatchPaidOrderAsync(516);
+
+        Assert.Single(offers);
+        Assert.Equal(516, Assert.IsType<AssignmentFailed>(Assert.Single(h.Mediator.PublishedEvents)).OrderId);
+    }
+
+    [Fact]
+    public async Task Cancelled_order_releases_its_offer_and_the_offer_can_no_longer_be_accepted()
+    {
+        var h = new Harness();
+        h.AddOrder(517);
+        h.AddWorker(901, slotId: 131, distanceKm: 1.0);
+        var offer = await h.OfferAsync(517);
+
+        h.Repo.SetOrderStatus(517, JobOrderStatus.Cancelled);
+        var handler = new OrderCancelledDispatchHandler(h.Engine, Microsoft.Extensions.Logging.Abstractions.NullLogger<OrderCancelledDispatchHandler>.Instance);
+        await handler.Handle(new OrderCancelled(517, 201, "customer", StartTime), CancellationToken.None);
+
+        Assert.Equal(JobAssignmentStatus.Cancelled, h.Repo.Assignments[offer!.AssignmentId].AssignmentStatus);
+        Assert.Equal(DispatchSlotStatuses.Available, h.Repo.SlotStatus(131));
+        Assert.False((await h.Engine.AcceptOfferAsync(offer.AssignmentId, 901)).Success);
+    }
+
+    [Fact]
+    public async Task Accept_is_refused_once_the_order_is_cancelled_even_if_the_offer_row_is_still_open()
+    {
+        var h = new Harness();
+        h.AddOrder(518);
+        h.AddWorker(902, slotId: 132, distanceKm: 1.0);
+        var offer = await h.OfferAsync(518);
+        h.Repo.SetOrderStatus(518, JobOrderStatus.Cancelled);
+
+        var result = await h.Engine.AcceptOfferAsync(offer!.AssignmentId, 902);
+
+        Assert.False(result.Success);
+        Assert.Equal(DispatchSlotStatuses.Held, h.Repo.SlotStatus(132));
+    }
+
+    [Fact]
+    public async Task Decline_on_a_cancelled_order_does_not_offer_it_to_anyone_else()
+    {
+        var h = new Harness();
+        h.AddOrder(519);
+        h.AddWorker(903, slotId: 141, distanceKm: 1.0);
+        h.AddWorker(904, slotId: 142, distanceKm: 2.0);
+        var offer = await h.OfferAsync(519);
+        h.Repo.SetOrderStatus(519, JobOrderStatus.Cancelled);
+
+        Assert.True(await h.Engine.DeclineOfferAsync(offer!.AssignmentId, 903));
+
+        Assert.Null(await h.Engine.GetCurrentOfferAsync(904));
+        Assert.Empty(h.Mediator.PublishedEvents);
+    }
+
+    [Fact]
+    public async Task Sweep_recovers_a_seat_lost_after_one_quiet_offer_window()
+    {
+        var h = new Harness();
+        h.AddOrder(520);
+        h.AddWorker(905, slotId: 151, distanceKm: 1.0);
+        // OrderPaid was handled but dispatch failed: the order is DISPATCHING with no row at all.
+
+        Assert.Equal(1, await h.Engine.RecoverMissingSeatsAsync());
+
+        var offer = await h.Engine.GetCurrentOfferAsync(905);
+        Assert.NotNull(offer);
+        Assert.Equal(520, offer.OrderId);
+        Assert.Equal(0, await h.Engine.RecoverMissingSeatsAsync()); // the seat is live again: nothing to recover
     }
 }

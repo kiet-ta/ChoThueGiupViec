@@ -2,6 +2,7 @@ using CommonService.Application.Features.Dispatch;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Modules.Agencies;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,7 +28,8 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
                 order.ShiftCode,
                 order.RequiredWorkers,
                 new GeoPoint((double)address.Latitude, (double)address.Longitude),
-                order.TotalAmount)
+                order.TotalAmount,
+                order.OrderStatus)
         ).FirstOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyCollection<long>> GetWorkerIdsAlreadyOfferedAsync(long orderId, CancellationToken cancellationToken = default) =>
@@ -55,13 +57,15 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
             {
                 await db.SaveChangesAsync(cancellationToken);
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex) when (SqlUniqueViolation.IsUniqueViolation(ex))
             {
-                // The filtered unique index on slot_id: an open assignment already owns the slot. Nothing is kept.
+                // The filtered unique index on slot_id: an open assignment already owns the slot. Nothing is kept. Any other
+                // database error (e.g. a foreign key) propagates, so a data problem is not mistaken for "slot taken".
                 db.Entry(offer).State = EntityState.Detached;
                 return null;
             }
 
+            db.Entry(offer).State = EntityState.Detached; // later changes are conditional updates, never this tracked copy
             return offer;
         }, cancellationToken);
 
@@ -167,6 +171,7 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
             assignment.TransitionTo(JobAssignmentStatus.Assigned);
             db.JobAssignments.Add(assignment);
             await db.SaveChangesAsync(cancellationToken);
+            db.Entry(assignment).State = EntityState.Detached;
 
             await db.BookingSlots
                 .Where(s => s.SlotId == assignment.SlotId)
@@ -175,6 +180,65 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
                     .SetProperty(x => x.UpdatedAt, assignment.CreatedAt), cancellationToken);
             return assignment;
         }, cancellationToken);
+
+    public async Task<IReadOnlyCollection<byte>> GetTakenSeatsAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await db.JobAssignments.AsNoTracking()
+            .Where(a => a.OrderId == orderId
+                && a.AssignmentStatus != JobAssignmentStatus.Cancelled
+                && a.AssignmentStatus != JobAssignmentStatus.CancelledByWorker
+                && a.AssignmentStatus != JobAssignmentStatus.Reassigned)
+            .Select(a => a.AssignmentSeq)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, CancellationToken cancellationToken = default) =>
+        await db.JobOrders.AsNoTracking()
+            .Where(o => o.OrderStatus == JobOrderStatus.Dispatching && o.UpdatedAt <= quietSinceUtc)
+            .Where(o => db.JobAssignments.Count(a => a.OrderId == o.OrderId
+                    && a.AssignmentStatus != JobAssignmentStatus.Cancelled
+                    && a.AssignmentStatus != JobAssignmentStatus.CancelledByWorker
+                    && a.AssignmentStatus != JobAssignmentStatus.Reassigned) < o.RequiredWorkers)
+            .Where(o => !db.JobAssignments.Any(a => a.OrderId == o.OrderId && a.UpdatedAt > quietSinceUtc))
+            .OrderBy(o => o.UpdatedAt)
+            .Select(o => o.OrderId)
+            .Take(MissingSeatBatchSize)
+            .ToListAsync(cancellationToken);
+
+    public Task<int> CancelOpenAssignmentsOfOrderAsync(long orderId, DateTime cancelledAtUtc, CancellationToken cancellationToken = default) =>
+        InTransactionAsync(async () =>
+        {
+            var open = await db.JobAssignments.AsNoTracking()
+                .Where(a => a.OrderId == orderId
+                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned))
+                .Select(a => new { a.AssignmentId, a.SlotId })
+                .ToListAsync(cancellationToken);
+            if (open.Count == 0)
+            {
+                return 0;
+            }
+
+            var ids = open.Select(a => a.AssignmentId).ToList();
+            var slotIds = open.Select(a => a.SlotId).Distinct().ToList();
+
+            var cancelled = await db.JobAssignments
+                .Where(a => ids.Contains(a.AssignmentId)
+                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned))
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(a => a.AssignmentStatus, JobAssignmentStatus.Cancelled)
+                    .SetProperty(a => a.UpdatedAt, cancelledAtUtc), cancellationToken);
+
+            await db.BookingSlots
+                .Where(s => slotIds.Contains(s.SlotId)
+                    && (s.SlotStatus == DispatchSlotStatuses.Held || s.SlotStatus == DispatchSlotStatuses.Booked))
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Available)
+                    .SetProperty(x => x.UpdatedAt, cancelledAtUtc), cancellationToken);
+
+            return cancelled;
+        }, cancellationToken);
+
+    /// <summary>provenance: an upper bound per 5 s sweep so one tick stays short; leftover orders are taken at the next tick.</summary>
+    private const int MissingSeatBatchSize = 50;
 
     /// <summary>
     /// Runs <paramref name="action"/> in a transaction; a null/false result rolls back. <paramref name="rollbackOn"/> also rolls back and

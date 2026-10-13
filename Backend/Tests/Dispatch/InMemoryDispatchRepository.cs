@@ -7,7 +7,7 @@ namespace CommonService.Tests.Dispatch;
 /// <summary>
 /// In-memory <see cref="IDispatchRepository"/> with the same conditional semantics as <c>EfDispatchRepository</c>: an offer holds its slot
 /// (<c>AVAILABLE -&gt; HELD</c>), accept succeeds only once (<c>OFFERED -&gt; ASSIGNED</c>, slot <c>HELD -&gt; BOOKED</c>), close frees the slot.
-/// A slot not registered with <see cref="AddSlot"/> is treated as an AVAILABLE slot of the offered worker.
+/// Like the EF update, an offer on a slot that was never registered with <see cref="AddSlot"/> fails (returns null).
 /// </summary>
 internal sealed class InMemoryDispatchRepository : IDispatchRepository
 {
@@ -55,12 +55,7 @@ internal sealed class InMemoryDispatchRepository : IDispatchRepository
     {
         lock (_gate)
         {
-            if (!Slots.TryGetValue(offer.SlotId, out var slot))
-            {
-                slot = (offer.WorkerId, DispatchSlotStatuses.Available);
-            }
-
-            if (slot.Status != DispatchSlotStatuses.Available)
+            if (!Slots.TryGetValue(offer.SlotId, out var slot) || slot.Status != DispatchSlotStatuses.Available)
             {
                 return Task.FromResult<JobAssignment?>(null);
             }
@@ -167,4 +162,62 @@ internal sealed class InMemoryDispatchRepository : IDispatchRepository
             return Task.FromResult(assignment);
         }
     }
+
+    public Task<IReadOnlyCollection<byte>> GetTakenSeatsAsync(long orderId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult<IReadOnlyCollection<byte>>(Assignments.Values
+                .Where(a => a.OrderId == orderId && IsLive(a.AssignmentStatus))
+                .Select(a => a.AssignmentSeq)
+                .Distinct()
+                .ToList());
+        }
+    }
+
+    public Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult<IReadOnlyList<long>>(Orders.Values
+                .Where(o => o.OrderStatus == JobOrderStatus.Dispatching)
+                .Where(o => Assignments.Values.Count(a => a.OrderId == o.OrderId && IsLive(a.AssignmentStatus)) < o.RequiredWorkers)
+                .Where(o => !Assignments.Values.Any(a => a.OrderId == o.OrderId && a.UpdatedAt > quietSinceUtc))
+                .Select(o => o.OrderId)
+                .ToList());
+        }
+    }
+
+    public Task<int> CancelOpenAssignmentsOfOrderAsync(long orderId, DateTime cancelledAtUtc, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            var open = Assignments.Values
+                .Where(a => a.OrderId == orderId && a.AssignmentStatus is JobAssignmentStatus.Offered or JobAssignmentStatus.Assigned)
+                .ToList();
+            foreach (var a in open)
+            {
+                a.TransitionTo(JobAssignmentStatus.Cancelled);
+                a.UpdatedAt = cancelledAtUtc;
+                if (Slots.TryGetValue(a.SlotId, out var slot) && slot.Status is DispatchSlotStatuses.Held or DispatchSlotStatuses.Booked)
+                {
+                    Slots[a.SlotId] = (slot.WorkerId, DispatchSlotStatuses.Available);
+                }
+            }
+
+            return Task.FromResult(open.Count);
+        }
+    }
+
+    /// <summary>Set the order's status, as Booking would (e.g. CANCELLED).</summary>
+    public void SetOrderStatus(long orderId, JobOrderStatus status)
+    {
+        lock (_gate)
+        {
+            Orders[orderId] = Orders[orderId] with { OrderStatus = status };
+        }
+    }
+
+    private static bool IsLive(JobAssignmentStatus status) =>
+        status is not (JobAssignmentStatus.Cancelled or JobAssignmentStatus.CancelledByWorker or JobAssignmentStatus.Reassigned);
 }

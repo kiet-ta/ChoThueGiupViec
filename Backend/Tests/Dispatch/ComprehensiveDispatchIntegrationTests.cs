@@ -72,6 +72,8 @@ public class ComprehensiveDispatchIntegrationTests
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
         var dispatchRepo = new InMemoryDispatchRepository();
         dispatchRepo.AddSlot(555, workerId: 10);
+        dispatchRepo.Orders[1] = new DispatchOrderContext(1, 1, ServiceTier.Economy, new DateOnly(2026, 10, 15), "SANG", 1,
+            new GeoPoint(10.762622, 106.660172), 260000m);
         var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var offer = await offerEngine.StartDispatchForOrderAsync(1, 1, ServiceTier.Economy, new DateOnly(2026, 10, 15), "SANG",
@@ -104,6 +106,8 @@ public class ComprehensiveDispatchIntegrationTests
         query.Workers.Add(new AvailableWorker(WorkerId: 20, SlotId: 889, DistanceKm: 2.0));
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
         var dispatchRepo = new InMemoryDispatchRepository();
+        dispatchRepo.AddSlot(888, workerId: 10);
+        dispatchRepo.AddSlot(889, workerId: 20);
         dispatchRepo.Orders[2] = new DispatchOrderContext(2, 1, ServiceTier.Economy, new DateOnly(2026, 10, 15), "SANG", 1,
             new GeoPoint(10.762622, 106.660172), 260000m);
         var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);

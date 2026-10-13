@@ -172,6 +172,7 @@ public class IncidentServiceTests
 
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
         var dispatchRepo = new InMemoryDispatchRepository();
+        dispatchRepo.AddSlot(909, workerId: 99);
         var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var repo = new InMemoryIncidentRepository();

@@ -124,6 +124,8 @@ public class DualAssignmentServiceTests
 
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
         var dispatchRepo = new InMemoryDispatchRepository();
+        dispatchRepo.AddSlot(101, workerId: 10);
+        dispatchRepo.AddSlot(202, workerId: 20);
         var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var repo = new InMemoryDualAssignmentRepository();
