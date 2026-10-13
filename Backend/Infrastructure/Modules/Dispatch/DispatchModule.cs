@@ -18,6 +18,15 @@ public sealed class DispatchModule : IModule
         services.AddScoped<IDispatchRepository, EfDispatchRepository>();
         services.AddScoped<SteppedRadiusDispatchScanner>();
         services.AddScoped<DispatchOfferEngine>();
+
+        // Worker field steps (contract dispatch.md 3.1): one EF repository behind the three read/write ports.
+        services.AddScoped<EfFieldRepository>();
+        services.AddScoped<IFieldCheckInRepository>(sp => sp.GetRequiredService<EfFieldRepository>());
+        services.AddScoped<ICustomerAbsentRepository>(sp => sp.GetRequiredService<EfFieldRepository>());
+        services.AddScoped<IWorkerDispatchQuery>(sp => sp.GetRequiredService<EfFieldRepository>());
+        services.AddScoped<FieldCheckInService>();
+        services.AddScoped<CustomerAbsentService>();
+        services.AddScoped<WorkerDispatchService>();
         services.AddHostedService<OfferExpiryWorker>();
     }
 }

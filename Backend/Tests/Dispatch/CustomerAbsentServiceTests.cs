@@ -56,6 +56,16 @@ public class CustomerAbsentServiceTests
             }
             return Task.FromResult(false);
         }
+
+        public Task<bool> TryMarkCustomerAbsentAsync(long assignmentId, DateTime reportedAtUtc, CancellationToken cancellationToken = default)
+        {
+            if (_logs.TryGetValue(assignmentId, out var log) && log.CustomerAbsentAt == null)
+            {
+                log.CustomerAbsentAt = reportedAtUtc;
+                return Task.FromResult(true);
+            }
+            return Task.FromResult(false);
+        }
     }
 
     private sealed class TestMediator : IMediator
