@@ -147,6 +147,9 @@ public class MilestoneFailoverServiceTests
         public Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(NextReservation);
 
+        public Task<CapacityReservation?> GetReservationByOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<CapacityReservation?>(null);
+
         public Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
@@ -314,7 +317,7 @@ public class MilestoneFailoverServiceTests
         };
 
         // Another Agency (Agency 7) has capacity
-        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701]);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.200m);
 
         var result = await service.ReportUnavailabilityAsync(3, "Thợ không liên lạc được sát giờ");
 
@@ -424,7 +427,7 @@ public class MilestoneFailoverServiceTests
         await service.ReportUnavailabilityAsync(5, "Agency báo tìm thợ");
 
         // Another Agency 8 ready to rescue
-        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 8, [801]);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 8, [801], 0.200m);
 
         // Advance 31 minutes
         clock.UtcNow = clock.UtcNow.AddMinutes(31);
