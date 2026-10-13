@@ -5,7 +5,8 @@ import 'dart:io';
 /// Each route answers a fixed status, body (JSON-encoded unless it is a String) and optional headers.
 class FakeBackend {
   late final HttpServer _server;
-  final _routes = <String, ({int status, Object? body, Map<String, String> headers})>{};
+  final _routes =
+      <String, ({int status, Object? body, Map<String, String> headers})>{};
 
   /// `Authorization` header of every request, keyed by 'METHOD /path'.
   final authHeaders = <String, String?>{};
@@ -31,23 +32,38 @@ class FakeBackend {
       route?.headers.forEach(req.response.headers.set);
       final body = route?.body;
       if (body != null) {
-        req.response.headers.contentType = body is String ? ContentType.html : ContentType.json;
+        req.response.headers.contentType = body is String
+            ? ContentType.html
+            : ContentType.json;
         req.response.write(body is String ? body : jsonEncode(body));
       }
       await req.response.close();
     });
   }
 
-  void on(String method, String path, int status, [Object? body, Map<String, String> headers = const {}]) {
+  void on(
+    String method,
+    String path,
+    int status, [
+    Object? body,
+    Map<String, String> headers = const {},
+  ]) {
     _routes['$method $path'] = (status: status, body: body, headers: headers);
   }
 
   Future<void> stop() => _server.close(force: true);
 
   /// Success envelope `ApiResponse{success,message,data}`.
-  static Map<String, Object?> ok(Object? data) => {'success': true, 'message': 'OK', 'data': data};
+  static Map<String, Object?> ok(Object? data) => {
+    'success': true,
+    'message': 'OK',
+    'data': data,
+  };
 
   /// Error envelope.
-  static Map<String, Object?> error(String message, [Object? data]) =>
-      {'success': false, 'message': message, 'data': data};
+  static Map<String, Object?> error(String message, [Object? data]) => {
+    'success': false,
+    'message': message,
+    'data': data,
+  };
 }

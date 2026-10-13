@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../theme/nordic_colors.dart';
 import '../theme/nordic_typography.dart';
 
@@ -69,7 +71,9 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
         ? _remainingSeconds / widget.totalSeconds
         : 0.0;
     final isUrgent = _remainingSeconds <= 10;
-    final timerColor = isUrgent ? NordicColors.accentAmber : NordicColors.primary;
+    final timerColor = isUrgent
+        ? NordicColors.accentAmber
+        : NordicColors.primary;
 
     return Center(
       child: Column(
@@ -101,7 +105,9 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
           Text(
             isUrgent ? 'Sắp hết thời gian nhận ca!' : 'Thời gian phản hồi',
             style: NordicTypography.bodySmall.copyWith(
-              color: isUrgent ? NordicColors.accentAmber : NordicColors.textSecondary,
+              color: isUrgent
+                  ? NordicColors.accentAmber
+                  : NordicColors.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),

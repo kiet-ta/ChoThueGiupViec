@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 
@@ -92,7 +93,9 @@ class _OtpCodeFieldState extends State<OtpCodeField> {
                   border: Border.all(
                     color: isCurrent
                         ? NordicColors.primary
-                        : (isFilled ? NordicColors.secondaryAccent : NordicColors.border),
+                        : (isFilled
+                              ? NordicColors.secondaryAccent
+                              : NordicColors.border),
                     width: isCurrent ? 2.0 : 1.0,
                   ),
                   boxShadow: isCurrent

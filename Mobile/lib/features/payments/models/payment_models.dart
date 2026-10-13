@@ -52,23 +52,24 @@ class Payment {
     required this.sandbox,
   });
 
-  static DateTime? _date(dynamic v) => v is String ? DateTime.tryParse(v)?.toUtc() : null;
+  static DateTime? _date(dynamic v) =>
+      v is String ? DateTime.tryParse(v)?.toUtc() : null;
 
   factory Payment.fromJson(Map<String, dynamic> json) => Payment(
-        paymentId: (json['paymentId'] as num?)?.toInt() ?? 0,
-        purpose: json['purpose'] as String? ?? '',
-        orderId: (json['orderId'] as num?)?.toInt(),
-        extensionId: (json['extensionId'] as num?)?.toInt(),
-        gateway: json['gateway'] as String? ?? '',
-        amount: (json['amount'] as num?)?.toInt() ?? 0,
-        txnStatus: json['txnStatus'] as String? ?? '',
-        qrPayload: json['qrPayload'] as String?,
-        payUrl: json['payUrl'] as String?,
-        expiresAt: _date(json['expiresAt']),
-        paidAt: _date(json['paidAt']),
-        createdAt: _date(json['createdAt']),
-        sandbox: json['sandbox'] as bool? ?? true,
-      );
+    paymentId: (json['paymentId'] as num?)?.toInt() ?? 0,
+    purpose: json['purpose'] as String? ?? '',
+    orderId: (json['orderId'] as num?)?.toInt(),
+    extensionId: (json['extensionId'] as num?)?.toInt(),
+    gateway: json['gateway'] as String? ?? '',
+    amount: (json['amount'] as num?)?.toInt() ?? 0,
+    txnStatus: json['txnStatus'] as String? ?? '',
+    qrPayload: json['qrPayload'] as String?,
+    payUrl: json['payUrl'] as String?,
+    expiresAt: _date(json['expiresAt']),
+    paidAt: _date(json['paidAt']),
+    createdAt: _date(json['createdAt']),
+    sandbox: json['sandbox'] as bool? ?? true,
+  );
 
   bool get isPending => txnStatus == PaymentTxnStatus.pending;
   bool get isPaid => txnStatus == PaymentTxnStatus.success;
@@ -84,5 +85,9 @@ class PaymentScreenArgs {
   /// Shown in the title while the QR loads; optional.
   final String? orderCode;
 
-  const PaymentScreenArgs({required this.orderId, this.extensionId, this.orderCode});
+  const PaymentScreenArgs({
+    required this.orderId,
+    this.extensionId,
+    this.orderCode,
+  });
 }

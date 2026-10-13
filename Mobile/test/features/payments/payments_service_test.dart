@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/auth/token_storage.dart';
 import 'package:mobile/core/network/api_client.dart';
@@ -44,7 +45,11 @@ void main() {
       TokenStorage().clear();
       TokenStorage().saveTokens(accessToken: 'tok', refreshToken: 'ref');
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      service = PaymentsService(client: ApiClient(baseUrl: 'http://${server.address.host}:${server.port}'));
+      service = PaymentsService(
+        client: ApiClient(
+          baseUrl: 'http://${server.address.host}:${server.port}',
+        ),
+      );
     });
 
     tearDown(() async {
@@ -53,7 +58,11 @@ void main() {
     });
 
     test('creates the QR of an order with a POST without a body', () async {
-      await answer(201, {'success': true, 'message': 'Payment QR created.', 'data': _payment});
+      await answer(201, {
+        'success': true,
+        'message': 'Payment QR created.',
+        'data': _payment,
+      });
 
       final payment = await service.createOrderQr(42);
 
@@ -71,7 +80,11 @@ void main() {
     });
 
     test('an existing QR (200) is read the same way', () async {
-      await answer(200, {'success': true, 'message': 'Payment QR already exists.', 'data': _payment});
+      await answer(200, {
+        'success': true,
+        'message': 'Payment QR already exists.',
+        'data': _payment,
+      });
 
       expect((await service.createOrderQr(42)).paymentId, 5);
     });
@@ -80,7 +93,13 @@ void main() {
       await answer(201, {
         'success': true,
         'message': '',
-        'data': {..._payment, 'purpose': 'EXTENSION', 'orderId': null, 'extensionId': 9, 'amount': 97500},
+        'data': {
+          ..._payment,
+          'purpose': 'EXTENSION',
+          'orderId': null,
+          'extensionId': 9,
+          'amount': 97500,
+        },
       });
 
       final payment = await service.createExtensionQr(9);
@@ -96,7 +115,13 @@ void main() {
       await answer(200, {
         'success': true,
         'message': '',
-        'data': {..._payment, 'txnStatus': 'SUCCESS', 'qrPayload': null, 'payUrl': null, 'paidAt': '2026-10-14T03:02:00Z'},
+        'data': {
+          ..._payment,
+          'txnStatus': 'SUCCESS',
+          'qrPayload': null,
+          'payUrl': null,
+          'paidAt': '2026-10-14T03:02:00Z',
+        },
       });
 
       final payment = await service.getPayment(5);
@@ -117,14 +142,25 @@ void main() {
 
       await expectLater(
         service.createOrderQr(42),
-        throwsA(isA<ApiException>().having((e) => e.statusCode, 'status', 409).having((e) => e.code, 'code', 'PAYMENT_EXPIRED')),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'status', 409)
+              .having((e) => e.code, 'code', 'PAYMENT_EXPIRED'),
+        ),
       );
     });
 
     test('a gateway failure is a 502', () async {
-      await answer(502, {'success': false, 'message': 'The payment gateway did not create the QR.', 'data': null});
+      await answer(502, {
+        'success': false,
+        'message': 'The payment gateway did not create the QR.',
+        'data': null,
+      });
 
-      await expectLater(service.createOrderQr(42), throwsA(isA<ApiException>().having((e) => e.statusCode, 'status', 502)));
+      await expectLater(
+        service.createOrderQr(42),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'status', 502)),
+      );
     });
   });
 }

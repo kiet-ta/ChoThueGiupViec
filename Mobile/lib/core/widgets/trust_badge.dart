@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/nordic_colors.dart';
 import '../theme/nordic_typography.dart';
 
@@ -6,10 +7,7 @@ import '../theme/nordic_typography.dart';
 class TrustBadge extends StatelessWidget {
   final String text;
 
-  const TrustBadge({
-    super.key,
-    required this.text,
-  });
+  const TrustBadge({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {

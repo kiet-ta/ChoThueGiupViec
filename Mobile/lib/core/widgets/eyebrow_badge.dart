@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/nordic_colors.dart';
 import '../theme/nordic_typography.dart';
 
@@ -6,10 +7,7 @@ import '../theme/nordic_typography.dart';
 class EyebrowBadge extends StatelessWidget {
   final String text;
 
-  const EyebrowBadge({
-    super.key,
-    required this.text,
-  });
+  const EyebrowBadge({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +29,7 @@ class EyebrowBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6.0),
-          Text(
-            text.toUpperCase(),
-            style: NordicTypography.labelSmall,
-          ),
+          Text(text.toUpperCase(), style: NordicTypography.labelSmall),
         ],
       ),
     );

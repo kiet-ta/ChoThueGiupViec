@@ -19,7 +19,9 @@ class NordicColors {
   static const Color primaryContainer = Color(0xFF597D60);
   static const Color secondaryAccent = Color(0xFF6B8F71); // Sage Green
   static const Color accentAmber = Color(0xFFD99B26); // Warm Amber
-  static const Color contrastDark = Color(0xFF1A2F25); // Deep Forest Dark Anchor
+  static const Color contrastDark = Color(
+    0xFF1A2F25,
+  ); // Deep Forest Dark Anchor
   static const Color contrastCard = Color(0xFF223B2F);
 
   // Typography & Content

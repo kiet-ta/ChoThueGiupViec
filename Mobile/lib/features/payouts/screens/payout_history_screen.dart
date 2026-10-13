@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -45,7 +46,10 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
       _error = null;
     });
     try {
-      final page = await _service.getPayouts(page: _page + 1, pageSize: widget.pageSize);
+      final page = await _service.getPayouts(
+        page: _page + 1,
+        pageSize: widget.pageSize,
+      );
       if (!mounted) return;
       setState(() {
         _page = page.page;
@@ -77,8 +81,12 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
   }
 
   Widget _body() {
-    if (_items.isEmpty && _loading) return const LoadingStateWidget(message: 'Đang tải lịch sử…');
-    if (_items.isEmpty && _error != null) return ErrorStateWidget(message: _error!, onRetry: _loadNext);
+    if (_items.isEmpty && _loading) {
+      return const LoadingStateWidget(message: 'Đang tải lịch sử…');
+    }
+    if (_items.isEmpty && _error != null) {
+      return ErrorStateWidget(message: _error!, onRetry: _loadNext);
+    }
     if (_items.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(16.0),
@@ -100,7 +108,13 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text(_error!, key: const Key('history-error'), style: NordicTypography.bodySmall.copyWith(color: NordicColors.error)),
+            child: Text(
+              _error!,
+              key: const Key('history-error'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
+            ),
           ),
         if (_hasMore)
           NordicButton(
@@ -116,7 +130,9 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
 
   Widget _tile(PayoutHistoryItem item) {
     final transferred = item.itemStatus == 'TRANSFERRED';
-    final key = item.periodMonth.length == 7 ? monthLabel(item.periodMonth) : item.periodMonth;
+    final key = item.periodMonth.length == 7
+        ? monthLabel(item.periodMonth)
+        : item.periodMonth;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: NordicCard(
@@ -129,13 +145,19 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
                   Text(key, style: NordicTypography.bodyLarge),
                   const SizedBox(height: 2.0),
                   Text(
-                    transferred ? 'Đã chuyển khoản ${formatVietnamDate(item.transferredAt)}' : 'Chờ chuyển khoản',
+                    transferred
+                        ? 'Đã chuyển khoản ${formatVietnamDate(item.transferredAt)}'
+                        : 'Chờ chuyển khoản',
                     style: NordicTypography.bodySmall,
                   ),
                 ],
               ),
             ),
-            Text(formatVnd(item.netAmount), key: Key('history-net-${item.batchId}'), style: NordicTypography.bodyLarge),
+            Text(
+              formatVnd(item.netAmount),
+              key: Key('history-net-${item.batchId}'),
+              style: NordicTypography.bodyLarge,
+            ),
           ],
         ),
       ),

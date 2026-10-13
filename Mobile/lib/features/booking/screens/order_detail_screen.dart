@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -31,7 +32,13 @@ class OrderDetailScreen extends StatefulWidget {
   /// What "Thanh toán" does; by default it opens the payment screen and reloads the order when the customer comes back.
   final void Function(PaymentScreenArgs args)? onPay;
 
-  const OrderDetailScreen({super.key, this.args, this.service, this.pollInterval = defaultProgressPollInterval, this.onPay});
+  const OrderDetailScreen({
+    super.key,
+    this.args,
+    this.service,
+    this.pollInterval = defaultProgressPollInterval,
+    this.onPay,
+  });
 
   @override
   State<OrderDetailScreen> createState() => _OrderDetailScreenState();
@@ -77,7 +84,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (_started) return;
     _started = true;
     final routeArgs = ModalRoute.of(context)?.settings.arguments;
-    _orderId = widget.args?.orderId ?? (routeArgs is OrderDetailArgs ? routeArgs.orderId : null);
+    _orderId =
+        widget.args?.orderId ??
+        (routeArgs is OrderDetailArgs ? routeArgs.orderId : null);
     if (_orderId != null) _load();
   }
 
@@ -89,7 +98,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Future<(BookingOrder, OrderProgress)> _fetch(int orderId) async {
-    final both = await Future.wait<Object>([_service.getOrder(orderId), _service.getProgress(orderId)]);
+    final both = await Future.wait<Object>([
+      _service.getOrder(orderId),
+      _service.getProgress(orderId),
+    ]);
     return (both[0] as BookingOrder, both[1] as OrderProgress);
   }
 
@@ -154,11 +166,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   void _pay({int? extensionId}) {
     final order = _order;
     if (order == null) return;
-    final args = PaymentScreenArgs(orderId: order.orderId, extensionId: extensionId, orderCode: order.orderCode);
+    final args = PaymentScreenArgs(
+      orderId: order.orderId,
+      extensionId: extensionId,
+      orderCode: order.orderCode,
+    );
     if (widget.onPay != null) return widget.onPay!(args);
-    Navigator.of(context).pushNamed(PaymentRoutes.payment, arguments: args).then((_) {
-      if (mounted) _refresh();
-    });
+    Navigator.of(context)
+        .pushNamed(PaymentRoutes.payment, arguments: args)
+        .then((_) {
+          if (mounted) _refresh();
+        });
   }
 
   Future<void> _cancel() async {
@@ -170,7 +188,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     _cancelling = true;
     setState(() => _cancelError = null);
     try {
-      final cancelled = await _service.cancelOrder(order.orderId, _reason.text.trim());
+      final cancelled = await _service.cancelOrder(
+        order.orderId,
+        _reason.text.trim(),
+      );
       if (!mounted) return;
       setState(() {
         _order = cancelled;
@@ -214,15 +235,28 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _requestExtension(List<ProgressAssignment> workers) async {
     final order = _order;
     final progress = _progress;
-    if (order == null || progress == null || _extSubmitting || workers.isEmpty) return;
+    if (order == null ||
+        progress == null ||
+        _extSubmitting ||
+        workers.isEmpty) {
+      return;
+    }
     final hours = _extHours;
-    if (hours == null) return setState(() => _extError = 'Chọn số giờ làm thêm.');
-    final assignmentId = workers.any((a) => a.assignmentId == _extAssignmentId) ? _extAssignmentId! : workers.first.assignmentId;
+    if (hours == null) {
+      return setState(() => _extError = 'Chọn số giờ làm thêm.');
+    }
+    final assignmentId = workers.any((a) => a.assignmentId == _extAssignmentId)
+        ? _extAssignmentId!
+        : workers.first.assignmentId;
 
     _extSubmitting = true;
     setState(() => _extError = null);
     try {
-      final extension = await _service.requestExtension(orderId: order.orderId, assignmentId: assignmentId, extraHours: hours);
+      final extension = await _service.requestExtension(
+        orderId: order.orderId,
+        assignmentId: assignmentId,
+        extraHours: hours,
+      );
       if (!mounted) return;
       setState(() {
         _progress = OrderProgress(
@@ -248,12 +282,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final order = _order;
     return Scaffold(
       backgroundColor: NordicColors.canvas,
-      appBar: AppBar(title: Text(order == null ? 'Đơn của bạn' : 'Đơn ${order.orderCode}')),
+      appBar: AppBar(
+        title: Text(order == null ? 'Đơn của bạn' : 'Đơn ${order.orderCode}'),
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 16.0,
+            ),
             children: _body(),
           ),
         ),
@@ -264,11 +303,26 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   List<Widget> _body() {
     if (_orderId == null) {
       return const [
-        NordicCard(child: Text('Màn hình này mở từ một đơn. Hãy chọn đơn trong lịch sử đơn.', style: NordicTypography.bodyRegular)),
+        NordicCard(
+          child: Text(
+            'Màn hình này mở từ một đơn. Hãy chọn đơn trong lịch sử đơn.',
+            style: NordicTypography.bodyRegular,
+          ),
+        ),
       ];
     }
-    if (_loading && _order == null) return const [LoadingStateWidget(message: 'Đang tải đơn…')];
-    if (_error != null) return [ErrorStateWidget(title: 'Chưa tải được đơn', message: _error!, onRetry: _load)];
+    if (_loading && _order == null) {
+      return const [LoadingStateWidget(message: 'Đang tải đơn…')];
+    }
+    if (_error != null) {
+      return [
+        ErrorStateWidget(
+          title: 'Chưa tải được đơn',
+          message: _error!,
+          onRetry: _load,
+        ),
+      ];
+    }
 
     final order = _order;
     final progress = _progress;
@@ -282,15 +336,28 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       _timeline(order.orderStatus),
       if (_notice != null) ...[
         const SizedBox(height: 12.0),
-        Text(_notice!, key: const Key('order-notice'), style: NordicTypography.bodyRegular),
+        Text(
+          _notice!,
+          key: const Key('order-notice'),
+          style: NordicTypography.bodyRegular,
+        ),
       ],
-      if (order.orderStatus == OrderStatus.cancelled && (order.cancelReason ?? '').isNotEmpty) ...[
+      if (order.orderStatus == OrderStatus.cancelled &&
+          (order.cancelReason ?? '').isNotEmpty) ...[
         const SizedBox(height: 12.0),
-        Text('Lý do huỷ: ${order.cancelReason}', key: const Key('order-cancel-reason'), style: NordicTypography.bodySmall),
+        Text(
+          'Lý do huỷ: ${order.cancelReason}',
+          key: const Key('order-cancel-reason'),
+          style: NordicTypography.bodySmall,
+        ),
       ],
       if (canPay(order.orderStatus)) ...[
         const SizedBox(height: 16.0),
-        NordicButton(key: const Key('pay-order'), label: 'Thanh toán ${formatVnd(order.totalAmount)}', onPressed: _pay),
+        NordicButton(
+          key: const Key('pay-order'),
+          label: 'Thanh toán ${formatVnd(order.totalAmount)}',
+          onPressed: _pay,
+        ),
       ],
       const SizedBox(height: 24.0),
       const Text('Thợ của đơn', style: NordicTypography.h3),
@@ -312,26 +379,41 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _summary(BookingOrder order) => NordicCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(orderStatusLabel(order.orderStatus), key: const Key('order-status'), style: NordicTypography.h2),
-            const SizedBox(height: 8.0),
-            Text(scheduleText(order.scheduledDate, order.shiftCode), key: const Key('order-schedule'), style: NordicTypography.bodyRegular),
-            const SizedBox(height: 4.0),
-            Text(
-              '${tierLabel(order.serviceTier)} · ${formatArea(order.areaSnapshotM2)} · ${order.requiredWorkers} thợ',
-              style: NordicTypography.bodySmall,
-            ),
-            const SizedBox(height: 8.0),
-            Text(formatVnd(order.totalAmount), key: const Key('order-amount'), style: NordicTypography.priceHighlight),
-            if ((order.customerNote ?? '').isNotEmpty) ...[
-              const SizedBox(height: 8.0),
-              Text('Ghi chú: ${order.customerNote}', style: NordicTypography.bodySmall),
-            ],
-          ],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          orderStatusLabel(order.orderStatus),
+          key: const Key('order-status'),
+          style: NordicTypography.h2,
         ),
-      );
+        const SizedBox(height: 8.0),
+        Text(
+          scheduleText(order.scheduledDate, order.shiftCode),
+          key: const Key('order-schedule'),
+          style: NordicTypography.bodyRegular,
+        ),
+        const SizedBox(height: 4.0),
+        Text(
+          '${tierLabel(order.serviceTier)} · ${formatArea(order.areaSnapshotM2)} · ${order.requiredWorkers} thợ',
+          style: NordicTypography.bodySmall,
+        ),
+        const SizedBox(height: 8.0),
+        Text(
+          formatVnd(order.totalAmount),
+          key: const Key('order-amount'),
+          style: NordicTypography.priceHighlight,
+        ),
+        if ((order.customerNote ?? '').isNotEmpty) ...[
+          const SizedBox(height: 8.0),
+          Text(
+            'Ghi chú: ${order.customerNote}',
+            style: NordicTypography.bodySmall,
+          ),
+        ],
+      ],
+    ),
+  );
 
   Widget _timeline(String status) {
     final steps = orderTimeline(status);
@@ -344,8 +426,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             child: Column(
               children: [
                 Icon(
-                  step.done ? Icons.check_circle_rounded : (step.current ? Icons.radio_button_checked : Icons.radio_button_unchecked),
-                  color: step.done || step.current ? NordicColors.primary : NordicColors.border,
+                  step.done
+                      ? Icons.check_circle_rounded
+                      : (step.current
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked),
+                  color: step.done || step.current
+                      ? NordicColors.primary
+                      : NordicColors.border,
                   size: 22.0,
                 ),
                 const SizedBox(height: 4.0),
@@ -353,7 +441,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   step.label,
                   textAlign: TextAlign.center,
                   style: NordicTypography.labelSmall.copyWith(
-                    color: step.done || step.current ? NordicColors.textTitle : NordicColors.textSecondary,
+                    color: step.done || step.current
+                        ? NordicColors.textTitle
+                        : NordicColors.textSecondary,
                     fontWeight: step.current ? FontWeight.w700 : null,
                   ),
                 ),
@@ -369,7 +459,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       return [
         Text(
           switch (order.orderStatus) {
-            OrderStatus.pendingPayment => 'Thợ được tìm sau khi bạn thanh toán.',
+            OrderStatus.pendingPayment =>
+              'Thợ được tìm sau khi bạn thanh toán.',
             OrderStatus.cancelled => 'Đơn đã huỷ, không có thợ.',
             _ => 'Đang tìm thợ cho đơn của bạn. Màn hình tự cập nhật.',
           },
@@ -384,18 +475,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           key: Key('assignment-${a.assignmentId}'),
           child: Row(
             children: [
-              const Icon(Icons.person_outline_rounded, color: NordicColors.primary),
+              const Icon(
+                Icons.person_outline_rounded,
+                color: NordicColors.primary,
+              ),
               const SizedBox(width: 12.0),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      ratingText(a.workerRatingAvg).isEmpty ? workerName(a) : '${workerName(a)} · ★ ${ratingText(a.workerRatingAvg)}',
+                      ratingText(a.workerRatingAvg).isEmpty
+                          ? workerName(a)
+                          : '${workerName(a)} · ★ ${ratingText(a.workerRatingAvg)}',
                       style: NordicTypography.labelMedium,
                     ),
                     const SizedBox(height: 2.0),
-                    Text(assignmentStatusLabel(a.assignmentStatus), key: Key('assignment-status-${a.assignmentId}'), style: NordicTypography.bodySmall),
+                    Text(
+                      assignmentStatusLabel(a.assignmentStatus),
+                      key: Key('assignment-status-${a.assignmentId}'),
+                      style: NordicTypography.bodySmall,
+                    ),
                   ],
                 ),
               ),
@@ -408,30 +508,34 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _extensionCard(OrderExtension extension) => NordicCard(
-        key: const Key('extension-card'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Làm lần 2', style: NordicTypography.h3),
-            const SizedBox(height: 4.0),
-            Text(
-              'Thêm ${hoursText(extension.extraHours)} · ${formatVnd(extension.extraAmount)}',
-              key: const Key('extension-summary'),
-              style: NordicTypography.bodyRegular,
-            ),
-            const SizedBox(height: 4.0),
-            Text(extensionStatusLabel(extension.extStatus), key: const Key('extension-status'), style: NordicTypography.bodySmall),
-            if (extension.extStatus == ExtensionStatus.pendingPayment) ...[
-              const SizedBox(height: 12.0),
-              NordicButton(
-                key: const Key('pay-extension'),
-                label: 'Thanh toán ${formatVnd(extension.extraAmount)}',
-                onPressed: () => _pay(extensionId: extension.extensionId),
-              ),
-            ],
-          ],
+    key: const Key('extension-card'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Làm lần 2', style: NordicTypography.h3),
+        const SizedBox(height: 4.0),
+        Text(
+          'Thêm ${hoursText(extension.extraHours)} · ${formatVnd(extension.extraAmount)}',
+          key: const Key('extension-summary'),
+          style: NordicTypography.bodyRegular,
         ),
-      );
+        const SizedBox(height: 4.0),
+        Text(
+          extensionStatusLabel(extension.extStatus),
+          key: const Key('extension-status'),
+          style: NordicTypography.bodySmall,
+        ),
+        if (extension.extStatus == ExtensionStatus.pendingPayment) ...[
+          const SizedBox(height: 12.0),
+          NordicButton(
+            key: const Key('pay-extension'),
+            label: 'Thanh toán ${formatVnd(extension.extraAmount)}',
+            onPressed: () => _pay(extensionId: extension.extensionId),
+          ),
+        ],
+      ],
+    ),
+  );
 
   Widget _extensionForm(List<ProgressAssignment> workers) {
     if (!_extOpen) {
@@ -443,7 +547,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
     }
     final options = _options;
-    final selected = workers.any((a) => a.assignmentId == _extAssignmentId) ? _extAssignmentId : workers.first.assignmentId;
+    final selected = workers.any((a) => a.assignmentId == _extAssignmentId)
+        ? _extAssignmentId
+        : workers.first.assignmentId;
     return NordicCard(
       key: const Key('extension-form'),
       child: Column(
@@ -466,7 +572,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     key: Key('extension-worker-${a.assignmentId}'),
                     label: Text(workerName(a)),
                     selected: a.assignmentId == selected,
-                    onSelected: (_) => setState(() => _extAssignmentId = a.assignmentId),
+                    onSelected: (_) =>
+                        setState(() => _extAssignmentId = a.assignmentId),
                   ),
               ],
             ),
@@ -489,7 +596,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
           if (_extError != null) ...[
             const SizedBox(height: 8.0),
-            Text(_extError!, key: const Key('extension-error'), style: NordicTypography.bodySmall.copyWith(color: NordicColors.error)),
+            Text(
+              _extError!,
+              key: const Key('extension-error'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
+            ),
           ],
           const SizedBox(height: 12.0),
           if (options != null)
@@ -500,7 +613,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               onPressed: () => _requestExtension(workers),
             )
           else if (!_extLoading)
-            NordicButton(label: 'Thử lại', variant: NordicButtonVariant.secondary, onPressed: _openExtension),
+            NordicButton(
+              label: 'Thử lại',
+              variant: NordicButtonVariant.secondary,
+              onPressed: _openExtension,
+            ),
         ],
       ),
     );
@@ -533,10 +650,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           if (_cancelError != null) ...[
             const SizedBox(height: 8.0),
-            Text(_cancelError!, key: const Key('cancel-error'), style: NordicTypography.bodySmall.copyWith(color: NordicColors.error)),
+            Text(
+              _cancelError!,
+              key: const Key('cancel-error'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
+            ),
           ],
           const SizedBox(height: 12.0),
-          NordicButton(key: const Key('submit-cancel'), label: 'Xác nhận huỷ', isLoading: _cancelling, onPressed: _cancel),
+          NordicButton(
+            key: const Key('submit-cancel'),
+            label: 'Xác nhận huỷ',
+            isLoading: _cancelling,
+            onPressed: _cancel,
+          ),
           NordicButton(
             label: 'Không huỷ nữa',
             variant: NordicButtonVariant.ghost,

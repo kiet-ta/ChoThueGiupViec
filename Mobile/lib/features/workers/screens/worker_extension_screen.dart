@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -39,7 +40,8 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
     super.initState();
     _service = widget.service ?? WorkerExtensionService();
 
-    _offer = widget.offer ??
+    _offer =
+        widget.offer ??
         const WorkerExtensionOffer(
           assignmentId: 2001,
           extensionId: 301,
@@ -146,10 +148,7 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
       children: [
         const EyebrowBadge(text: 'Yêu Cầu Làm Lần 2 (BR-08)'),
         const SizedBox(height: 8.0),
-        Text(
-          'Khách Hàng Yêu Cầu Làm Thêm Giờ',
-          style: NordicTypography.h2,
-        ),
+        Text('Khách Hàng Yêu Cầu Làm Thêm Giờ', style: NordicTypography.h2),
         const SizedBox(height: 16.0),
 
         if (_errorMessage != null) ...[
@@ -167,7 +166,10 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
                 Expanded(
                   child: Text(
                     _errorMessage!,
-                    style: const TextStyle(fontSize: 13.0, color: Color(0xFF991B1B)),
+                    style: const TextStyle(
+                      fontSize: 13.0,
+                      color: Color(0xFF991B1B),
+                    ),
                   ),
                 ),
               ],
@@ -198,7 +200,10 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
                           const SizedBox(height: 2.0),
                           Text(
                             _offer.workZone,
-                            style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 12.0,
+                              color: NordicColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
@@ -224,14 +229,20 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
                     Icon(Icons.more_time, color: Color(0xFF16A34A)),
                     SizedBox(width: 8.0),
                     Flexible(
-                      child: Text('Chi Tiết Tăng Giờ Ca Làm', style: NordicTypography.labelMedium),
+                      child: Text(
+                        'Chi Tiết Tăng Giờ Ca Làm',
+                        style: NordicTypography.labelMedium,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16.0),
                 _buildDetailRow('Số giờ làm thêm:', '${_offer.extraHours} giờ'),
                 const SizedBox(height: 8.0),
-                _buildDetailRow('Thời gian kết thúc mới:', '${_offer.currentEndTime} ➔ ${_offer.newEndTime}'),
+                _buildDetailRow(
+                  'Thời gian kết thúc mới:',
+                  '${_offer.currentEndTime} ➔ ${_offer.newEndTime}',
+                ),
                 const SizedBox(height: 8.0),
                 _buildDetailRow(
                   'Thù lao làm thêm:',
@@ -244,12 +255,19 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
                 const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, size: 16.0, color: NordicColors.textSecondary),
+                    Icon(
+                      Icons.info_outline,
+                      size: 16.0,
+                      color: NordicColors.textSecondary,
+                    ),
                     SizedBox(width: 6.0),
                     Expanded(
                       child: Text(
                         'Khách hàng đã thanh toán trước khoản thù lao này. Nếu đồng ý, ca làm của bạn sẽ được nối dài ngay.',
-                        style: TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 12.0,
+                          color: NordicColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -289,12 +307,22 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isHighlight = false}) {
+  Widget _buildDetailRow(
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(
-          child: Text(label, style: const TextStyle(fontSize: 14.0, color: NordicColors.textSecondary)),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14.0,
+              color: NordicColors.textSecondary,
+            ),
+          ),
         ),
         const SizedBox(width: 8.0),
         Flexible(
@@ -304,7 +332,9 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
             style: TextStyle(
               fontSize: isHighlight ? 16.0 : 14.0,
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
-              color: isHighlight ? const Color(0xFF16A34A) : NordicColors.textTitle,
+              color: isHighlight
+                  ? const Color(0xFF16A34A)
+                  : NordicColors.textTitle,
             ),
           ),
         ),
@@ -336,7 +366,10 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
               ? 'Ca làm của bạn đã được gia hạn thêm ${result.extraHours}h đến ${result.newEndTime}.'
               : 'Bạn đã từ chối yêu cầu làm thêm giờ. Khách hàng sẽ được hoàn 100% chi phí gia hạn.',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 14.0, color: NordicColors.textSecondary),
+          style: const TextStyle(
+            fontSize: 14.0,
+            color: NordicColors.textSecondary,
+          ),
         ),
         const SizedBox(height: 24.0),
 
@@ -354,7 +387,11 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
                   const SizedBox(height: 8.0),
                   _buildDetailRow('Giờ kết thúc mới:', result.newEndTime),
                   const SizedBox(height: 8.0),
-                  _buildDetailRow('Thù lao cộng thêm:', '+${_formatVnd(result.extraAmount)}', isHighlight: true),
+                  _buildDetailRow(
+                    'Thù lao cộng thêm:',
+                    '+${_formatVnd(result.extraAmount)}',
+                    isHighlight: true,
+                  ),
                 ],
               ],
             ),

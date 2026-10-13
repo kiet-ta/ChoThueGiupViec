@@ -37,11 +37,13 @@ void main() {
     test('updateProfile rejects empty fullName', () async {
       expect(
         () => service.updateProfile(fullName: '   '),
-        throwsA(isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          contains('Họ và tên không được để trống'),
-        )),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('Họ và tên không được để trống'),
+          ),
+        ),
       );
     });
 
@@ -49,22 +51,29 @@ void main() {
       final longName = 'A' * 101;
       expect(
         () => service.updateProfile(fullName: longName),
-        throwsA(isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          contains('không được vượt quá 100 ký tự'),
-        )),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('không được vượt quá 100 ký tự'),
+          ),
+        ),
       );
     });
 
     test('updateProfile rejects invalid email format', () async {
       expect(
-        () => service.updateProfile(fullName: 'Valid Name', email: 'invalid-email'),
-        throwsA(isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          contains('Email không đúng định dạng'),
-        )),
+        () => service.updateProfile(
+          fullName: 'Valid Name',
+          email: 'invalid-email',
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('Email không đúng định dạng'),
+          ),
+        ),
       );
     });
 
@@ -72,11 +81,13 @@ void main() {
       final longEmail = '${'a' * 250}@example.com';
       expect(
         () => service.updateProfile(fullName: 'Valid Name', email: longEmail),
-        throwsA(isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          contains('Email không được vượt quá 255 ký tự'),
-        )),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('Email không được vượt quá 255 ký tự'),
+          ),
+        ),
       );
     });
   });

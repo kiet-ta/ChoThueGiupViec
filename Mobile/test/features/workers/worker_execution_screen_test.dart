@@ -1,36 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/workers/screens/worker_execution_screen.dart';
+
 import 'design_frame.dart';
 
 void main() {
   group('WorkerExecutionScreen Tests', () {
-    testWidgets('WorkerExecutionScreen renders header, timer, and checklist items', (tester) async {
-      useDesignFrame(tester);
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: WorkerExecutionScreen(
-            assignmentId: 2001,
-            workZone: 'Phòng khách & Bếp',
-            initialElapsedSeconds: 3600, // 01:00:00
+    testWidgets(
+      'WorkerExecutionScreen renders header, timer, and checklist items',
+      (tester) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: WorkerExecutionScreen(
+              assignmentId: 2001,
+              workZone: 'Phòng khách & Bếp',
+              initialElapsedSeconds: 3600, // 01:00:00
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Màn Thi Công #2001'), findsOneWidget);
-      expect(find.text('Phòng khách & Bếp'), findsOneWidget);
-      expect(find.text('Thời Gian Thi Công'), findsOneWidget);
-      expect(find.text('01:00:00'), findsOneWidget);
+        expect(find.text('Màn Thi Công #2001'), findsOneWidget);
+        expect(find.text('Phòng khách & Bếp'), findsOneWidget);
+        expect(find.text('Thời Gian Thi Công'), findsOneWidget);
+        expect(find.text('01:00:00'), findsOneWidget);
 
-      // Verify checklist items
-      expect(find.text('Checklist Công Việc'), findsOneWidget);
-      expect(find.text('2/5'), findsOneWidget);
-      expect(find.text('Dọn dẹp & sắp xếp phòng khách'), findsOneWidget);
-      expect(find.text('Lau chùi cửa kính & bề mặt'), findsOneWidget);
-    });
+        // Verify checklist items
+        expect(find.text('Checklist Công Việc'), findsOneWidget);
+        expect(find.text('2/5'), findsOneWidget);
+        expect(find.text('Dọn dẹp & sắp xếp phòng khách'), findsOneWidget);
+        expect(find.text('Lau chùi cửa kính & bề mặt'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Tapping checklist item updates completion state and counter', (tester) async {
+    testWidgets('Tapping checklist item updates completion state and counter', (
+      tester,
+    ) async {
       useDesignFrame(tester);
       await tester.pumpWidget(
         const MaterialApp(

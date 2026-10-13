@@ -22,19 +22,27 @@ class PayoutsService implements IPayoutsService {
       fromJson: (json) => Earnings.fromJson(json as Map<String, dynamic>),
     );
     final data = response.data;
-    if (data == null) throw const ApiException(0, 'Máy chủ không trả dữ liệu thu nhập.');
+    if (data == null) {
+      throw const ApiException(0, 'Máy chủ không trả dữ liệu thu nhập.');
+    }
     return data;
   }
 
   @override
-  Future<PayoutHistoryPage> getPayouts({int page = 1, int pageSize = 20}) async {
+  Future<PayoutHistoryPage> getPayouts({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     final response = await _client.get<PayoutHistoryPage>(
       '/api/workers/me/payouts',
       queryParams: {'page': '$page', 'pageSize': '$pageSize'},
-      fromJson: (json) => PayoutHistoryPage.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) =>
+          PayoutHistoryPage.fromJson(json as Map<String, dynamic>),
     );
     final data = response.data;
-    if (data == null) throw const ApiException(0, 'Máy chủ không trả lịch sử giải ngân.');
+    if (data == null) {
+      throw const ApiException(0, 'Máy chủ không trả lịch sử giải ngân.');
+    }
     return data;
   }
 }

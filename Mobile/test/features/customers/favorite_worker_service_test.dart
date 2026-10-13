@@ -9,11 +9,17 @@ void main() {
       service = FavoriteWorkerService(isMock: true);
     });
 
-    test('getFavoriteWorkers returns seeded list sorted by addedAt descending', () async {
-      final list = await service.getFavoriteWorkers();
-      expect(list.length, greaterThanOrEqualTo(3));
-      expect(list.first.fullName, 'Lê Thị Cúc'); // most recently added (1 day ago)
-    });
+    test(
+      'getFavoriteWorkers returns seeded list sorted by addedAt descending',
+      () async {
+        final list = await service.getFavoriteWorkers();
+        expect(list.length, greaterThanOrEqualTo(3));
+        expect(
+          list.first.fullName,
+          'Lê Thị Cúc',
+        ); // most recently added (1 day ago)
+      },
+    );
 
     test('addFavoriteWorker adds worker idempotently', () async {
       final added = await service.addFavoriteWorker(999);

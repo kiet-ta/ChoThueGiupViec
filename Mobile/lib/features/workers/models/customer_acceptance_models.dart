@@ -35,15 +35,13 @@ class RequestRedoRequest {
   final String reason;
   final String? redoPhotoUrl;
 
-  const RequestRedoRequest({
-    required this.reason,
-    this.redoPhotoUrl,
-  });
+  const RequestRedoRequest({required this.reason, this.redoPhotoUrl});
 
   Map<String, dynamic> toJson() => {
-        'reason': reason,
-        if (redoPhotoUrl != null && redoPhotoUrl!.isNotEmpty) 'redoPhotoUrl': redoPhotoUrl,
-      };
+    'reason': reason,
+    if (redoPhotoUrl != null && redoPhotoUrl!.isNotEmpty)
+      'redoPhotoUrl': redoPhotoUrl,
+  };
 }
 
 /// Response returned when requesting a redo or checking assignment status (contract workers.md §2.5.3).

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -83,14 +84,19 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('HttpException: ', '');
+        _errorMessage = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('HttpException: ', '');
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final roleLabel = widget.role == AppRole.worker ? 'Chuyên Viên / Thợ' : 'Khách Hàng';
+    final roleLabel = widget.role == AppRole.worker
+        ? 'Chuyên Viên / Thợ'
+        : 'Khách Hàng';
 
     return Scaffold(
       backgroundColor: NordicColors.canvas,
@@ -102,17 +108,17 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 16.0,
+            ),
             children: [
               const Align(
                 alignment: Alignment.centerLeft,
                 child: EyebrowBadge(text: 'XÁC THỰC BẢO MẬT'),
               ),
               const SizedBox(height: 12.0),
-              Text(
-                'Đăng nhập bằng số điện thoại',
-                style: NordicTypography.h1,
-              ),
+              Text('Đăng nhập bằng số điện thoại', style: NordicTypography.h1),
               const SizedBox(height: 8.0),
               Text(
                 'Nhập số điện thoại để nhận mã xác thực OTP 6 chữ số qua tin nhắn SMS.',
@@ -122,7 +128,10 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12.0,
+                    vertical: 6.0,
+                  ),
                   decoration: BoxDecoration(
                     color: NordicColors.surfaceSubtle,
                     borderRadius: BorderRadius.circular(8.0),
@@ -131,7 +140,9 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        widget.role == AppRole.worker ? Icons.handyman_outlined : Icons.person_outline,
+                        widget.role == AppRole.worker
+                            ? Icons.handyman_outlined
+                            : Icons.person_outline,
                         size: 16.0,
                         color: NordicColors.primary,
                       ),

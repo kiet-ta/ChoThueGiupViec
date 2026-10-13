@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
@@ -12,11 +13,7 @@ class CustomerProfileScreen extends StatefulWidget {
   final CustomerProfileService? service;
   final TokenStorage? tokenStorage;
 
-  const CustomerProfileScreen({
-    super.key,
-    this.service,
-    this.tokenStorage,
-  });
+  const CustomerProfileScreen({super.key, this.service, this.tokenStorage});
 
   @override
   State<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
@@ -90,7 +87,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     try {
       final updated = await _service.updateProfile(
         fullName: _nameController.text,
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        email: _emailController.text.trim().isEmpty
+            ? null
+            : _emailController.text.trim(),
       );
 
       if (mounted) {
@@ -104,7 +103,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             backgroundColor: NordicColors.primary,
             content: Text(
               'Cập nhật hồ sơ thành công!',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         );
@@ -140,12 +142,20 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Huỷ', style: TextStyle(color: NordicColors.textSecondary)),
+            child: const Text(
+              'Huỷ',
+              style: TextStyle(color: NordicColors.textSecondary),
+            ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: NordicColors.error),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: NordicColors.error,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Đăng xuất',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -177,22 +187,30 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               ),
             )
           : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline_rounded, size: 48, color: NordicColors.error),
-                        const SizedBox(height: 12),
-                        Text(_errorMessage!, style: NordicTypography.bodyRegular, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        NordicButton(label: 'Thử lại', onPressed: _loadProfile),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 48,
+                      color: NordicColors.error,
                     ),
-                  ),
-                )
-              : _buildProfileContent(),
+                    const SizedBox(height: 12),
+                    Text(
+                      _errorMessage!,
+                      style: NordicTypography.bodyRegular,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    NordicButton(label: 'Thử lại', onPressed: _loadProfile),
+                  ],
+                ),
+              ),
+            )
+          : _buildProfileContent(),
     );
   }
 
@@ -238,7 +256,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          profile.fullName.isNotEmpty ? profile.fullName : 'Khách Hàng',
+                          profile.fullName.isNotEmpty
+                              ? profile.fullName
+                              : 'Khách Hàng',
                           style: NordicTypography.h2,
                         ),
                         const SizedBox(height: 4),
@@ -266,12 +286,17 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                           children: [
                             // Status badge
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: profile.statusBadgeBgColor,
                                 borderRadius: BorderRadius.circular(999),
                                 border: Border.all(
-                                  color: profile.statusBadgeColor.withValues(alpha: 0.3),
+                                  color: profile.statusBadgeColor.withValues(
+                                    alpha: 0.3,
+                                  ),
                                 ),
                               ),
                               child: Text(
@@ -285,18 +310,26 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                             ),
                             // Trust score badge
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEF3C7),
                                 borderRadius: BorderRadius.circular(999),
                                 border: Border.all(
-                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                                  color: const Color(0xFFF59E0B)
+                                      .withValues(alpha: 0.4),
                                 ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star_rounded, size: 14, color: Color(0xFFB45309)),
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    size: 14,
+                                    color: Color(0xFFB45309),
+                                  ),
                                   const SizedBox(width: 3),
                                   Text(
                                     '${profile.trustScore.toStringAsFixed(1)} • ${profile.trustScoreTierName}',
@@ -364,7 +397,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('THÔNG TIN LIÊN HỆ', style: NordicTypography.labelMedium),
+                  const Text(
+                    'THÔNG TIN LIÊN HỆ',
+                    style: NordicTypography.labelMedium,
+                  ),
                   const SizedBox(height: 16),
 
                   // Full name
@@ -373,20 +409,32 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     controller: _nameController,
                     decoration: InputDecoration(
                       labelText: 'Họ và tên *',
-                      labelStyle: const TextStyle(color: NordicColors.textSecondary),
+                      labelStyle: const TextStyle(
+                        color: NordicColors.textSecondary,
+                      ),
                       hintText: 'Ví dụ: Nguyễn Văn An',
-                      prefixIcon: const Icon(Icons.person_outline_rounded, color: NordicColors.primary),
+                      prefixIcon: const Icon(
+                        Icons.person_outline_rounded,
+                        color: NordicColors.primary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10.0),
-                        borderSide: const BorderSide(color: NordicColors.border),
+                        borderSide: const BorderSide(
+                          color: NordicColors.border,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10.0),
-                        borderSide: const BorderSide(color: NordicColors.border),
+                        borderSide: const BorderSide(
+                          color: NordicColors.border,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10.0),
-                        borderSide: const BorderSide(color: NordicColors.primary, width: 2.0),
+                        borderSide: const BorderSide(
+                          color: NordicColors.primary,
+                          width: 2.0,
+                        ),
                       ),
                     ),
                     validator: (val) {
@@ -408,20 +456,32 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: 'Email',
-                      labelStyle: const TextStyle(color: NordicColors.textSecondary),
+                      labelStyle: const TextStyle(
+                        color: NordicColors.textSecondary,
+                      ),
                       hintText: 'Ví dụ: an.nguyen@example.com',
-                      prefixIcon: const Icon(Icons.email_outlined, color: NordicColors.primary),
+                      prefixIcon: const Icon(
+                        Icons.email_outlined,
+                        color: NordicColors.primary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10.0),
-                        borderSide: const BorderSide(color: NordicColors.border),
+                        borderSide: const BorderSide(
+                          color: NordicColors.border,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10.0),
-                        borderSide: const BorderSide(color: NordicColors.border),
+                        borderSide: const BorderSide(
+                          color: NordicColors.border,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10.0),
-                        borderSide: const BorderSide(color: NordicColors.primary, width: 2.0),
+                        borderSide: const BorderSide(
+                          color: NordicColors.primary,
+                          width: 2.0,
+                        ),
                       ),
                     ),
                     validator: (val) {
@@ -429,7 +489,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                         if (val.trim().length > 255) {
                           return 'Email không được quá 255 ký tự';
                         }
-                        final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                        final emailRegex = RegExp(
+                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                        );
                         if (!emailRegex.hasMatch(val.trim())) {
                           return 'Email không đúng định dạng';
                         }
@@ -442,7 +504,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   // Member since
                   Row(
                     children: [
-                      const Icon(Icons.calendar_month_outlined, size: 18, color: NordicColors.textSecondary),
+                      const Icon(
+                        Icons.calendar_month_outlined,
+                        size: 18,
+                        color: NordicColors.textSecondary,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -512,7 +578,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               key: const Key('logoutButton'),
               label: 'Đăng Xuất',
               variant: NordicButtonVariant.ghost,
-              icon: const Icon(Icons.logout_rounded, size: 18, color: NordicColors.error),
+              icon: const Icon(
+                Icons.logout_rounded,
+                size: 18,
+                color: NordicColors.error,
+              ),
               onPressed: _handleLogout,
             ),
           ],

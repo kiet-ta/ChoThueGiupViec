@@ -20,18 +20,21 @@ void main() {
     test('contains all 10 required domain modules across 6 slots', () {
       final moduleNames = FeatureRegistry.modules.map((m) => m.name).toList();
 
-      expect(moduleNames, containsAll([
-        'identity',
-        'customers',
-        'booking',
-        'payments',
-        'dispatch',
-        'workers',
-        'agencies',
-        'ratings',
-        'disputes',
-        'payouts',
-      ]));
+      expect(
+        moduleNames,
+        containsAll([
+          'identity',
+          'customers',
+          'booking',
+          'payments',
+          'dispatch',
+          'workers',
+          'agencies',
+          'ratings',
+          'disputes',
+          'payouts',
+        ]),
+      );
       expect(FeatureRegistry.modules.length, 10);
     });
 
@@ -86,22 +89,20 @@ void main() {
       final otpRoute = AppRoutes.onGenerateRoute(
         const RouteSettings(
           name: IdentityRoutes.otpVerify,
-          arguments: {
-            'phoneNumber': '0901234567',
-          },
+          arguments: {'phoneNumber': '0901234567'},
         ),
       );
       expect(otpRoute, isNotNull);
 
       final addressFormRoute = AppRoutes.onGenerateRoute(
-        const RouteSettings(
-          name: CustomerRoutes.addressForm,
-        ),
+        const RouteSettings(name: CustomerRoutes.addressForm),
       );
       expect(addressFormRoute, isNull); // Handled by standard routes map
     });
 
-    testWidgets('ToAmApp mounts and can navigate to booking route', (tester) async {
+    testWidgets('ToAmApp mounts and can navigate to booking route', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -113,7 +114,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Navigate to Booking route using Navigator
-      final navigatorState = tester.state<NavigatorState>(find.byType(Navigator));
+      final navigatorState = tester.state<NavigatorState>(
+        find.byType(Navigator),
+      );
       navigatorState.pushNamed(BookingRoutes.booking);
       await tester.pumpAndSettle();
 
@@ -131,7 +134,9 @@ void main() {
       await tester.pumpWidget(const ToAmApp());
       await tester.pumpAndSettle();
 
-      final navigatorState = tester.state<NavigatorState>(find.byType(Navigator));
+      final navigatorState = tester.state<NavigatorState>(
+        find.byType(Navigator),
+      );
       navigatorState.pushNamed(DispatchRoutes.offers);
       await tester.pumpAndSettle();
 

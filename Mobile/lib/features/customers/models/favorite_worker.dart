@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 
 /// Worker profile read shape from .spec/contracts/customers.md §1 & §2.3.
@@ -26,7 +27,9 @@ class FavoriteWorker {
       ratingAvg: (json['ratingAvg'] as num?)?.toDouble() ?? 0.0,
       completedJobs: (json['completedJobs'] as num?)?.toInt() ?? 0,
       workStatus: json['workStatus'] as String? ?? 'ACTIVE',
-      addedAt: json['addedAt'] != null ? DateTime.tryParse(json['addedAt'] as String) : null,
+      addedAt: json['addedAt'] != null
+          ? DateTime.tryParse(json['addedAt'] as String)
+          : null,
     );
   }
 

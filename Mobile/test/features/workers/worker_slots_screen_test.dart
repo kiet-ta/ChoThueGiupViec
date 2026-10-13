@@ -4,6 +4,7 @@ import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/features/workers/models/booking_slot_models.dart';
 import 'package:mobile/features/workers/screens/worker_slots_screen.dart';
 import 'package:mobile/features/workers/services/workers_slots_service.dart';
+
 import 'design_frame.dart';
 
 class MockWorkersSlotsService extends WorkersSlotsService {
@@ -23,7 +24,9 @@ class MockWorkersSlotsService extends WorkersSlotsService {
   }
 
   @override
-  Future<ApiResponse<BookingSlotDto>> toggleSlot(ToggleBookingSlotRequest request) async {
+  Future<ApiResponse<BookingSlotDto>> toggleSlot(
+    ToggleBookingSlotRequest request,
+  ) async {
     lastToggleRequest = request;
     return ApiResponse<BookingSlotDto>(
       success: true,
@@ -61,7 +64,9 @@ void main() {
       ];
     });
 
-    testWidgets('WorkerSlotsScreen renders weekly header and shift cards', (tester) async {
+    testWidgets('WorkerSlotsScreen renders weekly header and shift cards', (
+      tester,
+    ) async {
       useDesignFrame(tester);
       await tester.pumpWidget(
         MaterialApp(
@@ -83,7 +88,9 @@ void main() {
       expect(find.text('Ca Tối'), findsWidgets);
     });
 
-    testWidgets('Toggling a shift switch invokes toggleSlot API', (tester) async {
+    testWidgets('Toggling a shift switch invokes toggleSlot API', (
+      tester,
+    ) async {
       useDesignFrame(tester);
       await tester.pumpWidget(
         MaterialApp(

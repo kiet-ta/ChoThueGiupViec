@@ -17,7 +17,12 @@ class ApiException implements Exception {
   /// `Retry-After` of a 423/429, in seconds.
   final int? retryAfterSeconds;
 
-  const ApiException(this.statusCode, this.message, {this.fieldErrors, this.retryAfterSeconds});
+  const ApiException(
+    this.statusCode,
+    this.message, {
+    this.fieldErrors,
+    this.retryAfterSeconds,
+  });
 
   bool get isNetworkError => statusCode == 0;
 
@@ -25,7 +30,8 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-const _networkMessage = 'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
+const _networkMessage =
+    'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
 
 /// Runs one backend call; a network failure or timeout becomes [ApiException] with status 0.
 /// An [ApiException] thrown inside (from [readEnvelope]) passes through unchanged.
@@ -58,7 +64,10 @@ Future<Map<String, dynamic>> apiRequest(
   return guardNetwork(() async {
     final request = await client.openUrl(method, uri).timeout(apiTimeout);
     if (bearerToken != null && bearerToken.isNotEmpty) {
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $bearerToken');
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer $bearerToken',
+      );
     }
     if (body != null) {
       request.headers.contentType = ContentType.json;
@@ -71,7 +80,10 @@ Future<Map<String, dynamic>> apiRequest(
 
 /// Reads the response envelope. Returns it for a 2xx with `success != false`; otherwise throws [ApiException]
 /// with the status and the envelope `message` (or [fallbackMessage] when the body is not a JSON envelope).
-Future<Map<String, dynamic>> readEnvelope(HttpClientResponse response, {required String fallbackMessage}) async {
+Future<Map<String, dynamic>> readEnvelope(
+  HttpClientResponse response, {
+  required String fallbackMessage,
+}) async {
   final status = response.statusCode;
   final body = await response.transform(utf8.decoder).join();
 
@@ -85,20 +97,24 @@ Future<Map<String, dynamic>> readEnvelope(HttpClientResponse response, {required
 
   final ok = status >= 200 && status < 300;
   if (ok && envelope != null && envelope['success'] != false) return envelope;
-  if (ok && envelope == null && body.isEmpty) return const {'success': true, 'data': null};
+  if (ok && envelope == null && body.isEmpty) {
+    return const {'success': true, 'data': null};
+  }
 
   final serverMessage = envelope?['message'];
   final message = serverMessage is String && serverMessage.trim().isNotEmpty
       ? serverMessage
       : ok
-          ? '$fallbackMessage (phản hồi không hợp lệ)'
-          : '$fallbackMessage (mã lỗi $status)';
+      ? '$fallbackMessage (phản hồi không hợp lệ)'
+      : '$fallbackMessage (mã lỗi $status)';
 
   throw ApiException(
     status,
     message,
     fieldErrors: _fieldErrors(envelope),
-    retryAfterSeconds: int.tryParse(response.headers.value(HttpHeaders.retryAfterHeader) ?? ''),
+    retryAfterSeconds: int.tryParse(
+      response.headers.value(HttpHeaders.retryAfterHeader) ?? '',
+    ),
   );
 }
 
@@ -106,8 +122,12 @@ Map<String, List<String>>? _fieldErrors(Map<String, dynamic>? envelope) {
   final data = envelope?['data'];
   final errors = data is Map<String, dynamic> ? data['errors'] : null;
   if (errors is! Map<String, dynamic>) return null;
-  return errors.map((field, messages) => MapEntry(
-        field,
-        messages is List ? messages.map((m) => m.toString()).toList() : [messages.toString()],
-      ));
+  return errors.map(
+    (field, messages) => MapEntry(
+      field,
+      messages is List
+          ? messages.map((m) => m.toString()).toList()
+          : [messages.toString()],
+    ),
+  );
 }
