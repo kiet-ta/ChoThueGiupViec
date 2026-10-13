@@ -44,7 +44,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Ảnh Before/After #2001'), findsOneWidget);
-      expect(findEyebrow('Kiểm Tra Chất Lượng VoL'), findsOneWidget);
+      expect(find.text('KIỂM TRA CHẤT LƯỢNG VOL'), findsOneWidget);
       expect(find.text('BEFORE (Trước)'), findsOneWidget);
       expect(find.text('AFTER (Sau)'), findsOneWidget);
       expect(find.text('Góc 1'), findsOneWidget);

@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/core/widgets/eyebrow_badge.dart';
 
 /// Lays the screen out on the 390x844 design frame (Mobile/ARCHITECTURE.md) instead of the
 /// default 800x600 test surface, and restores the surface after the test.
@@ -34,7 +33,3 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
   await tester.tap(finder);
   await tester.pumpAndSettle();
 }
-
-/// [EyebrowBadge] renders its text upper-cased, so match the badge by the text it was given.
-Finder findEyebrow(String text) =>
-    find.byWidgetPredicate((widget) => widget is EyebrowBadge && widget.text == text);
