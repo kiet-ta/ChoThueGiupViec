@@ -30,13 +30,13 @@ class WorkerExtensionResponseDto {
   }
 
   Map<String, dynamic> toJson() => {
-        'assignmentId': assignmentId,
-        'extensionId': extensionId,
-        'extraHours': extraHours,
-        'extraAmount': extraAmount,
-        'status': status,
-        'newEndTime': newEndTime,
-      };
+    'assignmentId': assignmentId,
+    'extensionId': extensionId,
+    'extraHours': extraHours,
+    'extraAmount': extraAmount,
+    'status': status,
+    'newEndTime': newEndTime,
+  };
 }
 
 /// Information model representing an extension offer to the worker.

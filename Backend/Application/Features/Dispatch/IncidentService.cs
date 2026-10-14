@@ -129,7 +129,7 @@ public class IncidentService
             };
         }
 
-        if (assignment.WorkerId != request.WorkerId && assignment.AgencyId == null)
+        if (assignment.WorkerId != request.WorkerId)
         {
             return new IncidentResolutionResult
             {

@@ -30,7 +30,8 @@ bool canGoNext(String key, String currentKey) => key.compareTo(currentKey) < 0;
 bool canGoPrevious(String key) => key.compareTo('$firstSelectableYear-01') > 0;
 
 /// "Tháng 10/2026".
-String monthLabel(String key) => 'Tháng ${int.parse(key.substring(5, 7))}/${key.substring(0, 4)}';
+String monthLabel(String key) =>
+    'Tháng ${int.parse(key.substring(5, 7))}/${key.substring(0, 4)}';
 
 /// Whole VND with dots between thousands: `1.234.567 đ` (decision G-2).
 String formatVnd(int amount) {

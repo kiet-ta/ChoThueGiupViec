@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -13,10 +14,7 @@ import '../widgets/job_offer_card.dart';
 class DispatchOffersScreen extends StatefulWidget {
   final DispatchService? dispatchService;
 
-  const DispatchOffersScreen({
-    super.key,
-    this.dispatchService,
-  });
+  const DispatchOffersScreen({super.key, this.dispatchService});
 
   @override
   State<DispatchOffersScreen> createState() => _DispatchOffersScreenState();
@@ -70,12 +68,15 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
     });
 
     try {
-      final result = await _dispatchService.acceptOffer(_currentOffer!.assignmentId);
+      final result = await _dispatchService.acceptOffer(
+        _currentOffer!.assignmentId,
+      );
       if (!mounted) return;
       setState(() {
         _isAccepting = false;
         _currentOffer = null;
-        _successMessage = 'Nhận cuốc thành công! Mã ca làm #${result.assignmentId}';
+        _successMessage =
+            'Nhận cuốc thành công! Mã ca làm #${result.assignmentId}';
       });
     } catch (e) {
       if (!mounted) return;
@@ -115,7 +116,8 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
     if (!mounted) return;
     setState(() {
       _currentOffer = null;
-      _errorMessage = 'Hết thời gian nhận cuốc (30s). Đơn đã chuyển cho thợ khác.';
+      _errorMessage =
+          'Hết thời gian nhận cuốc (30s). Đơn đã chuyển cho thợ khác.';
     });
   }
 
@@ -224,10 +226,7 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
         children: [
           const EyebrowBadge(text: 'ĐỀ NGHỊ CA MỚI (30S)'),
           const SizedBox(height: 8.0),
-          const Text(
-            'Có khách cần giúp việc!',
-            style: NordicTypography.h2,
-          ),
+          const Text('Có khách cần giúp việc!', style: NordicTypography.h2),
           const SizedBox(height: 16.0),
           if (_errorMessage != null) ...[
             Container(
@@ -240,7 +239,9 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
               ),
               child: Text(
                 _errorMessage!,
-                style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+                style: NordicTypography.bodySmall.copyWith(
+                  color: NordicColors.error,
+                ),
               ),
             ),
           ],

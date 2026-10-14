@@ -13,7 +13,9 @@ void main() {
       service = CustomerAddressService(isMock: true);
     });
 
-    testWidgets('renders create form and calculates live S_total', (tester) async {
+    testWidgets('renders create form and calculates live S_total', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -51,7 +53,9 @@ void main() {
       expect(find.textContaining('30.0 m²'), findsWidgets);
     });
 
-    testWidgets('validates required fields and submits valid form', (tester) async {
+    testWidgets('validates required fields and submits valid form', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -91,7 +95,9 @@ void main() {
       expect(addresses.any((a) => a.label == 'Biệt thự Thảo Điền'), isTrue);
     });
 
-    testWidgets('renders edit form with initialAddress and updates it', (tester) async {
+    testWidgets('renders edit form with initialAddress and updates it', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

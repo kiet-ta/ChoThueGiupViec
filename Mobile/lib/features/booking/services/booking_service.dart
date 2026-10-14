@@ -8,7 +8,10 @@ import '../models/booking_models.dart';
 abstract class IBookingService {
   Future<BookingOptions> getOptions();
 
-  Future<PriceQuote> getQuote({required int addressId, required String serviceTier});
+  Future<PriceQuote> getQuote({
+    required int addressId,
+    required String serviceTier,
+  });
 
   Future<BookingOrder> createOrder(CreateOrderInput input);
 }
@@ -39,7 +42,10 @@ class BookingService implements IBookingService {
   }
 
   @override
-  Future<PriceQuote> getQuote({required int addressId, required String serviceTier}) async {
+  Future<PriceQuote> getQuote({
+    required int addressId,
+    required String serviceTier,
+  }) async {
     final response = await _client.get<PriceQuote>(
       '/api/booking/price-quote',
       queryParams: {'addressId': '$addressId', 'serviceTier': serviceTier},
@@ -63,7 +69,8 @@ class BookingService implements IBookingService {
 class CustomerAddressBookSource implements IBookingAddressSource {
   final CustomerAddressService _addresses;
 
-  CustomerAddressBookSource({CustomerAddressService? addresses}) : _addresses = addresses ?? CustomerAddressService();
+  CustomerAddressBookSource({CustomerAddressService? addresses})
+    : _addresses = addresses ?? CustomerAddressService();
 
   @override
   Future<List<BookingAddress>> getAddresses() async {
@@ -72,7 +79,12 @@ class CustomerAddressBookSource implements IBookingAddressSource {
       list = await _addresses.getAddresses();
     } on identity.ApiException catch (e) {
       // The Customers service has its own exception type; the booking screens handle the shared one.
-      throw ApiException(e.statusCode, e.message, fieldErrors: e.fieldErrors, retryAfterSeconds: e.retryAfterSeconds);
+      throw ApiException(
+        e.statusCode,
+        e.message,
+        fieldErrors: e.fieldErrors,
+        retryAfterSeconds: e.retryAfterSeconds,
+      );
     }
 
     return [

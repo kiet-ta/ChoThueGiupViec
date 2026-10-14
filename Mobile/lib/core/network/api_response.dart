@@ -4,11 +4,7 @@ class ApiResponse<T> {
   final String message;
   final T? data;
 
-  const ApiResponse({
-    required this.success,
-    required this.message,
-    this.data,
-  });
+  const ApiResponse({required this.success, required this.message, this.data});
 
   factory ApiResponse.fromJson(
     Map<String, dynamic> json, [
@@ -25,11 +21,7 @@ class ApiResponse<T> {
       data = rawData;
     }
 
-    return ApiResponse<T>(
-      success: success,
-      message: message,
-      data: data,
-    );
+    return ApiResponse<T>(success: success, message: message, data: data);
   }
 
   Map<String, dynamic> toJson([Object? Function(T data)? toJsonT]) {

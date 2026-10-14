@@ -2182,6 +2182,136 @@
         }
       }
     },
+    "/api/admin/subscription-packages": {
+      "get": {
+        "tags": [
+          "AdminSubscriptionPackages"
+        ],
+        "operationId": "AdminSubscriptionPackages_List",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDtoIReadOnlyListApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDtoIReadOnlyListApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDtoIReadOnlyListApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/subscription-packages/{packageId}": {
+      "put": {
+        "tags": [
+          "AdminSubscriptionPackages"
+        ],
+        "operationId": "AdminSubscriptionPackages_Update",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePackageRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePackageRequest"
+              }
+            },
+            "application/*\u002Bjson": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePackageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDtoApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/workers/{workerId}/super-freelancer": {
       "post": {
         "tags": [
@@ -2710,12 +2840,101 @@
         }
       }
     },
-    "/api/agencies/packages": {
-      "get": {
+    "/api/agencies/registration": {
+      "post": {
         "tags": [
           "Agencies"
         ],
-        "operationId": "Agencies_GetPackages",
+        "operationId": "Agencies_Register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterAgencyRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterAgencyRequest"
+              }
+            },
+            "application/*\u002Bjson": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterAgencyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterAgencyResponseApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterAgencyResponseApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterAgencyResponseApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agencies/packages": {
+      "get": {
+        "tags": [
+          "AgencySubscriptions"
+        ],
+        "operationId": "AgencySubscriptions_GetPackages",
         "responses": {
           "200": {
             "description": "OK",
@@ -2743,26 +2962,26 @@
     "/api/agencies/subscriptions/me": {
       "get": {
         "tags": [
-          "Agencies"
+          "AgencySubscriptions"
         ],
-        "operationId": "Agencies_GetMySubscription",
+        "operationId": "AgencySubscriptions_GetMine",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDtoApiResponse"
+                  "$ref": "#/components/schemas/SubscriptionStateDtoApiResponse"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDtoApiResponse"
+                  "$ref": "#/components/schemas/SubscriptionStateDtoApiResponse"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDtoApiResponse"
+                  "$ref": "#/components/schemas/SubscriptionStateDtoApiResponse"
                 }
               }
             }
@@ -2773,24 +2992,24 @@
     "/api/agencies/subscriptions": {
       "post": {
         "tags": [
-          "Agencies"
+          "AgencySubscriptions"
         ],
-        "operationId": "Agencies_Subscribe",
+        "operationId": "AgencySubscriptions_Subscribe",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SubscribeCommand"
+                "$ref": "#/components/schemas/SubscribeRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/SubscribeCommand"
+                "$ref": "#/components/schemas/SubscribeRequest"
               }
             },
             "application/*\u002Bjson": {
               "schema": {
-                "$ref": "#/components/schemas/SubscribeCommand"
+                "$ref": "#/components/schemas/SubscribeRequest"
               }
             }
           }
@@ -2801,17 +3020,77 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDtoApiResponse"
+                  "$ref": "#/components/schemas/SubscriptionPurchaseDtoApiResponse"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDtoApiResponse"
+                  "$ref": "#/components/schemas/SubscriptionPurchaseDtoApiResponse"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDtoApiResponse"
+                  "$ref": "#/components/schemas/SubscriptionPurchaseDtoApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
                 }
               }
             }
@@ -2819,38 +3098,59 @@
         }
       }
     },
-    "/api/agencies/import-workers": {
+    "/api/agencies/workers/import/template": {
+      "get": {
+        "tags": [
+          "AgencyWorkerImport"
+        ],
+        "operationId": "AgencyWorkerImport_Template",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agencies/guarantee": {
       "post": {
         "tags": [
-          "Agencies"
+          "AgencyWorkerImport"
         ],
-        "operationId": "Agencies_ImportWorkers",
+        "operationId": "AgencyWorkerImport_SignGuarantee",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
                 "type": "object",
                 "properties": {
-                  "CsvContent": {
-                    "type": "string"
-                  },
-                  "AgencyId": {
-                    "type": "integer",
-                    "format": "int32"
-                  },
-                  "DryRun": {
-                    "type": "boolean"
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
                   }
                 }
               },
               "encoding": {
-                "CsvContent": {
-                  "style": "form"
-                },
-                "AgencyId": {
-                  "style": "form"
-                },
-                "DryRun": {
+                "file": {
                   "style": "form"
                 }
               }
@@ -2863,17 +3163,217 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ImportWorkerResponseDtoApiResponse"
+                  "$ref": "#/components/schemas/GuaranteeSignedDtoApiResponse"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ImportWorkerResponseDtoApiResponse"
+                  "$ref": "#/components/schemas/GuaranteeSignedDtoApiResponse"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ImportWorkerResponseDtoApiResponse"
+                  "$ref": "#/components/schemas/GuaranteeSignedDtoApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agencies/workers/import/dry-run": {
+      "post": {
+        "tags": [
+          "AgencyWorkerImport"
+        ],
+        "operationId": "AgencyWorkerImport_DryRun",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agencies/workers/import/commit": {
+      "post": {
+        "tags": [
+          "AgencyWorkerImport"
+        ],
+        "operationId": "AgencyWorkerImport_Commit",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDtoApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
                 }
               }
             }
@@ -7103,6 +7603,619 @@
         }
       }
     },
+    "/api/dispatch/offers/current": {
+      "get": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_GetCurrentOffer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOfferDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOfferDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOfferDtoApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dispatch/offers/{assignmentId}/accept": {
+      "post": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_Accept",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferAcceptedDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferAcceptedDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferAcceptedDtoApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dispatch/offers/{assignmentId}/decline": {
+      "post": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_Decline",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineOfferRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineOfferRequest"
+              }
+            },
+            "application/*\u002Bjson": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineOfferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDeclinedDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDeclinedDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDeclinedDtoApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dispatch/assignments/{assignmentId}/check-in": {
+      "post": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_CheckIn",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInRequest"
+              }
+            },
+            "application/*\u002Bjson": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResultDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResultDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResultDtoApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dispatch/assignments/{assignmentId}/check-in/plate-photo": {
+      "post": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_PlatePhoto",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatePhotoRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatePhotoRequest"
+              }
+            },
+            "application/*\u002Bjson": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatePhotoRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResultDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResultDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResultDtoApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dispatch/assignments/{assignmentId}/calls/log": {
+      "post": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_LogCall",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallLoggedDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallLoggedDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallLoggedDtoApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dispatch/assignments/{assignmentId}/absent": {
+      "post": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_ReportAbsent",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerAbsentReportDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerAbsentReportDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerAbsentReportDtoApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workers/me/disputes": {
       "post": {
         "tags": [
@@ -9807,12 +10920,118 @@
         },
         "additionalProperties": false
       },
+      "CallLoggedDto": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "callAttempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "loggedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CallLoggedDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/CallLoggedDto"
+          }
+        },
+        "additionalProperties": false
+      },
       "CancelOrderRequest": {
         "type": "object",
         "properties": {
           "reason": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CheckInRequest": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CheckInResultDto": {
+        "type": "object",
+        "properties": {
+          "checkInId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "distanceMeters": {
+            "type": "number",
+            "format": "double"
+          },
+          "isGpsVerified": {
+            "type": "boolean"
+          },
+          "requiresAlternativeVerification": {
+            "type": "boolean"
+          },
+          "verificationMethod": {
+            "type": "string",
+            "nullable": true
+          },
+          "platePhotoUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "isCustomerConfirmed": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CheckInResultDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/CheckInResultDto"
           }
         },
         "additionalProperties": false
@@ -9888,6 +11107,69 @@
           },
           "data": {
             "$ref": "#/components/schemas/CurrentUserDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CustomerAbsentReportDto": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reportedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "elapsedMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "callAttempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reviewStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "workerFeeRate": {
+            "type": "number",
+            "format": "double"
+          },
+          "absenceFeeAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "customerRefundRate": {
+            "type": "number",
+            "format": "double"
+          },
+          "customerRefundAmount": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CustomerAbsentReportDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/CustomerAbsentReportDto"
           }
         },
         "additionalProperties": false
@@ -10015,6 +11297,16 @@
           "completedToday": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeclineOfferRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -10676,50 +11968,17 @@
         },
         "additionalProperties": false
       },
-      "ImportWorkerErrorDto": {
+      "GuaranteeSignedDto": {
         "type": "object",
         "properties": {
-          "lineNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "fieldName": {
+          "guaranteeSignedAt": {
             "type": "string",
-            "nullable": true
-          },
-          "errorMessage": {
-            "type": "string",
-            "nullable": true
-          },
-          "invalidValue": {
-            "type": "string",
-            "nullable": true
+            "format": "date-time"
           }
         },
         "additionalProperties": false
       },
-      "ImportWorkerResponseDto": {
-        "type": "object",
-        "properties": {
-          "successfullyImported": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "errors": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ImportWorkerErrorDto"
-            },
-            "nullable": true
-          },
-          "isSuccessful": {
-            "type": "boolean",
-            "readOnly": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "ImportWorkerResponseDtoApiResponse": {
+      "GuaranteeSignedDtoApiResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -10730,7 +11989,155 @@
             "nullable": true
           },
           "data": {
-            "$ref": "#/components/schemas/ImportWorkerResponseDto"
+            "$ref": "#/components/schemas/GuaranteeSignedDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportResultDto": {
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "committed": {
+            "type": "boolean"
+          },
+          "totalRows": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "validRows": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdWorkers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportRowError"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportResultDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/ImportResultDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportRowError": {
+        "type": "object",
+        "properties": {
+          "row": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "column": {
+            "type": "string",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "JobOfferDto": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceTier": {
+            "type": "string",
+            "nullable": true
+          },
+          "bookingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "shiftTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "district": {
+            "type": "string",
+            "nullable": true
+          },
+          "approximateDistanceKm": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "estimatedDurationHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "grossAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "commissionRate": {
+            "type": "number",
+            "format": "double"
+          },
+          "netEarnings": {
+            "type": "number",
+            "format": "double"
+          },
+          "offeredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remainingSeconds": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "JobOfferDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/JobOfferDto"
           }
         },
         "additionalProperties": false
@@ -10887,6 +12294,74 @@
           },
           "data": {
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OfferAcceptedDto": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "bookingSlotLocked": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OfferAcceptedDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/OfferAcceptedDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OfferDeclinedDto": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OfferDeclinedDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/OfferDeclinedDto"
           }
         },
         "additionalProperties": false
@@ -11178,39 +12653,65 @@
       "PackageDto": {
         "type": "object",
         "properties": {
-          "id": {
+          "packageId": {
             "type": "integer",
             "format": "int32"
           },
-          "name": {
+          "packageCode": {
             "type": "string",
             "nullable": true
           },
-          "description": {
+          "packageName": {
             "type": "string",
             "nullable": true
           },
-          "workerLimit": {
+          "tier": {
+            "type": "string",
+            "nullable": true
+          },
+          "billingCycle": {
+            "type": "string",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "format": "double"
+          },
+          "workerQuota": {
             "type": "integer",
             "format": "int32"
           },
           "commissionRate": {
-            "type": "integer",
-            "format": "int32"
+            "type": "number",
+            "format": "double"
           },
-          "monthlyPriceVnd": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
+          "hasRosterDashboard": {
+            "type": "boolean"
           },
-          "quarterlyPriceVnd": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
+          "hasAnalytics": {
+            "type": "boolean"
           },
-          "createdAt": {
+          "priorityDispatch": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PackageDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
             "type": "string",
-            "format": "date-time"
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/PackageDto"
           }
         },
         "additionalProperties": false
@@ -11557,6 +13058,16 @@
         },
         "additionalProperties": false
       },
+      "PlatePhotoRequest": {
+        "type": "object",
+        "properties": {
+          "platePhotoUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "PriceQuoteDto": {
         "type": "object",
         "properties": {
@@ -11859,6 +13370,102 @@
         },
         "additionalProperties": false
       },
+      "RegisterAgencyRequest": {
+        "type": "object",
+        "properties": {
+          "taxCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "legalName": {
+            "type": "string",
+            "nullable": true
+          },
+          "legalRepresentative": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegisterAgencyResponse": {
+        "type": "object",
+        "properties": {
+          "agencyId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "taxCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "legalName": {
+            "type": "string",
+            "nullable": true
+          },
+          "legalRepresentative": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "agencyStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "escrowDepositBalance": {
+            "type": "number",
+            "format": "double"
+          },
+          "slaScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "workerQuota": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegisterAgencyResponseApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/RegisterAgencyResponse"
+          }
+        },
+        "additionalProperties": false
+      },
       "RegisterWorkerRequest": {
         "type": "object",
         "properties": {
@@ -12046,12 +13653,13 @@
         },
         "additionalProperties": false
       },
-      "SubscribeCommand": {
+      "SubscribeRequest": {
         "type": "object",
         "properties": {
           "packageId": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12059,7 +13667,7 @@
       "SubscriptionDto": {
         "type": "object",
         "properties": {
-          "id": {
+          "subscriptionId": {
             "type": "integer",
             "format": "int32"
           },
@@ -12071,9 +13679,6 @@
             "type": "integer",
             "format": "int32"
           },
-          "package": {
-            "$ref": "#/components/schemas/PackageDto"
-          },
           "startDate": {
             "type": "string",
             "format": "date"
@@ -12082,25 +13687,50 @@
             "type": "string",
             "format": "date"
           },
-          "status": {
+          "subStatus": {
             "type": "string",
             "nullable": true
           },
           "autoRenew": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubscriptionPurchaseDto": {
+        "type": "object",
+        "properties": {
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionDto"
           },
-          "createdAt": {
+          "paymentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gatewayTxnRef": {
             "type": "string",
-            "format": "date-time"
+            "nullable": true
           },
-          "updatedAt": {
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "qrPayload": {
+            "type": "string",
+            "nullable": true
+          },
+          "payUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "expiresAt": {
             "type": "string",
             "format": "date-time"
           }
         },
         "additionalProperties": false
       },
-      "SubscriptionDtoApiResponse": {
+      "SubscriptionPurchaseDtoApiResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -12111,7 +13741,59 @@
             "nullable": true
           },
           "data": {
+            "$ref": "#/components/schemas/SubscriptionPurchaseDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubscriptionStateDto": {
+        "type": "object",
+        "properties": {
+          "tier": {
+            "type": "string",
+            "nullable": true
+          },
+          "package": {
+            "$ref": "#/components/schemas/PackageDto"
+          },
+          "subscription": {
             "$ref": "#/components/schemas/SubscriptionDto"
+          },
+          "inGrace": {
+            "type": "boolean"
+          },
+          "workerQuota": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "workerCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasRosterDashboard": {
+            "type": "boolean"
+          },
+          "hasAnalytics": {
+            "type": "boolean"
+          },
+          "priorityDispatch": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubscriptionStateDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/SubscriptionStateDto"
           }
         },
         "additionalProperties": false
@@ -12180,6 +13862,31 @@
             "nullable": true
           },
           "email": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdatePackageRequest": {
+        "type": "object",
+        "properties": {
+          "price": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "workerQuota": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "commissionRate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "reason": {
             "type": "string",
             "nullable": true
           }

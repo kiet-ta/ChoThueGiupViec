@@ -88,10 +88,7 @@ void main() {
         isDefault: false,
       );
 
-      final modified = original.copyWith(
-        label: 'Mới',
-        isDefault: true,
-      );
+      final modified = original.copyWith(label: 'Mới', isDefault: true);
 
       expect(modified.label, 'Mới');
       expect(modified.isDefault, isTrue);

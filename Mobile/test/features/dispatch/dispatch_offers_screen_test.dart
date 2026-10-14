@@ -19,70 +19,84 @@ void main() {
       );
     }
 
-    testWidgets('displays job offer card with district, net earnings and countdown', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'displays job offer card with district, net earnings and countdown',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      await tester.pumpWidget(createScreen());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(createScreen());
+        await tester.pumpAndSettle();
 
-      // District
-      expect(find.text('Quận Cầu Giấy'), findsOneWidget);
-      // Net earnings header & amount (208.000 đ)
-      expect(find.text('THỰC NHẬN SAU HOA HỒNG'), findsOneWidget);
-      expect(find.text('208.000 đ'), findsOneWidget);
-      // Commission 20%
-      expect(find.text('Hoa hồng 20%'), findsOneWidget);
-      // Action buttons
-      expect(find.byKey(const Key('accept_offer_button')), findsOneWidget);
-      expect(find.byKey(const Key('decline_offer_button')), findsOneWidget);
-    });
+        // District
+        expect(find.text('Quận Cầu Giấy'), findsOneWidget);
+        // Net earnings header & amount (208.000 đ)
+        expect(find.text('THỰC NHẬN SAU HOA HỒNG'), findsOneWidget);
+        expect(find.text('208.000 đ'), findsOneWidget);
+        // Commission 20%
+        expect(find.text('Hoa hồng 20%'), findsOneWidget);
+        // Action buttons
+        expect(find.byKey(const Key('accept_offer_button')), findsOneWidget);
+        expect(find.byKey(const Key('decline_offer_button')), findsOneWidget);
+      },
+    );
 
-    testWidgets('tapping Accept invokes acceptOffer and shows success message', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'tapping Accept invokes acceptOffer and shows success message',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      await tester.pumpWidget(createScreen());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(createScreen());
+        await tester.pumpAndSettle();
 
-      final acceptButton = find.byKey(const Key('accept_offer_button'));
-      expect(acceptButton, findsOneWidget);
+        final acceptButton = find.byKey(const Key('accept_offer_button'));
+        expect(acceptButton, findsOneWidget);
 
-      await tester.tap(acceptButton);
-      await tester.pumpAndSettle();
+        await tester.tap(acceptButton);
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Nhận cuốc thành công! Mã ca làm #1001'), findsOneWidget);
-    });
+        expect(
+          find.textContaining('Nhận cuốc thành công! Mã ca làm #1001'),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('tapping Decline invokes declineOffer and shows decline message', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'tapping Decline invokes declineOffer and shows decline message',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      await tester.pumpWidget(createScreen());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(createScreen());
+        await tester.pumpAndSettle();
 
-      final declineButton = find.byKey(const Key('decline_offer_button'));
-      expect(declineButton, findsOneWidget);
+        final declineButton = find.byKey(const Key('decline_offer_button'));
+        expect(declineButton, findsOneWidget);
 
-      await tester.tap(declineButton);
-      await tester.pumpAndSettle();
+        await tester.tap(declineButton);
+        await tester.pumpAndSettle();
 
-      expect(find.text('Đã bỏ qua ca làm việc.'), findsOneWidget);
-    });
+        expect(find.text('Đã bỏ qua ca làm việc.'), findsOneWidget);
+      },
+    );
 
-    testWidgets('shows empty state when no pending offer exists', (tester) async {
+    testWidgets('shows empty state when no pending offer exists', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

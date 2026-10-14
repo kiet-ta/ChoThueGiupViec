@@ -11,10 +11,10 @@ class SubmitEkycRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'frontCccdUrl': frontCccdUrl,
-        'backCccdUrl': backCccdUrl,
-        'selfieUrl': selfieUrl,
-      };
+    'frontCccdUrl': frontCccdUrl,
+    'backCccdUrl': backCccdUrl,
+    'selfieUrl': selfieUrl,
+  };
 }
 
 /// Response returned from eKYC verification endpoint (contract workers.md §2.2.1).
@@ -41,7 +41,9 @@ class EkycResultResponse {
       confidenceScore: (json['confidenceScore'] as num?)?.toDouble() ?? 0.0,
       kycStatus: json['kycStatus'] as String? ?? 'PENDING',
       autoApproved: json['autoApproved'] as bool? ?? false,
-      reviewedAt: json['reviewedAt'] != null ? DateTime.tryParse(json['reviewedAt'].toString()) : null,
+      reviewedAt: json['reviewedAt'] != null
+          ? DateTime.tryParse(json['reviewedAt'].toString())
+          : null,
       rejectionReason: json['rejectionReason'] as String?,
     );
   }

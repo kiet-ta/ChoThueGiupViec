@@ -62,7 +62,8 @@ class AuthResult {
     return AuthResult(
       tokenType: json['tokenType'] as String? ?? 'Bearer',
       accessToken: json['accessToken'] as String? ?? '',
-      accessTokenExpiresInSeconds: json['accessTokenExpiresInSeconds'] as int? ?? 900,
+      accessTokenExpiresInSeconds:
+          json['accessTokenExpiresInSeconds'] as int? ?? 900,
       refreshToken: json['refreshToken'] as String? ?? '',
       user: AuthUser.fromJson(json['user'] as Map<String, dynamic>? ?? {}),
     );
@@ -84,7 +85,8 @@ class RegistrationRequired {
     return RegistrationRequired(
       isNewUser: json['isNewUser'] as bool? ?? true,
       registrationToken: json['registrationToken'] as String? ?? '',
-      registrationTokenExpiresInSeconds: json['registrationTokenExpiresInSeconds'] as int? ?? 1800,
+      registrationTokenExpiresInSeconds:
+          json['registrationTokenExpiresInSeconds'] as int? ?? 1800,
     );
   }
 }
@@ -102,6 +104,8 @@ class VerifyOtpResponse {
     this.statusCode,
   });
 
-  bool get isSuccess => errorMessage == null && (authResult != null || registrationRequired != null);
+  bool get isSuccess =>
+      errorMessage == null &&
+      (authResult != null || registrationRequired != null);
   bool get isNewWorker => registrationRequired != null;
 }

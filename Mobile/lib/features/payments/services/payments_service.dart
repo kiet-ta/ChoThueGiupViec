@@ -20,21 +20,36 @@ class PaymentsService implements IPaymentsService {
   PaymentsService({ApiClient? client}) : _client = client ?? ApiClient();
 
   Payment _require(Payment? data) {
-    if (data == null) throw const ApiException(0, 'Máy chủ không trả thông tin thanh toán.');
+    if (data == null) {
+      throw const ApiException(0, 'Máy chủ không trả thông tin thanh toán.');
+    }
     return data;
   }
 
-  static Payment _parse(dynamic json) => Payment.fromJson(json as Map<String, dynamic>);
+  static Payment _parse(dynamic json) =>
+      Payment.fromJson(json as Map<String, dynamic>);
 
   @override
-  Future<Payment> createOrderQr(int orderId) async =>
-      _require((await _client.post<Payment>('/api/payments/orders/$orderId/qr', fromJson: _parse)).data);
+  Future<Payment> createOrderQr(int orderId) async => _require(
+    (await _client.post<Payment>(
+      '/api/payments/orders/$orderId/qr',
+      fromJson: _parse,
+    )).data,
+  );
 
   @override
-  Future<Payment> createExtensionQr(int extensionId) async =>
-      _require((await _client.post<Payment>('/api/payments/extensions/$extensionId/qr', fromJson: _parse)).data);
+  Future<Payment> createExtensionQr(int extensionId) async => _require(
+    (await _client.post<Payment>(
+      '/api/payments/extensions/$extensionId/qr',
+      fromJson: _parse,
+    )).data,
+  );
 
   @override
-  Future<Payment> getPayment(int paymentId) async =>
-      _require((await _client.get<Payment>('/api/payments/$paymentId', fromJson: _parse)).data);
+  Future<Payment> getPayment(int paymentId) async => _require(
+    (await _client.get<Payment>(
+      '/api/payments/$paymentId',
+      fromJson: _parse,
+    )).data,
+  );
 }

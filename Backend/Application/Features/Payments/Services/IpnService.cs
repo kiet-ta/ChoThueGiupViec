@@ -1,3 +1,5 @@
+using CommonService.Application.Features.Payments;
+using CommonService.Domain.Entities;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -13,7 +15,8 @@ public sealed class IpnService(
     IPaymentGateway gateway,
     IPaymentRepository payments,
     IPaymentSettlementService settlement,
-    ILogger<IpnService> logger) : IIpnService
+    ILogger<IpnService> logger,
+    IEnumerable<IPaymentPurposeSettlement>? purposeSettlements = null) : IIpnService
 {
     public async Task<IpnOutcome> HandleAsync(IReadOnlyDictionary<string, string> payload, string rawBody, CancellationToken cancellationToken = default)
     {
@@ -44,9 +47,18 @@ public sealed class IpnService(
             return IpnOutcome.Rejected;
         }
 
-        // Order and extension payments are handled here; a subscription payment is M5's.
+        // Order and extension payments are handled here; the other purposes (subscription, escrow deposit) are M5's: its handler
+        // settles them (IPaymentPurposeSettlement), everything else about the IPN (signature, amount, repeats) stays here.
         var isOrder = transaction.Purpose == PaymentPurpose.Order && transaction.OrderId is not null;
         var isExtension = transaction.Purpose == PaymentPurpose.Extension && transaction.ExtensionId is not null;
+        var purposeHandler = isOrder || isExtension
+            ? null
+            : purposeSettlements?.FirstOrDefault(h => h.Purpose == transaction.Purpose);
+        if (purposeHandler is not null)
+        {
+            return await HandlePurposeAsync(purposeHandler, transaction, verification.Status, rawBody, cancellationToken);
+        }
+
         if (!isOrder && !isExtension)
         {
             logger.LogWarning("IPN rejected: payment {PaymentId} has purpose {Purpose}, not handled by this endpoint.", transaction.PaymentId, transaction.Purpose);
@@ -83,5 +95,31 @@ public sealed class IpnService(
             default:
                 return IpnOutcome.Accepted;
         }
+    }
+
+    private async Task<IpnOutcome> HandlePurposeAsync(
+        IPaymentPurposeSettlement handler, PaymentTransaction transaction, PaymentStatus gatewayStatus, string rawBody, CancellationToken cancellationToken)
+    {
+        var wasExpired = transaction.TxnStatus == PaymentStatus.Expired;
+        if (gatewayStatus == PaymentStatus.Success && transaction.TxnStatus is PaymentStatus.Pending or PaymentStatus.Expired)
+        {
+            return await handler.SettleSuccessAsync(transaction, wasExpired, rawBody, cancellationToken)
+                ? IpnOutcome.Accepted
+                : IpnOutcome.AlreadyProcessed;
+        }
+
+        if (transaction.TxnStatus != PaymentStatus.Pending)
+        {
+            return IpnOutcome.AlreadyProcessed;
+        }
+
+        if (gatewayStatus == PaymentStatus.Expired)
+        {
+            return await payments.TryMarkExpiredAsync(transaction.PaymentId, rawBody, cancellationToken)
+                ? IpnOutcome.Accepted
+                : IpnOutcome.AlreadyProcessed;
+        }
+
+        return IpnOutcome.Accepted;
     }
 }

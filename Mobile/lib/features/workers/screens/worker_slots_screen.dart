@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -13,11 +14,7 @@ class WorkerSlotsScreen extends StatefulWidget {
   final WorkersSlotsService? slotsService;
   final DateTime? initialDate;
 
-  const WorkerSlotsScreen({
-    super.key,
-    this.slotsService,
-    this.initialDate,
-  });
+  const WorkerSlotsScreen({super.key, this.slotsService, this.initialDate});
 
   @override
   State<WorkerSlotsScreen> createState() => _WorkerSlotsScreenState();
@@ -32,21 +29,9 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   final Map<String, bool> _slotActiveState = {}; // Key: "yyyy-MM-dd:SHIFT_CODE"
 
   static const List<Map<String, String>> _shifts = [
-    {
-      'code': 'SHIFT_MORNING',
-      'name': 'Ca Sáng',
-      'time': '08:00 – 12:00',
-    },
-    {
-      'code': 'SHIFT_AFTERNOON',
-      'name': 'Ca Chiều',
-      'time': '13:00 – 17:00',
-    },
-    {
-      'code': 'SHIFT_EVENING',
-      'name': 'Ca Tối',
-      'time': '17:30 – 20:30',
-    },
+    {'code': 'SHIFT_MORNING', 'name': 'Ca Sáng', 'time': '08:00 – 12:00'},
+    {'code': 'SHIFT_AFTERNOON', 'name': 'Ca Chiều', 'time': '13:00 – 17:00'},
+    {'code': 'SHIFT_EVENING', 'name': 'Ca Tối', 'time': '17:30 – 20:30'},
   ];
 
   @override
@@ -68,7 +53,15 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   }
 
   String _formatDisplayDate(DateTime dt) {
-    const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    const days = [
+      'Thứ 2',
+      'Thứ 3',
+      'Thứ 4',
+      'Thứ 5',
+      'Thứ 6',
+      'Thứ 7',
+      'Chủ Nhật',
+    ];
     final dayName = days[dt.weekday - 1];
     return '$dayName, ${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
   }
@@ -107,7 +100,11 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     }
   }
 
-  Future<void> _toggleSlot(String dateStr, String shiftCode, bool currentActive) async {
+  Future<void> _toggleSlot(
+    String dateStr,
+    String shiftCode,
+    bool currentActive,
+  ) async {
     final newActive = !currentActive;
     final key = '$dateStr:$shiftCode';
 
@@ -160,10 +157,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
             children: [
               const EyebrowBadge(text: 'Quản Lý Thời Gian Rảnh'),
               const SizedBox(height: 8.0),
-              const Text(
-                'Block Slots Lịch Tuần',
-                style: NordicTypography.h2,
-              ),
+              const Text('Block Slots Lịch Tuần', style: NordicTypography.h2),
               const SizedBox(height: 6.0),
               const Text(
                 'Bật ca làm để nhận công việc tự động từ hệ thống. Tắt ca làm khi bạn bận.',
@@ -181,7 +175,10 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                     padding: const EdgeInsets.all(12.0),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: Color(0xFF991B1B), fontSize: 13.0),
+                      style: const TextStyle(
+                        color: Color(0xFF991B1B),
+                        fontSize: 13.0,
+                      ),
                     ),
                   ),
                 ),
@@ -192,12 +189,16 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32.0),
-                    child: CircularProgressIndicator(color: NordicColors.primary),
+                    child: CircularProgressIndicator(
+                      color: NordicColors.primary,
+                    ),
                   ),
                 ),
               ] else ...[
                 for (int dayOffset = 0; dayOffset < 7; dayOffset++)
-                  _buildDaySlotCard(_weekStartDate.add(Duration(days: dayOffset))),
+                  _buildDaySlotCard(
+                    _weekStartDate.add(Duration(days: dayOffset)),
+                  ),
               ],
             ],
           ),
@@ -218,9 +219,12 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               onPressed: () => _navigateWeek(-1),
               tooltip: 'Tuần trước',
             ),
-            Text(
-              '${_weekStartDate.day}/${_weekStartDate.month} – ${endDate.day}/${endDate.month}/${endDate.year}',
-              style: NordicTypography.labelMedium,
+            Expanded(
+              child: Text(
+                '${_weekStartDate.day}/${_weekStartDate.month} – ${endDate.day}/${endDate.month}/${endDate.year}',
+                style: NordicTypography.labelMedium,
+                textAlign: TextAlign.center,
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.chevron_right),
@@ -255,19 +259,28 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15.0,
-                      color: isToday ? NordicColors.primary : NordicColors.textTitle,
+                      color: isToday
+                          ? NordicColors.primary
+                          : NordicColors.textTitle,
                     ),
                   ),
                   if (isToday)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                        vertical: 2.0,
+                      ),
                       decoration: BoxDecoration(
                         color: NordicColors.primary,
                         borderRadius: BorderRadius.circular(10.0),
                       ),
                       child: const Text(
                         'Hôm nay',
-                        style: TextStyle(color: Colors.white, fontSize: 10.0, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10.0,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                 ],
@@ -309,7 +322,9 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               Icon(
                 isActive ? Icons.event_available : Icons.event_busy,
                 size: 20.0,
-                color: isActive ? const Color(0xFF15803D) : NordicColors.textSecondary,
+                color: isActive
+                    ? const Color(0xFF15803D)
+                    : NordicColors.textSecondary,
               ),
               const SizedBox(width: 8.0),
               Column(
@@ -320,12 +335,17 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13.0,
-                      color: isActive ? const Color(0xFF15803D) : NordicColors.textTitle,
+                      color: isActive
+                          ? const Color(0xFF15803D)
+                          : NordicColors.textTitle,
                     ),
                   ),
                   Text(
                     shiftTime,
-                    style: const TextStyle(fontSize: 11.0, color: NordicColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 11.0,
+                      color: NordicColors.textSecondary,
+                    ),
                   ),
                 ],
               ),

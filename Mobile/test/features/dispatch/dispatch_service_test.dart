@@ -21,17 +21,20 @@ void main() {
       expect(offer.estimatedDurationHours, 4.0);
     });
 
-    test('acceptOffer successfully accepts active offer and locks slot', () async {
-      final result = await service.acceptOffer(1001);
+    test(
+      'acceptOffer successfully accepts active offer and locks slot',
+      () async {
+        final result = await service.acceptOffer(1001);
 
-      expect(result.assignmentId, 1001);
-      expect(result.status, 'ASSIGNED');
-      expect(result.bookingSlotLocked, isTrue);
+        expect(result.assignmentId, 1001);
+        expect(result.status, 'ASSIGNED');
+        expect(result.bookingSlotLocked, isTrue);
 
-      // Offer should now be consumed
-      final remainingOffer = await service.getCurrentOffer();
-      expect(remainingOffer, isNull);
-    });
+        // Offer should now be consumed
+        final remainingOffer = await service.getCurrentOffer();
+        expect(remainingOffer, isNull);
+      },
+    );
 
     test('declineOffer clears current offer', () async {
       await service.declineOffer(1001, reason: 'Quá xa');

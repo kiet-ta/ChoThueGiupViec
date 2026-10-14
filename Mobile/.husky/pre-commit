@@ -1,0 +1,9 @@
+# Mobile L1: format check of staged Dart files (Flutter is mandatory, MOB-BASE-05)
+cd "$(git rev-parse --show-toplevel)/Mobile" || exit 1
+FILES=$(git diff --cached --name-only --diff-filter=ACMR -- . | grep -E '\.dart$' | sed 's#^Mobile/##')
+if [ -n "$FILES" ]; then
+  command -v dart >/dev/null 2>&1 || { echo "[mobile] dart not found: install Flutter stable and put its bin/ on PATH"; exit 1; }
+  echo "[mobile] dart format (staged files)"
+  dart format --output=none --set-exit-if-changed $FILES || {
+    echo "Fix: cd Mobile && dart format <files>"; exit 1; }
+fi

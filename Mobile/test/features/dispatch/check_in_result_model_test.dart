@@ -46,7 +46,10 @@ void main() {
       expect(result.checkInId, 2002);
       expect(result.isGpsVerified, isFalse);
       expect(result.verificationMethod, 'PLATE_PHOTO');
-      expect(result.platePhotoUrl, 'https://storage.local/plates/plate_1001.jpg');
+      expect(
+        result.platePhotoUrl,
+        'https://storage.local/plates/plate_1001.jpg',
+      );
     });
 
     test('CheckInResult roundtrip toJson maintains data integrity', () {

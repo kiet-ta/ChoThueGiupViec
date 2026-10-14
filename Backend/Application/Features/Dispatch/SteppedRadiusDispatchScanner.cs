@@ -68,7 +68,8 @@ public class SteppedRadiusDispatchScanner
         string shiftCode,
         GeoPoint location,
         int candidateLimitPerStep = 50,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<long>? excludedWorkerIds = null)
     {
         // Guard: PRD §2.1 Economy tier is for Freelancers; Agency workers must never enter Economy
         // If an agency staff candidate appears in the query results, they are strictly rejected for Economy.
@@ -107,6 +108,12 @@ public class SteppedRadiusDispatchScanner
             var candidates = new List<DispatchCandidate>();
             foreach (var w in availableWorkers)
             {
+                // BR-03: a worker who already had this order (declined, timed out or holding another seat) is not offered it again.
+                if (excludedWorkerIds != null && excludedWorkerIds.Contains(w.WorkerId))
+                {
+                    continue;
+                }
+
                 var profile = profiles != null && profiles.TryGetValue(w.WorkerId, out var p) ? p : null;
                 decimal rating = profile?.RatingAvg ?? 5.0m;
                 int completedJobs = profile?.CompletedJobs ?? 0;
@@ -117,6 +124,7 @@ public class SteppedRadiusDispatchScanner
                     WorkerId = w.WorkerId,
                     WorkerType = "FREELANCER", // AvailabilityQuery returns freelancers
                     AgencyId = null,
+                    SlotId = w.SlotId,
                     DistanceKm = w.DistanceKm,
                     RatingAvg = rating,
                     CompletedJobs = completedJobs,

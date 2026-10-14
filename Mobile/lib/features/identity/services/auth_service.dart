@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import '../../../core/models/user_role.dart';
 import '../models/auth_models.dart';
 import 'api_error.dart';
@@ -15,12 +16,13 @@ class AuthService {
   bool useMockFallback;
 
   AuthService({
-    this.baseUrl = 'http://10.0.2.2:5004', // Android emulator default to localhost
+    this.baseUrl =
+        'http://10.0.2.2:5004', // Android emulator default to localhost
     TokenStorage? tokenStorage,
     HttpClient? client,
     this.useMockFallback = false,
-  })  : tokenStorage = tokenStorage ?? TokenStorage(),
-        _client = client ?? HttpClient();
+  }) : tokenStorage = tokenStorage ?? TokenStorage(),
+       _client = client ?? HttpClient();
 
   /// Validates and normalizes Vietnamese mobile phone format (0XXXXXXXXX, 10 digits).
   static String? normalizePhone(String raw) {
@@ -45,7 +47,9 @@ class AuthService {
   }) async {
     final normalized = normalizePhone(phoneNumber);
     if (normalized == null) {
-      throw const FormatException('Số điện thoại không hợp lệ. Vui lòng nhập số di động 10 số tại Việt Nam.');
+      throw const FormatException(
+        'Số điện thoại không hợp lệ. Vui lòng nhập số di động 10 số tại Việt Nam.',
+      );
     }
 
     if (useMockFallback) {
@@ -101,7 +105,8 @@ class AuthService {
       }
       if (code == '999999') {
         return const VerifyOtpResponse(
-          errorMessage: 'Bạn đã nhập sai quá số lần quy định. Vui lòng yêu cầu mã mới.',
+          errorMessage:
+              'Bạn đã nhập sai quá số lần quy định. Vui lòng yêu cầu mã mới.',
           statusCode: 429,
         );
       }
@@ -111,11 +116,7 @@ class AuthService {
         accessToken: 'mock_jwt_access_token_demo',
         accessTokenExpiresInSeconds: 900,
         refreshToken: 'mock_refresh_token_demo',
-        user: AuthUser(
-          id: 101,
-          role: roleStr,
-          isNewUser: false,
-        ),
+        user: AuthUser(id: 101, role: roleStr, isNewUser: false),
       );
       tokenStorage.saveAuth(mockAuth);
       return VerifyOtpResponse(authResult: mockAuth);
@@ -139,9 +140,15 @@ class AuthService {
       }
     } on ApiException catch (e) {
       // 401 wrong/expired code, 429 too many tries, other errors, or status 0 = no connection. Tokens untouched.
-      return VerifyOtpResponse(errorMessage: e.message, statusCode: e.statusCode);
+      return VerifyOtpResponse(
+        errorMessage: e.message,
+        statusCode: e.statusCode,
+      );
     } on TypeError {
-      return const VerifyOtpResponse(errorMessage: 'Phản hồi từ máy chủ không hợp lệ.', statusCode: 500);
+      return const VerifyOtpResponse(
+        errorMessage: 'Phản hồi từ máy chủ không hợp lệ.',
+        statusCode: 500,
+      );
     }
 
     if (reg != null) {

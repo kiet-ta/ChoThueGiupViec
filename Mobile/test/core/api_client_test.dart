@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/auth/token_storage.dart';
 import 'package:mobile/core/network/api_client.dart';
@@ -98,29 +99,37 @@ void main() {
       await server.close(force: true);
     });
 
-    test('performs GET request and attaches Bearer header when token present', () async {
-      storage.saveTokens(accessToken: 'my_bearer_token', refreshToken: 'ref');
+    test(
+      'performs GET request and attaches Bearer header when token present',
+      () async {
+        storage.saveTokens(accessToken: 'my_bearer_token', refreshToken: 'ref');
 
-      server.listen((HttpRequest request) {
-        expect(request.method, 'GET');
-        expect(request.uri.path, '/api/test');
-        expect(request.headers.value('authorization'), 'Bearer my_bearer_token');
+        server.listen((HttpRequest request) {
+          expect(request.method, 'GET');
+          expect(request.uri.path, '/api/test');
+          expect(
+            request.headers.value('authorization'),
+            'Bearer my_bearer_token',
+          );
 
-        request.response.statusCode = 200;
-        request.response.headers.contentType = ContentType.json;
-        request.response.write(jsonEncode({
-          'success': true,
-          'message': 'OK',
-          'data': {'greeting': 'hello'},
-        }));
-        request.response.close();
-      });
+          request.response.statusCode = 200;
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(
+            jsonEncode({
+              'success': true,
+              'message': 'OK',
+              'data': {'greeting': 'hello'},
+            }),
+          );
+          request.response.close();
+        });
 
-      final res = await client.get<Map<String, dynamic>>('/api/test');
+        final res = await client.get<Map<String, dynamic>>('/api/test');
 
-      expect(res.success, isTrue);
-      expect(res.data?['greeting'], 'hello');
-    });
+        expect(res.success, isTrue);
+        expect(res.data?['greeting'], 'hello');
+      },
+    );
 
     test('performs POST request with JSON payload', () async {
       server.listen((HttpRequest request) async {
@@ -131,11 +140,13 @@ void main() {
 
         request.response.statusCode = 200;
         request.response.headers.contentType = ContentType.json;
-        request.response.write(jsonEncode({
-          'success': true,
-          'message': 'Created',
-          'data': {'id': 99},
-        }));
+        request.response.write(
+          jsonEncode({
+            'success': true,
+            'message': 'Created',
+            'data': {'id': 99},
+          }),
+        );
         request.response.close();
       });
 
@@ -148,51 +159,64 @@ void main() {
       expect(res.data?['id'], 99);
     });
 
-    test('translates 400 validation error into ApiException with fieldErrors', () async {
-      server.listen((HttpRequest request) {
-        request.response.statusCode = 400;
-        request.response.headers.contentType = ContentType.json;
-        request.response.write(jsonEncode({
-          'success': false,
-          'message': 'Dữ liệu không hợp lệ',
-          'data': {
-            'errors': {
-              'phoneNumber': ['Số điện thoại không đúng định dạng'],
-            },
-          },
-        }));
-        request.response.close();
-      });
+    test(
+      'translates 400 validation error into ApiException with fieldErrors',
+      () async {
+        server.listen((HttpRequest request) {
+          request.response.statusCode = 400;
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(
+            jsonEncode({
+              'success': false,
+              'message': 'Dữ liệu không hợp lệ',
+              'data': {
+                'errors': {
+                  'phoneNumber': ['Số điện thoại không đúng định dạng'],
+                },
+              },
+            }),
+          );
+          request.response.close();
+        });
 
-      try {
-        await client.post('/api/validate', body: {});
-        fail('Should throw ApiException');
-      } on ApiException catch (e) {
-        expect(e.statusCode, 400);
-        expect(e.message, 'Dữ liệu không hợp lệ');
-        expect(e.fieldErrors?['phoneNumber'], contains('Số điện thoại không đúng định dạng'));
-      }
-    });
+        try {
+          await client.post('/api/validate', body: {});
+          fail('Should throw ApiException');
+        } on ApiException catch (e) {
+          expect(e.statusCode, 400);
+          expect(e.message, 'Dữ liệu không hợp lệ');
+          expect(
+            e.fieldErrors?['phoneNumber'],
+            contains('Số điện thoại không đúng định dạng'),
+          );
+        }
+      },
+    );
 
-    test('translates 429 rate limit into ApiException with retryAfterSeconds', () async {
-      server.listen((HttpRequest request) {
-        request.response.statusCode = 429;
-        request.response.headers.set('retry-after', '45');
-        request.response.headers.contentType = ContentType.json;
-        request.response.write(jsonEncode({
-          'success': false,
-          'message': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.',
-        }));
-        request.response.close();
-      });
+    test(
+      'translates 429 rate limit into ApiException with retryAfterSeconds',
+      () async {
+        server.listen((HttpRequest request) {
+          request.response.statusCode = 429;
+          request.response.headers.set('retry-after', '45');
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(
+            jsonEncode({
+              'success': false,
+              'message': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.',
+            }),
+          );
+          request.response.close();
+        });
 
-      try {
-        await client.get('/api/limited');
-        fail('Should throw ApiException');
-      } on ApiException catch (e) {
-        expect(e.statusCode, 429);
-        expect(e.retryAfterSeconds, 45);
-      }
-    });
+        try {
+          await client.get('/api/limited');
+          fail('Should throw ApiException');
+        } on ApiException catch (e) {
+          expect(e.statusCode, 429);
+          expect(e.retryAfterSeconds, 45);
+        }
+      },
+    );
   });
 }

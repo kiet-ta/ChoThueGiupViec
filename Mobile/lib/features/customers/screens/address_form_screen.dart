@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -53,9 +54,15 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     final init = widget.initialAddress;
 
     _labelController = TextEditingController(text: init?.label ?? '');
-    _addressLineController = TextEditingController(text: init?.addressLine ?? '');
-    _districtController = TextEditingController(text: init?.district ?? 'Quận 1');
-    _cityController = TextEditingController(text: init?.city ?? 'TP. Hồ Chí Minh');
+    _addressLineController = TextEditingController(
+      text: init?.addressLine ?? '',
+    );
+    _districtController = TextEditingController(
+      text: init?.district ?? 'Quận 1',
+    );
+    _cityController = TextEditingController(
+      text: init?.city ?? 'TP. Hồ Chí Minh',
+    );
     _floorAreaController = TextEditingController(
       text: init != null ? init.floorAreaM2.toString() : '60.0',
     );
@@ -94,14 +101,18 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   }
 
   int get _currentNumFloors {
-    if (_housingType == HousingType.apartment || _housingType == HousingType.room) {
+    if (_housingType == HousingType.apartment ||
+        _housingType == HousingType.room) {
       return 1;
     }
     return int.tryParse(_numFloorsController.text) ?? 1;
   }
 
   double get _previewTotalArea {
-    return CustomerAddress.calculateTotalArea(_currentFloorArea, _currentNumFloors);
+    return CustomerAddress.calculateTotalArea(
+      _currentFloorArea,
+      _currentNumFloors,
+    );
   }
 
   void _onHousingTypeSelected(HousingType type) {
@@ -162,7 +173,10 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _generalError = e.toString().replaceAll('Exception: ', '').replaceAll('ArgumentError: ', '');
+        _generalError = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('ArgumentError: ', '');
       });
     }
   }
@@ -184,12 +198,17 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
           child: Form(
             key: _formKey,
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
                   child: EyebrowBadge(
-                    text: _isEditing ? 'CHỈNH SỬA THÔNG TIN' : 'THÔNG TIN ĐỊA CHỈ MỚI',
+                    text: _isEditing
+                        ? 'CHỈNH SỬA THÔNG TIN'
+                        : 'THÔNG TIN ĐỊA CHỈ MỚI',
                   ),
                 ),
                 const SizedBox(height: 8.0),
@@ -232,7 +251,8 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                       TextFormField(
                         controller: _labelController,
                         decoration: const InputDecoration(
-                          labelText: 'Tên gợi nhớ (Nhà riêng, Căn hộ, Cơ quan)*',
+                          labelText:
+                              'Tên gợi nhớ (Nhà riêng, Căn hộ, Cơ quan)*',
                           hintText: 'Ví dụ: Nhà riêng',
                           border: OutlineInputBorder(),
                         ),
@@ -240,7 +260,9 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                           if (val == null || val.trim().isEmpty) {
                             return 'Vui lòng nhập tên nhãn địa chỉ';
                           }
-                          if (val.length > 50) return 'Tên nhãn tối đa 50 ký tự';
+                          if (val.length > 50) {
+                            return 'Tên nhãn tối đa 50 ký tự';
+                          }
                           return null;
                         },
                       ),
@@ -249,14 +271,17 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                         controller: _addressLineController,
                         decoration: const InputDecoration(
                           labelText: 'Địa chỉ chi tiết (Số nhà, tên đường)*',
-                          hintText: 'Ví dụ: 123 Nguyễn Thị Minh Khai, P. Bến Thành',
+                          hintText:
+                              'Ví dụ: 123 Nguyễn Thị Minh Khai, P. Bến Thành',
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
                             return 'Vui lòng nhập số nhà và tên đường';
                           }
-                          if (val.length > 255) return 'Địa chỉ chi tiết tối đa 255 ký tự';
+                          if (val.length > 255) {
+                            return 'Địa chỉ chi tiết tối đa 255 ký tự';
+                          }
                           return null;
                         },
                       ),
@@ -327,13 +352,19 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                             backgroundColor: NordicColors.surfaceSubtle,
                             labelStyle: TextStyle(
                               fontSize: 13.0,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: isSelected ? Colors.white : NordicColors.textTitle,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white
+                                  : NordicColors.textTitle,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8.0),
                               side: BorderSide(
-                                color: isSelected ? NordicColors.primary : NordicColors.border,
+                                color: isSelected
+                                    ? NordicColors.primary
+                                    : NordicColors.border,
                               ),
                             ),
                             onSelected: (_) => _onHousingTypeSelected(type),
@@ -348,7 +379,10 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                           Expanded(
                             child: TextFormField(
                               controller: _floorAreaController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               decoration: InputDecoration(
                                 labelText: 'Diện tích sàn (m²)*',
                                 helperText: _housingType == HousingType.room
@@ -358,9 +392,12 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                               ),
                               validator: (val) {
                                 final d = double.tryParse(val ?? '');
-                                if (d == null || d <= 0) return 'Diện tích phải > 0';
+                                if (d == null || d <= 0) {
+                                  return 'Diện tích phải > 0';
+                                }
                                 if (d > 9999.99) return 'Tối đa 9999.99 m²';
-                                if (_housingType == HousingType.room && d > 30.0) {
+                                if (_housingType == HousingType.room &&
+                                    d > 30.0) {
                                   return 'Phòng trọ tối đa 30 m²';
                                 }
                                 return null;
@@ -381,7 +418,9 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                                 border: const OutlineInputBorder(),
                               ),
                               validator: (val) {
-                                if (_housingType != HousingType.house) return null;
+                                if (_housingType != HousingType.house) {
+                                  return null;
+                                }
                                 final f = int.tryParse(val ?? '');
                                 if (f == null || f < 1 || f > 10) {
                                   return 'Từ 1 đến 10 tầng';
@@ -422,14 +461,19 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
 
                 // 4. Default Switch Card
                 NordicCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   child: Material(
                     color: Colors.transparent,
                     child: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         'Đặt làm địa chỉ mặc định',
-                        style: NordicTypography.bodyRegular.copyWith(fontWeight: FontWeight.w600),
+                        style: NordicTypography.bodyRegular.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       subtitle: Text(
                         'Tự động chọn địa chỉ này khi tạo lịch đặt ca dọn dẹp mới.',

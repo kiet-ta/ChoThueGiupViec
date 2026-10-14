@@ -5,7 +5,11 @@ import '../models/rating_models.dart';
 abstract class IRatingsService {
   Future<RatingWindow> getWindow(RatingRole role, int assignmentId);
 
-  Future<void> submit(RatingRole role, int assignmentId, RatingSubmission submission);
+  Future<void> submit(
+    RatingRole role,
+    int assignmentId,
+    RatingSubmission submission,
+  );
 }
 
 /// The two endpoint pairs of the contract (ratings.md 2.1 and 2.2) over the shared [ApiClient].
@@ -15,7 +19,8 @@ class RatingsService implements IRatingsService {
 
   RatingsService({ApiClient? client}) : _client = client ?? ApiClient();
 
-  String _base(RatingRole role, int assignmentId) => '${role.pathPrefix}/assignments/$assignmentId';
+  String _base(RatingRole role, int assignmentId) =>
+      '${role.pathPrefix}/assignments/$assignmentId';
 
   @override
   Future<RatingWindow> getWindow(RatingRole role, int assignmentId) async {
@@ -24,12 +29,21 @@ class RatingsService implements IRatingsService {
       fromJson: (json) => RatingWindow.fromJson(json as Map<String, dynamic>),
     );
     final data = response.data;
-    if (data == null) throw const ApiException(0, 'Máy chủ không trả dữ liệu đánh giá.');
+    if (data == null) {
+      throw const ApiException(0, 'Máy chủ không trả dữ liệu đánh giá.');
+    }
     return data;
   }
 
   @override
-  Future<void> submit(RatingRole role, int assignmentId, RatingSubmission submission) async {
-    await _client.post<Object?>('${_base(role, assignmentId)}/rating', body: submission.toJson());
+  Future<void> submit(
+    RatingRole role,
+    int assignmentId,
+    RatingSubmission submission,
+  ) async {
+    await _client.post<Object?>(
+      '${_base(role, assignmentId)}/rating',
+      body: submission.toJson(),
+    );
   }
 }

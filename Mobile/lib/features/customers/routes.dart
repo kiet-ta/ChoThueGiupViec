@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/feature_module.dart';
 import 'models/customer_address.dart';
 import 'screens/address_form_screen.dart';
@@ -23,13 +24,11 @@ class CustomersFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        CustomerRoutes.addressList: (context) => const AddressListScreen(),
-        CustomerRoutes.addressForm: (context) => const AddressFormScreen(),
-        CustomerRoutes.customerProfile: (context) =>
-            const CustomerProfileScreen(),
-        CustomerRoutes.favoriteWorkers: (context) =>
-            const FavoriteWorkersScreen(),
-      };
+    CustomerRoutes.addressList: (context) => const AddressListScreen(),
+    CustomerRoutes.addressForm: (context) => const AddressFormScreen(),
+    CustomerRoutes.customerProfile: (context) => const CustomerProfileScreen(),
+    CustomerRoutes.favoriteWorkers: (context) => const FavoriteWorkersScreen(),
+  };
 
   @override
   Route<dynamic>? onGenerateRoute(RouteSettings settings) {

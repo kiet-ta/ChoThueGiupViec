@@ -14,7 +14,11 @@ abstract class IOrderService {
 
   Future<BookingOrder> cancelOrder(int orderId, String reason);
 
-  Future<OrderExtension> requestExtension({required int orderId, required int assignmentId, required double extraHours});
+  Future<OrderExtension> requestExtension({
+    required int orderId,
+    required int assignmentId,
+    required double extraHours,
+  });
 }
 
 /// booking.md 3.1 and 3.4 to 3.8 over the shared [ApiClient]. Failures are thrown as [ApiException] (with its business `code`).
@@ -28,7 +32,8 @@ class OrderService implements IOrderService {
     return data;
   }
 
-  static BookingOrder _order(dynamic json) => BookingOrder.fromJson(json as Map<String, dynamic>);
+  static BookingOrder _order(dynamic json) =>
+      BookingOrder.fromJson(json as Map<String, dynamic>);
 
   @override
   Future<OrderPage> listOrders({int page = 1, int pageSize = 20}) async {
@@ -41,8 +46,13 @@ class OrderService implements IOrderService {
   }
 
   @override
-  Future<BookingOrder> getOrder(int orderId) async =>
-      _require((await _client.get<BookingOrder>('/api/booking/orders/$orderId', fromJson: _order)).data, 'đơn');
+  Future<BookingOrder> getOrder(int orderId) async => _require(
+    (await _client.get<BookingOrder>(
+      '/api/booking/orders/$orderId',
+      fromJson: _order,
+    )).data,
+    'đơn',
+  );
 
   @override
   Future<OrderProgress> getProgress(int orderId) async {
@@ -63,13 +73,22 @@ class OrderService implements IOrderService {
   }
 
   @override
-  Future<BookingOrder> cancelOrder(int orderId, String reason) async => _require(
-        (await _client.post<BookingOrder>('/api/booking/orders/$orderId/cancel', body: {'reason': reason}, fromJson: _order)).data,
+  Future<BookingOrder> cancelOrder(int orderId, String reason) async =>
+      _require(
+        (await _client.post<BookingOrder>(
+          '/api/booking/orders/$orderId/cancel',
+          body: {'reason': reason},
+          fromJson: _order,
+        )).data,
         'đơn đã huỷ',
       );
 
   @override
-  Future<OrderExtension> requestExtension({required int orderId, required int assignmentId, required double extraHours}) async {
+  Future<OrderExtension> requestExtension({
+    required int orderId,
+    required int assignmentId,
+    required double extraHours,
+  }) async {
     final response = await _client.post<OrderExtension>(
       '/api/booking/orders/$orderId/extensions',
       body: {'assignmentId': assignmentId, 'extraHours': extraHours},

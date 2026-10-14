@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/nordic_colors.dart';
 
 enum NordicButtonVariant { primary, secondary, ghost }
@@ -37,11 +38,9 @@ class NordicButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (icon != null) ...[
-                icon!,
-                const SizedBox(width: 8.0),
-              ],
-              Text(label),
+              if (icon != null) ...[icon!, const SizedBox(width: 8.0)],
+              // A long label wraps instead of overflowing a narrow (e.g. half-width) button.
+              Flexible(child: Text(label, textAlign: TextAlign.center)),
             ],
           );
 
@@ -54,7 +53,10 @@ class NordicButton extends StatelessWidget {
             backgroundColor: NordicColors.primary,
             foregroundColor: Colors.white,
             shape: const StadiumBorder(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 14.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 14.0,
+            ),
             elevation: 0,
           ),
           child: effectiveChild,
@@ -67,7 +69,10 @@ class NordicButton extends StatelessWidget {
             foregroundColor: NordicColors.textTitle,
             side: const BorderSide(color: NordicColors.border, width: 1.0),
             shape: const StadiumBorder(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 14.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 14.0,
+            ),
           ),
           child: effectiveChild,
         );
@@ -78,7 +83,10 @@ class NordicButton extends StatelessWidget {
           style: TextButton.styleFrom(
             foregroundColor: NordicColors.textTitle,
             shape: const StadiumBorder(),
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 12.0,
+            ),
           ),
           child: effectiveChild,
         );

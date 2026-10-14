@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -11,10 +12,7 @@ import '../widgets/favorite_worker_card.dart';
 class FavoriteWorkersScreen extends StatefulWidget {
   final FavoriteWorkerService? service;
 
-  const FavoriteWorkersScreen({
-    super.key,
-    this.service,
-  });
+  const FavoriteWorkersScreen({super.key, this.service});
 
   @override
   State<FavoriteWorkersScreen> createState() => _FavoriteWorkersScreenState();
@@ -49,7 +47,10 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('HttpException: ', '');
+        _errorMessage = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('HttpException: ', '');
         _isLoading = false;
       });
     }
@@ -113,17 +114,17 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
             onRefresh: _loadFavorites,
             color: NordicColors.primary,
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               children: [
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: EyebrowBadge(text: 'DANH SÁCH TIN CẬY'),
                 ),
                 const SizedBox(height: 8.0),
-                Text(
-                  'Thợ quen của bạn',
-                  style: NordicTypography.h1,
-                ),
+                Text('Thợ quen của bạn', style: NordicTypography.h1),
                 const SizedBox(height: 4.0),
                 Text(
                   'Những chuyên viên giúp việc bạn đã lưu để ưu tiên chỉ định phục vụ cho các ca dọn dẹp tiếp theo.',
@@ -136,7 +137,9 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
                     padding: EdgeInsets.symmetric(vertical: 40.0),
                     child: Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(NordicColors.primary),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          NordicColors.primary,
+                        ),
                       ),
                     ),
                   )
@@ -151,7 +154,9 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
                       children: [
                         Text(
                           _errorMessage!,
-                          style: NordicTypography.bodyRegular.copyWith(color: NordicColors.error),
+                          style: NordicTypography.bodyRegular.copyWith(
+                            color: NordicColors.error,
+                          ),
                         ),
                         const SizedBox(height: 8.0),
                         NordicButton(
@@ -164,7 +169,10 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
                   )
                 else if (_workers.isEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 48.0, horizontal: 20.0),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 48.0,
+                      horizontal: 20.0,
+                    ),
                     alignment: Alignment.center,
                     child: Column(
                       children: [
@@ -182,7 +190,10 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
                           ),
                         ),
                         const SizedBox(height: 16.0),
-                        Text('Chưa Có Thợ Quen Nào', style: NordicTypography.h3),
+                        Text(
+                          'Chưa Có Thợ Quen Nào',
+                          style: NordicTypography.h3,
+                        ),
                         const SizedBox(height: 8.0),
                         Text(
                           'Sau mỗi ca hoàn thành ưng ý, bạn có thể lưu chuyên viên vào danh sách này để đặt lại nhanh chóng.',

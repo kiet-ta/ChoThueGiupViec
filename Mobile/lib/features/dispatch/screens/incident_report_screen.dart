@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/location_wrapper.dart';
 import '../../../core/theme/nordic_colors.dart';
@@ -146,13 +147,13 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: const Text('Báo Cáo Sự Cố Bất Khả Kháng'),
-      ),
+      appBar: AppBar(title: const Text('Báo Cáo Sự Cố Bất Khả Kháng')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _submittedIncident != null ? _buildSubmittedView() : _buildFormView(),
+          child: _submittedIncident != null
+              ? _buildSubmittedView()
+              : _buildFormView(),
         ),
       ),
     );
@@ -182,26 +183,25 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Loại sự cố:',
-                  style: NordicTypography.labelMedium,
-                ),
+                const Text('Loại sự cố:', style: NordicTypography.labelMedium),
                 const SizedBox(height: 8.0),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
                   initialValue: _selectedType,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12.0,
+                      vertical: 8.0,
+                    ),
                   ),
                   items: _incidentTypes.entries
-                      .map((e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(
-                              e.value,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ))
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e.key,
+                          child: Text(e.value, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
                       .toList(),
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedType = val);
@@ -245,7 +245,11 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   key: const Key('take_incident_photo_button'),
                   onPressed: _handleCapturePhoto,
                   icon: const Icon(Icons.camera_alt),
-                  label: Text(_capturedEvidence != null ? 'Chụp lại ảnh' : 'Chụp ảnh bằng chứng'),
+                  label: Text(
+                    _capturedEvidence != null
+                        ? 'Chụp lại ảnh'
+                        : 'Chụp ảnh bằng chứng',
+                  ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14.0),
                   ),
@@ -254,7 +258,11 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   const SizedBox(height: 8.0),
                   Row(
                     children: [
-                      const Icon(Icons.check_circle, color: NordicColors.success, size: 16.0),
+                      const Icon(
+                        Icons.check_circle,
+                        color: NordicColors.success,
+                        size: 16.0,
+                      ),
                       const SizedBox(width: 6.0),
                       Expanded(
                         child: Text(
@@ -270,8 +278,12 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 Row(
                   children: [
                     Icon(
-                      _currentGps != null ? Icons.location_on : Icons.location_searching,
-                      color: _currentGps != null ? NordicColors.primary : NordicColors.accentAmber,
+                      _currentGps != null
+                          ? Icons.location_on
+                          : Icons.location_searching,
+                      color: _currentGps != null
+                          ? NordicColors.primary
+                          : NordicColors.accentAmber,
                       size: 18.0,
                     ),
                     const SizedBox(width: 8.0),
@@ -280,8 +292,8 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                         _isLoadingGps
                             ? 'Đang định vị GPS...'
                             : _currentGps != null
-                                ? 'GPS: ${_currentGps!.latitude.toStringAsFixed(4)}, ${_currentGps!.longitude.toStringAsFixed(4)}'
-                                : 'Chưa lấy được GPS',
+                            ? 'GPS: ${_currentGps!.latitude.toStringAsFixed(4)}, ${_currentGps!.longitude.toStringAsFixed(4)}'
+                            : 'Chưa lấy được GPS',
                         style: NordicTypography.bodySmall,
                       ),
                     ),
@@ -304,7 +316,9 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
             ),
             child: Text(
               _errorMessage!,
-              style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
             ),
           ),
         ],
@@ -355,17 +369,25 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Expanded(
-                      child: Text('Trạng thái miễn phạt:', style: NordicTypography.bodySmall),
+                      child: Text(
+                        'Trạng thái miễn phạt:',
+                        style: NordicTypography.bodySmall,
+                      ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                        vertical: 4.0,
+                      ),
                       decoration: BoxDecoration(
                         color: NordicColors.success.withAlpha(20),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       child: Text(
                         'MIỄN PHẠT 100%',
-                        style: NordicTypography.labelSmall.copyWith(color: NordicColors.success),
+                        style: NordicTypography.labelSmall.copyWith(
+                          color: NordicColors.success,
+                        ),
                       ),
                     ),
                   ],
@@ -375,10 +397,15 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Expanded(
-                      child: Text('Điều phối lại (5 phút):', style: NordicTypography.bodySmall),
+                      child: Text(
+                        'Điều phối lại (5 phút):',
+                        style: NordicTypography.bodySmall,
+                      ),
                     ),
                     Text(
-                      incident.reDispatchStatus == 'SEARCHING' ? 'Đang tìm thợ' : incident.reDispatchStatus,
+                      incident.reDispatchStatus == 'SEARCHING'
+                          ? 'Đang tìm thợ'
+                          : incident.reDispatchStatus,
                       style: NordicTypography.labelMedium,
                     ),
                   ],
@@ -388,7 +415,10 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Expanded(
-                      child: Text('Hạn quét cứu hộ:', style: NordicTypography.bodySmall),
+                      child: Text(
+                        'Hạn quét cứu hộ:',
+                        style: NordicTypography.bodySmall,
+                      ),
                     ),
                     Text(
                       '${incident.reDispatchDeadline.hour.toString().padLeft(2, '0')}:${incident.reDispatchDeadline.minute.toString().padLeft(2, '0')}',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/nordic_colors.dart';
 import '../theme/nordic_typography.dart';
 import 'nordic_card.dart';
@@ -42,7 +43,8 @@ class MiniMapWidget extends StatelessWidget {
               Positioned.fill(
                 child: CustomPaint(
                   painter: _MapCanvasPainter(
-                    hasWorker: workerLatitude != null && workerLongitude != null,
+                    hasWorker:
+                        workerLatitude != null && workerLongitude != null,
                   ),
                 ),
               ),

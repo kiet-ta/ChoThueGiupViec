@@ -15,11 +15,11 @@ class GeoPoint {
   });
 
   Map<String, dynamic> toJson() => {
-        'latitude': latitude,
-        'longitude': longitude,
-        'accuracyMeters': accuracyMeters,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'latitude': latitude,
+    'longitude': longitude,
+    'accuracyMeters': accuracyMeters,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Abstract contract for Location retrieval and distance calculations.
@@ -49,7 +49,8 @@ abstract class ILocationWrapper {
 class LocationWrapper implements ILocationWrapper {
   GeoPoint? _mockCurrentLocation;
 
-  LocationWrapper({GeoPoint? mockLocation}) : _mockCurrentLocation = mockLocation;
+  LocationWrapper({GeoPoint? mockLocation})
+    : _mockCurrentLocation = mockLocation;
 
   /// Sets mock location for automated testing.
   void setMockLocation(GeoPoint point) {
@@ -86,7 +87,8 @@ class LocationWrapper implements ILocationWrapper {
     final double lat1Rad = lat1 * (math.pi / 180.0);
     final double lat2Rad = lat2 * (math.pi / 180.0);
 
-    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final double a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(lat1Rad) *
             math.cos(lat2Rad) *
             math.sin(dLon / 2) *

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -15,10 +16,7 @@ import '../widgets/tinted_card.dart';
 class WorkerEkycScreen extends StatefulWidget {
   final WorkersEkycService? ekycService;
 
-  const WorkerEkycScreen({
-    super.key,
-    this.ekycService,
-  });
+  const WorkerEkycScreen({super.key, this.ekycService});
 
   @override
   State<WorkerEkycScreen> createState() => _WorkerEkycScreenState();
@@ -135,7 +133,10 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
                       padding: const EdgeInsets.all(12.0),
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Color(0xFF991B1B), fontSize: 14.0),
+                        style: const TextStyle(
+                          color: Color(0xFF991B1B),
+                          fontSize: 14.0,
+                        ),
                       ),
                     ),
                   ),
@@ -177,8 +178,8 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           color: isActive
               ? NordicColors.primary
               : isDone
-                  ? NordicColors.primary.withValues(alpha: 0.15)
-                  : NordicColors.surface,
+              ? NordicColors.primary.withValues(alpha: 0.15)
+              : NordicColors.surface,
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(
             color: isActive ? NordicColors.primary : NordicColors.border,
@@ -189,12 +190,14 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 11.0,
-            fontWeight: isActive || isDone ? FontWeight.bold : FontWeight.normal,
+            fontWeight: isActive || isDone
+                ? FontWeight.bold
+                : FontWeight.normal,
             color: isActive
                 ? Colors.white
                 : isDone
-                    ? NordicColors.primary
-                    : NordicColors.textSecondary,
+                ? NordicColors.primary
+                : NordicColors.textSecondary,
           ),
         ),
       ),
@@ -258,7 +261,10 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Ảnh Chân Dung (Selfie)', style: NordicTypography.h3),
+                const Text(
+                  'Ảnh Chân Dung (Selfie)',
+                  style: NordicTypography.h3,
+                ),
                 const SizedBox(height: 8.0),
                 const Text(
                   'Chụp ảnh khuôn mặt chính diện, không đeo kính râm hay khẩu trang.',
@@ -283,13 +289,22 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Xác Nhận Thông Tin Ảnh eKYC', style: NordicTypography.h3),
+                const Text(
+                  'Xác Nhận Thông Tin Ảnh eKYC',
+                  style: NordicTypography.h3,
+                ),
                 const SizedBox(height: 12.0),
-                _buildSummaryTile('1. CCCD Mặt Trước', _frontCccdController.text),
+                _buildSummaryTile(
+                  '1. CCCD Mặt Trước',
+                  _frontCccdController.text,
+                ),
                 const Divider(),
                 _buildSummaryTile('2. CCCD Mặt Sau', _backCccdController.text),
                 const Divider(),
-                _buildSummaryTile('3. Selfie Chân Dung', _selfieController.text),
+                _buildSummaryTile(
+                  '3. Selfie Chân Dung',
+                  _selfieController.text,
+                ),
               ],
             ),
           ),
@@ -309,7 +324,11 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.badge_outlined, size: 40.0, color: NordicColors.primary),
+          const Icon(
+            Icons.badge_outlined,
+            size: 40.0,
+            color: NordicColors.primary,
+          ),
           const SizedBox(height: 8.0),
           Text(label, style: NordicTypography.labelMedium),
           const SizedBox(height: 4.0),
@@ -319,7 +338,10 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
               url,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11.0, color: NordicColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 11.0,
+                color: NordicColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -341,7 +363,10 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
                 url,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
+                style: const TextStyle(
+                  fontSize: 12.0,
+                  color: NordicColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -400,11 +425,15 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
     return Column(
       children: [
         EmptyStateWidget(
-          title: isApproved ? 'Xác Thực Thành Công!' : 'Đang Chờ Duyệt Thủ Công',
+          title: isApproved
+              ? 'Xác Thực Thành Công!'
+              : 'Đang Chờ Duyệt Thủ Công',
           subtitle: isApproved
               ? 'Tài khoản của bạn đã đạt độ tin cậy eKYC (${result.confidenceScore.toStringAsFixed(1)}%). Bạn hiện ở trạng thái SẴN SÀNG (IDLE) để nhận ca làm.'
               : 'Độ tin cậy eKYC (${result.confidenceScore.toStringAsFixed(1)}%) cần được Admin xem xét thủ công.',
-          icon: isApproved ? Icons.verified_outlined : Icons.hourglass_top_rounded,
+          icon: isApproved
+              ? Icons.verified_outlined
+              : Icons.hourglass_top_rounded,
         ),
         const SizedBox(height: 16.0),
         NordicCard(
@@ -412,13 +441,22 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                _buildResultRow('Mã Thợ (Worker ID)', result.workerId.toString()),
+                _buildResultRow(
+                  'Mã Thợ (Worker ID)',
+                  result.workerId.toString(),
+                ),
                 const Divider(),
-                _buildResultRow('Độ Tin Cậy eKYC', '${result.confidenceScore.toStringAsFixed(1)}%'),
+                _buildResultRow(
+                  'Độ Tin Cậy eKYC',
+                  '${result.confidenceScore.toStringAsFixed(1)}%',
+                ),
                 const Divider(),
                 _buildResultRow('Trạng Thái eKYC', result.kycStatus),
                 const Divider(),
-                _buildResultRow('Phê Duyệt Tự Động', result.autoApproved ? 'Có (>= 85%)' : 'Không'),
+                _buildResultRow(
+                  'Phê Duyệt Tự Động',
+                  result.autoApproved ? 'Có (>= 85%)' : 'Không',
+                ),
               ],
             ),
           ),
@@ -445,8 +483,15 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: NordicTypography.bodyRegular),
-          Text(value, style: NordicTypography.labelMedium),
+          Expanded(child: Text(label, style: NordicTypography.bodyRegular)),
+          const SizedBox(width: 8.0),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: NordicTypography.labelMedium,
+            ),
+          ),
         ],
       ),
     );

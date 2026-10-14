@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -21,7 +22,12 @@ class OrderHistoryScreen extends StatefulWidget {
   /// What "Đặt đơn" does when there is no order yet; by default it opens the booking screen.
   final VoidCallback? onBook;
 
-  const OrderHistoryScreen({super.key, this.service, this.onOpenOrder, this.onBook});
+  const OrderHistoryScreen({
+    super.key,
+    this.service,
+    this.onOpenOrder,
+    this.onBook,
+  });
 
   @override
   State<OrderHistoryScreen> createState() => _OrderHistoryScreenState();
@@ -51,7 +57,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       _moreError = null;
     });
     try {
-      final page = await _service.listOrders(page: 1, pageSize: historyPageSize);
+      final page = await _service.listOrders(
+        page: 1,
+        pageSize: historyPageSize,
+      );
       if (!mounted) return;
       setState(() {
         _items
@@ -75,7 +84,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     _loadingMore = true;
     setState(() => _moreError = null);
     try {
-      final page = await _service.listOrders(page: _page + 1, pageSize: historyPageSize);
+      final page = await _service.listOrders(
+        page: _page + 1,
+        pageSize: historyPageSize,
+      );
       if (!mounted) return;
       setState(() {
         // A new order pushes the pages down by one; never show the same order twice.
@@ -95,9 +107,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   void _open(OrderSummary order) {
     if (widget.onOpenOrder != null) return widget.onOpenOrder!(order);
-    Navigator.of(context).pushNamed(BookingRoutes.bookingDetail, arguments: OrderDetailArgs(orderId: order.orderId)).then((_) {
-      if (mounted) _load(); // the order may have been paid or cancelled
-    });
+    Navigator.of(context)
+        .pushNamed(
+          BookingRoutes.bookingDetail,
+          arguments: OrderDetailArgs(orderId: order.orderId),
+        )
+        .then((_) {
+          if (mounted) _load(); // the order may have been paid or cancelled
+        });
   }
 
   void _book() {
@@ -116,7 +133,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 16.0,
+            ),
             children: _body(),
           ),
         ),
@@ -126,7 +146,15 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   List<Widget> _body() {
     if (_loading) return const [LoadingStateWidget(message: 'Đang tải đơn…')];
-    if (_error != null) return [ErrorStateWidget(title: 'Chưa tải được lịch sử đơn', message: _error!, onRetry: _load)];
+    if (_error != null) {
+      return [
+        ErrorStateWidget(
+          title: 'Chưa tải được lịch sử đơn',
+          message: _error!,
+          onRetry: _load,
+        ),
+      ];
+    }
     if (_items.isEmpty) {
       return [
         EmptyStateWidget(
@@ -137,7 +165,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       ];
     }
     return [
-      Text('${_items.length} / $_total đơn', key: const Key('history-count'), style: NordicTypography.bodySmall),
+      Text(
+        '${_items.length} / $_total đơn',
+        key: const Key('history-count'),
+        style: NordicTypography.bodySmall,
+      ),
       const SizedBox(height: 8.0),
       for (final order in _items) ...[
         NordicCard(
@@ -148,12 +180,24 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(order.orderCode, style: NordicTypography.labelMedium)),
-                  Text(orderStatusLabel(order.orderStatus), key: Key('order-status-${order.orderId}'), style: NordicTypography.labelSmall),
+                  Expanded(
+                    child: Text(
+                      order.orderCode,
+                      style: NordicTypography.labelMedium,
+                    ),
+                  ),
+                  Text(
+                    orderStatusLabel(order.orderStatus),
+                    key: Key('order-status-${order.orderId}'),
+                    style: NordicTypography.labelSmall,
+                  ),
                 ],
               ),
               const SizedBox(height: 4.0),
-              Text(scheduleText(order.scheduledDate, order.shiftCode), style: NordicTypography.bodyRegular),
+              Text(
+                scheduleText(order.scheduledDate, order.shiftCode),
+                style: NordicTypography.bodyRegular,
+              ),
               const SizedBox(height: 2.0),
               Text(
                 '${tierLabel(order.serviceTier)} · ${order.requiredWorkers} thợ · ${formatVnd(order.totalAmount)}',
@@ -164,7 +208,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         ),
         const SizedBox(height: 8.0),
       ],
-      if (_moreError != null) Text(_moreError!, key: const Key('history-more-error'), style: NordicTypography.bodySmall.copyWith(color: NordicColors.error)),
+      if (_moreError != null)
+        Text(
+          _moreError!,
+          key: const Key('history-more-error'),
+          style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+        ),
       if (hasMoreOrders(_items.length, _total))
         NordicButton(
           key: const Key('history-more'),
