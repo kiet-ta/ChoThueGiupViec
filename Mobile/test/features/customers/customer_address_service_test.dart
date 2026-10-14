@@ -10,11 +10,14 @@ void main() {
       service = CustomerAddressService(isMock: true);
     });
 
-    test('getAddresses returns seeded addresses with default sorted first', () async {
-      final list = await service.getAddresses();
-      expect(list.length, greaterThanOrEqualTo(2));
-      expect(list.first.isDefault, isTrue);
-    });
+    test(
+      'getAddresses returns seeded addresses with default sorted first',
+      () async {
+        final list = await service.getAddresses();
+        expect(list.length, greaterThanOrEqualTo(2));
+        expect(list.first.isDefault, isTrue);
+      },
+    );
 
     test('createAddress calculates S_total and saves to storage', () async {
       const newAddress = CustomerAddress(
@@ -64,59 +67,67 @@ void main() {
       expect(created.isDefault, isTrue);
 
       final updatedList = await service.getAddresses();
-      final oldAddr = updatedList.firstWhere((a) => a.addressId == previousDefault.addressId);
+      final oldAddr = updatedList.firstWhere(
+        (a) => a.addressId == previousDefault.addressId,
+      );
       expect(oldAddr.isDefault, isFalse);
     });
 
-    test('validates housing type constraints and throws ArgumentError', () async {
-      // 1. Room > 30 m2
-      const invalidRoom = CustomerAddress(
-        addressId: 0,
-        label: 'Phòng trọ rộng',
-        addressLine: '123 Hẻm',
-        district: 'Quận 1',
-        city: 'TP. Hồ Chí Minh',
-        housingType: HousingType.room,
-        floorAreaM2: 35.0, // > 30 m2 invalid
-        numFloors: 1,
-        totalAreaM2: 35.0,
-        latitude: 10.0,
-        longitude: 106.0,
-      );
-      expect(() => service.createAddress(invalidRoom), throwsArgumentError);
+    test(
+      'validates housing type constraints and throws ArgumentError',
+      () async {
+        // 1. Room > 30 m2
+        const invalidRoom = CustomerAddress(
+          addressId: 0,
+          label: 'Phòng trọ rộng',
+          addressLine: '123 Hẻm',
+          district: 'Quận 1',
+          city: 'TP. Hồ Chí Minh',
+          housingType: HousingType.room,
+          floorAreaM2: 35.0, // > 30 m2 invalid
+          numFloors: 1,
+          totalAreaM2: 35.0,
+          latitude: 10.0,
+          longitude: 106.0,
+        );
+        expect(() => service.createAddress(invalidRoom), throwsArgumentError);
 
-      // 2. Apartment with > 1 floors
-      const multiFloorApartment = CustomerAddress(
-        addressId: 0,
-        label: 'Chung cư 2 tầng',
-        addressLine: '123 Hẻm',
-        district: 'Quận 1',
-        city: 'TP. Hồ Chí Minh',
-        housingType: HousingType.apartment,
-        floorAreaM2: 80.0,
-        numFloors: 2, // invalid for apartment
-        totalAreaM2: 160.0,
-        latitude: 10.0,
-        longitude: 106.0,
-      );
-      expect(() => service.createAddress(multiFloorApartment), throwsArgumentError);
+        // 2. Apartment with > 1 floors
+        const multiFloorApartment = CustomerAddress(
+          addressId: 0,
+          label: 'Chung cư 2 tầng',
+          addressLine: '123 Hẻm',
+          district: 'Quận 1',
+          city: 'TP. Hồ Chí Minh',
+          housingType: HousingType.apartment,
+          floorAreaM2: 80.0,
+          numFloors: 2, // invalid for apartment
+          totalAreaM2: 160.0,
+          latitude: 10.0,
+          longitude: 106.0,
+        );
+        expect(
+          () => service.createAddress(multiFloorApartment),
+          throwsArgumentError,
+        );
 
-      // 3. House with > 10 floors
-      const highRiseHouse = CustomerAddress(
-        addressId: 0,
-        label: 'Nhà 12 tầng',
-        addressLine: '123 Hẻm',
-        district: 'Quận 1',
-        city: 'TP. Hồ Chí Minh',
-        housingType: HousingType.house,
-        floorAreaM2: 50.0,
-        numFloors: 12, // > 10 invalid
-        totalAreaM2: 600.0,
-        latitude: 10.0,
-        longitude: 106.0,
-      );
-      expect(() => service.createAddress(highRiseHouse), throwsArgumentError);
-    });
+        // 3. House with > 10 floors
+        const highRiseHouse = CustomerAddress(
+          addressId: 0,
+          label: 'Nhà 12 tầng',
+          addressLine: '123 Hẻm',
+          district: 'Quận 1',
+          city: 'TP. Hồ Chí Minh',
+          housingType: HousingType.house,
+          floorAreaM2: 50.0,
+          numFloors: 12, // > 10 invalid
+          totalAreaM2: 600.0,
+          latitude: 10.0,
+          longitude: 106.0,
+        );
+        expect(() => service.createAddress(highRiseHouse), throwsArgumentError);
+      },
+    );
 
     test('updateAddress updates record and recomputes totalAreaM2', () async {
       final list = await service.getAddresses();
@@ -124,27 +135,30 @@ void main() {
 
       final updated = await service.updateAddress(
         target.addressId,
-        target.copyWith(
-          floorAreaM2: 100.0,
-          numFloors: 2,
-        ),
+        target.copyWith(floorAreaM2: 100.0, numFloors: 2),
       );
 
       expect(updated.floorAreaM2, 100.0);
       expect(updated.totalAreaM2, 200.0);
     });
 
-    test('deleteAddress removes record and re-assigns default if needed', () async {
-      final initial = await service.getAddresses();
-      final defaultAddr = initial.firstWhere((a) => a.isDefault);
+    test(
+      'deleteAddress removes record and re-assigns default if needed',
+      () async {
+        final initial = await service.getAddresses();
+        final defaultAddr = initial.firstWhere((a) => a.isDefault);
 
-      await service.deleteAddress(defaultAddr.addressId);
+        await service.deleteAddress(defaultAddr.addressId);
 
-      final remaining = await service.getAddresses();
-      expect(remaining.any((a) => a.addressId == defaultAddr.addressId), isFalse);
-      if (remaining.isNotEmpty) {
-        expect(remaining.first.isDefault, isTrue);
-      }
-    });
+        final remaining = await service.getAddresses();
+        expect(
+          remaining.any((a) => a.addressId == defaultAddr.addressId),
+          isFalse,
+        );
+        if (remaining.isNotEmpty) {
+          expect(remaining.first.isDefault, isTrue);
+        }
+      },
+    );
   });
 }

@@ -20,5 +20,6 @@ public sealed class DisputesModule : IModule
         services.AddScoped<IDisputeFilingService, DisputeFilingService>();
         services.AddScoped<IAdminDisputeService, AdminDisputeService>();
         services.AddScoped<IDisputeVerdictService, DisputeVerdictService>();
+        services.AddScoped<IDisputeEvidenceService, DisputeEvidenceService>();
     }
 }

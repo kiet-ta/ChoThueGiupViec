@@ -6,7 +6,8 @@ import '../auth/token_storage.dart';
 import 'api_response.dart';
 
 const defaultApiTimeout = Duration(seconds: 15);
-const _networkErrorMessage = 'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
+const _networkErrorMessage =
+    'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
 
 /// Thrown when an API call fails due to HTTP status (4xx/5xx) or network unreachable.
 class ApiException implements Exception {
@@ -15,11 +16,16 @@ class ApiException implements Exception {
   final Map<String, List<String>>? fieldErrors;
   final int? retryAfterSeconds;
 
+  /// Machine-readable business code of a failed call (`data.code`, e.g. `FULLY_BOOKED`); null when the server sent none.
+  /// Screens branch on this, never on [message].
+  final String? code;
+
   const ApiException(
     this.statusCode,
     this.message, {
     this.fieldErrors,
     this.retryAfterSeconds,
+    this.code,
   });
 
   bool get isNetworkError => statusCode == 0;
@@ -45,8 +51,8 @@ class ApiClient {
     TokenStorage? tokenStorage,
     HttpClient? httpClient,
     this.timeout = defaultApiTimeout,
-  })  : tokenStorage = tokenStorage ?? TokenStorage(),
-        _httpClient = httpClient ?? HttpClient();
+  }) : tokenStorage = tokenStorage ?? TokenStorage(),
+       _httpClient = httpClient ?? HttpClient();
 
   Uri _buildUri(String path, [Map<String, String>? queryParams]) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
@@ -161,7 +167,10 @@ class ApiClient {
       final statusCode = response.statusCode;
 
       // Handle 401 token refresh interceptor once
-      if (statusCode == 401 && !isRetry && requiresAuth && tokenStorage.hasRefreshToken) {
+      if (statusCode == 401 &&
+          !isRetry &&
+          requiresAuth &&
+          tokenStorage.hasRefreshToken) {
         final refreshed = await _tryRefreshToken();
         if (refreshed) {
           return await _sendRequest<T>(
@@ -190,7 +199,9 @@ class ApiClient {
         );
       }
 
-      final isSuccess = jsonMap['success'] as bool? ?? (statusCode >= 200 && statusCode < 300);
+      final isSuccess =
+          jsonMap['success'] as bool? ??
+          (statusCode >= 200 && statusCode < 300);
       final message = jsonMap['message'] as String? ?? '';
 
       if (isSuccess && statusCode >= 200 && statusCode < 300) {
@@ -199,14 +210,17 @@ class ApiClient {
 
       // Extract error details on failure
       Map<String, List<String>>? fieldErrors;
+      String? code;
       final rawData = jsonMap['data'];
       if (rawData is Map<String, dynamic>) {
+        final rawCode = rawData['code'];
+        if (rawCode is String && rawCode.isNotEmpty) code = rawCode;
         final rawErrors = rawData['errors'];
         if (rawErrors is Map<String, dynamic>) {
-          fieldErrors = rawErrors.map((k, v) => MapEntry(
-                k,
-                (v as List).map((e) => e.toString()).toList(),
-              ));
+          fieldErrors = rawErrors.map(
+            (k, v) =>
+                MapEntry(k, (v as List).map((e) => e.toString()).toList()),
+          );
         }
       }
 
@@ -218,9 +232,12 @@ class ApiClient {
 
       throw ApiException(
         statusCode,
-        message.isNotEmpty ? message : 'Yêu cầu không thành công (mã $statusCode).',
+        message.isNotEmpty
+            ? message
+            : 'Yêu cầu không thành công (mã $statusCode).',
         fieldErrors: fieldErrors,
         retryAfterSeconds: retryAfterSeconds,
+        code: code,
       );
     } on ApiException {
       rethrow;
@@ -243,7 +260,9 @@ class ApiClient {
 
     try {
       final refreshUri = _buildUri('/api/auth/refresh');
-      final request = await _httpClient.openUrl('POST', refreshUri).timeout(timeout);
+      final request = await _httpClient
+          .openUrl('POST', refreshUri)
+          .timeout(timeout);
       request.headers.set('Content-Type', 'application/json; charset=utf-8');
       request.headers.set('Accept', 'application/json');
       request.add(utf8.encode(jsonEncode({'refreshToken': refreshToken})));

@@ -7,7 +7,7 @@ class WorkerExtensionService {
   final ApiClient _apiClient;
 
   WorkerExtensionService({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   /// Worker responds to extension request paid by customer (contract workers.md §2.6.1).
   ///
@@ -19,7 +19,8 @@ class WorkerExtensionService {
     return _apiClient.post<WorkerExtensionResponseDto>(
       '/api/workers/assignments/$assignmentId/extension/respond',
       body: {'accept': accept},
-      fromJson: (json) => WorkerExtensionResponseDto.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) =>
+          WorkerExtensionResponseDto.fromJson(json as Map<String, dynamic>),
     );
   }
 }

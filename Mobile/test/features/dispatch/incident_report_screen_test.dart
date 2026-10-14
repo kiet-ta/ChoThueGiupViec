@@ -43,83 +43,101 @@ void main() {
       );
     }
 
-    testWidgets('Renders form and validates requirement of photo and description',
-        (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'Renders form and validates requirement of photo and description',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      // Clear mock image for first test to verify validation
-      final emptyCamService = DispatchService(
-        isMock: true,
-        cameraWrapper: CameraWrapper(mockImage: null),
-        locationWrapper: locationWrapper,
-      );
+        // Clear mock image for first test to verify validation
+        final emptyCamService = DispatchService(
+          isMock: true,
+          cameraWrapper: CameraWrapper(mockImage: null),
+          locationWrapper: locationWrapper,
+        );
 
-      await tester.pumpWidget(MaterialApp(
-        theme: NordicTheme.lightTheme,
-        home: IncidentReportScreen(
-          assignmentId: 1001,
-          dispatchService: emptyCamService,
-        ),
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: IncidentReportScreen(
+              assignmentId: 1001,
+              dispatchService: emptyCamService,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Verify title & disclaimer
-      expect(find.text('Báo Cáo Sự Cố Bất Khả Kháng'), findsOneWidget);
-      expect(find.textContaining('MIỄN PHẠT SỰ CỐ (BR-10)'), findsOneWidget);
+        // Verify title & disclaimer
+        expect(find.text('Báo Cáo Sự Cố Bất Khả Kháng'), findsOneWidget);
+        expect(find.textContaining('MIỄN PHẠT SỰ CỐ (BR-10)'), findsOneWidget);
 
-      // Try tapping submit without capturing photo
-      final submitButton = find.byKey(const Key('submit_incident_button'));
-      expect(submitButton, findsOneWidget);
-      await tester.tap(submitButton);
-      await tester.pumpAndSettle();
+        // Try tapping submit without capturing photo
+        final submitButton = find.byKey(const Key('submit_incident_button'));
+        expect(submitButton, findsOneWidget);
+        await tester.tap(submitButton);
+        await tester.pumpAndSettle();
 
-      // Expect validation error for photo evidence
-      expect(find.textContaining('Vui lòng chụp ảnh bằng chứng'), findsOneWidget);
-    });
+        // Expect validation error for photo evidence
+        expect(
+          find.textContaining('Vui lòng chụp ảnh bằng chứng'),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('Can capture photo, input description, and submit incident successfully',
-        (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'Can capture photo, input description, and submit incident successfully',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      await tester.pumpWidget(createScreen());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(createScreen());
+        await tester.pumpAndSettle();
 
-      // Capture photo
-      final captureBtn = find.byKey(const Key('take_incident_photo_button'));
-      expect(captureBtn, findsOneWidget);
-      await tester.tap(captureBtn);
-      await tester.pumpAndSettle();
+        // Capture photo
+        final captureBtn = find.byKey(const Key('take_incident_photo_button'));
+        expect(captureBtn, findsOneWidget);
+        await tester.tap(captureBtn);
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Đã chụp: /mock/path/incident_evidence.jpg'), findsOneWidget);
+        expect(
+          find.textContaining('Đã chụp: /mock/path/incident_evidence.jpg'),
+          findsOneWidget,
+        );
 
-      // Input description
-      final inputField = find.byKey(const Key('incident_description_input'));
-      expect(inputField, findsOneWidget);
-      await tester.enterText(inputField, 'Xe máy bị nổ lốp giữa đường cầu Sài Gòn');
-      await tester.pumpAndSettle();
+        // Input description
+        final inputField = find.byKey(const Key('incident_description_input'));
+        expect(inputField, findsOneWidget);
+        await tester.enterText(
+          inputField,
+          'Xe máy bị nổ lốp giữa đường cầu Sài Gòn',
+        );
+        await tester.pumpAndSettle();
 
-      // Submit incident
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
-      await tester.pumpAndSettle();
+        // Submit incident
+        await tester.drag(find.byType(ListView), const Offset(0, -300));
+        await tester.pumpAndSettle();
 
-      final submitButton = find.byKey(const Key('submit_incident_button'));
-      await tester.tap(submitButton);
-      await tester.pumpAndSettle();
+        final submitButton = find.byKey(const Key('submit_incident_button'));
+        await tester.tap(submitButton);
+        await tester.pumpAndSettle();
 
-      // Check success state UI
-      expect(find.text('Đã Ghi Nhận Sự Cố Bất Khả Kháng'), findsOneWidget);
-      expect(find.textContaining('MIỄN PHẠT theo chính sách BR-10'), findsOneWidget);
-      expect(find.text('Đang tìm thợ'), findsOneWidget);
-    });
+        // Check success state UI
+        expect(find.text('Đã Ghi Nhận Sự Cố Bất Khả Kháng'), findsOneWidget);
+        expect(
+          find.textContaining('MIỄN PHẠT theo chính sách BR-10'),
+          findsOneWidget,
+        );
+        expect(find.text('Đang tìm thợ'), findsOneWidget);
+      },
+    );
   });
 }

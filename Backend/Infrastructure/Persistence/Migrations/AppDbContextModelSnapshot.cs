@@ -1330,6 +1330,23 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(1000)")
                         .HasColumnName("qr_payload");
 
+                    b.Property<string>("RefundReason")
+                        .HasMaxLength(255)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("refund_reason");
+
+                    b.Property<decimal>("RefundedAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("DECIMAL(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("refunded_amount");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("refunded_at");
+
                     b.Property<int?>("SubscriptionId")
                         .HasColumnType("int")
                         .HasColumnName("subscription_id");

@@ -86,5 +86,21 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
             .HasColumnName("created_at")
             .HasColumnType("DATETIME2")
             .IsRequired();
+
+        // SC-10 (contract payments.md P2): partial and repeated refunds are recorded on the transaction.
+        builder.Property(x => x.RefundedAmount)
+            .HasColumnName("refunded_amount")
+            .HasColumnType("DECIMAL(18,2)")
+            .HasDefaultValue(0m)
+            .IsRequired();
+
+        builder.Property(x => x.RefundReason)
+            .HasColumnName("refund_reason")
+            .HasMaxLength(255)
+            .IsUnicode(true);
+
+        builder.Property(x => x.RefundedAt)
+            .HasColumnName("refunded_at")
+            .HasColumnType("DATETIME2");
     }
 }

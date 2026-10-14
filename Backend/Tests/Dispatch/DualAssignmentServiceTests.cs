@@ -94,48 +94,6 @@ public class DualAssignmentServiceTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class MockDispatchRepository : IDispatchRepository
-    {
-        public Dictionary<long, JobAssignment> Assignments { get; } = new();
-
-        public Task<JobAssignment?> GetAssignmentByIdAsync(long assignmentId, CancellationToken cancellationToken = default)
-        {
-            Assignments.TryGetValue(assignmentId, out var a);
-            return Task.FromResult(a);
-        }
-
-        public Task<JobAssignment> CreateAssignmentAsync(JobAssignment assignment, CancellationToken cancellationToken = default)
-        {
-            if (assignment.AssignmentId == 0)
-            {
-                assignment.AssignmentId = Assignments.Count + 100;
-            }
-            Assignments[assignment.AssignmentId] = assignment;
-            return Task.FromResult(assignment);
-        }
-
-        public Task<bool> TryLockSlotAndAssignAsync(long assignmentId, int slotId, DateTime assignedAtUtc, CancellationToken cancellationToken = default)
-        {
-            if (Assignments.TryGetValue(assignmentId, out var a))
-            {
-                a.SlotId = slotId;
-                a.TransitionTo(JobAssignmentStatus.Assigned);
-                return Task.FromResult(true);
-            }
-            return Task.FromResult(false);
-        }
-
-        public Task<bool> CancelAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default)
-        {
-            if (Assignments.TryGetValue(assignmentId, out var a))
-            {
-                a.TransitionTo(JobAssignmentStatus.Cancelled);
-                return Task.FromResult(true);
-            }
-            return Task.FromResult(false);
-        }
-    }
-
     private sealed class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
     {
         public List<AvailableWorker> Workers { get; } = new();
@@ -165,9 +123,10 @@ public class DualAssignmentServiceTests
         query.Workers.Add(new AvailableWorker(WorkerId: 20, SlotId: 202, DistanceKm: 3.5));
 
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        dispatchRepo.AddSlot(101, workerId: 10);
+        dispatchRepo.AddSlot(202, workerId: 20);
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var repo = new InMemoryDualAssignmentRepository();
         var service = new DualAssignmentService(repo, offerEngine, clock, mediator, rules, NullLogger<DualAssignmentService>.Instance);
@@ -195,6 +154,9 @@ public class DualAssignmentServiceTests
 
         Assert.Equal(1, seq1.AssignmentSeq);
         Assert.Equal(2, seq2.AssignmentSeq);
+        Assert.NotEqual(seq1.WorkerId, seq2.WorkerId); // BR-02: two workers in parallel, never the same one twice
+        Assert.Equal(101, seq1.SlotId);
+        Assert.Equal(202, seq2.SlotId);
         Assert.Equal(260000m, seq1.GrossAmount);
         Assert.Equal(260000m, seq2.GrossAmount);
     }
@@ -207,9 +169,8 @@ public class DualAssignmentServiceTests
         var rules = MicrosoftOptions.Create(new BusinessRules());
         var query = new MockWorkerAvailabilityQuery();
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var repo = new InMemoryDualAssignmentRepository();
         var service = new DualAssignmentService(repo, offerEngine, clock, mediator, rules, NullLogger<DualAssignmentService>.Instance);
@@ -268,9 +229,8 @@ public class DualAssignmentServiceTests
         var rules = MicrosoftOptions.Create(new BusinessRules());
         var query = new MockWorkerAvailabilityQuery();
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var repo = new InMemoryDualAssignmentRepository();
         var service = new DualAssignmentService(repo, offerEngine, clock, mediator, rules, NullLogger<DualAssignmentService>.Instance);

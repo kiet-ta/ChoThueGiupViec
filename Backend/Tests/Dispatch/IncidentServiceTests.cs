@@ -100,48 +100,6 @@ public class IncidentServiceTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class MockDispatchRepository : IDispatchRepository
-    {
-        public Dictionary<long, JobAssignment> Assignments { get; } = new();
-
-        public Task<JobAssignment?> GetAssignmentByIdAsync(long assignmentId, CancellationToken cancellationToken = default)
-        {
-            Assignments.TryGetValue(assignmentId, out var a);
-            return Task.FromResult(a);
-        }
-
-        public Task<JobAssignment> CreateAssignmentAsync(JobAssignment assignment, CancellationToken cancellationToken = default)
-        {
-            if (assignment.AssignmentId == 0)
-            {
-                assignment.AssignmentId = Assignments.Count + 100;
-            }
-            Assignments[assignment.AssignmentId] = assignment;
-            return Task.FromResult(assignment);
-        }
-
-        public Task<bool> TryLockSlotAndAssignAsync(long assignmentId, int slotId, DateTime assignedAtUtc, CancellationToken cancellationToken = default)
-        {
-            if (Assignments.TryGetValue(assignmentId, out var a))
-            {
-                a.SlotId = slotId;
-                a.TransitionTo(JobAssignmentStatus.Assigned);
-                return Task.FromResult(true);
-            }
-            return Task.FromResult(false);
-        }
-
-        public Task<bool> CancelAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default)
-        {
-            if (Assignments.TryGetValue(assignmentId, out var a))
-            {
-                a.TransitionTo(JobAssignmentStatus.Cancelled);
-                return Task.FromResult(true);
-            }
-            return Task.FromResult(false);
-        }
-    }
-
     private sealed class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
     {
         public List<AvailableWorker> Workers { get; } = new();
@@ -158,9 +116,8 @@ public class IncidentServiceTests
         var rules = MicrosoftOptions.Create(new BusinessRules());
         var query = new MockWorkerAvailabilityQuery();
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var repo = new InMemoryIncidentRepository();
         var assignment = new JobAssignment
@@ -214,9 +171,9 @@ public class IncidentServiceTests
         query.Workers.Add(new AvailableWorker(WorkerId: 99, SlotId: 909, DistanceKm: 1.5));
 
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        dispatchRepo.AddSlot(909, workerId: 99);
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var repo = new InMemoryIncidentRepository();
         var assignment = new JobAssignment
@@ -263,9 +220,8 @@ public class IncidentServiceTests
         var rules = MicrosoftOptions.Create(new BusinessRules());
         var query = new MockWorkerAvailabilityQuery();
         var scanner = new SteppedRadiusDispatchScanner(query, rules);
-        var dispatchRepo = new MockDispatchRepository();
-        var offerStore = new InMemoryOfferStore();
-        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, offerStore, clock, mediator, rules);
+        var dispatchRepo = new InMemoryDispatchRepository();
+        var offerEngine = new DispatchOfferEngine(scanner, dispatchRepo, clock, mediator, rules);
 
         var repo = new InMemoryIncidentRepository();
         var assignment = new JobAssignment

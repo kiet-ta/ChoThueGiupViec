@@ -17,7 +17,9 @@ void main() {
       authService = AuthService(tokenStorage: storage, useMockFallback: true);
     });
 
-    testWidgets('renders verify screen elements and handles submit', (tester) async {
+    testWidgets('renders verify screen elements and handles submit', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -83,7 +85,10 @@ void main() {
       await tester.tap(find.text('Xác Nhận Đăng Nhập'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Mã xác thực không chính xác'), findsOneWidget);
+      expect(
+        find.textContaining('Mã xác thực không chính xác'),
+        findsOneWidget,
+      );
       expect(storage.isAuthenticated, isFalse);
     });
   });

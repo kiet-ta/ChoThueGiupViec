@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/feature_module.dart';
 import 'screens/rating_screen.dart';
 
@@ -18,15 +19,19 @@ class RatingsFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        RatingRoutes.ratings: (context) {
-          final args = ModalRoute.of(context)?.settings.arguments;
-          if (args is RatingScreenArgs) {
-            return RatingScreen(role: args.role, assignmentId: args.assignmentId, ratedName: args.ratedName);
-          }
-          return const _NoJobToRate();
-        },
-        RatingRoutes.history: (context) => const _NoJobToRate(),
-      };
+    RatingRoutes.ratings: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is RatingScreenArgs) {
+        return RatingScreen(
+          role: args.role,
+          assignmentId: args.assignmentId,
+          ratedName: args.ratedName,
+        );
+      }
+      return const _NoJobToRate();
+    },
+    RatingRoutes.history: (context) => const _NoJobToRate(),
+  };
 }
 
 /// Shown when the screen is opened without a job: ratings are given from a completed job, never from a menu.

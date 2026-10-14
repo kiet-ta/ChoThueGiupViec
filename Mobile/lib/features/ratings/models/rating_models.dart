@@ -13,7 +13,8 @@ class RatingCriterion {
 
 extension RatingRoleX on RatingRole {
   /// `customers/me` or `workers/me`: the policy of the endpoint follows the role of the signed-in person.
-  String get pathPrefix => this == RatingRole.customer ? '/api/customers/me' : '/api/workers/me';
+  String get pathPrefix =>
+      this == RatingRole.customer ? '/api/customers/me' : '/api/workers/me';
 
   /// The criteria are fixed by decision Q14: the server rejects any other key and any missing key.
   List<RatingCriterion> get criteria => this == RatingRole.customer
@@ -30,7 +31,8 @@ extension RatingRoleX on RatingRole {
   /// A worker's rating of a customer is internal only (Q14): the customer never sees it.
   bool get isInternalOnly => this == RatingRole.worker;
 
-  String get title => this == RatingRole.customer ? 'Đánh giá thợ' : 'Đánh giá gia chủ';
+  String get title =>
+      this == RatingRole.customer ? 'Đánh giá thợ' : 'Đánh giá gia chủ';
 }
 
 /// `RatingWindow` of the contract: whether the assignment can be rated now and why not.
@@ -61,13 +63,13 @@ class RatingWindow {
   });
 
   factory RatingWindow.fromJson(Map<String, dynamic> json) => RatingWindow(
-        assignmentId: (json['assignmentId'] as num?)?.toInt() ?? 0,
-        canRate: json['canRate'] as bool? ?? false,
-        reason: json['reason'] as String? ?? '',
-        opensAt: DateTime.tryParse(json['opensAt'] as String? ?? ''),
-        closesAt: DateTime.tryParse(json['closesAt'] as String? ?? ''),
-        secondsRemaining: (json['secondsRemaining'] as num?)?.toInt() ?? 0,
-      );
+    assignmentId: (json['assignmentId'] as num?)?.toInt() ?? 0,
+    canRate: json['canRate'] as bool? ?? false,
+    reason: json['reason'] as String? ?? '',
+    opensAt: DateTime.tryParse(json['opensAt'] as String? ?? ''),
+    closesAt: DateTime.tryParse(json['closesAt'] as String? ?? ''),
+    secondsRemaining: (json['secondsRemaining'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// What the person typed, ready to be checked and sent.
@@ -76,11 +78,15 @@ class RatingSubmission {
   final Map<String, int> criteria;
   final String? comment;
 
-  const RatingSubmission({required this.stars, required this.criteria, this.comment});
+  const RatingSubmission({
+    required this.stars,
+    required this.criteria,
+    this.comment,
+  });
 
   Map<String, dynamic> toJson() => {
-        'stars': stars,
-        'criteria': criteria,
-        'comment': comment,
-      };
+    'stars': stars,
+    'criteria': criteria,
+    'comment': comment,
+  };
 }

@@ -174,30 +174,6 @@ public class WorkersController(ISender sender) : ControllerBase
         var result = await sender.Send(new SubmitJobCompletionCommand(assignmentId, request?.Notes), ct);
         return Ok(result);
     }
-
-    /// <summary>Imports workers from CSV file for agency (contract §2.8).</summary>
-    [HttpPost("{agencyId:int}/import")]
-    [Authorize(Policy = "AgencyOnly")]
-    [ProducesResponseType(typeof(ApiResponse<ImportWorkerResult>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> ImportWorkers(
-        int agencyId,
-        [FromForm] ImportWorkerCommand command,
-        CancellationToken ct)
-    {
-        if (command == null)
-        {
-            return BadRequest(ApiResponse<object>.Fail("Command is required.", null));
-        }
-
-        // Ensure the agency ID in the route matches the command
-        command with { AgencyId = agencyId };
-
-        var result = await sender.Send(command, ct);
-        return Ok(ApiResponse<ImportWorkerResult>.Success(result));
-    }
 }
 
 

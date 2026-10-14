@@ -24,14 +24,14 @@ class EarningsJob {
   });
 
   factory EarningsJob.fromJson(Map<String, dynamic> json) => EarningsJob(
-        assignmentId: (json['assignmentId'] as num?)?.toInt() ?? 0,
-        orderId: (json['orderId'] as num?)?.toInt() ?? 0,
-        completedAt: DateTime.tryParse(json['completedAt'] as String? ?? ''),
-        grossAmount: (json['grossAmount'] as num?)?.toInt() ?? 0,
-        commissionAmount: (json['commissionAmount'] as num?)?.toInt() ?? 0,
-        netAmount: (json['netAmount'] as num?)?.toInt() ?? 0,
-        absenceFee: json['absenceFee'] as bool? ?? false,
-      );
+    assignmentId: (json['assignmentId'] as num?)?.toInt() ?? 0,
+    orderId: (json['orderId'] as num?)?.toInt() ?? 0,
+    completedAt: DateTime.tryParse(json['completedAt'] as String? ?? ''),
+    grossAmount: (json['grossAmount'] as num?)?.toInt() ?? 0,
+    commissionAmount: (json['commissionAmount'] as num?)?.toInt() ?? 0,
+    netAmount: (json['netAmount'] as num?)?.toInt() ?? 0,
+    absenceFee: json['absenceFee'] as bool? ?? false,
+  );
 }
 
 /// Values of `payoutStatus` in the earnings answer: whether the month's batch exists and is paid.
@@ -69,18 +69,18 @@ class Earnings {
   });
 
   factory Earnings.fromJson(Map<String, dynamic> json) => Earnings(
-        periodMonth: json['periodMonth'] as String? ?? '',
-        jobCount: (json['jobCount'] as num?)?.toInt() ?? 0,
-        grossAmount: (json['grossAmount'] as num?)?.toInt() ?? 0,
-        commissionAmount: (json['commissionAmount'] as num?)?.toInt() ?? 0,
-        penaltyAmount: (json['penaltyAmount'] as num?)?.toInt() ?? 0,
-        netAmount: (json['netAmount'] as num?)?.toInt() ?? 0,
-        payoutStatus: json['payoutStatus'] as String? ?? PayoutStatus.notBuilt,
-        jobs: ((json['jobs'] as List?) ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(EarningsJob.fromJson)
-            .toList(growable: false),
-      );
+    periodMonth: json['periodMonth'] as String? ?? '',
+    jobCount: (json['jobCount'] as num?)?.toInt() ?? 0,
+    grossAmount: (json['grossAmount'] as num?)?.toInt() ?? 0,
+    commissionAmount: (json['commissionAmount'] as num?)?.toInt() ?? 0,
+    penaltyAmount: (json['penaltyAmount'] as num?)?.toInt() ?? 0,
+    netAmount: (json['netAmount'] as num?)?.toInt() ?? 0,
+    payoutStatus: json['payoutStatus'] as String? ?? PayoutStatus.notBuilt,
+    jobs: ((json['jobs'] as List?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(EarningsJob.fromJson)
+        .toList(growable: false),
+  );
 }
 
 /// One closed payout item of the worker (`items[]` of `GET /api/workers/me/payouts`).
@@ -99,12 +99,15 @@ class PayoutHistoryItem {
     required this.transferredAt,
   });
 
-  factory PayoutHistoryItem.fromJson(Map<String, dynamic> json) => PayoutHistoryItem(
+  factory PayoutHistoryItem.fromJson(Map<String, dynamic> json) =>
+      PayoutHistoryItem(
         batchId: (json['batchId'] as num?)?.toInt() ?? 0,
         periodMonth: json['periodMonth'] as String? ?? '',
         netAmount: (json['netAmount'] as num?)?.toInt() ?? 0,
         itemStatus: json['itemStatus'] as String? ?? '',
-        transferredAt: DateTime.tryParse(json['transferredAt'] as String? ?? ''),
+        transferredAt: DateTime.tryParse(
+          json['transferredAt'] as String? ?? '',
+        ),
       );
 }
 
@@ -115,9 +118,15 @@ class PayoutHistoryPage {
   final int pageSize;
   final int total;
 
-  const PayoutHistoryPage({required this.items, required this.page, required this.pageSize, required this.total});
+  const PayoutHistoryPage({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    required this.total,
+  });
 
-  factory PayoutHistoryPage.fromJson(Map<String, dynamic> json) => PayoutHistoryPage(
+  factory PayoutHistoryPage.fromJson(Map<String, dynamic> json) =>
+      PayoutHistoryPage(
         items: ((json['items'] as List?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .map(PayoutHistoryItem.fromJson)

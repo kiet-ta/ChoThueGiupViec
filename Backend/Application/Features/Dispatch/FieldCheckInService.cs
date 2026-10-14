@@ -40,6 +40,9 @@ public interface IFieldCheckInRepository
 /// </summary>
 public class FieldCheckInService
 {
+    /// <summary>provenance: the largest value of <c>CHECK_IN_LOG.distance_m</c> DECIMAL(7,2) (CheckInLogConfiguration).</summary>
+    private const decimal MaxStoredDistanceMeters = 99999.99m;
+
     private readonly IFieldCheckInRepository _repository;
     private readonly IGeoService _geoService;
     private readonly IClock _clock;
@@ -82,7 +85,7 @@ public class FieldCheckInService
             };
         }
 
-        if (assignment.WorkerId != workerId && assignment.AgencyId == null)
+        if (assignment.WorkerId != workerId)
         {
             return new FieldCheckInResult
             {
@@ -108,24 +111,35 @@ public class FieldCheckInService
         double toleranceM = _rules.Gps.CheckInToleranceMeters > 0 ? _rules.Gps.CheckInToleranceMeters : 100.0;
         bool isGpsVerified = distanceMeters <= toleranceM;
 
-        var checkInLog = new CheckInLog
+        // CHECK_IN_LOG is unique per assignment: a retry after a failed GPS check updates the same row.
+        var checkInLog = await _repository.GetCheckInLogAsync(assignmentId, cancellationToken) ?? new CheckInLog
         {
             AssignmentId = assignmentId,
-            DeviceLat = (decimal)deviceLocation.Latitude,
-            DeviceLng = (decimal)deviceLocation.Longitude,
-            DistanceM = Math.Round((decimal)distanceMeters, 2),
-            GpsVerified = isGpsVerified,
-            FallbackMethod = null,
-            FallbackPhotoUrl = null,
             CallAttempts = 0,
-            CheckedInAt = nowUtc
         };
+        checkInLog.DeviceLat = (decimal)deviceLocation.Latitude;
+        checkInLog.DeviceLng = (decimal)deviceLocation.Longitude;
+        // CHECK_IN_LOG.distance_m is DECIMAL(7,2): a device more than ~100 km away (emulator, 0,0) is stored at the column maximum.
+        checkInLog.DistanceM = Math.Min(Math.Round((decimal)distanceMeters, 2), MaxStoredDistanceMeters);
+        checkInLog.GpsVerified = isGpsVerified;
+        checkInLog.FallbackMethod = null;
+        checkInLog.FallbackPhotoUrl = null;
+        checkInLog.CheckedInAt = nowUtc;
 
         if (isGpsVerified)
         {
             // Transition directly to CHECKED_IN
             await _repository.SaveCheckInLogAsync(checkInLog, cancellationToken);
-            await _repository.TransitionToCheckedInAsync(assignmentId, nowUtc, cancellationToken);
+            if (!await _repository.TransitionToCheckedInAsync(assignmentId, nowUtc, cancellationToken))
+            {
+                return new FieldCheckInResult
+                {
+                    Success = false,
+                    AssignmentId = assignmentId,
+                    Status = assignment.AssignmentStatus,
+                    ErrorMessage = "Ca làm đã thay đổi trạng thái trong lúc check-in."
+                };
+            }
 
             _logger.LogInformation(
                 "Check-in verified via GPS for assignment {AssignmentId}. Distance={Distance:F1}m (tolerance {Tolerance}m).",
@@ -210,9 +224,19 @@ public class FieldCheckInService
         var nowUtc = _clock.UtcNow;
         log.FallbackMethod = fallbackMethod;
         log.FallbackPhotoUrl = photoUrl;
+        log.CheckedInAt = nowUtc; // the BR-05 15-minute wait starts when the check-in is completed, not at the failed GPS attempt
 
         await _repository.SaveCheckInLogAsync(log, cancellationToken);
-        await _repository.TransitionToCheckedInAsync(assignmentId, nowUtc, cancellationToken);
+        if (!await _repository.TransitionToCheckedInAsync(assignmentId, nowUtc, cancellationToken))
+        {
+            return new FieldCheckInResult
+            {
+                Success = false,
+                AssignmentId = assignmentId,
+                Status = assignment.AssignmentStatus,
+                ErrorMessage = "Ca làm đã thay đổi trạng thái trong lúc check-in."
+            };
+        }
 
         _logger.LogInformation(
             "Fallback check-in confirmed via {Method} for assignment {AssignmentId}.",

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -8,16 +9,14 @@ import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../models/ekyc_models.dart';
 import '../services/workers_ekyc_service.dart';
+import '../widgets/tinted_card.dart';
 
 /// Screen for Worker eKYC Identity Verification (CCCD 2 mặt + selfie).
 /// Implements MOB-M4-01 according to contract workers.md §2.2.
 class WorkerEkycScreen extends StatefulWidget {
   final WorkersEkycService? ekycService;
 
-  const WorkerEkycScreen({
-    super.key,
-    this.ekycService,
-  });
+  const WorkerEkycScreen({super.key, this.ekycService});
 
   @override
   State<WorkerEkycScreen> createState() => _WorkerEkycScreenState();
@@ -118,7 +117,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
               const SizedBox(height: 6.0),
               const Text(
                 'Theo quy định PRD 2.8, thợ Freelance cần xác thực eKYC trước khi nhận ca làm.',
-                style: NordicTypography.bodyMuted,
+                style: NordicTypography.bodySmall,
               ),
               const SizedBox(height: 16.0),
 
@@ -128,13 +127,16 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
                 _buildStepIndicator(),
                 const SizedBox(height: 16.0),
                 if (_errorMessage != null) ...[
-                  NordicCard(
+                  TintedCard(
                     backgroundColor: const Color(0xFFFEE2E2),
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Color(0xFF991B1B), fontSize: 14.0),
+                        style: const TextStyle(
+                          color: Color(0xFF991B1B),
+                          fontSize: 14.0,
+                        ),
                       ),
                     ),
                   ),
@@ -176,8 +178,8 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           color: isActive
               ? NordicColors.primary
               : isDone
-                  ? NordicColors.primary.withValues(alpha: 0.15)
-                  : NordicColors.cardBackground,
+              ? NordicColors.primary.withValues(alpha: 0.15)
+              : NordicColors.surface,
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(
             color: isActive ? NordicColors.primary : NordicColors.border,
@@ -188,12 +190,14 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 11.0,
-            fontWeight: isActive || isDone ? FontWeight.bold : FontWeight.normal,
+            fontWeight: isActive || isDone
+                ? FontWeight.bold
+                : FontWeight.normal,
             color: isActive
                 ? Colors.white
                 : isDone
-                    ? NordicColors.primary
-                    : NordicColors.textMuted,
+                ? NordicColors.primary
+                : NordicColors.textSecondary,
           ),
         ),
       ),
@@ -207,13 +211,13 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: CrossAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Mặt Trước CCCD', style: NordicTypography.h3),
                 const SizedBox(height: 8.0),
                 const Text(
                   'Vui lòng chụp rõ các thông tin số CCCD, họ tên và ngày sinh.',
-                  style: NordicTypography.bodyMuted,
+                  style: NordicTypography.bodySmall,
                 ),
                 const SizedBox(height: 16.0),
                 _buildPhotoPreview(_frontCccdController.text, 'CCCD Mặt Trước'),
@@ -231,13 +235,13 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: CrossAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Mặt Sau CCCD', style: NordicTypography.h3),
                 const SizedBox(height: 8.0),
                 const Text(
                   'Vui lòng chụp rõ thông tin đặc điểm nhận dạng và ngày cấp.',
-                  style: NordicTypography.bodyMuted,
+                  style: NordicTypography.bodySmall,
                 ),
                 const SizedBox(height: 16.0),
                 _buildPhotoPreview(_backCccdController.text, 'CCCD Mặt Sau'),
@@ -255,13 +259,16 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: CrossAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Ảnh Chân Dung (Selfie)', style: NordicTypography.h3),
+                const Text(
+                  'Ảnh Chân Dung (Selfie)',
+                  style: NordicTypography.h3,
+                ),
                 const SizedBox(height: 8.0),
                 const Text(
                   'Chụp ảnh khuôn mặt chính diện, không đeo kính râm hay khẩu trang.',
-                  style: NordicTypography.bodyMuted,
+                  style: NordicTypography.bodySmall,
                 ),
                 const SizedBox(height: 16.0),
                 _buildPhotoPreview(_selfieController.text, 'Ảnh Chân Dung'),
@@ -280,15 +287,24 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAlignment: CrossAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Xác Nhận Thông Tin Ảnh eKYC', style: NordicTypography.h3),
+                const Text(
+                  'Xác Nhận Thông Tin Ảnh eKYC',
+                  style: NordicTypography.h3,
+                ),
                 const SizedBox(height: 12.0),
-                _buildSummaryTile('1. CCCD Mặt Trước', _frontCccdController.text),
+                _buildSummaryTile(
+                  '1. CCCD Mặt Trước',
+                  _frontCccdController.text,
+                ),
                 const Divider(),
                 _buildSummaryTile('2. CCCD Mặt Sau', _backCccdController.text),
                 const Divider(),
-                _buildSummaryTile('3. Selfie Chân Dung', _selfieController.text),
+                _buildSummaryTile(
+                  '3. Selfie Chân Dung',
+                  _selfieController.text,
+                ),
               ],
             ),
           ),
@@ -308,9 +324,13 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.badge_outlined, size: 40.0, color: NordicColors.primary),
+          const Icon(
+            Icons.badge_outlined,
+            size: 40.0,
+            color: NordicColors.primary,
+          ),
           const SizedBox(height: 8.0),
-          Text(label, style: NordicTypography.bodyBold),
+          Text(label, style: NordicTypography.labelMedium),
           const SizedBox(height: 4.0),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -318,7 +338,10 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
               url,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11.0, color: NordicColors.textMuted),
+              style: const TextStyle(
+                fontSize: 11.0,
+                color: NordicColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -333,14 +356,17 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
         const SizedBox(width: 8.0),
         Expanded(
           child: Column(
-            crossAlignment: CrossAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: NordicTypography.bodyBold),
+              Text(title, style: NordicTypography.labelMedium),
               Text(
                 url,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12.0, color: NordicColors.textMuted),
+                style: const TextStyle(
+                  fontSize: 12.0,
+                  color: NordicColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -398,12 +424,16 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
 
     return Column(
       children: [
-        StatusStateWidget(
-          title: isApproved ? 'Xác Thực Thành Công!' : 'Đang Chờ Duyệt Thủ Công',
-          message: isApproved
+        EmptyStateWidget(
+          title: isApproved
+              ? 'Xác Thực Thành Công!'
+              : 'Đang Chờ Duyệt Thủ Công',
+          subtitle: isApproved
               ? 'Tài khoản của bạn đã đạt độ tin cậy eKYC (${result.confidenceScore.toStringAsFixed(1)}%). Bạn hiện ở trạng thái SẴN SÀNG (IDLE) để nhận ca làm.'
               : 'Độ tin cậy eKYC (${result.confidenceScore.toStringAsFixed(1)}%) cần được Admin xem xét thủ công.',
-          stateType: isApproved ? StatusStateType.success : StatusStateType.warning,
+          icon: isApproved
+              ? Icons.verified_outlined
+              : Icons.hourglass_top_rounded,
         ),
         const SizedBox(height: 16.0),
         NordicCard(
@@ -411,13 +441,22 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                _buildResultRow('Mã Thợ (Worker ID)', result.workerId.toString()),
+                _buildResultRow(
+                  'Mã Thợ (Worker ID)',
+                  result.workerId.toString(),
+                ),
                 const Divider(),
-                _buildResultRow('Độ Tin Cậy eKYC', '${result.confidenceScore.toStringAsFixed(1)}%'),
+                _buildResultRow(
+                  'Độ Tin Cậy eKYC',
+                  '${result.confidenceScore.toStringAsFixed(1)}%',
+                ),
                 const Divider(),
                 _buildResultRow('Trạng Thái eKYC', result.kycStatus),
                 const Divider(),
-                _buildResultRow('Phê Duyệt Tự Động', result.autoApproved ? 'Có (>= 85%)' : 'Không'),
+                _buildResultRow(
+                  'Phê Duyệt Tự Động',
+                  result.autoApproved ? 'Có (>= 85%)' : 'Không',
+                ),
               ],
             ),
           ),
@@ -444,8 +483,15 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: NordicTypography.bodyRegular),
-          Text(value, style: NordicTypography.bodyBold),
+          Expanded(child: Text(label, style: NordicTypography.bodyRegular)),
+          const SizedBox(width: 8.0),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: NordicTypography.labelMedium,
+            ),
+          ),
         ],
       ),
     );

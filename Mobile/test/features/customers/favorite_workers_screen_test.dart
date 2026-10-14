@@ -12,7 +12,9 @@ void main() {
       service = FavoriteWorkerService(isMock: true);
     });
 
-    testWidgets('renders favorite workers list, rating, and CTA buttons', (tester) async {
+    testWidgets('renders favorite workers list, rating, and CTA buttons', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -35,7 +37,9 @@ void main() {
       expect(find.textContaining('ca hoàn thành'), findsWidgets);
     });
 
-    testWidgets('displays empty state when no favorite workers exist', (tester) async {
+    testWidgets('displays empty state when no favorite workers exist', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -56,7 +60,9 @@ void main() {
       expect(find.text('Chưa Có Thợ Quen Nào'), findsOneWidget);
     });
 
-    testWidgets('removes worker, shows undo snackbar, and restores on undo', (tester) async {
+    testWidgets('removes worker, shows undo snackbar, and restores on undo', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

@@ -6,6 +6,7 @@ using CommonService.Application.Features.Disputes.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Disputes;
 using CommonService.Infrastructure.Persistence;
 using CommonService.WebAPI.Controllers.Disputes;
@@ -62,8 +63,8 @@ public class DisputeEndpointTests
     [Fact]
     public void The_actions_are_exactly_the_ones_of_the_contract()
     {
-        Assert.Equal(["GET", "GET {disputeId:int}", "POST"], Routes(typeof(CustomerDisputesController)));
-        Assert.Equal(["GET", "GET {disputeId:int}", "POST"], Routes(typeof(WorkerDisputesController)));
+        Assert.Equal(["GET", "GET {disputeId:int}", "POST", "POST evidence"], Routes(typeof(CustomerDisputesController)));
+        Assert.Equal(["GET", "GET {disputeId:int}", "POST", "POST evidence"], Routes(typeof(WorkerDisputesController)));
         Assert.Equal(
             ["GET", "GET {disputeId:int}", "POST {disputeId:int}/resolve", "POST {disputeId:int}/take"],
             Routes(typeof(AdminDisputesController)));
@@ -121,6 +122,10 @@ public class DisputeEndpointTests
         public UserRole? Role => null;
     }
 
+    internal static IDisputeFilingService Filing() => new StubFiling(201);
+
+    internal static readonly IDisputeEvidenceService Evidence = new DisputeEvidenceService(new FakeFileStorage());
+
     private sealed class StubFiling(int status) : IDisputeFilingService
     {
         public (DisputeSide Side, int Caller)? LastCall { get; private set; }
@@ -159,14 +164,14 @@ public class DisputeEndpointTests
     {
         var customerService = new StubFiling(status);
         var customer = Assert.IsType<ObjectResult>(
-            await new CustomerDisputesController(customerService, new FakeUser(11)).File(new FileDisputeRequestDto(), default));
+            await new CustomerDisputesController(customerService, Evidence, new FakeUser(11)).File(new FileDisputeRequestDto(), default));
         Assert.Equal(status, customer.StatusCode);
         Assert.Equal(status == 201, SuccessOf(customer.Value));
         Assert.Equal((DisputeSide.Customer, 11), customerService.LastCall);
 
         var workerService = new StubFiling(status);
         var worker = Assert.IsType<ObjectResult>(
-            await new WorkerDisputesController(workerService, new FakeUser(22)).File(new FileDisputeRequestDto(), default));
+            await new WorkerDisputesController(workerService, Evidence, new FakeUser(22)).File(new FileDisputeRequestDto(), default));
         Assert.Equal(status, worker.StatusCode);
         Assert.Equal((DisputeSide.Worker, 22), workerService.LastCall);
     }
@@ -177,17 +182,17 @@ public class DisputeEndpointTests
     public async Task A_400_carries_the_errors_map_and_without_a_user_id_every_action_answers_401()
     {
         var bad = Assert.IsType<ObjectResult>(
-            await new CustomerDisputesController(new StubFiling(400), new FakeUser(11)).File(new FileDisputeRequestDto(), default));
+            await new CustomerDisputesController(new StubFiling(400), Evidence, new FakeUser(11)).File(new FileDisputeRequestDto(), default));
         Assert.Contains("errors", Assert.IsType<ApiResponse<object>>(bad.Value).Data!.GetType().GetProperties().Select(p => p.Name));
 
         foreach (var user in new[] { new FakeUser(null) })
         {
-            var customer = new CustomerDisputesController(new StubFiling(201), user);
+            var customer = new CustomerDisputesController(new StubFiling(201), Evidence, user);
             Assert.IsType<UnauthorizedObjectResult>(await customer.File(new FileDisputeRequestDto(), default));
             Assert.IsType<UnauthorizedObjectResult>(await customer.List(default));
             Assert.IsType<UnauthorizedObjectResult>(await customer.Get(1, default));
 
-            var worker = new WorkerDisputesController(new StubFiling(201), user);
+            var worker = new WorkerDisputesController(new StubFiling(201), Evidence, user);
             Assert.IsType<UnauthorizedObjectResult>(await worker.File(new FileDisputeRequestDto(), default));
             Assert.IsType<UnauthorizedObjectResult>(await worker.List(default));
             Assert.IsType<UnauthorizedObjectResult>(await worker.Get(1, default));
@@ -198,8 +203,8 @@ public class DisputeEndpointTests
     public async Task A_missing_body_is_a_400_before_the_service_is_called()
     {
         var service = new StubFiling(201);
-        Assert.IsType<BadRequestObjectResult>(await new CustomerDisputesController(service, new FakeUser(11)).File(null!, default));
-        Assert.IsType<BadRequestObjectResult>(await new WorkerDisputesController(service, new FakeUser(22)).File(null!, default));
+        Assert.IsType<BadRequestObjectResult>(await new CustomerDisputesController(service, Evidence, new FakeUser(11)).File(null!, default));
+        Assert.IsType<BadRequestObjectResult>(await new WorkerDisputesController(service, Evidence, new FakeUser(22)).File(null!, default));
         Assert.Null(service.LastCall);
     }
 

@@ -4,9 +4,11 @@
 # Reports/PRs must cite this log. No log -> the claim does not count.
 #
 # Usage: sh harness/verify.sh L1|L2|L3
-#   L1  format + lint            (fast; whole tree)
-#   L2  L1 + compile/type-check
+#   L1  format + lint            (fast; whole tree; Backend, Frontend, Mobile)
+#   L2  L1 + compile/type-check  (Mobile: flutter build web)
 #   L3  L2 + tests + architecture rules + secret scan + frontend build (CI)
+# Mobile (Flutter) is mandatory everywhere (owner decision 2026-10-13, MOB-BASE-05): without
+# `flutter` on PATH every level fails at the 'mobile toolchain' step.
 
 LEVEL=${1:-L1}
 ROOT=$(git rev-parse --show-toplevel) || exit 1
@@ -34,17 +36,24 @@ step() { # $1=name $2=dir $3...=command
 step "agent config"   .       sh harness/check-agent-config.sh
 step "backend format" Backend dotnet format CommonService.sln whitespace --verify-no-changes
 step "frontend lint"  Frontend npx --no-install oxlint
+step "mobile toolchain" Mobile sh -c 'command -v flutter >/dev/null 2>&1 || { echo "error: flutter not found on PATH. Install Flutter stable (Dart >= 3.13.3, Mobile/pubspec.yaml) and put its bin/ on PATH."; exit 1; }; flutter --version'
+step "mobile pub get"   Mobile flutter pub get
+step "mobile format"    Mobile dart format --output=none --set-exit-if-changed lib test
+step "mobile analyze"   Mobile flutter analyze --no-fatal-infos
 
 # ---- L2 -------------------------------------------------------------------
 if [ "$LEVEL" = "L2" ] || [ "$LEVEL" = "L3" ]; then
   step "backend build"   Backend dotnet build CommonService.sln --nologo -v q
   step "frontend tsc"    Frontend npx --no-install tsc -b
+  # web: builds on any host and on the CI runner without an Android/iOS toolchain
+  step "mobile build"    Mobile flutter build web
 fi
 
 # ---- L3 -------------------------------------------------------------------
 if [ "$LEVEL" = "L3" ]; then
   step "backend test"    Backend dotnet test CommonService.sln --no-build --nologo -v q
   step "frontend build"  Frontend npm run build
+  step "mobile test"     Mobile flutter test
 
   # Architecture rules: dependencies point inward
   echo "" >> "$LOG"; echo "## STEP: architecture rules" >> "$LOG"

@@ -31,27 +31,30 @@ void main() {
       expect(map['workStatus'], 'ACTIVE');
     });
 
-    test('maps workStatus values to user-friendly display labels and colors', () {
-      const busy = FavoriteWorker(
-        workerId: 1,
-        fullName: 'A',
-        ratingAvg: 4.8,
-        completedJobs: 10,
-        workStatus: 'BUSY',
-      );
-      expect(busy.statusDisplayName, 'Đang trong ca làm');
-      expect(busy.statusColor, NordicColors.accentAmber);
+    test(
+      'maps workStatus values to user-friendly display labels and colors',
+      () {
+        const busy = FavoriteWorker(
+          workerId: 1,
+          fullName: 'A',
+          ratingAvg: 4.8,
+          completedJobs: 10,
+          workStatus: 'BUSY',
+        );
+        expect(busy.statusDisplayName, 'Đang trong ca làm');
+        expect(busy.statusColor, NordicColors.accentAmber);
 
-      const offline = FavoriteWorker(
-        workerId: 2,
-        fullName: 'B',
-        ratingAvg: 4.7,
-        completedJobs: 5,
-        workStatus: 'OFFLINE',
-      );
-      expect(offline.statusDisplayName, 'Nghỉ ca');
-      expect(offline.statusColor, NordicColors.textSecondary);
-    });
+        const offline = FavoriteWorker(
+          workerId: 2,
+          fullName: 'B',
+          ratingAvg: 4.7,
+          completedJobs: 5,
+          workStatus: 'OFFLINE',
+        );
+        expect(offline.statusDisplayName, 'Nghỉ ca');
+        expect(offline.statusColor, NordicColors.textSecondary);
+      },
+    );
 
     test('copyWith updates specified fields cleanly', () {
       const worker = FavoriteWorker(
@@ -62,10 +65,7 @@ void main() {
         workStatus: 'OFFLINE',
       );
 
-      final updated = worker.copyWith(
-        fullName: 'Mới',
-        workStatus: 'ACTIVE',
-      );
+      final updated = worker.copyWith(fullName: 'Mới', workStatus: 'ACTIVE');
 
       expect(updated.fullName, 'Mới');
       expect(updated.workStatus, 'ACTIVE');

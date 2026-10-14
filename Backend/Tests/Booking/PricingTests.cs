@@ -112,5 +112,11 @@ public sealed class PricingTests
 
         public Task<PriceRule?> GetActiveAsync(ServiceTier serviceTier, string areaBracket, CancellationToken cancellationToken = default) =>
             Task.FromResult(_rules.FirstOrDefault(r => r.ServiceTier == serviceTier && r.AreaBracket == areaBracket && r.IsActive));
+
+        public Task<IReadOnlyList<PriceRule>> ListAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PriceRule>>(_rules);
+
+        public Task<PriceRule?> GetForUpdateAsync(int ruleId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_rules.FirstOrDefault(r => r.RuleId == ruleId));
     }
 }

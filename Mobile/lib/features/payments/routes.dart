@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+
 import '../../app/feature_module.dart';
 import 'screens/payment_screen.dart';
 
@@ -17,7 +18,7 @@ class PaymentsFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        PaymentRoutes.payment: (context) => const PaymentScreen(),
-        PaymentRoutes.momo: (context) => const PaymentScreen(),
-      };
+    PaymentRoutes.payment: (context) => const PaymentScreen(),
+    PaymentRoutes.momo: (context) => const PaymentScreen(),
+  };
 }
