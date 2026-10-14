@@ -26,6 +26,9 @@ public partial class PartnerSubscription
     /// <summary>partner_subscription.auto_renew BIT</summary>
     public bool AutoRenew { get; set; }
 
+    /// <summary>partner_subscription.renewal_reminder_days TINYINT NULL: the last expiry reminder threshold sent (7 or 1), SC-16.</summary>
+    public byte? RenewalReminderDays { get; set; }
+
     /// <summary>partner_subscription.created_at DATETIME2</summary>
     public DateTime CreatedAt { get; set; }
 }

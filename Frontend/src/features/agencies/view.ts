@@ -105,6 +105,23 @@ export function subscriptionStatusText(state: SubscriptionState): string {
   return state.inGrace ? `Gói Pro đã hết hạn ngày ${end}, còn trong thời gian gia hạn 7 ngày` : `Gói Pro đến hết ngày ${end}`
 }
 
+/** Days before the end date from which the page warns that the package must be bought again (decisions D16: 7 and 1 day). */
+export const EXPIRY_WARNING_DAYS = 7
+
+/**
+ * A warning while a Pro package is within a week of its end date (a package is bought by hand and never renews itself), otherwise null.
+ * <paramref name="today"/> is a local date `yyyy-MM-dd`.
+ */
+export function expiryWarning(state: SubscriptionState, today: string): string | null {
+  const sub = state.subscription
+  if (!sub || state.inGrace || sub.subStatus !== 'ACTIVE') return null
+  const days = Math.round((Date.parse(`${sub.endDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000)
+  if (days < 0 || days > EXPIRY_WARNING_DAYS) return null
+  const end = sub.endDate.split('-').reverse().join('/')
+  const left = days === 0 ? 'hết hạn hôm nay' : days === 1 ? 'còn 1 ngày' : `còn ${days} ngày`
+  return `Gói Pro ${left} (đến hết ngày ${end}). Gói không tự gia hạn: hãy mua lại để nối tiếp, nếu không thợ vượt hạn mức Free sẽ bị khoá sau 7 ngày gia hạn.`
+}
+
 // ---- WEB-M5-02 import
 
 export interface ErrorGroup {

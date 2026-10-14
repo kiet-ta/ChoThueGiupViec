@@ -221,6 +221,80 @@ public class M5SqlServerTests
     }
 
     [Fact]
+    public async Task Capacity_does_not_offer_the_slot_of_a_locked_worker()
+    {
+        if (!Available()) return;
+        var w = await SeedAsync(2, day: new DateOnly(2026, 10, 17));
+        await using (var db = NewDb())
+        {
+            var worker = await db.Workers.SingleAsync(x => x.WorkerId == w.WorkerIds[0]);
+            worker.TransitionTo(WorkStatus.Locked);
+            await db.SaveChangesAsync();
+        }
+
+        await using var read = NewDb();
+        var open = await new EfCapacityRepository(read, Clock(), Rules().Options).GetOpenSlotsAsync(new DateOnly(2026, 10, 17), Morning, 50m);
+
+        var ours = open.Where(o => o.AgencyId == w.AgencyId).Select(o => o.SlotId).ToList();
+        Assert.Equal([w.SlotIds[1]], ours);
+    }
+
+    [Fact]
+    public async Task Expiry_reminder_query_lists_the_ending_subscription_once_and_skips_a_renewed_one()
+    {
+        if (!Available()) return;
+        var ending = await SeedAsync(1);
+        var renewed = await SeedAsync(1);
+        var today = new DateOnly(2026, 10, 14);
+        await using (var db = NewDb())
+        {
+            var package = new SubscriptionPackage
+            {
+                PackageCode = Unique("R", 12),
+                PackageName = "Pro test",
+                Tier = "PRO",
+                BillingCycle = "MONTHLY",
+                Price = 1,
+                WorkerQuota = 50,
+                CommissionRate = 0m,
+                HasRosterDashboard = true,
+                HasAnalytics = true,
+                PriorityDispatch = true,
+                IsActive = true,
+            };
+            db.SubscriptionPackages.Add(package);
+            await db.SaveChangesAsync();
+            PartnerSubscription Sub(int agencyId, DateOnly start, DateOnly end) => new()
+            {
+                AgencyId = agencyId,
+                PackageId = package.PackageId,
+                StartDate = start,
+                EndDate = end,
+                SubStatus = "ACTIVE",
+                CreatedAt = Now,
+            };
+            db.PartnerSubscriptions.Add(Sub(ending.AgencyId, today.AddDays(-20), today.AddDays(7)));
+            db.PartnerSubscriptions.Add(Sub(renewed.AgencyId, today.AddDays(-20), today.AddDays(7)));
+            db.PartnerSubscriptions.Add(Sub(renewed.AgencyId, today.AddDays(8), today.AddDays(38)));
+            await db.SaveChangesAsync();
+        }
+
+        await using var read = NewDb();
+        var repo = new EfSubscriptionReminderRepository(read);
+        var list = await repo.ListEndingAsync(today, today.AddDays(7));
+
+        var mine = Assert.Single(list, x => x.AgencyId == ending.AgencyId);
+        Assert.Null(mine.ReminderDays);
+        Assert.DoesNotContain(list, x => x.AgencyId == renewed.AgencyId);
+
+        Assert.True(await repo.MarkRemindedAsync(mine.SubscriptionId, 7));
+        await read.SaveChangesAsync();
+        await using var after = NewDb();
+        var again = await new EfSubscriptionReminderRepository(after).ListEndingAsync(today, today.AddDays(7));
+        Assert.Equal(7, Assert.Single(again, x => x.AgencyId == ending.AgencyId).ReminderDays);
+    }
+
+    [Fact]
     public async Task Capacity_ignores_a_suspended_agency_a_low_sla_agency_and_uses_the_pro_commission()
     {
         if (!Available()) return;

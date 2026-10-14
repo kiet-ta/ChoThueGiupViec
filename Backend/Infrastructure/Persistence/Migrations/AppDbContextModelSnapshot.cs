@@ -1410,6 +1410,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("package_id");
 
+                    b.Property<byte?>("RenewalReminderDays")
+                        .HasColumnType("TINYINT")
+                        .HasColumnName("renewal_reminder_days");
+
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("DATE")
                         .HasColumnName("start_date");

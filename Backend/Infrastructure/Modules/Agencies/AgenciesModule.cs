@@ -19,6 +19,8 @@ public sealed class AgenciesModule : IModule
         services.AddScoped<IAgencyRepository, EfAgencyRepository>();
         services.AddScoped<ISubscriptionRepository, EfSubscriptionRepository>();
         services.AddScoped<SubscriptionService>();
+        services.AddScoped<ISubscriptionReminderRepository, EfSubscriptionReminderRepository>();
+        services.AddScoped<SubscriptionReminderService>();
         services.AddScoped<IWorkerQuotaGuard>(sp => sp.GetRequiredService<SubscriptionService>());
         services.AddScoped<IWorkerImportRepository, EfWorkerImportRepository>();
         services.AddScoped<WorkerImportService>();

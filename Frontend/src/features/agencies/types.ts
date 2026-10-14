@@ -29,7 +29,6 @@ export interface Subscription {
   startDate: string
   endDate: string
   subStatus: string
-  autoRenew: boolean
 }
 
 export interface SubscriptionState {

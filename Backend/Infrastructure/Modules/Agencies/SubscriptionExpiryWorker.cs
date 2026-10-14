@@ -6,8 +6,9 @@ using Microsoft.Extensions.Logging;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>
-/// Runs <see cref="WorkerQuotaEnforcer"/> every <see cref="SweepInterval"/>: after a subscription's grace days the workers above the FREE
-/// quota are locked (decisions Q08). A failing run is logged and never stops the loop.
+/// Every <see cref="SweepInterval"/> runs <see cref="WorkerQuotaEnforcer"/> (after a subscription's grace days the workers above the FREE
+/// quota are locked, decisions Q08) and <see cref="SubscriptionReminderService"/> (expiry reminders, D16). A failing run is logged and
+/// never stops the loop.
 /// </summary>
 public sealed class SubscriptionExpiryWorker(IServiceScopeFactory scopeFactory, ILogger<SubscriptionExpiryWorker> logger) : BackgroundService
 {
@@ -29,6 +30,13 @@ public sealed class SubscriptionExpiryWorker(IServiceScopeFactory scopeFactory, 
                     if (locked > 0)
                     {
                         logger.LogInformation("Agencies: {Count} worker(s) above the quota were locked.", locked);
+                    }
+
+                    var reminders = scope.ServiceProvider.GetRequiredService<SubscriptionReminderService>();
+                    var reminded = await reminders.RemindAsync(stoppingToken);
+                    if (reminded > 0)
+                    {
+                        logger.LogInformation("Agencies: {Count} subscription expiry reminder(s) sent.", reminded);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)

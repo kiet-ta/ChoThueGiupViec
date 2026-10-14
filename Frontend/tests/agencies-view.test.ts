@@ -22,6 +22,7 @@ import {
   rosterGrid,
   secondsLeft,
   subscriptionStatusText,
+  expiryWarning,
   txnRow,
   weekDays,
 } from '../src/features/agencies/view.ts'
@@ -49,7 +50,7 @@ describe('subscription texts', () => {
   it('describes the running subscription and its grace days', () => {
     const base = { tier: 'PRO', package: pkg, workerQuota: 50, workerCount: 1, hasRosterDashboard: true, hasAnalytics: true, priorityDispatch: true } as SubscriptionState
     assert.equal(subscriptionStatusText({ ...base, subscription: null, inGrace: false }), 'Đang dùng gói Free')
-    const sub = { subscriptionId: 1, agencyId: 7, packageId: 2, startDate: '2026-10-01', endDate: '2026-10-31', subStatus: 'ACTIVE', autoRenew: false }
+    const sub = { subscriptionId: 1, agencyId: 7, packageId: 2, startDate: '2026-10-01', endDate: '2026-10-31', subStatus: 'ACTIVE' }
     assert.equal(subscriptionStatusText({ ...base, subscription: sub, inGrace: false }), 'Gói Pro đến hết ngày 31/10/2026')
     assert.match(subscriptionStatusText({ ...base, subscription: sub, inGrace: true }), /gia hạn 7 ngày/)
   })
@@ -193,5 +194,32 @@ describe('api client file upload and download', () => {
     const file = createApiClient({ baseUrl: '/api', fetch: async () => new Response('BIN', { status: 200 }) })
     const blob = await file.download('/agencies/workers/import/template')
     assert.equal(await blob.text(), 'BIN')
+  })
+})
+
+describe('expiry warning', () => {
+  const base = { tier: 'PRO', package: pkg, workerQuota: 50, workerCount: 1, hasRosterDashboard: true, hasAnalytics: true, priorityDispatch: true } as SubscriptionState
+  const pro = (endDate: string, extra: Partial<SubscriptionState> = {}): SubscriptionState => ({
+    ...base,
+    tier: 'PRO',
+    subscription: { subscriptionId: 1, agencyId: 1, packageId: 2, startDate: '2026-09-15', endDate, subStatus: 'ACTIVE' },
+    ...extra,
+  })
+
+  it('warns from 7 days before the end date, with the days left', () => {
+    assert.equal(expiryWarning(pro('2026-10-31'), '2026-10-14'), null)
+    assert.match(expiryWarning(pro('2026-10-21'), '2026-10-14') ?? '', /còn 7 ngày/)
+    assert.match(expiryWarning(pro('2026-10-15'), '2026-10-14') ?? '', /còn 1 ngày/)
+    assert.match(expiryWarning(pro('2026-10-14'), '2026-10-14') ?? '', /hết hạn hôm nay/)
+  })
+
+  it('says nothing for Free, in the grace days or after the end', () => {
+    assert.equal(expiryWarning({ ...base, subscription: null, inGrace: false }, '2026-10-14'), null)
+    assert.equal(expiryWarning(pro('2026-10-10', { inGrace: true }), '2026-10-14'), null)
+    assert.equal(expiryWarning(pro('2026-10-10'), '2026-10-14'), null)
+  })
+
+  it('tells the agency the package does not renew by itself', () => {
+    assert.match(expiryWarning(pro('2026-10-16'), '2026-10-14') ?? '', /không tự gia hạn/)
   })
 })
