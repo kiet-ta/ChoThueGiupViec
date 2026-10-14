@@ -31,5 +31,5 @@
 - [ ] **WEB-M5-05** Đơn của công ty + báo cáo hiệu suất.
 - [ ] **WEB-M5-06** Cửa sổ 30 phút đổi thợ (đếm ngược).
 - [ ] **WEB-M5-07** Admin: quản trị danh mục Skill.
-- [ ] **WEB-M5-08** Admin: sửa gói thuê bao (giá, quota, hoa hồng) bắt buộc nhập lý do + xem lịch sử `ADMIN_AUDIT_LOG` (G-5).
+- [x] **WEB-M5-08** Admin: sửa gói thuê bao (giá, quota, hoa hồng) bắt buộc nhập lý do + xem lịch sử `ADMIN_AUDIT_LOG` (G-5). — evidence: ticket #327 (`Frontend/tests/agency-admin-view.test.ts`; `npm run build` and `npm test` pass; thêm trang xử lý khiếu nại ký quỹ).
 - [ ] **MOB-M5-01** Thợ Agency: xem lịch ca được phân (Worker app, dùng chung nền M3).
