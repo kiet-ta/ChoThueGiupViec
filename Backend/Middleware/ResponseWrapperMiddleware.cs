@@ -42,6 +42,15 @@ public class ResponseWrapperMiddleware
         {
             await _next(context);
 
+            // A file (xlsx, pdf, an image...) is not a JSON payload: send its bytes unchanged.
+            if (IsBinaryOrAttachment(context.Response))
+            {
+                memoryStream.Seek(0, SeekOrigin.Begin);
+                context.Response.Body = originalBodyStream;
+                await memoryStream.CopyToAsync(originalBodyStream);
+                return;
+            }
+
             memoryStream.Seek(0, SeekOrigin.Begin);
             var responseBody = await new StreamReader(memoryStream).ReadToEndAsync();
 
@@ -121,6 +130,24 @@ public class ResponseWrapperMiddleware
         {
             context.Response.Body = originalBodyStream;
         }
+    }
+
+    /// <summary>True for a download: a <c>Content-Disposition</c> header or a content type that is neither JSON nor text.</summary>
+    private static bool IsBinaryOrAttachment(HttpResponse response)
+    {
+        if (response.Headers.ContainsKey("Content-Disposition"))
+        {
+            return true;
+        }
+
+        var contentType = response.ContentType;
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            return false;
+        }
+
+        return !(contentType.Contains("json", StringComparison.OrdinalIgnoreCase)
+                 || contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool ShouldBypass(PathString path)
