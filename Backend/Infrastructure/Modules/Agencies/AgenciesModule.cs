@@ -22,6 +22,10 @@ public sealed class AgenciesModule : IModule
         services.AddScoped<IWorkerQuotaGuard>(sp => sp.GetRequiredService<SubscriptionService>());
         services.AddScoped<IWorkerImportRepository, EfWorkerImportRepository>();
         services.AddScoped<WorkerImportService>();
+        services.AddScoped<IEscrowRepository, EfEscrowRepository>();
+        services.AddScoped<EscrowService>();
+        services.AddScoped<ISlaPenaltyService>(sp => sp.GetRequiredService<EscrowService>());
+        services.AddScoped<IPaymentPurposeSettlement, EscrowDepositSettlement>();
         services.AddScoped<IRosterRepository, EfRosterRepository>();
         services.AddScoped<ShiftRosterService>();
         services.AddScoped<WorkerQuotaEnforcer>();

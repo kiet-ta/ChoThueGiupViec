@@ -578,6 +578,69 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.ToTable("DISPUTE_TICKET", (string)null);
                 });
 
+            modelBuilder.Entity("CommonService.Domain.Entities.EscrowAppeal", b =>
+                {
+                    b.Property<int>("AppealId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("appeal_id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AppealId"));
+
+                    b.Property<int>("AgencyId")
+                        .HasColumnType("int")
+                        .HasColumnName("agency_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("decided_at");
+
+                    b.Property<int?>("DecidedByAdminId")
+                        .HasColumnType("int")
+                        .HasColumnName("decided_by_admin_id");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(255)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<long>("EscrowTxnId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("escrow_txn_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("status");
+
+                    b.HasKey("AppealId");
+
+                    b.HasIndex("AgencyId");
+
+                    b.HasIndex("DecidedByAdminId");
+
+                    b.HasIndex("EscrowTxnId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.ToTable("ESCROW_APPEAL", (string)null);
+                });
+
             modelBuilder.Entity("CommonService.Domain.Entities.EscrowTransaction", b =>
                 {
                     b.Property<long>("EscrowTxnId")
@@ -1325,6 +1388,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("PaymentId"));
 
+                    b.Property<int?>("AgencyId")
+                        .HasColumnType("int")
+                        .HasColumnName("agency_id");
+
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("DECIMAL(18,2)")
@@ -1367,9 +1434,9 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Purpose")
                         .IsRequired()
-                        .HasMaxLength(12)
+                        .HasMaxLength(20)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(12)")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("purpose");
 
                     b.Property<string>("QrPayload")
@@ -1408,6 +1475,8 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     b.HasKey("PaymentId");
 
+                    b.HasIndex("AgencyId");
+
                     b.HasIndex("ExtensionId");
 
                     b.HasIndex("GatewayTxnRef")
@@ -1419,7 +1488,7 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     b.ToTable("PAYMENT_TRANSACTION", null, t =>
                         {
-                            t.HasCheckConstraint("CK_PAYMENT_TRANSACTION_purpose", "([purpose] = 'ORDER' AND [order_id] IS NOT NULL AND [extension_id] IS NULL AND [subscription_id] IS NULL) OR ([purpose] = 'EXTENSION' AND [order_id] IS NULL AND [extension_id] IS NOT NULL AND [subscription_id] IS NULL) OR ([purpose] = 'SUBSCRIPTION' AND [order_id] IS NULL AND [extension_id] IS NULL AND [subscription_id] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_PAYMENT_TRANSACTION_purpose", "([purpose] = 'ORDER' AND [order_id] IS NOT NULL AND [extension_id] IS NULL AND [subscription_id] IS NULL AND [agency_id] IS NULL) OR ([purpose] = 'EXTENSION' AND [order_id] IS NULL AND [extension_id] IS NOT NULL AND [subscription_id] IS NULL AND [agency_id] IS NULL) OR ([purpose] = 'SUBSCRIPTION' AND [order_id] IS NULL AND [extension_id] IS NULL AND [subscription_id] IS NOT NULL AND [agency_id] IS NULL) OR ([purpose] = 'ESCROW_DEPOSIT' AND [order_id] IS NULL AND [extension_id] IS NULL AND [subscription_id] IS NULL AND [agency_id] IS NOT NULL)");
                         });
                 });
 
@@ -2081,6 +2150,26 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("CommonService.Domain.Entities.EscrowAppeal", b =>
+                {
+                    b.HasOne("CommonService.Domain.Entities.PartnerAgency", null)
+                        .WithMany()
+                        .HasForeignKey("AgencyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("CommonService.Domain.Entities.AdminAccount", null)
+                        .WithMany()
+                        .HasForeignKey("DecidedByAdminId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("CommonService.Domain.Entities.EscrowTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("EscrowTxnId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("CommonService.Domain.Entities.EscrowTransaction", b =>
                 {
                     b.HasOne("CommonService.Domain.Entities.PartnerAgency", null)
@@ -2227,6 +2316,11 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("CommonService.Domain.Entities.PaymentTransaction", b =>
                 {
+                    b.HasOne("CommonService.Domain.Entities.PartnerAgency", null)
+                        .WithMany()
+                        .HasForeignKey("AgencyId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("CommonService.Domain.Entities.JobOrderExtension", null)
                         .WithMany()
                         .HasForeignKey("ExtensionId")

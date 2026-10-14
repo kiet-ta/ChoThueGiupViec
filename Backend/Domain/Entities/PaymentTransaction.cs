@@ -20,6 +20,9 @@ public partial class PaymentTransaction
     /// <summary>payment_transaction.subscription_id INT NULL (FK)</summary>
     public int? SubscriptionId { get; set; }
 
+    /// <summary>payment_transaction.agency_id INT NULL (FK): set for an ESCROW_DEPOSIT payment only (SC-12).</summary>
+    public int? AgencyId { get; set; }
+
     /// <summary>payment_transaction.purpose VARCHAR(12)</summary>
     public PaymentPurpose Purpose { get; set; }
 
