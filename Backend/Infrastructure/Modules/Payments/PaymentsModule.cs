@@ -23,6 +23,8 @@ public class PaymentsModule : IModule
         services.AddScoped<RefundService>();
         services.AddScoped<IRefundService>(sp => sp.GetRequiredService<RefundService>());
         services.AddScoped<IExtensionRefundService>(sp => sp.GetRequiredService<RefundService>());
+        services.AddScoped<IDevPaymentQuery, EfDevPaymentQuery>();
+        services.AddScoped<DevPaymentService>();
         services.AddHostedService<PaymentReconciliationWorker>();
         AddMoMoGateway(services, configuration);
     }
