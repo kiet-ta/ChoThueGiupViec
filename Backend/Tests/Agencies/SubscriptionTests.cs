@@ -134,7 +134,7 @@ public class SubscriptionTests
 
     // ---- the service
 
-    private sealed class InMemorySubscriptions : ISubscriptionRepository
+    internal sealed class InMemorySubscriptions : ISubscriptionRepository
     {
         public List<SubscriptionPackage> Packages { get; } = [Free(), ProMonthly(), ProQuarterly()];
         public List<PartnerSubscription> Subscriptions { get; } = [];
@@ -204,7 +204,7 @@ public class SubscriptionTests
             Task.FromResult(Payments.LastOrDefault(p => p.SubscriptionId == subscriptionId && p.TxnStatus == PaymentStatus.Pending));
     }
 
-    private sealed class InMemoryPayments : PaymentRepositoryStub
+    internal sealed class InMemoryPayments : PaymentRepositoryStub
     {
         private readonly InMemorySubscriptions _subs;
         private long _nextId = 900;
