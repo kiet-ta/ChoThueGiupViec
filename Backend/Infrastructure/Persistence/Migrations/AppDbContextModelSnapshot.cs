@@ -155,6 +155,54 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.ToTable("ADMIN_AUDIT_LOG", (string)null);
                 });
 
+            modelBuilder.Entity("CommonService.Domain.Entities.AgencyCapacityHold", b =>
+                {
+                    b.Property<long>("HoldId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("hold_id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("HoldId"));
+
+                    b.Property<int>("AgencyId")
+                        .HasColumnType("int")
+                        .HasColumnName("agency_id");
+
+                    b.Property<decimal>("CommissionRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("DECIMAL(5,3)")
+                        .HasColumnName("commission_rate");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reservation_id");
+
+                    b.Property<int>("SlotId")
+                        .HasColumnType("int")
+                        .HasColumnName("slot_id");
+
+                    b.HasKey("HoldId");
+
+                    b.HasIndex("AgencyId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ReservationId");
+
+                    b.HasIndex("SlotId")
+                        .IsUnique();
+
+                    b.ToTable("AGENCY_CAPACITY_HOLD", (string)null);
+                });
+
             modelBuilder.Entity("CommonService.Domain.Entities.BookingSlot", b =>
                 {
                     b.Property<int>("SlotId")
@@ -1964,6 +2012,27 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("AdminId")
                         .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("CommonService.Domain.Entities.AgencyCapacityHold", b =>
+                {
+                    b.HasOne("CommonService.Domain.Entities.PartnerAgency", null)
+                        .WithMany()
+                        .HasForeignKey("AgencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CommonService.Domain.Entities.JobOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CommonService.Domain.Entities.BookingSlot", null)
+                        .WithMany()
+                        .HasForeignKey("SlotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CommonService.Domain.Entities.BookingSlot", b =>

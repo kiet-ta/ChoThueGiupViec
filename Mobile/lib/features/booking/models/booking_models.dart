@@ -18,6 +18,9 @@ class OrderStatus {
   static const completed = 'COMPLETED';
   static const cancelled = 'CANCELLED';
 
+  /// BR-02 fallback: one worker found, the second seat has nobody; waits for the customer (dispatch.md 3.2).
+  static const awaitingFallback = 'AWAITING_FALLBACK';
+
   OrderStatus._();
 }
 
