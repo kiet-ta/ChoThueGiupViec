@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+
 import '../../app/feature_module.dart';
 import 'screens/booking_screen.dart';
 import 'screens/order_detail_screen.dart';
@@ -22,8 +23,8 @@ class BookingFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        BookingRoutes.booking: (context) => const BookingScreen(),
-        BookingRoutes.bookingDetail: (context) => const OrderDetailScreen(),
-        BookingRoutes.orders: (context) => const OrderHistoryScreen(),
-      };
+    BookingRoutes.booking: (context) => const BookingScreen(),
+    BookingRoutes.bookingDetail: (context) => const OrderDetailScreen(),
+    BookingRoutes.orders: (context) => const OrderHistoryScreen(),
+  };
 }

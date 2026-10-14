@@ -25,19 +25,35 @@ void main() {
   });
 
   group('reasonMessage', () {
-    test('explains each closed reason and has none for OPEN or an unknown value', () {
-      expect(reasonMessage(RatingWindow.notCompleted), contains('chưa hoàn thành'));
-      expect(reasonMessage(RatingWindow.windowClosed), contains('48 giờ'));
-      expect(reasonMessage(RatingWindow.alreadyRated), contains('đã đánh giá'));
-      expect(reasonMessage(RatingWindow.open), isNull);
-      expect(reasonMessage('SOMETHING'), isNull);
-    });
+    test(
+      'explains each closed reason and has none for OPEN or an unknown value',
+      () {
+        expect(
+          reasonMessage(RatingWindow.notCompleted),
+          contains('chưa hoàn thành'),
+        );
+        expect(reasonMessage(RatingWindow.windowClosed), contains('48 giờ'));
+        expect(
+          reasonMessage(RatingWindow.alreadyRated),
+          contains('đã đánh giá'),
+        );
+        expect(reasonMessage(RatingWindow.open), isNull);
+        expect(reasonMessage('SOMETHING'), isNull);
+      },
+    );
   });
 
   group('role criteria (decision Q14)', () {
     test('the customer rates three fixed criteria and the worker two', () {
-      expect(RatingRole.customer.criteria.map((c) => c.key), ['punctuality', 'cleaningQuality', 'attitude']);
-      expect(RatingRole.worker.criteria.map((c) => c.key), ['cooperation', 'workingConditions']);
+      expect(RatingRole.customer.criteria.map((c) => c.key), [
+        'punctuality',
+        'cleaningQuality',
+        'attitude',
+      ]);
+      expect(RatingRole.worker.criteria.map((c) => c.key), [
+        'cooperation',
+        'workingConditions',
+      ]);
     });
 
     test('each role calls its own endpoint prefix and only the worker rating is internal', () {
@@ -53,11 +69,20 @@ void main() {
 
     test('accepts a complete customer rating and a complete worker rating', () {
       expect(validateRating(RatingRole.customer, 5, full, '').isEmpty, isTrue);
-      expect(validateRating(RatingRole.worker, 1, {'cooperation': 1, 'workingConditions': 5}, 'ok').isEmpty, isTrue);
+      expect(
+        validateRating(RatingRole.worker, 1, {
+          'cooperation': 1,
+          'workingConditions': 5,
+        }, 'ok').isEmpty,
+        isTrue,
+      );
     });
 
     test('needs the overall stars between 1 and 5', () {
-      expect(validateRating(RatingRole.customer, null, full, '').stars, isNotNull);
+      expect(
+        validateRating(RatingRole.customer, null, full, '').stars,
+        isNotNull,
+      );
       expect(validateRating(RatingRole.customer, 0, full, '').stars, isNotNull);
       expect(validateRating(RatingRole.customer, 6, full, '').stars, isNotNull);
       expect(validateRating(RatingRole.customer, 1, full, '').stars, isNull);
@@ -65,11 +90,23 @@ void main() {
     });
 
     test('needs every fixed criterion, each from 1 to 5', () {
-      final errors = validateRating(RatingRole.customer, 5, {'punctuality': 5, 'attitude': 9}, '');
+      final errors = validateRating(RatingRole.customer, 5, {
+        'punctuality': 5,
+        'attitude': 9,
+      }, '');
 
-      expect(errors.criteria.keys, containsAll(['cleaningQuality', 'attitude']));
+      expect(
+        errors.criteria.keys,
+        containsAll(['cleaningQuality', 'attitude']),
+      );
       expect(errors.criteria.containsKey('punctuality'), isFalse);
-      expect(validateRating(RatingRole.customer, 5, {...full, 'punctuality': 0}, '').criteria.keys, ['punctuality']);
+      expect(
+        validateRating(RatingRole.customer, 5, {
+          ...full,
+          'punctuality': 0,
+        }, '').criteria.keys,
+        ['punctuality'],
+      );
     });
 
     test('a worker needs the worker criteria, not the customer ones', () {
@@ -79,21 +116,37 @@ void main() {
     });
 
     test('limits the comment to 500 characters counted after trimming', () {
-      expect(validateRating(RatingRole.customer, 5, full, 'x' * 500).comment, isNull);
-      expect(validateRating(RatingRole.customer, 5, full, '  ${'x' * 500}  ').comment, isNull);
-      expect(validateRating(RatingRole.customer, 5, full, 'x' * 501).comment, contains('501'));
-      expect(validateRating(RatingRole.customer, 5, full, '   ').comment, isNull);
+      expect(
+        validateRating(RatingRole.customer, 5, full, 'x' * 500).comment,
+        isNull,
+      );
+      expect(
+        validateRating(
+          RatingRole.customer,
+          5,
+          full,
+          '  ${'x' * 500}  ',
+        ).comment,
+        isNull,
+      );
+      expect(
+        validateRating(RatingRole.customer, 5, full, 'x' * 501).comment,
+        contains('501'),
+      );
+      expect(
+        validateRating(RatingRole.customer, 5, full, '   ').comment,
+        isNull,
+      );
     });
   });
 
   group('buildSubmission', () {
     test('sends only the fixed keys of the role and a trimmed comment', () {
-      final body = buildSubmission(
-        RatingRole.worker,
-        4,
-        {'cooperation': 5, 'workingConditions': 3, 'punctuality': 1},
-        '  Gia chủ thân thiện  ',
-      ).toJson();
+      final body = buildSubmission(RatingRole.worker, 4, {
+        'cooperation': 5,
+        'workingConditions': 3,
+        'punctuality': 1,
+      }, '  Gia chủ thân thiện  ').toJson();
 
       expect(body['stars'], 4);
       expect(body['criteria'], {'cooperation': 5, 'workingConditions': 3});
@@ -101,7 +154,11 @@ void main() {
     });
 
     test('sends null for a blank comment', () {
-      final body = buildSubmission(RatingRole.customer, 5, {'punctuality': 5, 'cleaningQuality': 5, 'attitude': 5}, '   ').toJson();
+      final body = buildSubmission(RatingRole.customer, 5, {
+        'punctuality': 5,
+        'cleaningQuality': 5,
+        'attitude': 5,
+      }, '   ').toJson();
 
       expect(body['comment'], isNull);
     });
@@ -116,24 +173,46 @@ void main() {
     });
 
     test('a 400 keeps the field messages and points at them', () {
-      final failure = ratingFailure(const ApiException(400, 'Validation failed', fieldErrors: {
-        'stars': ['Stars must be an integer between 1 and 5.'],
-        'criteria.attitude': ['This criterion is required.'],
-      }));
+      final failure = ratingFailure(
+        const ApiException(
+          400,
+          'Validation failed',
+          fieldErrors: {
+            'stars': ['Stars must be an integer between 1 and 5.'],
+            'criteria.attitude': ['This criterion is required.'],
+          },
+        ),
+      );
 
-      expect(failure.fields['stars'], 'Stars must be an integer between 1 and 5.');
-      expect(failure.fields['criteria.attitude'], 'This criterion is required.');
+      expect(
+        failure.fields['stars'],
+        'Stars must be an integer between 1 and 5.',
+      );
+      expect(
+        failure.fields['criteria.attitude'],
+        'This criterion is required.',
+      );
       expect(failure.message, contains('ô báo lỗi'));
       expect(failure.reloadWindow, isFalse);
     });
 
     test('a 400 without fields shows the server message', () {
-      expect(ratingFailure(const ApiException(400, 'Bad body')).message, 'Bad body');
+      expect(
+        ratingFailure(const ApiException(400, 'Bad body')).message,
+        'Bad body',
+      );
     });
 
     test('404, a network failure and any other status have their own text', () {
-      expect(ratingFailure(const ApiException(404, 'x')).message, contains('Không tìm thấy'));
-      expect(ratingFailure(const ApiException(0, 'Không kết nối được máy chủ.')).message, 'Không kết nối được máy chủ.');
+      expect(
+        ratingFailure(const ApiException(404, 'x')).message,
+        contains('Không tìm thấy'),
+      );
+      expect(
+        ratingFailure(const ApiException(0, 'Không kết nối được máy chủ.'))
+            .message,
+        'Không kết nối được máy chủ.',
+      );
       expect(ratingFailure(const ApiException(500, 'Boom')).message, 'Boom');
     });
   });
@@ -157,7 +236,14 @@ void main() {
     });
 
     test('tolerates nulls for a window that is not open', () {
-      final w = RatingWindow.fromJson({'assignmentId': 7, 'canRate': false, 'reason': 'NOT_COMPLETED', 'opensAt': null, 'closesAt': null, 'secondsRemaining': 0});
+      final w = RatingWindow.fromJson({
+        'assignmentId': 7,
+        'canRate': false,
+        'reason': 'NOT_COMPLETED',
+        'opensAt': null,
+        'closesAt': null,
+        'secondsRemaining': 0,
+      });
 
       expect(w.canRate, isFalse);
       expect(w.opensAt, isNull);

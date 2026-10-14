@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
 
     public DbSet<AdminAccount> Admins => Set<AdminAccount>();
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
+    public DbSet<AgencyCapacityHold> AgencyCapacityHolds => Set<AgencyCapacityHold>();
     public DbSet<BookingSlot> BookingSlots => Set<BookingSlot>();
     public DbSet<CheckInLog> CheckInLogs => Set<CheckInLog>();
     public DbSet<Customer> Customers => Set<Customer>();
@@ -43,7 +44,6 @@ public class AppDbContext : DbContext
     public DbSet<TwoWayRating> TwoWayRatings => Set<TwoWayRating>();
     public DbSet<Worker> Workers => Set<Worker>();
     public DbSet<WorkerSkill> WorkerSkills => Set<WorkerSkill>();
-    public DbSet<CapacityReservation> CapacityReservations => Set<CapacityReservation>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

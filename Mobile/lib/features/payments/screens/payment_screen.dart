@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -100,7 +101,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
     try {
       final extensionId = args.extensionId;
-      final payment = extensionId != null ? await _service.createExtensionQr(extensionId) : await _service.createOrderQr(args.orderId);
+      final payment = extensionId != null
+          ? await _service.createExtensionQr(extensionId)
+          : await _service.createOrderQr(args.orderId);
       if (!mounted) return;
       setState(() {
         _payment = payment;
@@ -128,7 +131,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (!mounted) return;
       final current = _payment;
       if (current == null || !shouldKeepPolling(current, _now())) _stopTimers();
-      setState(() {}); // the countdown, or the switch to "expired" when the deadline passes
+      setState(
+        () {},
+      ); // the countdown, or the switch to "expired" when the deadline passes
     });
     _pollTimer = Timer.periodic(widget.pollInterval, (_) => _poll());
   }
@@ -142,7 +147,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (!mounted) return;
       setState(() {
         // The pay URL is only returned when the QR is created; keep the one we have.
-        _payment = fresh.payUrl == null && payment.payUrl != null ? _withPayUrl(fresh, payment.payUrl) : fresh;
+        _payment = fresh.payUrl == null && payment.payUrl != null
+            ? _withPayUrl(fresh, payment.payUrl)
+            : fresh;
         _pollFailures = 0;
       });
       if (!shouldKeepPolling(fresh, _now())) _stopTimers();
@@ -155,20 +162,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   static Payment _withPayUrl(Payment p, String? payUrl) => Payment(
-        paymentId: p.paymentId,
-        purpose: p.purpose,
-        orderId: p.orderId,
-        extensionId: p.extensionId,
-        gateway: p.gateway,
-        amount: p.amount,
-        txnStatus: p.txnStatus,
-        qrPayload: p.qrPayload,
-        payUrl: payUrl,
-        expiresAt: p.expiresAt,
-        paidAt: p.paidAt,
-        createdAt: p.createdAt,
-        sandbox: p.sandbox,
-      );
+    paymentId: p.paymentId,
+    purpose: p.purpose,
+    orderId: p.orderId,
+    extensionId: p.extensionId,
+    gateway: p.gateway,
+    amount: p.amount,
+    txnStatus: p.txnStatus,
+    qrPayload: p.qrPayload,
+    payUrl: payUrl,
+    expiresAt: p.expiresAt,
+    paidAt: p.paidAt,
+    createdAt: p.createdAt,
+    sandbox: p.sandbox,
+  );
 
   void _done(Payment payment) {
     if (widget.onPaid != null) return widget.onPaid!(payment);
@@ -180,12 +187,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final args = _args;
     return Scaffold(
       backgroundColor: NordicColors.canvas,
-      appBar: AppBar(title: Text(args?.orderCode == null ? 'Thanh toán' : 'Thanh toán ${args!.orderCode}')),
+      appBar: AppBar(
+        title: Text(
+          args?.orderCode == null
+              ? 'Thanh toán'
+              : 'Thanh toán ${args!.orderCode}',
+        ),
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 16.0,
+            ),
             children: [
               const _SandboxBanner(),
               const SizedBox(height: 16.0),
@@ -201,12 +217,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (args == null) {
       return const [
         NordicCard(
-          child: Text('Màn hình này mở từ một đơn cần thanh toán. Hãy đặt đơn hoặc mở đơn đang chờ thanh toán.', style: NordicTypography.bodyRegular),
+          child: Text(
+            'Màn hình này mở từ một đơn cần thanh toán. Hãy đặt đơn hoặc mở đơn đang chờ thanh toán.',
+            style: NordicTypography.bodyRegular,
+          ),
         ),
       ];
     }
-    if (_loading && _payment == null) return const [LoadingStateWidget(message: 'Đang tạo mã thanh toán…')];
-    if (_error != null) return [ErrorStateWidget(title: 'Chưa tạo được mã thanh toán', message: _error!, onRetry: _createQr)];
+    if (_loading && _payment == null) {
+      return const [LoadingStateWidget(message: 'Đang tạo mã thanh toán…')];
+    }
+    if (_error != null) {
+      return [
+        ErrorStateWidget(
+          title: 'Chưa tạo được mã thanh toán',
+          message: _error!,
+          onRetry: _createQr,
+        ),
+      ];
+    }
 
     final payment = _payment;
     if (payment == null) return const [];
@@ -221,102 +250,155 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   List<Widget> _waiting(Payment payment, DateTime now) => [
-        Text(purposeLabel(payment), style: NordicTypography.h3),
-        const SizedBox(height: 4.0),
-        Text(formatVnd(payment.amount), key: const Key('payment-amount'), style: NordicTypography.priceHighlight),
-        const SizedBox(height: 16.0),
-        NordicCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Nội dung mã QR', style: NordicTypography.labelMedium),
-              const SizedBox(height: 8.0),
-              SelectableText(payment.qrPayload ?? '—', key: const Key('payment-qr-payload'), style: NordicTypography.bodyRegular),
-              if (payment.payUrl != null) ...[
-                const SizedBox(height: 12.0),
-                const Text('Trang thanh toán sandbox', style: NordicTypography.labelMedium),
-                const SizedBox(height: 4.0),
-                SelectableText(payment.payUrl!, key: const Key('payment-pay-url'), style: NordicTypography.bodySmall),
-              ],
-              const SizedBox(height: 12.0),
-              const Text(
-                'Ứng dụng chưa vẽ được mã QR dạng hình (dự án chưa có thư viện QR). Hãy sao chép nội dung trên để thanh toán thử.',
-                style: NordicTypography.bodySmall,
-              ),
-            ],
+    Text(purposeLabel(payment), style: NordicTypography.h3),
+    const SizedBox(height: 4.0),
+    Text(
+      formatVnd(payment.amount),
+      key: const Key('payment-amount'),
+      style: NordicTypography.priceHighlight,
+    ),
+    const SizedBox(height: 16.0),
+    NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Nội dung mã QR', style: NordicTypography.labelMedium),
+          const SizedBox(height: 8.0),
+          SelectableText(
+            payment.qrPayload ?? '—',
+            key: const Key('payment-qr-payload'),
+            style: NordicTypography.bodyRegular,
           ),
-        ),
-        const SizedBox(height: 16.0),
-        NordicCard(
-          child: Row(
-            children: [
-              const Icon(Icons.timer_outlined, color: NordicColors.primary),
-              const SizedBox(width: 12.0),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Thời gian còn lại', style: NordicTypography.bodySmall),
-                    Text(countdownText(timeLeft(payment, now)), key: const Key('payment-countdown'), style: NordicTypography.h3),
-                  ],
+          if (payment.payUrl != null) ...[
+            const SizedBox(height: 12.0),
+            const Text(
+              'Trang thanh toán sandbox',
+              style: NordicTypography.labelMedium,
+            ),
+            const SizedBox(height: 4.0),
+            SelectableText(
+              payment.payUrl!,
+              key: const Key('payment-pay-url'),
+              style: NordicTypography.bodySmall,
+            ),
+          ],
+          const SizedBox(height: 12.0),
+          const Text(
+            'Ứng dụng chưa vẽ được mã QR dạng hình (dự án chưa có thư viện QR). Hãy sao chép nội dung trên để thanh toán thử.',
+            style: NordicTypography.bodySmall,
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 16.0),
+    NordicCard(
+      child: Row(
+        children: [
+          const Icon(Icons.timer_outlined, color: NordicColors.primary),
+          const SizedBox(width: 12.0),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Thời gian còn lại',
+                  style: NordicTypography.bodySmall,
                 ),
-              ),
-            ],
+                Text(
+                  countdownText(timeLeft(payment, now)),
+                  key: const Key('payment-countdown'),
+                  style: NordicTypography.h3,
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 12.0),
-        Text(
-          _pollFailures >= 3 ? pollTroubleMessage : 'Đang chờ thanh toán. Màn hình tự cập nhật khi tiền về.',
-          key: const Key('payment-waiting-note'),
-          style: NordicTypography.bodySmall,
-        ),
-      ];
+        ],
+      ),
+    ),
+    const SizedBox(height: 12.0),
+    Text(
+      _pollFailures >= 3
+          ? pollTroubleMessage
+          : 'Đang chờ thanh toán. Màn hình tự cập nhật khi tiền về.',
+      key: const Key('payment-waiting-note'),
+      style: NordicTypography.bodySmall,
+    ),
+  ];
 
   List<Widget> _paid(Payment payment) => [
-        NordicCard(
-          isHighlighted: true,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.check_circle_rounded, color: NordicColors.success, size: 40.0),
-              const SizedBox(height: 12.0),
-              const Text('Đã thanh toán', key: Key('payment-paid'), style: NordicTypography.h2),
-              const SizedBox(height: 4.0),
-              Text('Đã nhận ${formatVnd(payment.amount)}.', style: NordicTypography.bodyRegular),
-            ],
+    NordicCard(
+      isHighlighted: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.check_circle_rounded,
+            color: NordicColors.success,
+            size: 40.0,
           ),
-        ),
-        const SizedBox(height: 16.0),
-        NordicButton(label: 'Xem đơn', onPressed: () => _done(payment)),
-      ];
+          const SizedBox(height: 12.0),
+          const Text(
+            'Đã thanh toán',
+            key: Key('payment-paid'),
+            style: NordicTypography.h2,
+          ),
+          const SizedBox(height: 4.0),
+          Text(
+            'Đã nhận ${formatVnd(payment.amount)}.',
+            style: NordicTypography.bodyRegular,
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 16.0),
+    NordicButton(label: 'Xem đơn', onPressed: () => _done(payment)),
+  ];
 
   List<Widget> _expired() => [
-        const NordicCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Đã hết hạn thanh toán', key: Key('payment-expired'), style: NordicTypography.h3),
-              SizedBox(height: 8.0),
-              Text('Mã thanh toán không còn hiệu lực. Bạn không bị trừ tiền; đơn chưa thanh toán sẽ được huỷ.', style: NordicTypography.bodyRegular),
-            ],
+    const NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Đã hết hạn thanh toán',
+            key: Key('payment-expired'),
+            style: NordicTypography.h3,
           ),
-        ),
-        const SizedBox(height: 16.0),
-        NordicButton(label: 'Quay lại', variant: NordicButtonVariant.secondary, onPressed: () => Navigator.of(context).maybePop()),
-      ];
+          SizedBox(height: 8.0),
+          Text(
+            'Mã thanh toán không còn hiệu lực. Bạn không bị trừ tiền; đơn chưa thanh toán sẽ được huỷ.',
+            style: NordicTypography.bodyRegular,
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 16.0),
+    NordicButton(
+      label: 'Quay lại',
+      variant: NordicButtonVariant.secondary,
+      onPressed: () => Navigator.of(context).maybePop(),
+    ),
+  ];
 
   List<Widget> _refunded(Payment payment) => [
-        NordicCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Đã hoàn tiền', key: Key('payment-refunded'), style: NordicTypography.h3),
-              const SizedBox(height: 8.0),
-              Text('Khoản ${formatVnd(payment.amount)} đã được hoàn lại.', style: NordicTypography.bodyRegular),
-            ],
+    NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Đã hoàn tiền',
+            key: Key('payment-refunded'),
+            style: NordicTypography.h3,
           ),
-        ),
-      ];
+          const SizedBox(height: 8.0),
+          Text(
+            'Khoản ${formatVnd(payment.amount)} đã được hoàn lại.',
+            style: NordicTypography.bodyRegular,
+          ),
+        ],
+      ),
+    ),
+  ];
 }
 
 /// Decision Q04: every payment screen says, permanently, that no real money moves.
@@ -336,7 +418,11 @@ class _SandboxBanner extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          Icon(Icons.science_outlined, color: NordicColors.textTitle, size: 20.0),
+          Icon(
+            Icons.science_outlined,
+            color: NordicColors.textTitle,
+            size: 20.0,
+          ),
           SizedBox(width: 8.0),
           Expanded(
             child: Text(sandboxBannerText, style: NordicTypography.labelMedium),

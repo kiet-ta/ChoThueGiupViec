@@ -1,6 +1,5 @@
 using CommonService.Application.Interfaces.Ports;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Infrastructure.Fakes;
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -12,14 +13,15 @@ class WorkerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: const Text('Hồ Sơ & Chất Lượng Thợ'),
-      ),
+      appBar: AppBar(title: const Text('Hồ Sơ & Chất Lượng Thợ')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 16.0,
+            ),
             children: const [
               EyebrowBadge(text: 'Chuyên Viên / Thợ Giúp Việc'),
               SizedBox(height: 12.0),

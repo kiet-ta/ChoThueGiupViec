@@ -1,6 +1,7 @@
 # AGENTS.md
 
-Monorepo: `Backend/` (.NET 10 API) and `Frontend/` (React + Vite + shadcn/ui).
+Monorepo: `Backend/` (.NET 10 API), `Frontend/` (React + Vite + shadcn/ui) and `Mobile/` (Flutter; read [Mobile/ARCHITECTURE.md](Mobile/ARCHITECTURE.md), run commands inside `Mobile/`).
+- Every machine that runs `verify` (including the pre-push hook) needs Flutter stable on PATH (Dart >= 3.13.3): Mobile checks are mandatory everywhere (owner decision 2026-10-13).
 
 - Backend: read [Backend/ARCHITECTURE.md](Backend/ARCHITECTURE.md). Run commands inside `Backend/`.
 - Frontend: read [Frontend/ARCHITECTURE.md](Frontend/ARCHITECTURE.md). Run commands inside `Frontend/`.

@@ -58,8 +58,14 @@ void main() {
 
   group('Ho Chi Minh date and time', () {
     test('adds seven hours and can change the day', () {
-      expect(formatVietnamDateTime(DateTime.utc(2026, 9, 30, 17, 5)), '01/10/2026 00:05');
-      expect(formatVietnamDateTime(DateTime.utc(2026, 10, 1, 0, 30)), '01/10/2026 07:30');
+      expect(
+        formatVietnamDateTime(DateTime.utc(2026, 9, 30, 17, 5)),
+        '01/10/2026 00:05',
+      );
+      expect(
+        formatVietnamDateTime(DateTime.utc(2026, 10, 1, 0, 30)),
+        '01/10/2026 07:30',
+      );
     });
 
     test('the completedAt of a job is read as a UTC instant and shown by its local date', () {
@@ -75,28 +81,51 @@ void main() {
   });
 
   group('payout status text', () {
-    test('has a label and a hint for each status and falls back to not built', () {
-      expect(payoutStatusLabel(PayoutStatus.notBuilt), 'Chưa chốt đợt');
-      expect(payoutStatusLabel(PayoutStatus.pending), 'Chờ chuyển khoản');
-      expect(payoutStatusLabel(PayoutStatus.transferred), 'Đã chuyển khoản');
-      expect(payoutStatusLabel('SOMETHING'), 'Chưa chốt đợt');
-      expect(payoutStatusHint(PayoutStatus.notBuilt), contains('theo tháng'));
-      expect(payoutStatusHint(PayoutStatus.pending), contains('Admin'));
-      expect(payoutStatusHint(PayoutStatus.transferred), contains('đã được chuyển'));
-    });
+    test(
+      'has a label and a hint for each status and falls back to not built',
+      () {
+        expect(payoutStatusLabel(PayoutStatus.notBuilt), 'Chưa chốt đợt');
+        expect(payoutStatusLabel(PayoutStatus.pending), 'Chờ chuyển khoản');
+        expect(payoutStatusLabel(PayoutStatus.transferred), 'Đã chuyển khoản');
+        expect(payoutStatusLabel('SOMETHING'), 'Chưa chốt đợt');
+        expect(payoutStatusHint(PayoutStatus.notBuilt), contains('theo tháng'));
+        expect(payoutStatusHint(PayoutStatus.pending), contains('Admin'));
+        expect(
+          payoutStatusHint(PayoutStatus.transferred),
+          contains('đã được chuyển'),
+        );
+      },
+    );
   });
 
   group('earningsFailureMessage', () {
     test('403 says the agency is paid, not the worker', () {
-      expect(earningsFailureMessage(const ApiException(403, 'x')), contains('đại lý'));
+      expect(
+        earningsFailureMessage(const ApiException(403, 'x')),
+        contains('đại lý'),
+      );
     });
 
-    test('404, 400, a network failure and another status have their own text', () {
-      expect(earningsFailureMessage(const ApiException(404, 'x')), contains('Không tìm thấy'));
-      expect(earningsFailureMessage(const ApiException(400, 'x')), contains('không hợp lệ'));
-      expect(earningsFailureMessage(const ApiException(0, 'Không kết nối được máy chủ.')), 'Không kết nối được máy chủ.');
-      expect(earningsFailureMessage(const ApiException(500, 'Boom')), 'Boom');
-    });
+    test(
+      '404, 400, a network failure and another status have their own text',
+      () {
+        expect(
+          earningsFailureMessage(const ApiException(404, 'x')),
+          contains('Không tìm thấy'),
+        );
+        expect(
+          earningsFailureMessage(const ApiException(400, 'x')),
+          contains('không hợp lệ'),
+        );
+        expect(
+          earningsFailureMessage(
+            const ApiException(0, 'Không kết nối được máy chủ.'),
+          ),
+          'Không kết nối được máy chủ.',
+        );
+        expect(earningsFailureMessage(const ApiException(500, 'Boom')), 'Boom');
+      },
+    );
   });
 
   group('models read the contract shape', () {
@@ -110,8 +139,24 @@ void main() {
         'netAmount': 430000,
         'payoutStatus': 'PENDING',
         'jobs': [
-          {'assignmentId': 1, 'orderId': 10, 'completedAt': '2026-09-02T03:00:00Z', 'grossAmount': 400000, 'commissionAmount': 80000, 'netAmount': 320000, 'absenceFee': false},
-          {'assignmentId': 2, 'orderId': 11, 'completedAt': '2026-09-05T03:00:00Z', 'grossAmount': 200000, 'commissionAmount': 0, 'netAmount': 200000, 'absenceFee': true},
+          {
+            'assignmentId': 1,
+            'orderId': 10,
+            'completedAt': '2026-09-02T03:00:00Z',
+            'grossAmount': 400000,
+            'commissionAmount': 80000,
+            'netAmount': 320000,
+            'absenceFee': false,
+          },
+          {
+            'assignmentId': 2,
+            'orderId': 11,
+            'completedAt': '2026-09-05T03:00:00Z',
+            'grossAmount': 200000,
+            'commissionAmount': 0,
+            'netAmount': 200000,
+            'absenceFee': true,
+          },
         ],
       });
 
@@ -134,7 +179,13 @@ void main() {
     test('PayoutHistoryPage reads items and the paging numbers', () {
       final page = PayoutHistoryPage.fromJson({
         'items': [
-          {'batchId': 5, 'periodMonth': '2026-08', 'netAmount': 900000, 'itemStatus': 'TRANSFERRED', 'transferredAt': '2026-09-03T02:00:00Z'},
+          {
+            'batchId': 5,
+            'periodMonth': '2026-08',
+            'netAmount': 900000,
+            'itemStatus': 'TRANSFERRED',
+            'transferredAt': '2026-09-03T02:00:00Z',
+          },
         ],
         'page': 1,
         'pageSize': 20,

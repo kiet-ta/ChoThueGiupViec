@@ -27,15 +27,21 @@ class CustomerAbsentReport {
   factory CustomerAbsentReport.fromJson(Map<String, dynamic> json) {
     return CustomerAbsentReport(
       assignmentId: json['assignmentId'] as int,
-      reportedAt: DateTime.tryParse(json['reportedAt'] as String? ?? '') ?? DateTime.now(),
-      checkedInAt: DateTime.tryParse(json['checkedInAt'] as String? ?? '') ?? DateTime.now(),
+      reportedAt:
+          DateTime.tryParse(json['reportedAt'] as String? ?? '') ??
+          DateTime.now(),
+      checkedInAt:
+          DateTime.tryParse(json['checkedInAt'] as String? ?? '') ??
+          DateTime.now(),
       elapsedMinutes: json['elapsedMinutes'] as int? ?? 0,
       callAttempts: json['callAttempts'] as int? ?? 0,
       reviewStatus: json['reviewStatus'] as String? ?? 'PENDING_APPROVAL',
       workerFeeRate: (json['workerFeeRate'] as num?)?.toDouble() ?? 0.40,
       absenceFeeAmount: (json['absenceFeeAmount'] as num?)?.toDouble() ?? 0.0,
-      customerRefundRate: (json['customerRefundRate'] as num?)?.toDouble() ?? 0.60,
-      customerRefundAmount: (json['customerRefundAmount'] as num?)?.toDouble() ?? 0.0,
+      customerRefundRate:
+          (json['customerRefundRate'] as num?)?.toDouble() ?? 0.60,
+      customerRefundAmount:
+          (json['customerRefundAmount'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -71,7 +77,9 @@ class CallLogResult {
     return CallLogResult(
       assignmentId: json['assignmentId'] as int,
       callAttempts: json['callAttempts'] as int? ?? 0,
-      loggedAt: DateTime.tryParse(json['loggedAt'] as String? ?? '') ?? DateTime.now(),
+      loggedAt:
+          DateTime.tryParse(json['loggedAt'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 

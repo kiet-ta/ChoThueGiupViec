@@ -1,12 +1,7 @@
-using CommonService.Application.Common.Options;
-using CommonService.Application.Interfaces.Ports;
-using CommonService.Domain.Entities;
-using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 
 namespace CommonService.Application.Features.Dispatch;
 
@@ -32,22 +27,16 @@ public sealed class OrderPaidDispatchHandler : INotificationHandler<OrderPaid>
             "Received OrderPaid for OrderId={OrderId}. Initiating dispatch offer sequence.",
             notification.OrderId);
 
-        // Map date and shift
-        var date = DateOnly.FromDateTime(notification.ScheduledDate);
-
-        // Location coordinates will be resolved from Order/CustomerAddress; default center used for demo/contract
-        var orderLocation = new GeoPoint(10.762622, 106.660172);
-
-        await _offerEngine.StartDispatchForOrderAsync(
-            orderId: notification.OrderId,
-            customerId: notification.CustomerId,
-            serviceTier: ServiceTier.Economy, // Default tier for standard orders
-            date: date,
-            shiftCode: notification.ShiftCode,
-            location: orderLocation,
-            grossAmount: notification.Amount,
-            assignmentSeq: 1,
-            cancellationToken: cancellationToken
-        );
+        // Tier, address coordinates and seats are read from the order itself (Premium -> agency hold, BR-02 -> 2 seats).
+        try
+        {
+            await _offerEngine.DispatchPaidOrderAsync(notification.OrderId, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // OrderPaid is published after the payment commit, so the payment stands; the sweep (RecoverMissingSeatsAsync) dispatches
+            // the order once it has been quiet for one offer window.
+            _logger.LogError(ex, "Dispatch of paid order {OrderId} failed; the offer sweep will retry it.", notification.OrderId);
+        }
     }
 }

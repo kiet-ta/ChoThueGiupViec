@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -126,13 +128,15 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
     return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  int get _completedCount => _checklist.where((item) => item.isCompleted).length;
+  int get _completedCount =>
+      _checklist.where((item) => item.isCompleted).length;
 
   @override
   Widget build(BuildContext context) {
     final maxSeconds = widget.maxShiftMinutes * 60;
     final progress = (_elapsedSeconds / maxSeconds).clamp(0.0, 1.0);
-    final isNearLimit = _elapsedSeconds >= (maxSeconds - 1800); // within 30 mins of 4h limit
+    final isNearLimit =
+        _elapsedSeconds >= (maxSeconds - 1800); // within 30 mins of 4h limit
 
     return Scaffold(
       backgroundColor: NordicColors.canvas,
@@ -150,10 +154,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
             children: [
               const EyebrowBadge(text: 'Ca Làm Đang Thi Công'),
               const SizedBox(height: 8.0),
-              Text(
-                widget.workZone,
-                style: NordicTypography.h2,
-              ),
+              Text(widget.workZone, style: NordicTypography.h2),
               const SizedBox(height: 16.0),
 
               // Shift Timer Card
@@ -172,7 +173,9 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                 width: double.infinity,
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Chuyển sang màn hình chụp ảnh VoL')),
+                    const SnackBar(
+                      content: Text('Chuyển sang màn hình chụp ảnh VoL'),
+                    ),
                   );
                 },
               ),
@@ -185,7 +188,9 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Đã hoàn thành $_completedCount/${_checklist.length} công việc. Đang gửi nghiệm thu...'),
+                      content: Text(
+                        'Đã hoàn thành $_completedCount/${_checklist.length} công việc. Đang gửi nghiệm thu...',
+                      ),
                     ),
                   );
                 },
@@ -197,7 +202,11 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
     );
   }
 
-  Widget _buildShiftTimerCard(int maxSeconds, double progress, bool isNearLimit) {
+  Widget _buildShiftTimerCard(
+    int maxSeconds,
+    double progress,
+    bool isNearLimit,
+  ) {
     return TintedCard(
       backgroundColor: isNearLimit ? const Color(0xFFFEF2F2) : Colors.white,
       child: Padding(
@@ -207,19 +216,32 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.timer_outlined,
-                      color: isNearLimit ? const Color(0xFFDC2626) : NordicColors.primary,
-                    ),
-                    const SizedBox(width: 8.0),
-                    const Text('Thời Gian Thi Công', style: NordicTypography.labelMedium),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        color: isNearLimit
+                            ? const Color(0xFFDC2626)
+                            : NordicColors.primary,
+                      ),
+                      const SizedBox(width: 8.0),
+                      const Flexible(
+                        child: Text(
+                          'Thời Gian Thi Công',
+                          style: NordicTypography.labelMedium,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8.0),
                 Text(
                   'Tối đa ${widget.maxShiftMinutes ~/ 60}h',
-                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12.0,
+                    color: NordicColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -230,7 +252,9 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                 fontSize: 36.0,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'monospace',
-                color: isNearLimit ? const Color(0xFFDC2626) : NordicColors.textTitle,
+                color: isNearLimit
+                    ? const Color(0xFFDC2626)
+                    : NordicColors.textTitle,
               ),
             ),
             const SizedBox(height: 10.0),
@@ -251,11 +275,16 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
               children: [
                 Text(
                   'Đã làm: ${(_elapsedSeconds / 60).toStringAsFixed(0)} phút',
-                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12.0,
+                    color: NordicColors.textSecondary,
+                  ),
                 ),
                 IconButton(
                   icon: Icon(
-                    _isTimerRunning ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                    _isTimerRunning
+                        ? Icons.pause_circle_filled
+                        : Icons.play_circle_filled,
                     color: NordicColors.primary,
                     size: 28.0,
                   ),
@@ -280,7 +309,13 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Checklist Công Việc', style: NordicTypography.h3),
+                const Expanded(
+                  child: Text(
+                    'Checklist Công Việc',
+                    style: NordicTypography.h3,
+                  ),
+                ),
+                const SizedBox(width: 8.0),
                 Text(
                   '$_completedCount/${_checklist.length}',
                   style: const TextStyle(
@@ -333,21 +368,32 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14.0,
-                          decoration: item.isCompleted ? TextDecoration.lineThrough : null,
-                          color: item.isCompleted ? NordicColors.textSecondary : NordicColors.textTitle,
+                          decoration: item.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: item.isCompleted
+                              ? NordicColors.textSecondary
+                              : NordicColors.textTitle,
                         ),
                       ),
                     ),
                     if (item.isRequired)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6.0,
+                          vertical: 2.0,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF3C7),
                           borderRadius: BorderRadius.circular(4.0),
                         ),
                         child: const Text(
                           'Bắt buộc',
-                          style: TextStyle(fontSize: 10.0, color: Color(0xFFB45309), fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 10.0,
+                            color: Color(0xFFB45309),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                   ],
@@ -355,7 +401,10 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                 const SizedBox(height: 2.0),
                 Text(
                   item.subtitle,
-                  style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12.0,
+                    color: NordicColors.textSecondary,
+                  ),
                 ),
               ],
             ),

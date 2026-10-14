@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
@@ -14,20 +15,41 @@ import 'package:mobile/features/payouts/screens/payout_history_screen.dart';
 import 'package:mobile/features/payouts/screens/payout_screen.dart';
 import 'package:mobile/features/payouts/services/payouts_service.dart';
 
-Earnings earnings(String month, {int net = 430000, String status = 'NOT_BUILT', List<EarningsJob>? jobs}) => Earnings(
-      periodMonth: month,
-      jobCount: (jobs ?? _jobs).length,
-      grossAmount: 600000,
-      commissionAmount: 120000,
-      penaltyAmount: 50000,
-      netAmount: net,
-      payoutStatus: status,
-      jobs: jobs ?? _jobs,
-    );
+Earnings earnings(
+  String month, {
+  int net = 430000,
+  String status = 'NOT_BUILT',
+  List<EarningsJob>? jobs,
+}) => Earnings(
+  periodMonth: month,
+  jobCount: (jobs ?? _jobs).length,
+  grossAmount: 600000,
+  commissionAmount: 120000,
+  penaltyAmount: 50000,
+  netAmount: net,
+  payoutStatus: status,
+  jobs: jobs ?? _jobs,
+);
 
 final _jobs = [
-  EarningsJob(assignmentId: 1, orderId: 10, completedAt: DateTime.utc(2026, 9, 30, 17, 30), grossAmount: 400000, commissionAmount: 80000, netAmount: 320000, absenceFee: false),
-  EarningsJob(assignmentId: 2, orderId: 11, completedAt: DateTime.utc(2026, 10, 2, 3), grossAmount: 200000, commissionAmount: 0, netAmount: 200000, absenceFee: true),
+  EarningsJob(
+    assignmentId: 1,
+    orderId: 10,
+    completedAt: DateTime.utc(2026, 9, 30, 17, 30),
+    grossAmount: 400000,
+    commissionAmount: 80000,
+    netAmount: 320000,
+    absenceFee: false,
+  ),
+  EarningsJob(
+    assignmentId: 2,
+    orderId: 11,
+    completedAt: DateTime.utc(2026, 10, 2, 3),
+    grossAmount: 200000,
+    commissionAmount: 0,
+    netAmount: 200000,
+    absenceFee: true,
+  ),
 ];
 
 class FakePayoutsService implements IPayoutsService {
@@ -56,130 +78,205 @@ class FakePayoutsService implements IPayoutsService {
   }
 }
 
-Future<void> pumpEarnings(WidgetTester tester, FakePayoutsService service, {DateTime? now}) async {
+Future<void> pumpEarnings(
+  WidgetTester tester,
+  FakePayoutsService service, {
+  DateTime? now,
+}) async {
   tester.view.physicalSize = const Size(390, 2400);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(() {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   });
-  await tester.pumpWidget(MaterialApp(
-    theme: NordicTheme.lightTheme,
-    home: PayoutScreen(service: service, now: () => now ?? DateTime.utc(2026, 10, 15, 3)),
-  ));
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: NordicTheme.lightTheme,
+      home: PayoutScreen(
+        service: service,
+        now: () => now ?? DateTime.utc(2026, 10, 15, 3),
+      ),
+    ),
+  );
   await tester.pumpAndSettle();
 }
 
 void main() {
   group('PayoutScreen (MOB-M6-04)', () {
-    testWidgets('opens on the current Ho Chi Minh month and shows the take-home figure as "Thu nhập tháng này"', (tester) async {
-      final service = FakePayoutsService();
-      await pumpEarnings(tester, service);
+    testWidgets(
+      'opens on the current Ho Chi Minh month and shows the take-home figure as "Thu nhập tháng này"',
+      (tester) async {
+        final service = FakePayoutsService();
+        await pumpEarnings(tester, service);
 
-      expect(service.requestedMonths, ['2026-10']);
-      expect(find.text('Tháng 10/2026'), findsOneWidget);
-      expect(find.text('Thu nhập tháng này'), findsOneWidget);
-      expect(find.text('430.000 đ'), findsOneWidget);
-      expect(find.textContaining('Số dư khả dụng'), findsNothing);
-    });
+        expect(service.requestedMonths, ['2026-10']);
+        expect(find.text('Tháng 10/2026'), findsOneWidget);
+        expect(find.text('Thu nhập tháng này'), findsOneWidget);
+        expect(find.text('430.000 đ'), findsOneWidget);
+        expect(find.textContaining('Số dư khả dụng'), findsNothing);
+      },
+    );
 
-    testWidgets('at 17:00 UTC on the last day the local month is already the next one', (tester) async {
-      final service = FakePayoutsService();
-      await pumpEarnings(tester, service, now: DateTime.utc(2026, 9, 30, 17));
+    testWidgets(
+      'at 17:00 UTC on the last day the local month is already the next one',
+      (tester) async {
+        final service = FakePayoutsService();
+        await pumpEarnings(tester, service, now: DateTime.utc(2026, 9, 30, 17));
 
-      expect(service.requestedMonths, ['2026-10']);
-    });
+        expect(service.requestedMonths, ['2026-10']);
+      },
+    );
 
-    testWidgets('shows the breakdown, the payout status with its hint and every job', (tester) async {
-      final service = FakePayoutsService()..earningsByMonth['2026-10'] = earnings('2026-10', status: 'PENDING');
-      await pumpEarnings(tester, service);
+    testWidgets(
+      'shows the breakdown, the payout status with its hint and every job',
+      (tester) async {
+        final service = FakePayoutsService()
+          ..earningsByMonth['2026-10'] = earnings('2026-10', status: 'PENDING');
+        await pumpEarnings(tester, service);
 
-      expect(tester.widget<Text>(find.byKey(const Key('earnings-gross'))).data, '600.000 đ');
-      expect(tester.widget<Text>(find.byKey(const Key('earnings-commission'))).data, '-120.000 đ');
-      expect(tester.widget<Text>(find.byKey(const Key('earnings-penalty'))).data, '-50.000 đ');
-      expect(find.text('Chờ chuyển khoản'), findsOneWidget);
-      expect(find.textContaining('đang chờ Admin chuyển khoản'), findsOneWidget);
-      expect(find.text('Đơn #10'), findsOneWidget);
-      expect(find.text('Đơn #11'), findsOneWidget);
-      expect(find.text('01/10/2026 00:30'), findsOneWidget); // 17:30 UTC is after midnight in Ho Chi Minh
-      expect(find.text('Phí vắng mặt'), findsOneWidget);
-      expect(find.byKey(const Key('job-net-1')), findsOneWidget);
-    });
+        expect(
+          tester.widget<Text>(find.byKey(const Key('earnings-gross'))).data,
+          '600.000 đ',
+        );
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('earnings-commission')))
+              .data,
+          '-120.000 đ',
+        );
+        expect(
+          tester.widget<Text>(find.byKey(const Key('earnings-penalty'))).data,
+          '-50.000 đ',
+        );
+        expect(find.text('Chờ chuyển khoản'), findsOneWidget);
+        expect(
+          find.textContaining('đang chờ Admin chuyển khoản'),
+          findsOneWidget,
+        );
+        expect(find.text('Đơn #10'), findsOneWidget);
+        expect(find.text('Đơn #11'), findsOneWidget);
+        expect(
+          find.text('01/10/2026 00:30'),
+          findsOneWidget,
+        ); // 17:30 UTC is after midnight in Ho Chi Minh
+        expect(find.text('Phí vắng mặt'), findsOneWidget);
+        expect(find.byKey(const Key('job-net-1')), findsOneWidget);
+      },
+    );
 
     testWidgets('a month with no jobs shows an empty state', (tester) async {
-      final service = FakePayoutsService()..earningsByMonth['2026-10'] = earnings('2026-10', net: 0, jobs: const []);
+      final service = FakePayoutsService()
+        ..earningsByMonth['2026-10'] = earnings(
+          '2026-10',
+          net: 0,
+          jobs: const [],
+        );
       await pumpEarnings(tester, service);
 
       expect(find.byKey(const Key('earnings-empty')), findsOneWidget);
       expect(find.text('0 đ'), findsWidgets);
     });
 
-    testWidgets('the previous button loads the earlier month and the next button is disabled on the current one', (tester) async {
-      final service = FakePayoutsService();
-      await pumpEarnings(tester, service);
-      expect(tester.widget<IconButton>(find.byKey(const Key('earnings-next'))).onPressed, isNull);
+    testWidgets(
+      'the previous button loads the earlier month and the next button is disabled on the current one',
+      (tester) async {
+        final service = FakePayoutsService();
+        await pumpEarnings(tester, service);
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(const Key('earnings-next')))
+              .onPressed,
+          isNull,
+        );
 
-      await tester.tap(find.byKey(const Key('earnings-prev')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('earnings-prev')));
+        await tester.pumpAndSettle();
 
-      expect(service.requestedMonths, ['2026-10', '2026-09']);
-      expect(find.text('Tháng 9/2026'), findsOneWidget);
-      expect(tester.widget<IconButton>(find.byKey(const Key('earnings-next'))).onPressed, isNotNull);
+        expect(service.requestedMonths, ['2026-10', '2026-09']);
+        expect(find.text('Tháng 9/2026'), findsOneWidget);
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(const Key('earnings-next')))
+              .onPressed,
+          isNotNull,
+        );
 
-      await tester.tap(find.byKey(const Key('earnings-next')));
-      await tester.pumpAndSettle();
-      expect(service.requestedMonths.last, '2026-10');
-    });
+        await tester.tap(find.byKey(const Key('earnings-next')));
+        await tester.pumpAndSettle();
+        expect(service.requestedMonths.last, '2026-10');
+      },
+    );
 
-    testWidgets('going back over New Year loads December of the previous year', (tester) async {
-      final service = FakePayoutsService();
-      await pumpEarnings(tester, service, now: DateTime.utc(2026, 1, 15));
+    testWidgets(
+      'going back over New Year loads December of the previous year',
+      (tester) async {
+        final service = FakePayoutsService();
+        await pumpEarnings(tester, service, now: DateTime.utc(2026, 1, 15));
 
-      await tester.tap(find.byKey(const Key('earnings-prev')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('earnings-prev')));
+        await tester.pumpAndSettle();
 
-      expect(service.requestedMonths.last, '2025-12');
-      expect(find.text('Tháng 12/2025'), findsOneWidget);
-    });
+        expect(service.requestedMonths.last, '2025-12');
+        expect(find.text('Tháng 12/2025'), findsOneWidget);
+      },
+    );
 
-    testWidgets('a slow answer of an older month does not overwrite the month chosen after it', (tester) async {
-      final service = FakePayoutsService();
-      await pumpEarnings(tester, service);
-      final slow = Completer<Earnings>();
-      service.gate = slow;
-      await tester.tap(find.byKey(const Key('earnings-prev'))); // 2026-09, slow
-      await tester.pump();
-      service.gate = null;
-      await tester.tap(find.byKey(const Key('earnings-prev'))); // 2026-08, fast
-      await tester.pumpAndSettle();
-      slow.complete(earnings('2026-09', net: 111));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'a slow answer of an older month does not overwrite the month chosen after it',
+      (tester) async {
+        final service = FakePayoutsService();
+        await pumpEarnings(tester, service);
+        final slow = Completer<Earnings>();
+        service.gate = slow;
+        await tester.tap(
+          find.byKey(const Key('earnings-prev')),
+        ); // 2026-09, slow
+        await tester.pump();
+        service.gate = null;
+        await tester.tap(
+          find.byKey(const Key('earnings-prev')),
+        ); // 2026-08, fast
+        await tester.pumpAndSettle();
+        slow.complete(earnings('2026-09', net: 111));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Tháng 8/2026'), findsOneWidget);
-      expect(find.text('111 đ'), findsNothing);
-      expect(find.text('430.000 đ'), findsOneWidget);
-    });
+        expect(find.text('Tháng 8/2026'), findsOneWidget);
+        expect(find.text('111 đ'), findsNothing);
+        expect(find.text('430.000 đ'), findsOneWidget);
+      },
+    );
 
-    testWidgets('an agency staff member (403) is told the agency is paid and gets no retry', (tester) async {
-      final service = FakePayoutsService()..earningsErrors['2026-10'] = const ApiException(403, 'Forbidden');
-      await pumpEarnings(tester, service);
+    testWidgets(
+      'an agency staff member (403) is told the agency is paid and gets no retry',
+      (tester) async {
+        final service = FakePayoutsService()
+          ..earningsErrors['2026-10'] = const ApiException(403, 'Forbidden');
+        await pumpEarnings(tester, service);
 
-      expect(find.textContaining('đại lý'), findsOneWidget);
-      expect(find.text('Thử lại'), findsNothing);
-    });
+        expect(find.textContaining('đại lý'), findsOneWidget);
+        expect(find.text('Thử lại'), findsNothing);
+      },
+    );
 
-    testWidgets('a network failure shows the message and a retry that loads again', (tester) async {
-      final service = FakePayoutsService()..earningsErrors['2026-10'] = const ApiException(0, 'Không kết nối được máy chủ.');
-      await pumpEarnings(tester, service);
-      expect(find.text('Không kết nối được máy chủ.'), findsOneWidget);
+    testWidgets(
+      'a network failure shows the message and a retry that loads again',
+      (tester) async {
+        final service = FakePayoutsService()
+          ..earningsErrors['2026-10'] = const ApiException(
+            0,
+            'Không kết nối được máy chủ.',
+          );
+        await pumpEarnings(tester, service);
+        expect(find.text('Không kết nối được máy chủ.'), findsOneWidget);
 
-      service.earningsErrors.clear();
-      await tester.tap(find.text('Thử lại'));
-      await tester.pumpAndSettle();
+        service.earningsErrors.clear();
+        await tester.tap(find.text('Thử lại'));
+        await tester.pumpAndSettle();
 
-      expect(service.requestedMonths, ['2026-10', '2026-10']);
-      expect(find.text('430.000 đ'), findsOneWidget);
-    });
+        expect(service.requestedMonths, ['2026-10', '2026-10']);
+        expect(find.text('430.000 đ'), findsOneWidget);
+      },
+    );
 
     testWidgets('shows a loader while the month loads', (tester) async {
       final service = FakePayoutsService()..gate = Completer<Earnings>();
@@ -189,7 +286,15 @@ void main() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
-      await tester.pumpWidget(MaterialApp(theme: NordicTheme.lightTheme, home: PayoutScreen(service: service, now: () => DateTime.utc(2026, 10, 15))));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: PayoutScreen(
+            service: service,
+            now: () => DateTime.utc(2026, 10, 15),
+          ),
+        ),
+      );
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -197,7 +302,9 @@ void main() {
 
     testWidgets('the history button opens the payout history', (tester) async {
       final service = FakePayoutsService()
-        ..historyPages.add(const PayoutHistoryPage(items: [], page: 1, pageSize: 20, total: 0));
+        ..historyPages.add(
+          const PayoutHistoryPage(items: [], page: 1, pageSize: 20, total: 0),
+        );
       await pumpEarnings(tester, service);
 
       await tester.ensureVisible(find.byKey(const Key('earnings-history')));
@@ -210,53 +317,102 @@ void main() {
   });
 
   group('PayoutHistoryScreen', () {
-    PayoutHistoryItem item(int id, String month, {String status = 'TRANSFERRED', DateTime? at}) =>
-        PayoutHistoryItem(batchId: id, periodMonth: month, netAmount: id * 100000, itemStatus: status, transferredAt: at);
+    PayoutHistoryItem item(
+      int id,
+      String month, {
+      String status = 'TRANSFERRED',
+      DateTime? at,
+    }) => PayoutHistoryItem(
+      batchId: id,
+      periodMonth: month,
+      netAmount: id * 100000,
+      itemStatus: status,
+      transferredAt: at,
+    );
 
-    Future<void> pumpHistory(WidgetTester tester, FakePayoutsService service, {int pageSize = 2}) async {
+    Future<void> pumpHistory(
+      WidgetTester tester,
+      FakePayoutsService service, {
+      int pageSize = 2,
+    }) async {
       tester.view.physicalSize = const Size(390, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
-      await tester.pumpWidget(MaterialApp(theme: NordicTheme.lightTheme, home: PayoutHistoryScreen(service: service, pageSize: pageSize)));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: PayoutHistoryScreen(service: service, pageSize: pageSize),
+        ),
+      );
       await tester.pumpAndSettle();
     }
 
-    testWidgets('lists the month, the net amount and when it was transferred, then loads more', (tester) async {
+    testWidgets(
+      'lists the month, the net amount and when it was transferred, then loads more',
+      (tester) async {
+        final service = FakePayoutsService()
+          ..historyPages.addAll([
+            PayoutHistoryPage(
+              items: [
+                item(3, '2026-09', at: DateTime.utc(2026, 10, 3, 2)),
+                item(2, '2026-08', status: 'PENDING'),
+              ],
+              page: 1,
+              pageSize: 2,
+              total: 3,
+            ),
+            PayoutHistoryPage(
+              items: [item(1, '2026-07', at: DateTime.utc(2026, 8, 3, 2))],
+              page: 2,
+              pageSize: 2,
+              total: 3,
+            ),
+          ]);
+        await pumpHistory(tester, service);
+
+        expect(find.text('Tháng 9/2026'), findsOneWidget);
+        expect(find.text('Đã chuyển khoản 03/10/2026'), findsOneWidget);
+        expect(find.text('Chờ chuyển khoản'), findsOneWidget);
+        expect(find.text('300.000 đ'), findsOneWidget);
+        expect(find.byKey(const Key('history-more')), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('history-more')));
+        await tester.pumpAndSettle();
+
+        expect(service.requestedPages, [1, 2]);
+        expect(find.text('Tháng 7/2026'), findsOneWidget);
+        expect(find.byKey(const Key('history-more')), findsNothing);
+      },
+    );
+
+    testWidgets('has an empty state when nothing was ever paid', (
+      tester,
+    ) async {
       final service = FakePayoutsService()
-        ..historyPages.addAll([
-          PayoutHistoryPage(items: [item(3, '2026-09', at: DateTime.utc(2026, 10, 3, 2)), item(2, '2026-08', status: 'PENDING')], page: 1, pageSize: 2, total: 3),
-          PayoutHistoryPage(items: [item(1, '2026-07', at: DateTime.utc(2026, 8, 3, 2))], page: 2, pageSize: 2, total: 3),
-        ]);
-      await pumpHistory(tester, service);
-
-      expect(find.text('Tháng 9/2026'), findsOneWidget);
-      expect(find.text('Đã chuyển khoản 03/10/2026'), findsOneWidget);
-      expect(find.text('Chờ chuyển khoản'), findsOneWidget);
-      expect(find.text('300.000 đ'), findsOneWidget);
-      expect(find.byKey(const Key('history-more')), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('history-more')));
-      await tester.pumpAndSettle();
-
-      expect(service.requestedPages, [1, 2]);
-      expect(find.text('Tháng 7/2026'), findsOneWidget);
-      expect(find.byKey(const Key('history-more')), findsNothing);
-    });
-
-    testWidgets('has an empty state when nothing was ever paid', (tester) async {
-      final service = FakePayoutsService()..historyPages.add(const PayoutHistoryPage(items: [], page: 1, pageSize: 2, total: 0));
+        ..historyPages.add(
+          const PayoutHistoryPage(items: [], page: 1, pageSize: 2, total: 0),
+        );
       await pumpHistory(tester, service);
 
       expect(find.byKey(const Key('history-empty')), findsOneWidget);
     });
 
-    testWidgets('a failure on the first page offers a retry that loads again', (tester) async {
+    testWidgets('a failure on the first page offers a retry that loads again', (
+      tester,
+    ) async {
       final service = FakePayoutsService()
         ..historyError = const ApiException(0, 'Không kết nối được máy chủ.')
-        ..historyPages.add(PayoutHistoryPage(items: [item(1, '2026-07', at: DateTime.utc(2026, 8, 3))], page: 1, pageSize: 2, total: 1));
+        ..historyPages.add(
+          PayoutHistoryPage(
+            items: [item(1, '2026-07', at: DateTime.utc(2026, 8, 3))],
+            page: 1,
+            pageSize: 2,
+            total: 1,
+          ),
+        );
       await pumpHistory(tester, service);
       expect(find.text('Không kết nối được máy chủ.'), findsOneWidget);
 
@@ -267,50 +423,87 @@ void main() {
       expect(find.text('Tháng 7/2026'), findsOneWidget);
     });
 
-    testWidgets('a failure on a later page keeps the loaded items and shows the message', (tester) async {
-      final service = FakePayoutsService()
-        ..historyPages.add(PayoutHistoryPage(items: [item(3, '2026-09', at: DateTime.utc(2026, 10, 3)), item(2, '2026-08', at: DateTime.utc(2026, 9, 3))], page: 1, pageSize: 2, total: 5));
-      await pumpHistory(tester, service);
-      service.historyError = const ApiException(500, 'Máy chủ lỗi.');
+    testWidgets(
+      'a failure on a later page keeps the loaded items and shows the message',
+      (tester) async {
+        final service = FakePayoutsService()
+          ..historyPages.add(
+            PayoutHistoryPage(
+              items: [
+                item(3, '2026-09', at: DateTime.utc(2026, 10, 3)),
+                item(2, '2026-08', at: DateTime.utc(2026, 9, 3)),
+              ],
+              page: 1,
+              pageSize: 2,
+              total: 5,
+            ),
+          );
+        await pumpHistory(tester, service);
+        service.historyError = const ApiException(500, 'Máy chủ lỗi.');
 
-      await tester.tap(find.byKey(const Key('history-more')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('history-more')));
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('history-error')), findsOneWidget);
-      expect(find.text('Tháng 9/2026'), findsOneWidget);
-      expect(find.byKey(const Key('history-more')), findsOneWidget);
-    });
+        expect(find.byKey(const Key('history-error')), findsOneWidget);
+        expect(find.text('Tháng 9/2026'), findsOneWidget);
+        expect(find.byKey(const Key('history-more')), findsOneWidget);
+      },
+    );
   });
 
   group('PayoutScreen entry points to rating and dispute', () {
-    Future<void> pump(WidgetTester tester, {void Function(EarningsJob)? onRate, void Function(EarningsJob)? onDispute, Route<dynamic>? Function(RouteSettings)? onGenerateRoute}) async {
+    Future<void> pump(
+      WidgetTester tester, {
+      void Function(EarningsJob)? onRate,
+      void Function(EarningsJob)? onDispute,
+      Route<dynamic>? Function(RouteSettings)? onGenerateRoute,
+    }) async {
       tester.view.physicalSize = const Size(390, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
-      await tester.pumpWidget(MaterialApp(
-        theme: NordicTheme.lightTheme,
-        onGenerateRoute: onGenerateRoute,
-        home: PayoutScreen(service: FakePayoutsService(), now: () => DateTime.utc(2026, 10, 15, 3), onRate: onRate, onDispute: onDispute),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          onGenerateRoute: onGenerateRoute,
+          home: PayoutScreen(
+            service: FakePayoutsService(),
+            now: () => DateTime.utc(2026, 10, 15, 3),
+            onRate: onRate,
+            onDispute: onDispute,
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
     }
 
-    testWidgets('each finished job has the two buttons and an absence-fee job has neither', (tester) async {
-      await pump(tester);
+    testWidgets(
+      'each finished job has the two buttons and an absence-fee job has neither',
+      (tester) async {
+        await pump(tester);
 
-      expect(find.byKey(const Key('job-rate-1')), findsOneWidget);
-      expect(find.byKey(const Key('job-dispute-1')), findsOneWidget);
-      expect(find.byKey(const Key('job-rate-2')), findsNothing); // job 2 is an absence fee
-      expect(find.byKey(const Key('job-dispute-2')), findsNothing);
-    });
+        expect(find.byKey(const Key('job-rate-1')), findsOneWidget);
+        expect(find.byKey(const Key('job-dispute-1')), findsOneWidget);
+        expect(
+          find.byKey(const Key('job-rate-2')),
+          findsNothing,
+        ); // job 2 is an absence fee
+        expect(find.byKey(const Key('job-dispute-2')), findsNothing);
+      },
+    );
 
-    testWidgets('the callbacks receive the job that was tapped', (tester) async {
+    testWidgets('the callbacks receive the job that was tapped', (
+      tester,
+    ) async {
       final rated = <int>[];
       final disputed = <int>[];
-      await pump(tester, onRate: (j) => rated.add(j.assignmentId), onDispute: (j) => disputed.add(j.orderId));
+      await pump(
+        tester,
+        onRate: (j) => rated.add(j.assignmentId),
+        onDispute: (j) => disputed.add(j.orderId),
+      );
 
       await tester.tap(find.byKey(const Key('job-rate-1')));
       await tester.tap(find.byKey(const Key('job-dispute-1')));
@@ -319,25 +512,37 @@ void main() {
       expect(disputed, [10]);
     });
 
-    testWidgets('by default the buttons open /ratings and /disputes with the worker role and the ids of the job', (tester) async {
-      final opened = <RouteSettings>[];
-      await pump(tester, onGenerateRoute: (settings) {
-        opened.add(settings);
-        return MaterialPageRoute<void>(settings: settings, builder: (_) => const Scaffold(body: Text('opened')));
-      });
+    testWidgets(
+      'by default the buttons open /ratings and /disputes with the worker role and the ids of the job',
+      (tester) async {
+        final opened = <RouteSettings>[];
+        await pump(
+          tester,
+          onGenerateRoute: (settings) {
+            opened.add(settings);
+            return MaterialPageRoute<void>(
+              settings: settings,
+              builder: (_) => const Scaffold(body: Text('opened')),
+            );
+          },
+        );
 
-      await tester.tap(find.byKey(const Key('job-rate-1')));
-      await tester.pumpAndSettle();
-      Navigator.of(tester.element(find.text('opened'))).pop();
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('job-dispute-1')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('job-rate-1')));
+        await tester.pumpAndSettle();
+        Navigator.of(tester.element(find.text('opened'))).pop();
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('job-dispute-1')));
+        await tester.pumpAndSettle();
 
-      expect(opened.map((r) => r.name), [RatingRoutes.ratings, DisputeRoutes.disputes]);
-      final rating = opened[0].arguments as RatingScreenArgs;
-      expect((rating.role, rating.assignmentId), (RatingRole.worker, 1));
-      final dispute = opened[1].arguments as DisputeScreenArgs;
-      expect((dispute.role, dispute.orderId), (DisputeRole.worker, 10));
-    });
+        expect(opened.map((r) => r.name), [
+          RatingRoutes.ratings,
+          DisputeRoutes.disputes,
+        ]);
+        final rating = opened[0].arguments as RatingScreenArgs;
+        expect((rating.role, rating.assignmentId), (RatingRole.worker, 1));
+        final dispute = opened[1].arguments as DisputeScreenArgs;
+        expect((dispute.role, dispute.orderId), (DisputeRole.worker, 10));
+      },
+    );
   });
 }

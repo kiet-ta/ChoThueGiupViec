@@ -40,13 +40,18 @@ class JobOffer {
       bookingDate: json['bookingDate'] as String? ?? '',
       shiftTime: json['shiftTime'] as String? ?? '',
       district: json['district'] as String? ?? '',
-      approximateDistanceKm: (json['approximateDistanceKm'] as num?)?.toDouble() ?? 0.0,
-      estimatedDurationHours: (json['estimatedDurationHours'] as num?)?.toDouble() ?? 0.0,
+      approximateDistanceKm:
+          (json['approximateDistanceKm'] as num?)?.toDouble() ?? 0.0,
+      estimatedDurationHours:
+          (json['estimatedDurationHours'] as num?)?.toDouble() ?? 0.0,
       grossAmount: (json['grossAmount'] as num?)?.toDouble() ?? 0.0,
       commissionRate: (json['commissionRate'] as num?)?.toDouble() ?? 0.20,
       netEarnings: (json['netEarnings'] as num?)?.toDouble() ?? 0.0,
-      offeredAt: DateTime.tryParse(json['offeredAt'] as String? ?? '') ?? DateTime.now(),
-      expiresAt: DateTime.tryParse(json['expiresAt'] as String? ?? '') ??
+      offeredAt:
+          DateTime.tryParse(json['offeredAt'] as String? ?? '') ??
+          DateTime.now(),
+      expiresAt:
+          DateTime.tryParse(json['expiresAt'] as String? ?? '') ??
           DateTime.now().add(const Duration(seconds: 30)),
       remainingSeconds: json['remainingSeconds'] as int? ?? 30,
     );
@@ -90,7 +95,9 @@ class AcceptOfferResult {
     return AcceptOfferResult(
       assignmentId: json['assignmentId'] as int,
       status: json['status'] as String? ?? 'ASSIGNED',
-      acceptedAt: DateTime.tryParse(json['acceptedAt'] as String? ?? '') ?? DateTime.now(),
+      acceptedAt:
+          DateTime.tryParse(json['acceptedAt'] as String? ?? '') ??
+          DateTime.now(),
       bookingSlotLocked: json['bookingSlotLocked'] as bool? ?? false,
     );
   }

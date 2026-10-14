@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,6 +8,8 @@ using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Payments;
 using CommonService.Infrastructure.Modules.Payments.MoMo;
+using CommonService.WebAPI.Controllers.Payments;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -391,7 +394,7 @@ public sealed class MoMoPaymentGatewayTests
             ["AccessKey"] = "MOMO_SANDBOX_ACCESS_KEY",
             ["SecretKey"] = "MOMO_SANDBOX_SECRET_KEY_PLACEHOLDER",
             ["Endpoint"] = Create,
-            ["IpnUrl"] = "http://localhost:5004/api/payments/momo-ipn",
+            ["IpnUrl"] = "http://localhost:5004/api/payments/ipn/momo",
             ["RedirectUrl"] = "http://localhost:5004/api/payments/momo-return",
         };
         var services = new ServiceCollection();
@@ -449,5 +452,26 @@ public sealed class MoMoPaymentGatewayTests
     {
         Assert.Equal("https://test-payment.momo.vn/v2/gateway/api/refund", Options().UrlFor("refund"));
         Assert.Equal("https://test-payment.momo.vn/v2/gateway/api/query", Options().UrlFor("query"));
+    }
+
+    [Fact]
+    public void CommittedIpnUrl_PointsAtTheRouteThatServesTheMoMoCallback()
+    {
+        // A real MoMo callback goes to MoMo:IpnUrl; if that path is not the controller route, MoMo gets 404 and no order becomes PAID.
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "HARNESS.md")))
+        {
+            dir = dir.Parent;
+        }
+        Assert.NotNull(dir);
+        var config = new ConfigurationBuilder()
+            .AddJsonFile(Path.Combine(dir.FullName, "Backend", "appsettings.json"), optional: false)
+            .Build();
+
+        var controller = typeof(PaymentIpnController);
+        var route = controller.GetCustomAttribute<RouteAttribute>()!.Template;
+        var action = controller.GetMethod(nameof(PaymentIpnController.Momo))!.GetCustomAttribute<HttpPostAttribute>()!.Template;
+
+        Assert.Equal($"/{route}/{action}", new Uri(config["MoMo:IpnUrl"]!).AbsolutePath);
     }
 }

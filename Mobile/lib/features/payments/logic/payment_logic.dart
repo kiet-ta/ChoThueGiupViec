@@ -42,12 +42,15 @@ PaymentPhase phaseOf(Payment payment, DateTime now) {
   }
   final deadline = payment.expiresAt;
   // The deadline is the server's; once it has passed locally the QR is no longer offered (the server expires it itself).
-  if (deadline != null && !now.toUtc().isBefore(deadline)) return PaymentPhase.expired;
+  if (deadline != null && !now.toUtc().isBefore(deadline)) {
+    return PaymentPhase.expired;
+  }
   return PaymentPhase.waiting;
 }
 
 /// True while asking the server again can still change what is shown.
-bool shouldKeepPolling(Payment payment, DateTime now) => phaseOf(payment, now) == PaymentPhase.waiting;
+bool shouldKeepPolling(Payment payment, DateTime now) =>
+    phaseOf(payment, now) == PaymentPhase.waiting;
 
 /// Time left until the deadline, never negative; zero when there is no deadline.
 Duration timeLeft(Payment payment, DateTime now) {
@@ -75,7 +78,9 @@ String formatVnd(int amount) {
   return '${amount < 0 ? '-' : ''}$buffer đ';
 }
 
-String purposeLabel(Payment payment) => payment.purpose == 'EXTENSION' ? 'Thanh toán làm thêm giờ' : 'Thanh toán đơn';
+String purposeLabel(Payment payment) => payment.purpose == 'EXTENSION'
+    ? 'Thanh toán làm thêm giờ'
+    : 'Thanh toán đơn';
 
 /// A failed "create the QR" call in words. The branch is the business CODE, never the server's message (payments.md 2.1).
 String qrFailureMessage(ApiException e) {
@@ -89,8 +94,10 @@ String qrFailureMessage(ApiException e) {
       return 'Không tìm thấy đơn này trong tài khoản của bạn.';
     case 409:
       return switch (e.code) {
-        PaymentErrorCode.paymentExpired => 'Đã quá hạn thanh toán. Đơn sẽ được huỷ và bạn không bị trừ tiền.',
-        PaymentErrorCode.invalidState => 'Đơn này không còn chờ thanh toán (đã thanh toán hoặc đã huỷ).',
+        PaymentErrorCode.paymentExpired =>
+          'Đã quá hạn thanh toán. Đơn sẽ được huỷ và bạn không bị trừ tiền.',
+        PaymentErrorCode.invalidState =>
+          'Đơn này không còn chờ thanh toán (đã thanh toán hoặc đã huỷ).',
         _ => 'Không tạo được mã thanh toán lúc này.',
       };
     case 502:
@@ -101,4 +108,5 @@ String qrFailureMessage(ApiException e) {
 }
 
 /// A failed status check is not shown as an error on its own (the next poll may work); this is the text after several in a row.
-const String pollTroubleMessage = 'Chưa kiểm tra được trạng thái thanh toán. Đang thử lại…';
+const String pollTroubleMessage =
+    'Chưa kiểm tra được trạng thái thanh toán. Đang thử lại…';

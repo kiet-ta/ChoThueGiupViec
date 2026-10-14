@@ -7,7 +7,7 @@ class CustomerAcceptanceService {
   final ApiClient _apiClient;
 
   CustomerAcceptanceService({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   /// Customer confirms job completion (contract workers.md §2.5.2).
   Future<ApiResponse<AssignmentCompletionDto>> acceptCompletion({
@@ -16,8 +16,11 @@ class CustomerAcceptanceService {
   }) {
     return _apiClient.post<AssignmentCompletionDto>(
       '/api/customers/assignments/$assignmentId/accept',
-      body: feedback != null && feedback.isNotEmpty ? {'feedback': feedback} : {},
-      fromJson: (json) => AssignmentCompletionDto.fromJson(json as Map<String, dynamic>),
+      body: feedback != null && feedback.isNotEmpty
+          ? {'feedback': feedback}
+          : {},
+      fromJson: (json) =>
+          AssignmentCompletionDto.fromJson(json as Map<String, dynamic>),
     );
   }
 
@@ -29,7 +32,8 @@ class CustomerAcceptanceService {
     return _apiClient.post<AssignmentStatusDto>(
       '/api/customers/assignments/$assignmentId/request-redo',
       body: request.toJson(),
-      fromJson: (json) => AssignmentStatusDto.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) =>
+          AssignmentStatusDto.fromJson(json as Map<String, dynamic>),
     );
   }
 }

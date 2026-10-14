@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -13,10 +14,7 @@ import 'address_form_screen.dart';
 class AddressListScreen extends StatefulWidget {
   final CustomerAddressService? addressService;
 
-  const AddressListScreen({
-    super.key,
-    this.addressService,
-  });
+  const AddressListScreen({super.key, this.addressService});
 
   @override
   State<AddressListScreen> createState() => _AddressListScreenState();
@@ -51,7 +49,10 @@ class _AddressListScreenState extends State<AddressListScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('HttpException: ', '');
+        _errorMessage = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('HttpException: ', '');
         _isLoading = false;
       });
     }
@@ -61,9 +62,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => AddressFormScreen(
-          addressService: _service,
-        ),
+        builder: (context) => AddressFormScreen(addressService: _service),
       ),
     );
 
@@ -92,7 +91,9 @@ class _AddressListScreenState extends State<AddressListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0),
+        ),
         backgroundColor: NordicColors.surface,
         title: Text('Xác Nhận Xoá', style: NordicTypography.h3),
         content: Text(
@@ -157,17 +158,17 @@ class _AddressListScreenState extends State<AddressListScreen> {
                   onRefresh: _loadAddresses,
                   color: NordicColors.primary,
                   child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 12.0,
+                    ),
                     children: [
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: EyebrowBadge(text: 'QUẢN LÝ ĐỊA ĐIỂM DỊCH VỤ'),
                       ),
                       const SizedBox(height: 8.0),
-                      Text(
-                        'Địa chỉ của bạn',
-                        style: NordicTypography.h1,
-                      ),
+                      Text('Địa chỉ của bạn', style: NordicTypography.h1),
                       const SizedBox(height: 4.0),
                       Text(
                         'Lưu địa chỉ để việc đặt dịch vụ giúp việc diễn ra chính xác và nhanh chóng.',
@@ -180,7 +181,9 @@ class _AddressListScreenState extends State<AddressListScreen> {
                           padding: EdgeInsets.symmetric(vertical: 40.0),
                           child: Center(
                             child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(NordicColors.primary),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                NordicColors.primary,
+                              ),
                             ),
                           ),
                         )
@@ -210,7 +213,10 @@ class _AddressListScreenState extends State<AddressListScreen> {
                         )
                       else if (_addresses.isEmpty)
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 48.0, horizontal: 20.0),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 48.0,
+                            horizontal: 20.0,
+                          ),
                           alignment: Alignment.center,
                           child: Column(
                             children: [
@@ -228,7 +234,10 @@ class _AddressListScreenState extends State<AddressListScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16.0),
-                              Text('Chưa Có Địa Chỉ Nào', style: NordicTypography.h3),
+                              Text(
+                                'Chưa Có Địa Chỉ Nào',
+                                style: NordicTypography.h3,
+                              ),
                               const SizedBox(height: 8.0),
                               Text(
                                 'Bạn chưa lưu địa chỉ nào. Hãy bấm "Thêm Địa Chỉ Mới" bên dưới để bắt đầu!',
@@ -267,7 +276,10 @@ class _AddressListScreenState extends State<AddressListScreen> {
                   top: false,
                   child: NordicButton(
                     label: 'Thêm Địa Chỉ Mới',
-                    icon: const Icon(Icons.add_location_alt_outlined, size: 18.0),
+                    icon: const Icon(
+                      Icons.add_location_alt_outlined,
+                      size: 18.0,
+                    ),
                     width: double.infinity,
                     onPressed: _navigateToAdd,
                   ),

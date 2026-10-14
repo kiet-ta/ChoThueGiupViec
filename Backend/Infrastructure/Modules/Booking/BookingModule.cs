@@ -1,6 +1,5 @@
 using CommonService.Application.Features.Booking;
 using CommonService.Application.Features.Booking.Services;
-using CommonService.Infrastructure.Modules.Booking;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +14,6 @@ public class BookingModule : IModule
     {
         services.AddScoped<IPriceRuleRepository, PriceRuleRepository>();
         services.AddScoped<IPricingService, PricingService>();
-        services.AddScoped<IJobOrderRepository, EfJobOrderRepository>();
         services.AddScoped<IOrderTrackingQuery, OrderTrackingQuery>();
         services.AddScoped<IPriceRuleAdminService, PriceRuleAdminService>();
         services.AddScoped<IOrderRepository, OrderRepository>();

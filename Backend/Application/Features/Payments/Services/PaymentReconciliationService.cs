@@ -7,7 +7,6 @@ using CommonService.Domain.Events;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Application.Features.Payments.Services;
 

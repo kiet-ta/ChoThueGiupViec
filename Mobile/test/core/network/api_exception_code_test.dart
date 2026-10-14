@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/auth/token_storage.dart';
 import 'package:mobile/core/network/api_client.dart';
@@ -34,7 +35,9 @@ void main() {
       TokenStorage().clear();
       TokenStorage().saveTokens(accessToken: 'tok', refreshToken: 'ref');
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      client = ApiClient(baseUrl: 'http://${server.address.host}:${server.port}');
+      client = ApiClient(
+        baseUrl: 'http://${server.address.host}:${server.port}',
+      );
     });
 
     tearDown(() async {
@@ -58,7 +61,11 @@ void main() {
     });
 
     test('is null when the server sends no code', () async {
-      await answer(409, {'success': false, 'message': 'Conflict', 'data': null});
+      await answer(409, {
+        'success': false,
+        'message': 'Conflict',
+        'data': null,
+      });
 
       expect((await failure()).code, isNull);
     });

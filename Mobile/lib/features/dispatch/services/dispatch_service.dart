@@ -24,9 +24,9 @@ class DispatchService {
     ILocationWrapper? locationWrapper,
     ICameraWrapper? cameraWrapper,
     this.isMock = false,
-  })  : _apiClient = apiClient ?? ApiClient(),
-        _locationWrapper = locationWrapper ?? LocationWrapper(),
-        _cameraWrapper = cameraWrapper ?? CameraWrapper() {
+  }) : _apiClient = apiClient ?? ApiClient(),
+       _locationWrapper = locationWrapper ?? LocationWrapper(),
+       _cameraWrapper = cameraWrapper ?? CameraWrapper() {
     if (isMock) {
       _mockOffer = JobOffer(
         assignmentId: 1001,
@@ -189,10 +189,7 @@ class DispatchService {
 
     final response = await _apiClient.post(
       '/api/dispatch/assignments/$assignmentId/check-in',
-      body: {
-        'latitude': latitude,
-        'longitude': longitude,
-      },
+      body: {'latitude': latitude, 'longitude': longitude},
       requiresAuth: true,
     );
 
@@ -224,9 +221,7 @@ class DispatchService {
 
     final response = await _apiClient.post(
       '/api/dispatch/assignments/$assignmentId/check-in/plate-photo',
-      body: {
-        'platePhotoUrl': platePhotoUrl,
-      },
+      body: {'platePhotoUrl': platePhotoUrl},
       requiresAuth: true,
     );
 
@@ -294,7 +289,9 @@ class DispatchService {
   /// Reports customer absent after waiting >= 15 mins and >= 2 call attempts (BR-05, Q10).
   Future<CustomerAbsentReport> reportCustomerAbsent(int assignmentId) async {
     if (isMock) {
-      final checkedInAt = _mockCheckedInAt ?? DateTime.now().subtract(const Duration(minutes: 16));
+      final checkedInAt =
+          _mockCheckedInAt ??
+          DateTime.now().subtract(const Duration(minutes: 16));
       final elapsed = DateTime.now().difference(checkedInAt).inMinutes;
 
       if (elapsed < 15 || _mockCallAttempts < 2) {

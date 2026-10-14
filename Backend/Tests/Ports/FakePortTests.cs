@@ -1,5 +1,4 @@
 using CommonService.Application.Interfaces.Ports;
-using CommonService.Application.Features.Agencies;
 using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modularity;
@@ -42,7 +41,7 @@ public class FakePortTests
             .Where(t => t.IsInterface && t.Namespace == typeof(IClock).Namespace)
             .ToList();
 
-        Assert.Equal(17, ports.Count);
+        Assert.Equal(18, ports.Count);
         foreach (var port in ports)
         {
             var instance = provider.GetRequiredService(port);
@@ -331,6 +330,23 @@ public class FakePortTests
         await capacity.ReleaseAsync(other!.ReservationId);
         await capacity.ReleaseByOrderAsync(2); // already released by its reservation id
         Assert.Equal(5, capacity.RemainingSlots);
+    }
+
+    [Fact]
+    public async Task AgencyCapacity_reservation_of_an_order_is_read_back_without_reserving_again()
+    {
+        var capacity = new FakeAgencyCapacityService { RemainingSlots = 3 };
+        var held = await capacity.TryReserveAsync(new CapacityRequest(new DateOnly(2026, 10, 6), "SHIFT_1", 2, OrderId: 7));
+
+        var readBack = await capacity.GetReservationByOrderAsync(7);
+
+        Assert.Same(held, readBack);
+        Assert.Equal(1, capacity.RemainingSlots); // reading does not take more slots (decisions Q23 B8)
+        Assert.Equal(0.200m, readBack!.CommissionRate); // the fake agency is on FREE (Q08, Q11)
+        Assert.Null(await capacity.GetReservationByOrderAsync(8));
+
+        await capacity.ReleaseByOrderAsync(7);
+        Assert.Null(await capacity.GetReservationByOrderAsync(7));
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/nordic_colors.dart';
 
 /// Double-bezel card structure specified in TỔ ẤM — Nordic Care.

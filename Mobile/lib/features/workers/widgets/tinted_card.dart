@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 
 /// A card of the workers screens with its own background colour (notices, highlighted rows).
@@ -7,7 +8,11 @@ class TintedCard extends StatelessWidget {
   final Color backgroundColor;
   final Widget child;
 
-  const TintedCard({super.key, required this.backgroundColor, required this.child});
+  const TintedCard({
+    super.key,
+    required this.backgroundColor,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {

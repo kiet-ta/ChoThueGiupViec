@@ -1,5 +1,4 @@
 using CommonService.Application.Interfaces.Ports;
-using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Tests.Booking;
 
@@ -17,5 +16,6 @@ internal sealed class RecordingCapacity : IAgencyCapacityService
 
     public Task<bool> HasCapacityAsync(CapacityRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     public Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    public Task<CapacityReservation?> GetReservationByOrderAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     public Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 }

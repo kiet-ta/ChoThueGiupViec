@@ -22,7 +22,9 @@ class DisputesService implements IDisputesService {
       fromJson: (json) => Dispute.fromJson(json as Map<String, dynamic>),
     );
     final data = response.data;
-    if (data == null) throw const ApiException(0, 'Máy chủ không trả khiếu nại vừa tạo.');
+    if (data == null) {
+      throw const ApiException(0, 'Máy chủ không trả khiếu nại vừa tạo.');
+    }
     return data;
   }
 
@@ -30,7 +32,10 @@ class DisputesService implements IDisputesService {
   Future<List<Dispute>> listMine(DisputeRole role) async {
     final response = await _client.get<List<Dispute>>(
       '${role.pathPrefix}/disputes',
-      fromJson: (json) => ((json as List?) ?? const []).whereType<Map<String, dynamic>>().map(Dispute.fromJson).toList(growable: false),
+      fromJson: (json) => ((json as List?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(Dispute.fromJson)
+          .toList(growable: false),
     );
     return response.data ?? const [];
   }

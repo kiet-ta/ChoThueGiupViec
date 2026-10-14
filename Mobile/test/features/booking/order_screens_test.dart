@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
@@ -22,59 +23,67 @@ const _options = BookingOptions(
 );
 
 BookingOrder _order(String status, {String? cancelReason}) => BookingOrder(
-      orderId: 100,
-      orderCode: 'GV261014ABC123',
-      serviceTier: ServiceTier.economy,
-      addressId: 1,
-      scheduledDate: '2026-10-15',
-      shiftCode: 'SHIFT_MORNING',
-      shiftStartAt: null,
-      shiftEndAt: null,
-      areaSnapshotM2: 50,
-      requiredWorkers: 1,
-      requiredSkill: null,
-      totalAmount: 260000,
-      orderStatus: status,
-      customerNote: null,
-      cancelReason: cancelReason,
-      paymentDeadlineAt: null,
-      createdAt: null,
-    );
+  orderId: 100,
+  orderCode: 'GV261014ABC123',
+  serviceTier: ServiceTier.economy,
+  addressId: 1,
+  scheduledDate: '2026-10-15',
+  shiftCode: 'SHIFT_MORNING',
+  shiftStartAt: null,
+  shiftEndAt: null,
+  areaSnapshotM2: 50,
+  requiredWorkers: 1,
+  requiredSkill: null,
+  totalAmount: 260000,
+  orderStatus: status,
+  customerNote: null,
+  cancelReason: cancelReason,
+  paymentDeadlineAt: null,
+  createdAt: null,
+);
 
-ProgressAssignment _worker(int id, String status, {String? name = 'Nguyễn Thị Lan'}) => ProgressAssignment(
-      assignmentId: id,
-      assignmentSeq: 1,
-      workerId: id + 50,
-      workerName: name,
-      workerRatingAvg: 4.8,
-      assignmentStatus: status,
-      acceptedAt: null,
-      completedAt: null,
-    );
+ProgressAssignment _worker(
+  int id,
+  String status, {
+  String? name = 'Nguyễn Thị Lan',
+}) => ProgressAssignment(
+  assignmentId: id,
+  assignmentSeq: 1,
+  workerId: id + 50,
+  workerName: name,
+  workerRatingAvg: 4.8,
+  assignmentStatus: status,
+  acceptedAt: null,
+  completedAt: null,
+);
 
-OrderExtension _extension(String status, {double hours = 1.5, int amount = 97500}) => OrderExtension(
-      extensionId: 9,
-      orderId: 100,
-      workerId: 57,
-      extraHours: hours,
-      extraAmount: amount,
-      extStatus: status,
-      workerDecision: 'PENDING',
-      requestedAt: null,
-      decidedAt: null,
-    );
+OrderExtension _extension(
+  String status, {
+  double hours = 1.5,
+  int amount = 97500,
+}) => OrderExtension(
+  extensionId: 9,
+  orderId: 100,
+  workerId: 57,
+  extraHours: hours,
+  extraAmount: amount,
+  extStatus: status,
+  workerDecision: 'PENDING',
+  requestedAt: null,
+  decidedAt: null,
+);
 
 OrderSummary _summary(int id, String status) => OrderSummary(
-      orderId: id,
-      orderCode: 'GV$id',
-      serviceTier: ServiceTier.economy,
-      scheduledDate: '2026-10-15',
-      shiftCode: 'SHIFT_MORNING',
-      requiredWorkers: 1,
-      totalAmount: 260000,
-      orderStatus: status,
-      createdAt: null,
-    );
+  orderId: id,
+  orderCode: 'GV$id',
+  serviceTier: ServiceTier.economy,
+  scheduledDate: '2026-10-15',
+  shiftCode: 'SHIFT_MORNING',
+  requiredWorkers: 1,
+  totalAmount: 260000,
+  orderStatus: status,
+  createdAt: null,
+);
 
 class FakeOrderService implements IOrderService {
   String status = OrderStatus.dispatching;
@@ -100,16 +109,28 @@ class FakeOrderService implements IOrderService {
   @override
   Future<BookingOrder> getOrder(int orderId) {
     orderReads++;
-    return loadError != null ? Future.error(loadError!) : Future.value(_order(status, cancelReason: cancelReason));
+    return loadError != null
+        ? Future.error(loadError!)
+        : Future.value(_order(status, cancelReason: cancelReason));
   }
 
   @override
   Future<OrderProgress> getProgress(int orderId) => loadError != null
       ? Future.error(loadError!)
-      : Future.value(OrderProgress(orderId: orderId, orderStatus: status, requiredWorkers: 1, assignments: workers, extension: extension));
+      : Future.value(
+          OrderProgress(
+            orderId: orderId,
+            orderStatus: status,
+            requiredWorkers: 1,
+            assignments: workers,
+            extension: extension,
+          ),
+        );
 
   @override
-  Future<BookingOptions> getOptions() => optionsError != null ? Future.error(optionsError!) : Future.value(_options);
+  Future<BookingOptions> getOptions() => optionsError != null
+      ? Future.error(optionsError!)
+      : Future.value(_options);
 
   @override
   Future<BookingOrder> cancelOrder(int orderId, String reason) {
@@ -122,10 +143,18 @@ class FakeOrderService implements IOrderService {
   }
 
   @override
-  Future<OrderExtension> requestExtension({required int orderId, required int assignmentId, required double extraHours}) {
+  Future<OrderExtension> requestExtension({
+    required int orderId,
+    required int assignmentId,
+    required double extraHours,
+  }) {
     extensions.add((assignmentId: assignmentId, hours: extraHours));
     if (extensionError != null) return Future.error(extensionError!);
-    extension = _extension(ExtensionStatus.pendingPayment, hours: extraHours, amount: 65000);
+    extension = _extension(
+      ExtensionStatus.pendingPayment,
+      hours: extraHours,
+      amount: 65000,
+    );
     return Future.value(extension!);
   }
 
@@ -134,7 +163,14 @@ class FakeOrderService implements IOrderService {
     pagesAsked.add(page);
     if (listError != null) return Future.error(listError!);
     final items = all.skip((page - 1) * pageSize).take(pageSize).toList();
-    return Future.value(OrderPage(items: items, page: page, pageSize: pageSize, total: all.length));
+    return Future.value(
+      OrderPage(
+        items: items,
+        page: page,
+        pageSize: pageSize,
+        total: all.length,
+      ),
+    );
   }
 }
 
@@ -147,18 +183,24 @@ void _phone(WidgetTester tester) {
   });
 }
 
-Future<List<PaymentScreenArgs>> pumpDetail(WidgetTester tester, FakeOrderService service, {bool withArgs = true}) async {
+Future<List<PaymentScreenArgs>> pumpDetail(
+  WidgetTester tester,
+  FakeOrderService service, {
+  bool withArgs = true,
+}) async {
   _phone(tester);
   final paid = <PaymentScreenArgs>[];
-  await tester.pumpWidget(MaterialApp(
-    theme: NordicTheme.lightTheme,
-    home: OrderDetailScreen(
-      args: withArgs ? const OrderDetailArgs(orderId: 100) : null,
-      service: service,
-      pollInterval: _poll,
-      onPay: paid.add,
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: NordicTheme.lightTheme,
+      home: OrderDetailScreen(
+        args: withArgs ? const OrderDetailArgs(orderId: 100) : null,
+        service: service,
+        pollInterval: _poll,
+        onPay: paid.add,
+      ),
     ),
-  ));
+  );
   await tester.pumpAndSettle();
   // The polling timer must not outlive the test.
   addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
@@ -172,26 +214,35 @@ Future<void> tapKey(WidgetTester tester, String key) async {
   await tester.pumpAndSettle();
 }
 
-String textOf(WidgetTester tester, String key) => tester.widget<Text>(find.byKey(Key(key))).data!;
+String textOf(WidgetTester tester, String key) =>
+    tester.widget<Text>(find.byKey(Key(key))).data!;
 
 void main() {
   group('OrderDetailScreen: tracking (MOB-M2-04)', () {
-    testWidgets('shows the order, its timeline and that a worker is being found', (tester) async {
-      await pumpDetail(tester, FakeOrderService());
+    testWidgets(
+      'shows the order, its timeline and that a worker is being found',
+      (tester) async {
+        await pumpDetail(tester, FakeOrderService());
 
-      expect(find.text('Đơn GV261014ABC123'), findsOneWidget);
-      expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
-      expect(textOf(tester, 'order-schedule'), '15/10/2026 · Ca sáng');
-      expect(textOf(tester, 'order-amount'), '260.000 đ');
-      expect(find.byKey(const Key('order-timeline')), findsOneWidget);
-      expect(textOf(tester, 'no-assignments'), contains('Đang tìm thợ'));
-      expect(find.byKey(const Key('pay-order')), findsNothing);
-    });
+        expect(find.text('Đơn GV261014ABC123'), findsOneWidget);
+        expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
+        expect(textOf(tester, 'order-schedule'), '15/10/2026 · Ca sáng');
+        expect(textOf(tester, 'order-amount'), '260.000 đ');
+        expect(find.byKey(const Key('order-timeline')), findsOneWidget);
+        expect(textOf(tester, 'no-assignments'), contains('Đang tìm thợ'));
+        expect(find.byKey(const Key('pay-order')), findsNothing);
+      },
+    );
 
-    testWidgets('shows each worker with name, rating and status', (tester) async {
+    testWidgets('shows each worker with name, rating and status', (
+      tester,
+    ) async {
       final service = FakeOrderService()
         ..status = OrderStatus.assigned
-        ..workers = [_worker(7, AssignmentStatus.checkedIn), _worker(8, AssignmentStatus.assigned, name: null)];
+        ..workers = [
+          _worker(7, AssignmentStatus.checkedIn),
+          _worker(8, AssignmentStatus.assigned, name: null),
+        ];
       await pumpDetail(tester, service);
 
       expect(find.text('Nguyễn Thị Lan · ★ 4,8'), findsOneWidget);
@@ -200,7 +251,9 @@ void main() {
       expect(textOf(tester, 'assignment-status-8'), 'Đã nhận ca');
     });
 
-    testWidgets('an unpaid order offers the payment of that order', (tester) async {
+    testWidgets('an unpaid order offers the payment of that order', (
+      tester,
+    ) async {
       final service = FakeOrderService()..status = OrderStatus.pendingPayment;
       final paid = await pumpDetail(tester, service);
 
@@ -242,25 +295,34 @@ void main() {
       expect(find.byKey(const Key('open-cancel')), findsNothing);
     });
 
-    testWidgets('a failed refresh keeps what is on screen and the next one recovers', (tester) async {
-      final service = FakeOrderService();
-      await pumpDetail(tester, service);
+    testWidgets(
+      'a failed refresh keeps what is on screen and the next one recovers',
+      (tester) async {
+        final service = FakeOrderService();
+        await pumpDetail(tester, service);
 
-      service.loadError = const ApiException(0, 'Không kết nối được máy chủ.');
-      await tester.pump(_poll);
-      await tester.pump();
-      expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
+        service.loadError = const ApiException(
+          0,
+          'Không kết nối được máy chủ.',
+        );
+        await tester.pump(_poll);
+        await tester.pump();
+        expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
 
-      service
-        ..loadError = null
-        ..status = OrderStatus.assigned;
-      await tester.pump(_poll);
-      await tester.pump();
-      expect(textOf(tester, 'order-status'), 'Đã có thợ');
-    });
+        service
+          ..loadError = null
+          ..status = OrderStatus.assigned;
+        await tester.pump(_poll);
+        await tester.pump();
+        expect(textOf(tester, 'order-status'), 'Đã có thợ');
+      },
+    );
 
-    testWidgets('a failed load shows the reason and loads again on retry', (tester) async {
-      final service = FakeOrderService()..loadError = const ApiException(404, 'Order not found.');
+    testWidgets('a failed load shows the reason and loads again on retry', (
+      tester,
+    ) async {
+      final service = FakeOrderService()
+        ..loadError = const ApiException(404, 'Order not found.');
       await pumpDetail(tester, service);
 
       expect(find.textContaining('Không tìm thấy đơn này'), findsOneWidget);
@@ -271,7 +333,9 @@ void main() {
       expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
     });
 
-    testWidgets('without an order it says how to get here and asks nothing', (tester) async {
+    testWidgets('without an order it says how to get here and asks nothing', (
+      tester,
+    ) async {
       final service = FakeOrderService();
       await pumpDetail(tester, service, withArgs: false);
 
@@ -281,7 +345,9 @@ void main() {
   });
 
   group('OrderDetailScreen: cancel', () {
-    testWidgets('an empty reason is refused before any request', (tester) async {
+    testWidgets('an empty reason is refused before any request', (
+      tester,
+    ) async {
       final service = FakeOrderService();
       await pumpDetail(tester, service);
 
@@ -292,47 +358,73 @@ void main() {
       expect(service.cancels, isEmpty);
     });
 
-    testWidgets('cancels with the trimmed reason and shows the cancelled order', (tester) async {
-      final service = FakeOrderService();
+    testWidgets(
+      'cancels with the trimmed reason and shows the cancelled order',
+      (tester) async {
+        final service = FakeOrderService();
+        await pumpDetail(tester, service);
+
+        await tapKey(tester, 'open-cancel');
+        await tester.enterText(
+          find.byKey(const Key('cancel-reason-input')),
+          '  bận việc  ',
+        );
+        await tapKey(tester, 'submit-cancel');
+
+        expect(service.cancels, ['bận việc']);
+        expect(textOf(tester, 'order-status'), 'Đã huỷ');
+        expect(textOf(tester, 'order-cancel-reason'), 'Lý do huỷ: bận việc');
+        expect(find.byKey(const Key('order-notice')), findsOneWidget);
+        expect(find.byKey(const Key('open-cancel')), findsNothing);
+        expect(find.byKey(const Key('cancel-form')), findsNothing);
+      },
+    );
+
+    testWidgets('a second tap while cancelling sends nothing more', (
+      tester,
+    ) async {
+      final service = FakeOrderService()
+        ..cancelGate = Completer<BookingOrder>();
       await pumpDetail(tester, service);
-
       await tapKey(tester, 'open-cancel');
-      await tester.enterText(find.byKey(const Key('cancel-reason-input')), '  bận việc  ');
-      await tapKey(tester, 'submit-cancel');
-
-      expect(service.cancels, ['bận việc']);
-      expect(textOf(tester, 'order-status'), 'Đã huỷ');
-      expect(textOf(tester, 'order-cancel-reason'), 'Lý do huỷ: bận việc');
-      expect(find.byKey(const Key('order-notice')), findsOneWidget);
-      expect(find.byKey(const Key('open-cancel')), findsNothing);
-      expect(find.byKey(const Key('cancel-form')), findsNothing);
-    });
-
-    testWidgets('a second tap while cancelling sends nothing more', (tester) async {
-      final service = FakeOrderService()..cancelGate = Completer<BookingOrder>();
-      await pumpDetail(tester, service);
-      await tapKey(tester, 'open-cancel');
-      await tester.enterText(find.byKey(const Key('cancel-reason-input')), 'bận');
+      await tester.enterText(
+        find.byKey(const Key('cancel-reason-input')),
+        'bận',
+      );
 
       await tester.tap(find.byKey(const Key('submit-cancel')));
       await tester.pump();
-      await tester.tap(find.byKey(const Key('submit-cancel')), warnIfMissed: false);
+      await tester.tap(
+        find.byKey(const Key('submit-cancel')),
+        warnIfMissed: false,
+      );
       await tester.pump();
 
       expect(service.cancels.length, 1);
-      service.cancelGate!.complete(_order(OrderStatus.cancelled, cancelReason: 'bận'));
+      service.cancelGate!.complete(
+        _order(OrderStatus.cancelled, cancelReason: 'bận'),
+      );
       await tester.pumpAndSettle();
       expect(textOf(tester, 'order-status'), 'Đã huỷ');
     });
 
-    testWidgets('a refusal of the server is explained and the order stays', (tester) async {
+    testWidgets('a refusal of the server is explained and the order stays', (
+      tester,
+    ) async {
       final service = FakeOrderService()
         ..status = OrderStatus.assigned
-        ..cancelError = const ApiException(409, 'The order can no longer be cancelled.', code: 'INVALID_STATE');
+        ..cancelError = const ApiException(
+          409,
+          'The order can no longer be cancelled.',
+          code: 'INVALID_STATE',
+        );
       await pumpDetail(tester, service);
 
       await tapKey(tester, 'open-cancel');
-      await tester.enterText(find.byKey(const Key('cancel-reason-input')), 'bận');
+      await tester.enterText(
+        find.byKey(const Key('cancel-reason-input')),
+        'bận',
+      );
       await tapKey(tester, 'submit-cancel');
 
       expect(textOf(tester, 'cancel-error'), contains('không huỷ được'));
@@ -359,7 +451,9 @@ void main() {
       expect(find.byKey(const Key('open-extension')), findsOneWidget);
     });
 
-    testWidgets('offers half hours up to the shift length of the options', (tester) async {
+    testWidgets('offers half hours up to the shift length of the options', (
+      tester,
+    ) async {
       await pumpDetail(tester, working());
 
       await tapKey(tester, 'open-extension');
@@ -381,27 +475,36 @@ void main() {
       expect(service.extensions, isEmpty);
     });
 
-    testWidgets('sends the worker and the hours, then shows the server price and its payment', (tester) async {
-      final service = working();
-      final paid = await pumpDetail(tester, service);
+    testWidgets(
+      'sends the worker and the hours, then shows the server price and its payment',
+      (tester) async {
+        final service = working();
+        final paid = await pumpDetail(tester, service);
 
-      await tapKey(tester, 'open-extension');
-      await tapKey(tester, 'hours-1.0');
-      await tapKey(tester, 'submit-extension');
+        await tapKey(tester, 'open-extension');
+        await tapKey(tester, 'hours-1.0');
+        await tapKey(tester, 'submit-extension');
 
-      expect(service.extensions.single, (assignmentId: 7, hours: 1.0));
-      expect(textOf(tester, 'extension-summary'), 'Thêm 1 giờ · 65.000 đ');
-      expect(textOf(tester, 'extension-status'), 'Chờ thanh toán');
-      expect(find.byKey(const Key('extension-form')), findsNothing);
-      expect(find.byKey(const Key('open-extension')), findsNothing);
+        expect(service.extensions.single, (assignmentId: 7, hours: 1.0));
+        expect(textOf(tester, 'extension-summary'), 'Thêm 1 giờ · 65.000 đ');
+        expect(textOf(tester, 'extension-status'), 'Chờ thanh toán');
+        expect(find.byKey(const Key('extension-form')), findsNothing);
+        expect(find.byKey(const Key('open-extension')), findsNothing);
 
-      await tapKey(tester, 'pay-extension');
-      expect(paid.single.orderId, 100);
-      expect(paid.single.extensionId, 9);
-    });
+        await tapKey(tester, 'pay-extension');
+        expect(paid.single.orderId, 100);
+        expect(paid.single.extensionId, 9);
+      },
+    );
 
-    testWidgets('with two workers on site the chosen one is sent', (tester) async {
-      final service = working()..workers = [_worker(7, AssignmentStatus.inProgress), _worker(8, AssignmentStatus.inProgress, name: 'Trần Văn Bình')];
+    testWidgets('with two workers on site the chosen one is sent', (
+      tester,
+    ) async {
+      final service = working()
+        ..workers = [
+          _worker(7, AssignmentStatus.inProgress),
+          _worker(8, AssignmentStatus.inProgress, name: 'Trần Văn Bình'),
+        ];
       await pumpDetail(tester, service);
 
       await tapKey(tester, 'open-extension');
@@ -413,7 +516,12 @@ void main() {
     });
 
     testWidgets('EXTENSION_EXISTS is explained from its code', (tester) async {
-      final service = working()..extensionError = const ApiException(409, 'This order already has an extension.', code: 'EXTENSION_EXISTS');
+      final service = working()
+        ..extensionError = const ApiException(
+          409,
+          'This order already has an extension.',
+          code: 'EXTENSION_EXISTS',
+        );
       await pumpDetail(tester, service);
 
       await tapKey(tester, 'open-extension');
@@ -424,33 +532,45 @@ void main() {
       expect(find.textContaining('already has'), findsNothing);
     });
 
-    testWidgets('an extension that is no longer waiting for payment has no pay button', (tester) async {
-      final service = working()..extension = _extension(ExtensionStatus.declined);
-      await pumpDetail(tester, service);
+    testWidgets(
+      'an extension that is no longer waiting for payment has no pay button',
+      (tester) async {
+        final service = working()
+          ..extension = _extension(ExtensionStatus.declined);
+        await pumpDetail(tester, service);
 
-      expect(textOf(tester, 'extension-summary'), 'Thêm 1,5 giờ · 97.500 đ');
-      expect(textOf(tester, 'extension-status'), contains('từ chối'));
-      expect(find.byKey(const Key('pay-extension')), findsNothing);
-      expect(find.byKey(const Key('open-extension')), findsNothing);
-    });
+        expect(textOf(tester, 'extension-summary'), 'Thêm 1,5 giờ · 97.500 đ');
+        expect(textOf(tester, 'extension-status'), contains('từ chối'));
+        expect(find.byKey(const Key('pay-extension')), findsNothing);
+        expect(find.byKey(const Key('open-extension')), findsNothing);
+      },
+    );
 
-    testWidgets('when the options cannot be read the form says so and can retry', (tester) async {
-      final service = working()..optionsError = const ApiException(500, 'boom');
-      await pumpDetail(tester, service);
+    testWidgets(
+      'when the options cannot be read the form says so and can retry',
+      (tester) async {
+        final service = working()
+          ..optionsError = const ApiException(500, 'boom');
+        await pumpDetail(tester, service);
 
-      await tapKey(tester, 'open-extension');
-      expect(textOf(tester, 'extension-error'), contains('Máy chủ gặp lỗi'));
-      expect(find.byKey(const Key('submit-extension')), findsNothing);
+        await tapKey(tester, 'open-extension');
+        expect(textOf(tester, 'extension-error'), contains('Máy chủ gặp lỗi'));
+        expect(find.byKey(const Key('submit-extension')), findsNothing);
 
-      service.optionsError = null;
-      await tester.tap(find.text('Thử lại'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('hours-0.5')), findsOneWidget);
-    });
+        service.optionsError = null;
+        await tester.tap(find.text('Thử lại'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('hours-0.5')), findsOneWidget);
+      },
+    );
   });
 
   group('OrderHistoryScreen (MOB-M2-06)', () {
-    Future<List<OrderSummary>> pumpHistory(WidgetTester tester, FakeOrderService service, {VoidCallback? onBook}) async {
+    Future<List<OrderSummary>> pumpHistory(
+      WidgetTester tester,
+      FakeOrderService service, {
+      VoidCallback? onBook,
+    }) async {
       tester.view.physicalSize = const Size(390, 6000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -458,16 +578,28 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
       final opened = <OrderSummary>[];
-      await tester.pumpWidget(MaterialApp(
-        theme: NordicTheme.lightTheme,
-        home: OrderHistoryScreen(service: service, onOpenOrder: opened.add, onBook: onBook),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: OrderHistoryScreen(
+            service: service,
+            onOpenOrder: opened.add,
+            onBook: onBook,
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       return opened;
     }
 
-    testWidgets('lists the orders with code, status, schedule and amount', (tester) async {
-      final service = FakeOrderService()..all = [_summary(1, OrderStatus.assigned), _summary(2, OrderStatus.cancelled)];
+    testWidgets('lists the orders with code, status, schedule and amount', (
+      tester,
+    ) async {
+      final service = FakeOrderService()
+        ..all = [
+          _summary(1, OrderStatus.assigned),
+          _summary(2, OrderStatus.cancelled),
+        ];
       await pumpHistory(tester, service);
 
       expect(find.text('GV1'), findsOneWidget);
@@ -480,7 +612,11 @@ void main() {
     });
 
     testWidgets('a tap opens that order', (tester) async {
-      final service = FakeOrderService()..all = [_summary(1, OrderStatus.assigned), _summary(2, OrderStatus.completed)];
+      final service = FakeOrderService()
+        ..all = [
+          _summary(1, OrderStatus.assigned),
+          _summary(2, OrderStatus.completed),
+        ];
       final opened = await pumpHistory(tester, service);
 
       await tapKey(tester, 'order-2');
@@ -488,8 +624,13 @@ void main() {
       expect(opened.single.orderId, 2);
     });
 
-    testWidgets('"Xem thêm" loads the next page until everything is shown', (tester) async {
-      final service = FakeOrderService()..all = [for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed)];
+    testWidgets('"Xem thêm" loads the next page until everything is shown', (
+      tester,
+    ) async {
+      final service = FakeOrderService()
+        ..all = [
+          for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
+        ];
       await pumpHistory(tester, service);
 
       expect(textOf(tester, 'history-count'), '20 / 25 đơn');
@@ -503,8 +644,13 @@ void main() {
       expect(find.byKey(const Key('history-more')), findsNothing);
     });
 
-    testWidgets('a failed next page keeps the list and can be tried again', (tester) async {
-      final service = FakeOrderService()..all = [for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed)];
+    testWidgets('a failed next page keeps the list and can be tried again', (
+      tester,
+    ) async {
+      final service = FakeOrderService()
+        ..all = [
+          for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
+        ];
       await pumpHistory(tester, service);
 
       service.listError = const ApiException(500, 'boom');
@@ -527,7 +673,9 @@ void main() {
       expect(booked, 1);
     });
 
-    testWidgets('a failed load shows the reason and loads again on retry', (tester) async {
+    testWidgets('a failed load shows the reason and loads again on retry', (
+      tester,
+    ) async {
       final service = FakeOrderService()
         ..all = [_summary(1, OrderStatus.assigned)]
         ..listError = const ApiException(0, 'Không kết nối được máy chủ.');

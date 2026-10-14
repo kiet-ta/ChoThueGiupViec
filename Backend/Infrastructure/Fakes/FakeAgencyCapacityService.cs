@@ -1,16 +1,19 @@
 using System.Collections.Concurrent;
 using CommonService.Application.Interfaces.Ports;
-using CommonService.Application.Features.Agencies;
 
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>One fake agency (id 1) with a settable number of free slots; holds are atomic.</summary>
-public sealed class FakeAgencyCapacityService : CommonService.Application.Features.Agencies.IAgencyCapacityService
+public sealed class FakeAgencyCapacityService : IAgencyCapacityService
 {
     private const int FakeAgencyId = 1;
+
+    /// <summary>The fake agency is on the FREE package: commission 0.200 (decisions Q08 seed, Q11).</summary>
+    private const decimal FreePackageCommissionRate = 0.200m;
     private readonly object _gate = new();
     private readonly ConcurrentDictionary<Guid, int> _holds = new();
     private readonly Dictionary<Guid, long> _orderOfHold = new();
+    private readonly Dictionary<Guid, CapacityReservation> _reservations = new();
     private int _remainingSlots = 100;
     private int _nextSlotId = 1;
 
@@ -20,10 +23,10 @@ public sealed class FakeAgencyCapacityService : CommonService.Application.Featur
         set { lock (_gate) { _remainingSlots = value; } }
     }
 
-    public Task<bool> HasCapacityAsync(CommonService.Application.Features.Agencies.CapacityRequest request, CancellationToken cancellationToken = default) =>
+    public Task<bool> HasCapacityAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
         Task.FromResult(RemainingSlots >= request.RequiredWorkers);
 
-    public Task<CommonService.Application.Features.Agencies.CapacityReservation?> TryReserveAsync(CommonService.Application.Features.Agencies.CapacityRequest request, CancellationToken cancellationToken = default)
+    public Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
@@ -37,7 +40,18 @@ public sealed class FakeAgencyCapacityService : CommonService.Application.Featur
             var id = Guid.NewGuid();
             _holds[id] = request.RequiredWorkers;
             _orderOfHold[id] = request.OrderId;
-            return Task.FromResult<CapacityReservation?>(new CapacityReservation(id, FakeAgencyId, slotIds));
+            var reservation = new CapacityReservation(id, FakeAgencyId, slotIds, FreePackageCommissionRate);
+            _reservations[id] = reservation;
+            return Task.FromResult<CapacityReservation?>(reservation);
+        }
+    }
+
+    public Task<CapacityReservation?> GetReservationByOrderAsync(long orderId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            var reservationId = _orderOfHold.Where(hold => hold.Value == orderId).Select(hold => (Guid?)hold.Key).FirstOrDefault();
+            return Task.FromResult(reservationId is { } id && _reservations.TryGetValue(id, out var reservation) ? reservation : null);
         }
     }
 
@@ -68,6 +82,7 @@ public sealed class FakeAgencyCapacityService : CommonService.Application.Featur
     private void ReleaseHold(Guid reservationId)
     {
         _orderOfHold.Remove(reservationId);
+        _reservations.Remove(reservationId);
         if (_holds.TryRemove(reservationId, out var count))
         {
             _remainingSlots += count;

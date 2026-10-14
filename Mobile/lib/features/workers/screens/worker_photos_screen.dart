@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -44,11 +45,31 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   final List<JobPhotoDto> _uploadedPhotos = [];
 
   static const List<Map<String, dynamic>> _angleGuides = [
-    {'angle': 1, 'title': 'Góc 1: Toàn cảnh', 'desc': 'Chụp tổng quan toàn bộ căn phòng'},
-    {'angle': 2, 'title': 'Góc 2: Bàn ghế & tủ', 'desc': 'Chụp cận cảnh mặt bàn và tủ kệ'},
-    {'angle': 3, 'title': 'Góc 3: Cửa kính', 'desc': 'Chụp mặt kính cửa sổ và cửa ra vào'},
-    {'angle': 4, 'title': 'Góc 4: Sàn nhà', 'desc': 'Chụp mặt sàn phòng khách và góc thảm'},
-    {'angle': 5, 'title': 'Góc 5: Khu vực bếp', 'desc': 'Chụp bồn rửa và mặt bếp thi công'},
+    {
+      'angle': 1,
+      'title': 'Góc 1: Toàn cảnh',
+      'desc': 'Chụp tổng quan toàn bộ căn phòng',
+    },
+    {
+      'angle': 2,
+      'title': 'Góc 2: Bàn ghế & tủ',
+      'desc': 'Chụp cận cảnh mặt bàn và tủ kệ',
+    },
+    {
+      'angle': 3,
+      'title': 'Góc 3: Cửa kính',
+      'desc': 'Chụp mặt kính cửa sổ và cửa ra vào',
+    },
+    {
+      'angle': 4,
+      'title': 'Góc 4: Sàn nhà',
+      'desc': 'Chụp mặt sàn phòng khách và góc thảm',
+    },
+    {
+      'angle': 5,
+      'title': 'Góc 5: Khu vực bếp',
+      'desc': 'Chụp bồn rửa và mặt bếp thi công',
+    },
   ];
 
   @override
@@ -79,7 +100,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   }
 
   double _estimateVolScore(String url) {
-    if (url.contains('blur') || url.contains('low_quality') || url.contains('vol_45')) {
+    if (url.contains('blur') ||
+        url.contains('low_quality') ||
+        url.contains('vol_45')) {
       return 45.2; // Below threshold 100.0
     }
     return 142.5; // Above threshold 100.0
@@ -109,11 +132,15 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     // Angle matching check for AFTER phase
     if (_selectedPhase == 'AFTER') {
       final hasBeforeAngle = _uploadedPhotos.any(
-        (p) => p.photoPhase == 'BEFORE' && p.angleNo == _selectedAngle && p.isAccepted,
+        (p) =>
+            p.photoPhase == 'BEFORE' &&
+            p.angleNo == _selectedAngle &&
+            p.isAccepted,
       );
       if (!hasBeforeAngle && _uploadedPhotos.isNotEmpty) {
         setState(() {
-          _errorMessage = 'Góc $_selectedAngle chưa có ảnh BEFORE được chấp nhận. Vui lòng chọn đúng góc tương ứng!';
+          _errorMessage =
+              'Góc $_selectedAngle chưa có ảnh BEFORE được chấp nhận. Vui lòng chọn đúng góc tương ứng!';
           _successMessage = null;
         });
         return;
@@ -141,45 +168,53 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
         if (response.data != null) {
           _uploadedPhotos.add(response.data!);
         } else {
-          _uploadedPhotos.add(JobPhotoDto(
-            photoId: DateTime.now().millisecondsSinceEpoch,
-            assignmentId: widget.assignmentId,
-            photoPhase: _selectedPhase,
-            angleNo: _selectedAngle,
-            photoUrl: photoUrl,
-            volScore: volScore,
-            isAccepted: true,
-            uploadedAt: DateTime.now(),
-          ));
+          _uploadedPhotos.add(
+            JobPhotoDto(
+              photoId: DateTime.now().millisecondsSinceEpoch,
+              assignmentId: widget.assignmentId,
+              photoPhase: _selectedPhase,
+              angleNo: _selectedAngle,
+              photoUrl: photoUrl,
+              volScore: volScore,
+              isAccepted: true,
+              uploadedAt: DateTime.now(),
+            ),
+          );
         }
-        _successMessage = 'Tải ảnh thành công! Độ nét VoL: ${volScore.toStringAsFixed(1)} (ĐẠT CHUẨN)';
+        _successMessage =
+            'Tải ảnh thành công! Độ nét VoL: ${volScore.toStringAsFixed(1)} (ĐẠT CHUẨN)';
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
         // Fallback for UI demonstration when backend throws or offline
         if (e.toString().contains('400') || e.toString().contains('blur')) {
-          _errorMessage = 'Ảnh bị mờ (VoL < 100.0). Vui lòng giữ vững máy và chụp lại!';
+          _errorMessage =
+              'Ảnh bị mờ (VoL < 100.0). Vui lòng giữ vững máy và chụp lại!';
         } else {
           // Add local accepted preview for test flow
-          _uploadedPhotos.add(JobPhotoDto(
-            photoId: DateTime.now().millisecondsSinceEpoch,
-            assignmentId: widget.assignmentId,
-            photoPhase: _selectedPhase,
-            angleNo: _selectedAngle,
-            photoUrl: photoUrl,
-            volScore: volScore,
-            isAccepted: true,
-            uploadedAt: DateTime.now(),
-          ));
-          _successMessage = 'Đã tải ảnh lên! VoL: ${volScore.toStringAsFixed(1)} (ĐẠT)';
+          _uploadedPhotos.add(
+            JobPhotoDto(
+              photoId: DateTime.now().millisecondsSinceEpoch,
+              assignmentId: widget.assignmentId,
+              photoPhase: _selectedPhase,
+              angleNo: _selectedAngle,
+              photoUrl: photoUrl,
+              volScore: volScore,
+              isAccepted: true,
+              uploadedAt: DateTime.now(),
+            ),
+          );
+          _successMessage =
+              'Đã tải ảnh lên! VoL: ${volScore.toStringAsFixed(1)} (ĐẠT)';
         }
       });
     }
   }
 
-  List<JobPhotoDto> get _currentPhasePhotos =>
-      _uploadedPhotos.where((p) => p.photoPhase == _selectedPhase && p.isAccepted).toList();
+  List<JobPhotoDto> get _currentPhasePhotos => _uploadedPhotos
+      .where((p) => p.photoPhase == _selectedPhase && p.isAccepted)
+      .toList();
 
   @override
   Widget build(BuildContext context) {
@@ -235,12 +270,18 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                     padding: const EdgeInsets.all(12.0),
                     child: Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Color(0xFFDC2626),
+                        ),
                         const SizedBox(width: 8.0),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(color: Color(0xFF991B1B), fontSize: 13.0),
+                            style: const TextStyle(
+                              color: Color(0xFF991B1B),
+                              fontSize: 13.0,
+                            ),
                           ),
                         ),
                       ],
@@ -256,12 +297,19 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                     padding: const EdgeInsets.all(12.0),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_outline, color: Color(0xFF16A34A)),
+                        const Icon(
+                          Icons.check_circle_outline,
+                          color: Color(0xFF16A34A),
+                        ),
                         const SizedBox(width: 8.0),
                         Expanded(
                           child: Text(
                             _successMessage!,
-                            style: const TextStyle(color: Color(0xFF15803D), fontSize: 13.0, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              color: Color(0xFF15803D),
+                              fontSize: 13.0,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -285,7 +333,8 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                       variant: NordicButtonVariant.secondary,
                       onPressed: () {
                         setState(() {
-                          _photoUrlController.text = 'https://storage.local/jobs/blur_vol_45.jpg';
+                          _photoUrlController.text =
+                              'https://storage.local/jobs/blur_vol_45.jpg';
                         });
                       },
                     ),
@@ -324,7 +373,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 10.0),
                   decoration: BoxDecoration(
-                    color: _selectedPhase == 'BEFORE' ? NordicColors.primary : Colors.transparent,
+                    color: _selectedPhase == 'BEFORE'
+                        ? NordicColors.primary
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                   child: Text(
@@ -332,7 +383,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: _selectedPhase == 'BEFORE' ? Colors.white : NordicColors.textTitle,
+                      color: _selectedPhase == 'BEFORE'
+                          ? Colors.white
+                          : NordicColors.textTitle,
                     ),
                   ),
                 ),
@@ -344,7 +397,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 10.0),
                   decoration: BoxDecoration(
-                    color: _selectedPhase == 'AFTER' ? NordicColors.primary : Colors.transparent,
+                    color: _selectedPhase == 'AFTER'
+                        ? NordicColors.primary
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                   child: Text(
@@ -352,7 +407,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: _selectedPhase == 'AFTER' ? Colors.white : NordicColors.textTitle,
+                      color: _selectedPhase == 'AFTER'
+                          ? Colors.white
+                          : NordicColors.textTitle,
                     ),
                   ),
                 ),
@@ -377,14 +434,17 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                 selected: _selectedAngle == i,
                 selectedColor: NordicColors.primary,
                 labelStyle: TextStyle(
-                  color: _selectedAngle == i ? Colors.white : NordicColors.textTitle,
+                  color: _selectedAngle == i
+                      ? Colors.white
+                      : NordicColors.textTitle,
                   fontWeight: FontWeight.bold,
                 ),
                 onSelected: (selected) {
                   if (selected) {
                     setState(() {
                       _selectedAngle = i;
-                      _photoUrlController.text = 'https://storage.local/jobs/${_selectedPhase.toLowerCase()}_angle$i.jpg';
+                      _photoUrlController.text =
+                          'https://storage.local/jobs/${_selectedPhase.toLowerCase()}_angle$i.jpg';
                     });
                   }
                 },
@@ -410,16 +470,27 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.crop_free, size: 54.0, color: Color(0xFF38BDF8)),
+                const Icon(
+                  Icons.crop_free,
+                  size: 54.0,
+                  color: Color(0xFF38BDF8),
+                ),
                 const SizedBox(height: 8.0),
                 Text(
                   guide['title'] as String,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16.0),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16.0,
+                  ),
                 ),
                 const SizedBox(height: 4.0),
                 Text(
                   guide['desc'] as String,
-                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12.0),
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 12.0,
+                  ),
                 ),
               ],
             ),
@@ -428,14 +499,21 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             top: 10,
             right: 10,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8.0,
+                vertical: 4.0,
+              ),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(6.0),
               ),
               child: Text(
                 'Giai đoạn: $_selectedPhase',
-                style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11.0, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Color(0xFF38BDF8),
+                  fontSize: 11.0,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -456,12 +534,20 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Đã Tải Ảnh ($_selectedPhase)', style: NordicTypography.h3),
+                Expanded(
+                  child: Text(
+                    'Đã Tải Ảnh ($_selectedPhase)',
+                    style: NordicTypography.h3,
+                  ),
+                ),
+                const SizedBox(width: 8.0),
                 Text(
                   '${photos.length}/5 đạt (Min 3)',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: photos.length >= 3 ? const Color(0xFF16A34A) : NordicColors.primary,
+                    color: photos.length >= 3
+                        ? const Color(0xFF16A34A)
+                        : NordicColors.primary,
                   ),
                 ),
               ],
@@ -471,7 +557,10 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12.0),
                 child: Center(
-                  child: Text('Chưa có ảnh nào được tải lên cho giai đoạn này.', style: NordicTypography.bodySmall),
+                  child: Text(
+                    'Chưa có ảnh nào được tải lên cho giai đoạn này.',
+                    style: NordicTypography.bodySmall,
+                  ),
                 ),
               )
             else
@@ -481,14 +570,24 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 18.0),
+                        const Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF16A34A),
+                          size: 18.0,
+                        ),
                         const SizedBox(width: 8.0),
-                        Text('Góc ${p.angleNo}', style: NordicTypography.labelMedium),
+                        Text(
+                          'Góc ${p.angleNo}',
+                          style: NordicTypography.labelMedium,
+                        ),
                       ],
                     ),
                     Text(
                       'VoL: ${p.volScore.toStringAsFixed(1)}',
-                      style: const TextStyle(fontSize: 12.0, color: NordicColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 12.0,
+                        color: NordicColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/countdown_timer_widget.dart';
@@ -63,7 +64,9 @@ class JobOfferCard extends StatelessWidget {
             Center(
               child: CountdownTimerWidget(
                 totalSeconds: 30,
-                initialSeconds: offer.remainingSeconds > 0 ? offer.remainingSeconds : 30,
+                initialSeconds: offer.remainingSeconds > 0
+                    ? offer.remainingSeconds
+                    : 30,
                 onTimeout: onTimeout,
               ),
             ),
@@ -79,17 +82,16 @@ class JobOfferCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8.0),
                 Expanded(
-                  child: Text(
-                    offer.district,
-                    style: NordicTypography.h2,
-                  ),
+                  child: Text(offer.district, style: NordicTypography.h2),
                 ),
               ],
             ),
             const SizedBox(height: 4.0),
             Text(
               'Cách bạn khoảng ${offer.approximateDistanceKm.toStringAsFixed(1)} km',
-              style: NordicTypography.bodySmall.copyWith(color: NordicColors.textSecondary),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 12.0),
 
@@ -110,7 +112,8 @@ class JobOfferCard extends StatelessWidget {
                   child: _buildDetailItem(
                     icon: Icons.schedule_outlined,
                     label: 'Thời lượng',
-                    value: '${offer.estimatedDurationHours.toStringAsFixed(1)}h (${offer.shiftTime})',
+                    value:
+                        '${offer.estimatedDurationHours.toStringAsFixed(1)}h (${offer.shiftTime})',
                   ),
                 ),
               ],
@@ -134,7 +137,9 @@ class JobOfferCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'THỰC NHẬN SAU HOA HỒNG',
-                          style: NordicTypography.labelMedium.copyWith(fontSize: 12.0),
+                          style: NordicTypography.labelMedium.copyWith(
+                            fontSize: 12.0,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8.0),
@@ -208,7 +213,9 @@ class JobOfferCard extends StatelessWidget {
             const SizedBox(width: 4.0),
             Text(
               label,
-              style: NordicTypography.bodySmall.copyWith(color: NordicColors.textSecondary),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.textSecondary,
+              ),
             ),
           ],
         ),

@@ -32,32 +32,35 @@ String formatVnd(int amount) {
 /// `80.0` -> `80`, `80.5` -> `80,5` (Vietnamese decimal comma).
 String formatArea(double areaM2) {
   final rounded = (areaM2 * 100).round() / 100;
-  final text = rounded == rounded.roundToDouble() ? rounded.toStringAsFixed(0) : rounded.toString();
+  final text = rounded == rounded.roundToDouble()
+      ? rounded.toStringAsFixed(0)
+      : rounded.toString();
   return '${text.replaceAll('.', ',')} m²';
 }
 
 String tierLabel(String tier) => switch (tier) {
-      ServiceTier.economy => 'Economy',
-      ServiceTier.premium => 'Premium',
-      _ => tier,
-    };
+  ServiceTier.economy => 'Economy',
+  ServiceTier.premium => 'Premium',
+  _ => tier,
+};
 
 /// One line that tells the two segments apart (PRD 2.1): who does the work and how it is assigned.
 String tierDescription(String tier, BookingOptions options) => switch (tier) {
-      ServiceTier.economy => 'Thợ tự do gần bạn nhận ca. Giá tiết kiệm.',
-      ServiceTier.premium =>
-        'Nhân viên của doanh nghiệp đối tác, có cam kết chất lượng. Cần đặt trước ít nhất ${options.premiumMinLeadHours} giờ.',
-      _ => '',
-    };
+  ServiceTier.economy => 'Thợ tự do gần bạn nhận ca. Giá tiết kiệm.',
+  ServiceTier.premium =>
+    'Nhân viên của doanh nghiệp đối tác, có cam kết chất lượng. Cần đặt trước ít nhất ${options.premiumMinLeadHours} giờ.',
+  _ => '',
+};
 
 String shiftLabel(String shiftCode) => switch (shiftCode) {
-      'SHIFT_MORNING' => 'Ca sáng',
-      'SHIFT_AFTERNOON' => 'Ca chiều',
-      'SHIFT_EVENING' => 'Ca tối',
-      _ => shiftCode,
-    };
+  'SHIFT_MORNING' => 'Ca sáng',
+  'SHIFT_AFTERNOON' => 'Ca chiều',
+  'SHIFT_EVENING' => 'Ca tối',
+  _ => shiftCode,
+};
 
-String shiftText(ShiftOption shift) => '${shiftLabel(shift.shiftCode)} · ${shift.startLocal}–${shift.endLocal}';
+String shiftText(ShiftOption shift) =>
+    '${shiftLabel(shift.shiftCode)} · ${shift.startLocal}–${shift.endLocal}';
 
 /// The instant shown as a calendar day in Asia/Ho_Chi_Minh (UTC+7, no daylight saving).
 DateTime hoChiMinhDay(DateTime instant) {
@@ -68,32 +71,46 @@ DateTime hoChiMinhDay(DateTime instant) {
 /// The days the customer may pick: today (Ho Chi Minh) and the following [selectableDays] days.
 List<DateTime> selectableDates(DateTime now) {
   final today = hoChiMinhDay(now);
-  return [for (var i = 0; i <= selectableDays; i++) today.add(Duration(days: i))];
+  return [
+    for (var i = 0; i <= selectableDays; i++) today.add(Duration(days: i)),
+  ];
 }
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
 /// "yyyy-MM-dd", the `scheduledDate` of the contract.
-String dateKey(DateTime day) => '${day.year}-${_two(day.month)}-${_two(day.day)}';
+String dateKey(DateTime day) =>
+    '${day.year}-${_two(day.month)}-${_two(day.day)}';
 
 const _weekdays = ['Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7', 'CN'];
 
 /// `Th 5 15/10`.
-String dayLabel(DateTime day) => '${_weekdays[day.weekday - 1]} ${_two(day.day)}/${_two(day.month)}';
+String dayLabel(DateTime day) =>
+    '${_weekdays[day.weekday - 1]} ${_two(day.day)}/${_two(day.month)}';
 
 /// The line under the price: one worker, or two workers above the standard area (BR-02).
-String workersNote(PriceQuote quote, BookingOptions options) => quote.requiredWorkers >= 2
+String workersNote(PriceQuote quote, BookingOptions options) =>
+    quote.requiredWorkers >= 2
     ? 'Diện tích ${formatArea(quote.totalAreaM2)} lớn hơn ${formatArea(options.standardMaxAreaM2)}: cần ${quote.requiredWorkers} thợ làm song song.'
     : '1 thợ, một ca tối đa ${options.shiftMaxHours} giờ.';
 
-String? validateNote(String text) =>
-    text.trim().length > customerNoteMaxLength ? 'Ghi chú tối đa $customerNoteMaxLength ký tự (đang ${text.trim().length}).' : null;
+String? validateNote(String text) => text.trim().length > customerNoteMaxLength
+    ? 'Ghi chú tối đa $customerNoteMaxLength ký tự (đang ${text.trim().length}).'
+    : null;
 
 String? validateSkill(String text) =>
-    text.trim().length > requiredSkillMaxLength ? 'Kỹ năng yêu cầu tối đa $requiredSkillMaxLength ký tự (đang ${text.trim().length}).' : null;
+    text.trim().length > requiredSkillMaxLength
+    ? 'Kỹ năng yêu cầu tối đa $requiredSkillMaxLength ký tự (đang ${text.trim().length}).'
+    : null;
 
 /// What is still missing before the order can be created; null when everything is chosen.
-String? missingChoice({required String? tier, required int? addressId, required DateTime? day, required String? shiftCode, required bool hasQuote}) {
+String? missingChoice({
+  required String? tier,
+  required int? addressId,
+  required DateTime? day,
+  required String? shiftCode,
+  required bool hasQuote,
+}) {
   if (tier == null) return 'Chọn phân khúc dịch vụ.';
   if (addressId == null) return 'Chọn địa chỉ làm việc.';
   if (day == null) return 'Chọn ngày làm việc.';
@@ -113,42 +130,64 @@ class CreateOrderFailure {
   const CreateOrderFailure({this.message, this.fields = const {}});
 }
 
-CreateOrderFailure createOrderFailure(ApiException e, {int premiumMinLeadHours = 4}) {
+CreateOrderFailure createOrderFailure(
+  ApiException e, {
+  int premiumMinLeadHours = 4,
+}) {
   if (e.isNetworkError) return CreateOrderFailure(message: e.message);
   switch (e.statusCode) {
     case 400:
       final fields = <String, String>{
-        for (final entry in (e.fieldErrors ?? const <String, List<String>>{}).entries)
+        for (final entry
+            in (e.fieldErrors ?? const <String, List<String>>{}).entries)
           if (entry.value.isNotEmpty) entry.key: entry.value.first,
       };
       return fields.isEmpty
-          ? CreateOrderFailure(message: e.message.isNotEmpty ? e.message : 'Thông tin đặt đơn không hợp lệ.')
+          ? CreateOrderFailure(
+              message: e.message.isNotEmpty
+                  ? e.message
+                  : 'Thông tin đặt đơn không hợp lệ.',
+            )
           : CreateOrderFailure(fields: fields);
     case 401:
-      return const CreateOrderFailure(message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      return const CreateOrderFailure(
+        message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
     case 403:
-      return const CreateOrderFailure(message: 'Chỉ tài khoản khách hàng mới đặt được đơn.');
+      return const CreateOrderFailure(
+        message: 'Chỉ tài khoản khách hàng mới đặt được đơn.',
+      );
     case 404:
-      return const CreateOrderFailure(message: 'Không tìm thấy địa chỉ này trong sổ địa chỉ của bạn. Hãy chọn lại địa chỉ.');
+      return const CreateOrderFailure(
+        message: 'Không tìm thấy địa chỉ này trong sổ địa chỉ của bạn. Hãy chọn lại địa chỉ.',
+      );
     case 409:
       return CreateOrderFailure(
         message: switch (e.code) {
-          BookingErrorCode.shiftInPast => 'Ca này đã bắt đầu hoặc đã qua. Hãy chọn ca khác.',
-          BookingErrorCode.premiumLeadTime => 'Đơn Premium cần đặt trước ít nhất $premiumMinLeadHours giờ. Hãy chọn ca muộn hơn.',
+          BookingErrorCode.shiftInPast =>
+            'Ca này đã bắt đầu hoặc đã qua. Hãy chọn ca khác.',
+          BookingErrorCode.premiumLeadTime =>
+            'Đơn Premium cần đặt trước ít nhất $premiumMinLeadHours giờ. Hãy chọn ca muộn hơn.',
           BookingErrorCode.fullyBooked => 'Các doanh nghiệp đối tác đã kín lịch cho ca này. Hãy chọn ca hoặc ngày khác.',
           _ => 'Không đặt được đơn lúc này. Vui lòng thử lại.',
         },
       );
     default:
-      return const CreateOrderFailure(message: 'Máy chủ gặp lỗi. Vui lòng thử lại sau.');
+      return const CreateOrderFailure(
+        message: 'Máy chủ gặp lỗi. Vui lòng thử lại sau.',
+      );
   }
 }
 
 /// A failed read (options, addresses, quote) in words.
 String loadFailureMessage(ApiException e) {
   if (e.isNetworkError) return e.message;
-  if (e.isUnauthorized) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-  if (e.isForbidden) return 'Chỉ tài khoản khách hàng mới dùng được màn hình này.';
+  if (e.isUnauthorized) {
+    return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  }
+  if (e.isForbidden) {
+    return 'Chỉ tài khoản khách hàng mới dùng được màn hình này.';
+  }
   if (e.isNotFound) return 'Không tìm thấy dữ liệu.';
   return 'Máy chủ gặp lỗi. Vui lòng thử lại sau.';
 }

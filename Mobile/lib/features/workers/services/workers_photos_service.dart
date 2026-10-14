@@ -7,7 +7,7 @@ class WorkersPhotosService {
   final ApiClient _apiClient;
 
   WorkersPhotosService({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   /// Uploads and verifies a job photo (contract workers.md §2.4.1).
   Future<ApiResponse<JobPhotoDto>> uploadPhoto({

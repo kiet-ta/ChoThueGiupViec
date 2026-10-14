@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -18,7 +19,11 @@ class RatingScreenArgs {
   /// Shown in the title ("Đánh giá Nguyễn Thị Mai"); optional.
   final String? ratedName;
 
-  const RatingScreenArgs({required this.role, required this.assignmentId, this.ratedName});
+  const RatingScreenArgs({
+    required this.role,
+    required this.assignmentId,
+    this.ratedName,
+  });
 }
 
 /// Two-way rating (MOB-M6-01 customer rates the worker, MOB-M6-02 worker rates the customer); contract ratings.md 2.1-2.2.
@@ -91,11 +96,18 @@ class _RatingScreenState extends State<RatingScreen> {
     }
   }
 
-  bool get _complete => _stars != null && widget.role.criteria.every((c) => _criteria[c.key] != null);
+  bool get _complete =>
+      _stars != null &&
+      widget.role.criteria.every((c) => _criteria[c.key] != null);
 
   Future<void> _submit() async {
     if (_sending) return; // one request per tap
-    final errors = validateRating(widget.role, _stars, _criteria, _comment.text);
+    final errors = validateRating(
+      widget.role,
+      _stars,
+      _criteria,
+      _comment.text,
+    );
     setState(() {
       _errors = errors;
       _serverFields = const {};
@@ -105,7 +117,11 @@ class _RatingScreenState extends State<RatingScreen> {
 
     setState(() => _sending = true);
     try {
-      await _service.submit(widget.role, widget.assignmentId, buildSubmission(widget.role, _stars!, _criteria, _comment.text));
+      await _service.submit(
+        widget.role,
+        widget.assignmentId,
+        buildSubmission(widget.role, _stars!, _criteria, _comment.text),
+      );
       if (!mounted) return;
       setState(() => _phase = _Phase.submitted);
     } on ApiException catch (e) {
@@ -123,7 +139,9 @@ class _RatingScreenState extends State<RatingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.ratedName == null ? widget.role.title : '${widget.role.title} ${widget.ratedName}';
+    final title = widget.ratedName == null
+        ? widget.role.title
+        : '${widget.role.title} ${widget.ratedName}';
     return Scaffold(
       backgroundColor: NordicColors.canvas,
       appBar: AppBar(title: Text(title)),
@@ -139,9 +157,14 @@ class _RatingScreenState extends State<RatingScreen> {
   Widget _body() {
     switch (_phase) {
       case _Phase.loading:
-        return const LoadingStateWidget(message: 'Đang kiểm tra cửa sổ đánh giá…');
+        return const LoadingStateWidget(
+          message: 'Đang kiểm tra cửa sổ đánh giá…',
+        );
       case _Phase.loadFailed:
-        return ErrorStateWidget(message: _loadError ?? 'Không tải được.', onRetry: _loadWindow);
+        return ErrorStateWidget(
+          message: _loadError ?? 'Không tải được.',
+          onRetry: _loadWindow,
+        );
       case _Phase.closed:
         return _closed();
       case _Phase.submitted:
@@ -152,7 +175,9 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   Widget _closed() {
-    final message = reasonMessage(_window?.reason ?? '') ?? 'Hiện chưa đánh giá được ca này.';
+    final message =
+        reasonMessage(_window?.reason ?? '') ??
+        'Hiện chưa đánh giá được ca này.';
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
@@ -160,9 +185,16 @@ class _RatingScreenState extends State<RatingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.hourglass_empty_rounded, color: NordicColors.textSecondary),
+              const Icon(
+                Icons.hourglass_empty_rounded,
+                color: NordicColors.textSecondary,
+              ),
               const SizedBox(height: 8.0),
-              Text(message, key: const Key('rating-closed-message'), style: NordicTypography.bodyRegular),
+              Text(
+                message,
+                key: const Key('rating-closed-message'),
+                style: NordicTypography.bodyRegular,
+              ),
             ],
           ),
         ),
@@ -177,9 +209,17 @@ class _RatingScreenState extends State<RatingScreen> {
         NordicCard(
           child: Column(
             children: [
-              const Icon(Icons.check_circle_rounded, size: 48.0, color: NordicColors.secondaryAccent),
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 48.0,
+                color: NordicColors.secondaryAccent,
+              ),
               const SizedBox(height: 12.0),
-              const Text('Cảm ơn bạn đã đánh giá', key: Key('rating-thanks'), style: NordicTypography.h3),
+              const Text(
+                'Cảm ơn bạn đã đánh giá',
+                key: Key('rating-thanks'),
+                style: NordicTypography.h3,
+              ),
               const SizedBox(height: 8.0),
               Text(
                 widget.role.isInternalOnly
@@ -202,12 +242,27 @@ class _RatingScreenState extends State<RatingScreen> {
       children: [
         const EyebrowBadge(text: 'Đánh giá 2 chiều cố định'),
         const SizedBox(height: 12.0),
-        Text(widget.role == RatingRole.customer ? 'Ca làm vừa rồi thế nào?' : 'Gia chủ phối hợp ra sao?', style: NordicTypography.h2),
+        Text(
+          widget.role == RatingRole.customer
+              ? 'Ca làm vừa rồi thế nào?'
+              : 'Gia chủ phối hợp ra sao?',
+          style: NordicTypography.h2,
+        ),
         const SizedBox(height: 4.0),
-        Text(countdownText(window.secondsRemaining), key: const Key('rating-countdown'), style: NordicTypography.labelMedium.copyWith(color: NordicColors.textSecondary)),
+        Text(
+          countdownText(window.secondsRemaining),
+          key: const Key('rating-countdown'),
+          style: NordicTypography.labelMedium.copyWith(
+            color: NordicColors.textSecondary,
+          ),
+        ),
         if (widget.role.isInternalOnly) ...[
           const SizedBox(height: 4.0),
-          Text('Đánh giá này chỉ dùng nội bộ, gia chủ không nhìn thấy.', key: const Key('rating-internal'), style: NordicTypography.bodySmall),
+          Text(
+            'Đánh giá này chỉ dùng nội bộ, gia chủ không nhìn thấy.',
+            key: const Key('rating-internal'),
+            style: NordicTypography.bodySmall,
+          ),
         ],
         const SizedBox(height: 16.0),
         NordicCard(
@@ -234,7 +289,9 @@ class _RatingScreenState extends State<RatingScreen> {
                   value: _criteria[c.key],
                   onChanged: (v) => setState(() => _criteria[c.key] = v),
                 ),
-                _fieldError(_errors.criteria[c.key] ?? _serverFields['criteria.${c.key}']),
+                _fieldError(
+                  _errors.criteria[c.key] ?? _serverFields['criteria.${c.key}'],
+                ),
               ],
               _fieldError(_serverFields['criteria']),
             ],
@@ -245,18 +302,25 @@ class _RatingScreenState extends State<RatingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Nhận xét (không bắt buộc)', style: NordicTypography.h3),
+              const Text(
+                'Nhận xét (không bắt buộc)',
+                style: NordicTypography.h3,
+              ),
               const SizedBox(height: 8.0),
               TextField(
                 key: const Key('rating-comment'),
                 controller: _comment,
                 maxLines: 4,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(hintText: 'Chia sẻ thêm về ca làm…'),
+                decoration: const InputDecoration(
+                  hintText: 'Chia sẻ thêm về ca làm…',
+                ),
               ),
               Text(
                 '${_comment.text.trim().length}/$maxCommentLength ký tự',
-                style: NordicTypography.bodySmall.copyWith(color: NordicColors.textSecondary),
+                style: NordicTypography.bodySmall.copyWith(
+                  color: NordicColors.textSecondary,
+                ),
               ),
               _fieldError(_errors.comment ?? _serverFields['comment']),
             ],
@@ -265,11 +329,19 @@ class _RatingScreenState extends State<RatingScreen> {
         const SizedBox(height: 12.0),
         Text(
           'Đánh giá được lưu vĩnh viễn, không sửa hay gửi lại được sau khi bấm Gửi.',
-          style: NordicTypography.bodySmall.copyWith(color: NordicColors.textSecondary),
+          style: NordicTypography.bodySmall.copyWith(
+            color: NordicColors.textSecondary,
+          ),
         ),
         if (_failure != null) ...[
           const SizedBox(height: 12.0),
-          Text(_failure!, key: const Key('rating-failure'), style: NordicTypography.bodyRegular.copyWith(color: NordicColors.error)),
+          Text(
+            _failure!,
+            key: const Key('rating-failure'),
+            style: NordicTypography.bodyRegular.copyWith(
+              color: NordicColors.error,
+            ),
+          ),
         ],
         const SizedBox(height: 16.0),
         NordicButton(
@@ -286,7 +358,10 @@ class _RatingScreenState extends State<RatingScreen> {
     if (message == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 4.0),
-      child: Text(message, style: NordicTypography.bodySmall.copyWith(color: NordicColors.error)),
+      child: Text(
+        message,
+        style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+      ),
     );
   }
 }
@@ -298,7 +373,13 @@ class StarRow extends StatelessWidget {
   final int? value;
   final ValueChanged<int> onChanged;
 
-  const StarRow({super.key, required this.keyPrefix, required this.label, required this.value, required this.onChanged});
+  const StarRow({
+    super.key,
+    required this.keyPrefix,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +394,9 @@ class StarRow extends StatelessWidget {
               key: Key('$keyPrefix-$i'),
               onPressed: () => onChanged(i),
               icon: Icon(
-                value != null && i <= value! ? Icons.star_rounded : Icons.star_border_rounded,
+                value != null && i <= value!
+                    ? Icons.star_rounded
+                    : Icons.star_border_rounded,
                 color: NordicColors.accentAmber,
                 size: 32.0,
               ),

@@ -56,8 +56,8 @@ class ToggleBookingSlotRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'slotDate': slotDate,
-        'shiftCode': shiftCode,
-        'isActive': isActive,
-      };
+    'slotDate': slotDate,
+    'shiftCode': shiftCode,
+    'isActive': isActive,
+  };
 }

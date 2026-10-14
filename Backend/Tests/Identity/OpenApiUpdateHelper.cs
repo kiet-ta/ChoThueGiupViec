@@ -27,9 +27,19 @@ public class OpenApiUpdateHelper
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
+    /// <summary>
+    /// Regenerates <c>.spec/contracts/openapi.json</c>, but only on request:
+    /// <c>UPDATE_OPENAPI_SNAPSHOT=1 dotnet test --filter Update_openapi_snapshot</c>. Writing on every run would let
+    /// <see cref="CommonService.Tests.Contracts.OpenApiSnapshotTests"/> pass or fail depending on test order (issue #301).
+    /// </summary>
     [Fact]
     public void Update_openapi_snapshot()
     {
+        if (Environment.GetEnvironmentVariable("UPDATE_OPENAPI_SNAPSHOT") != "1")
+        {
+            return;
+        }
+
         var services = new ServiceCollection();
         services.AddLogging();
         var env = new TestHostEnvironment();

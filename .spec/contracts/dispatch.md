@@ -108,6 +108,8 @@ Báo cáo sự cố bất khả kháng trên đường hoặc tại nơi làm (B
 
 ### 3.1 Dành cho Thợ (`WorkerOnly`)
 
+> Served by `WorkerDispatchController` (DISPATCH-WIRE-02, #311), except `incidents` (DISPATCH-WIRE-03). Ca không tồn tại hoặc không phải của thợ gọi -> `404`; trạng thái không cho phép -> `409` với `data.code` (decisions Q26 D6): `OFFER_EXPIRED`, `OFFER_NOT_OPEN`, `ORDER_NOT_DISPATCHING`, `ASSIGNMENT_STATE_INVALID`, `ABSENT_CONDITIONS_NOT_MET`, `ABSENT_ALREADY_REPORTED`. `decline` trả `"status": "DECLINED"` (nhãn của phản hồi); dòng `JOB_ASSIGNMENT` chuyển `CANCELLED` và chỗ đó được mời cho thợ kế tiếp.
+
 #### `GET /api/dispatch/offers/current`
 Lấy job offer đang chờ thợ phản hồi (nếu có). Trả về `data = null` nếu thợ không có offer nào đang active.
 

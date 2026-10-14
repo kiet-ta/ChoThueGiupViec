@@ -26,7 +26,10 @@ void main() {
 
       // Invalid formats
       expect(AuthService.normalizePhone('123456'), isNull);
-      expect(AuthService.normalizePhone('0123456789'), isNull); // 01 is not mobile
+      expect(
+        AuthService.normalizePhone('0123456789'),
+        isNull,
+      ); // 01 is not mobile
       expect(AuthService.normalizePhone('0283838383'), isNull); // landline
       expect(AuthService.normalizePhone('abcd'), isNull);
     });
@@ -43,23 +46,29 @@ void main() {
 
     test('requestOtp throws FormatException for invalid phone', () async {
       expect(
-        () => authService.requestOtp(phoneNumber: 'invalid', role: AppRole.customer),
+        () => authService.requestOtp(
+          phoneNumber: 'invalid',
+          role: AppRole.customer,
+        ),
         throwsFormatException,
       );
     });
 
-    test('verifyOtp succeeds and populates TokenStorage for valid code', () async {
-      final response = await authService.verifyOtp(
-        phoneNumber: '0912345678',
-        role: AppRole.customer,
-        code: '123456',
-      );
+    test(
+      'verifyOtp succeeds and populates TokenStorage for valid code',
+      () async {
+        final response = await authService.verifyOtp(
+          phoneNumber: '0912345678',
+          role: AppRole.customer,
+          code: '123456',
+        );
 
-      expect(response.isSuccess, isTrue);
-      expect(response.authResult, isNotNull);
-      expect(storage.isAuthenticated, isTrue);
-      expect(storage.currentUser?.role, 'Customer');
-    });
+        expect(response.isSuccess, isTrue);
+        expect(response.authResult, isNotNull);
+        expect(storage.isAuthenticated, isTrue);
+        expect(storage.currentUser?.role, 'Customer');
+      },
+    );
 
     test('verifyOtp returns 401 error message for code 000000', () async {
       final response = await authService.verifyOtp(

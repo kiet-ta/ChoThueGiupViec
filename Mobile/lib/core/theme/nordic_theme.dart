@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'nordic_colors.dart';
 import 'nordic_typography.dart';
 
@@ -65,7 +66,10 @@ class NordicTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: NordicColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16.0,
+          vertical: 14.0,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.0),
           borderSide: const BorderSide(color: NordicColors.border, width: 1.0),

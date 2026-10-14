@@ -8,12 +8,12 @@ const int maxEvidenceCount = 10;
 
 /// Categories the person can choose (D1); only a customer can dispute an absence fee.
 List<DisputeCategory> categoriesFor(DisputeRole role) => [
-      DisputeCategory.quality,
-      DisputeCategory.attitude,
-      DisputeCategory.propertyDamage,
-      if (role == DisputeRole.customer) DisputeCategory.absentFee,
-      DisputeCategory.other,
-    ];
+  DisputeCategory.quality,
+  DisputeCategory.attitude,
+  DisputeCategory.propertyDamage,
+  if (role == DisputeRole.customer) DisputeCategory.absentFee,
+  DisputeCategory.other,
+];
 
 String categoryLabel(String code) {
   for (final c in [
@@ -65,28 +65,46 @@ class DisputeErrors {
 
   const DisputeErrors({this.category, this.description, this.evidence});
 
-  bool get isEmpty => category == null && description == null && evidence == null;
+  bool get isEmpty =>
+      category == null && description == null && evidence == null;
 }
 
-DisputeErrors validateDispute(DisputeRole role, String? category, String description, int evidenceCount) {
+DisputeErrors validateDispute(
+  DisputeRole role,
+  String? category,
+  String description,
+  int evidenceCount,
+) {
   final trimmed = description.trim();
   return DisputeErrors(
-    category: category == null || !categoriesFor(role).any((c) => c.code == category) ? 'Chọn loại khiếu nại.' : null,
+    category:
+        category == null || !categoriesFor(role).any((c) => c.code == category)
+        ? 'Chọn loại khiếu nại.'
+        : null,
     description: trimmed.isEmpty
         ? 'Mô tả sự việc.'
         : trimmed.length > maxDescriptionLength
-            ? 'Mô tả tối đa $maxDescriptionLength ký tự (đang ${trimmed.length}).'
-            : null,
+        ? 'Mô tả tối đa $maxDescriptionLength ký tự (đang ${trimmed.length}).'
+        : null,
     evidence: evidenceCount < 1
         ? 'Cần ít nhất 1 ảnh bằng chứng.'
         : evidenceCount > maxEvidenceCount
-            ? 'Tối đa $maxEvidenceCount ảnh.'
-            : null,
+        ? 'Tối đa $maxEvidenceCount ảnh.'
+        : null,
   );
 }
 
-DisputeSubmission buildDispute(int orderId, String category, String description, List<String> evidenceUrls) =>
-    DisputeSubmission(orderId: orderId, category: category, description: description.trim(), evidenceUrls: List.of(evidenceUrls));
+DisputeSubmission buildDispute(
+  int orderId,
+  String category,
+  String description,
+  List<String> evidenceUrls,
+) => DisputeSubmission(
+  orderId: orderId,
+  category: category,
+  description: description.trim(),
+  evidenceUrls: List.of(evidenceUrls),
+);
 
 /// A failed send: the text for the person and the messages the server gave per field.
 class DisputeFailure {
@@ -99,15 +117,21 @@ class DisputeFailure {
 DisputeFailure disputeFailure(ApiException e) {
   if (e.isConflict) {
     return const DisputeFailure(
-        'Không gửi được: đã quá 24 giờ sau ca làm, ca này chưa có gì để khiếu nại, hoặc đơn này đã có khiếu nại (mỗi đơn chỉ có một khiếu nại).');
+      'Không gửi được: đã quá 24 giờ sau ca làm, ca này chưa có gì để khiếu nại, hoặc đơn này đã có khiếu nại (mỗi đơn chỉ có một khiếu nại).',
+    );
   }
-  if (e.isNotFound) return const DisputeFailure('Không tìm thấy đơn này trong các ca của bạn.');
+  if (e.isNotFound) {
+    return const DisputeFailure('Không tìm thấy đơn này trong các ca của bạn.');
+  }
   if (e.statusCode == 400) {
     final fields = <String, String>{};
     e.fieldErrors?.forEach((key, messages) {
       if (messages.isNotEmpty) fields[key] = messages.first;
     });
-    return DisputeFailure(fields.isEmpty ? e.message : 'Vui lòng kiểm tra các ô báo lỗi bên dưới.', fields: fields);
+    return DisputeFailure(
+      fields.isEmpty ? e.message : 'Vui lòng kiểm tra các ô báo lỗi bên dưới.',
+      fields: fields,
+    );
   }
   return DisputeFailure(e.message);
 }

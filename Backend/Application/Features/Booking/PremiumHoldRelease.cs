@@ -11,7 +11,7 @@ namespace CommonService.Application.Features.Booking;
 /// </summary>
 public static class PremiumHoldRelease
 {
-    public static async Task ReleaseAsync(CommonService.Application.Features.Agencies.IAgencyCapacityService capacity, ServiceTier serviceTier, long orderId, ILogger logger)
+    public static async Task ReleaseAsync(IAgencyCapacityService capacity, ServiceTier serviceTier, long orderId, ILogger logger)
     {
         if (serviceTier != ServiceTier.Premium)
         {

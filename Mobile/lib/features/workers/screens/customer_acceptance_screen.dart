@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -25,14 +26,16 @@ class CustomerAcceptanceScreen extends StatefulWidget {
   });
 
   @override
-  State<CustomerAcceptanceScreen> createState() => _CustomerAcceptanceScreenState();
+  State<CustomerAcceptanceScreen> createState() =>
+      _CustomerAcceptanceScreenState();
 }
 
 class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
   late final CustomerAcceptanceService _acceptanceService;
   late final WorkersPhotosService _photosService;
 
-  String _status = 'AWAITING_ACCEPTANCE'; // AWAITING_ACCEPTANCE | COMPLETED | IN_PROGRESS
+  String _status =
+      'AWAITING_ACCEPTANCE'; // AWAITING_ACCEPTANCE | COMPLETED | IN_PROGRESS
   int _selectedAngle = 1;
   bool _isLoading = false;
   bool _showRedoForm = false;
@@ -57,7 +60,8 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
   @override
   void initState() {
     super.initState();
-    _acceptanceService = widget.acceptanceService ?? CustomerAcceptanceService();
+    _acceptanceService =
+        widget.acceptanceService ?? CustomerAcceptanceService();
     _photosService = widget.photosService ?? WorkersPhotosService();
     _loadSamplePhotos();
   }
@@ -86,26 +90,32 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     setState(() {
       _photos.clear();
       for (int angle = 1; angle <= 5; angle++) {
-        _photos.add(JobPhotoDto(
-          photoId: angle * 10,
-          assignmentId: widget.assignmentId,
-          photoPhase: 'BEFORE',
-          angleNo: angle,
-          photoUrl: 'https://storage.giupviec.local/jobs/2001_before_angle$angle.jpg',
-          volScore: 135.0,
-          isAccepted: true,
-          uploadedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        ));
-        _photos.add(JobPhotoDto(
-          photoId: angle * 10 + 1,
-          assignmentId: widget.assignmentId,
-          photoPhase: 'AFTER',
-          angleNo: angle,
-          photoUrl: 'https://storage.giupviec.local/jobs/2001_after_angle$angle.jpg',
-          volScore: 148.2,
-          isAccepted: true,
-          uploadedAt: DateTime.now().subtract(const Duration(minutes: 15)),
-        ));
+        _photos.add(
+          JobPhotoDto(
+            photoId: angle * 10,
+            assignmentId: widget.assignmentId,
+            photoPhase: 'BEFORE',
+            angleNo: angle,
+            photoUrl:
+                'https://storage.giupviec.local/jobs/2001_before_angle$angle.jpg',
+            volScore: 135.0,
+            isAccepted: true,
+            uploadedAt: DateTime.now().subtract(const Duration(hours: 2)),
+          ),
+        );
+        _photos.add(
+          JobPhotoDto(
+            photoId: angle * 10 + 1,
+            assignmentId: widget.assignmentId,
+            photoPhase: 'AFTER',
+            angleNo: angle,
+            photoUrl:
+                'https://storage.giupviec.local/jobs/2001_after_angle$angle.jpg',
+            volScore: 148.2,
+            isAccepted: true,
+            uploadedAt: DateTime.now().subtract(const Duration(minutes: 15)),
+          ),
+        );
       }
     });
   }
@@ -188,7 +198,8 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
         _isLoading = false;
         _status = response.data?.status ?? 'IN_PROGRESS';
         _showRedoForm = false;
-        _successMessage = 'Đã gửi yêu cầu dọn lại (15–30 ph). Thợ đã được thông báo bổ sung.';
+        _successMessage =
+            'Đã gửi yêu cầu dọn lại (15–30 ph). Thợ đã được thông báo bổ sung.';
       });
     } catch (_) {
       setState(() {
@@ -202,7 +213,9 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
 
   JobPhotoDto? _getPhoto(String phase, int angle) {
     try {
-      return _photos.firstWhere((p) => p.photoPhase == phase && p.angleNo == angle);
+      return _photos.firstWhere(
+        (p) => p.photoPhase == phase && p.angleNo == angle,
+      );
     } catch (_) {
       return null;
     }
@@ -224,8 +237,11 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8.0,
+                runSpacing: 8.0,
                 children: [
                   const EyebrowBadge(text: 'Khách Hàng Nghiệm Thu'),
                   _buildStatusChip(),
@@ -259,10 +275,19 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                     padding: const EdgeInsets.all(12.0),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: Color(0xFFDC2626)),
+                        const Icon(
+                          Icons.error_outline,
+                          color: Color(0xFFDC2626),
+                        ),
                         const SizedBox(width: 8.0),
                         Expanded(
-                          child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFF991B1B), fontSize: 13.0)),
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(
+                              color: Color(0xFF991B1B),
+                              fontSize: 13.0,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -277,12 +302,19 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                     padding: const EdgeInsets.all(12.0),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_outline, color: Color(0xFF16A34A)),
+                        const Icon(
+                          Icons.check_circle_outline,
+                          color: Color(0xFF16A34A),
+                        ),
                         const SizedBox(width: 8.0),
                         Expanded(
                           child: Text(
                             _successMessage!,
-                            style: const TextStyle(color: Color(0xFF15803D), fontSize: 13.0, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              color: Color(0xFF15803D),
+                              fontSize: 13.0,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -359,10 +391,17 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12.0)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12.0),
+      ),
       child: Text(
         label,
-        style: TextStyle(color: textClr, fontWeight: FontWeight.bold, fontSize: 11.0),
+        style: TextStyle(
+          color: textClr,
+          fontWeight: FontWeight.bold,
+          fontSize: 11.0,
+        ),
       ),
     );
   }
@@ -380,7 +419,9 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                 selected: _selectedAngle == i,
                 selectedColor: NordicColors.primary,
                 labelStyle: TextStyle(
-                  color: _selectedAngle == i ? Colors.white : NordicColors.textTitle,
+                  color: _selectedAngle == i
+                      ? Colors.white
+                      : NordicColors.textTitle,
                   fontWeight: FontWeight.bold,
                 ),
                 onSelected: (selected) {
@@ -460,12 +501,18 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
             padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 8.0),
             decoration: BoxDecoration(
               color: headerBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(11.0)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(11.0),
+              ),
             ),
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: headerTextColor),
+              style: TextStyle(
+                fontSize: 12.0,
+                fontWeight: FontWeight.bold,
+                color: headerTextColor,
+              ),
             ),
           ),
           Container(
@@ -477,13 +524,20 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.image, size: 36.0, color: Color(0xFF94A3B8)),
+                    const Icon(
+                      Icons.image,
+                      size: 36.0,
+                      color: Color(0xFF94A3B8),
+                    ),
                     const SizedBox(height: 4.0),
                     Text(
                       photoUrl.split('/').last,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 10.0, color: Color(0xFFCBD5E1)),
+                      style: const TextStyle(
+                        fontSize: 10.0,
+                        color: Color(0xFFCBD5E1),
+                      ),
                     ),
                   ],
                 ),
@@ -492,10 +546,17 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
           ),
           if (volScore != null)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 6.0),
+              padding: const EdgeInsets.symmetric(
+                vertical: 4.0,
+                horizontal: 6.0,
+              ),
               child: Text(
                 'VoL: ${volScore.toStringAsFixed(1)} (ĐẠT)',
-                style: const TextStyle(fontSize: 10.0, color: NordicColors.textSecondary, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 10.0,
+                  color: NordicColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
         ],
@@ -519,14 +580,26 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               children: [
                 Icon(Icons.verified, color: Color(0xFF16A34A)),
                 SizedBox(width: 8.0),
-                Text('Chi Tiết Nghiệm Thu & Khóa Ca', style: NordicTypography.h3),
+                Flexible(
+                  child: Text(
+                    'Chi Tiết Nghiệm Thu & Khóa Ca',
+                    style: NordicTypography.h3,
+                  ),
+                ),
               ],
             ),
             const Divider(),
             _buildDetailRow('Tổng Phí Dịch Vụ:', '${gross.toString()} đ'),
-            _buildDetailRow('Chi Phí Nền Tảng (20%):', '${(gross - payout).toString()} đ'),
+            _buildDetailRow(
+              'Chi Phí Nền Tảng (20%):',
+              '${(gross - payout).toString()} đ',
+            ),
             const Divider(),
-            _buildDetailRow('Thu Nhập Thợ (80%):', '${payout.toString()} đ', isBold: true),
+            _buildDetailRow(
+              'Thu Nhập Thợ (80%):',
+              '${payout.toString()} đ',
+              isBold: true,
+            ),
           ],
         ),
       ),
@@ -539,8 +612,24 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: isBold ? NordicTypography.labelMedium : NordicTypography.bodySmall),
-          Text(val, style: isBold ? NordicTypography.h3 : NordicTypography.labelMedium),
+          Expanded(
+            child: Text(
+              title,
+              style: isBold
+                  ? NordicTypography.labelMedium
+                  : NordicTypography.bodySmall,
+            ),
+          ),
+          const SizedBox(width: 8.0),
+          Flexible(
+            child: Text(
+              val,
+              textAlign: TextAlign.end,
+              style: isBold
+                  ? NordicTypography.h3
+                  : NordicTypography.labelMedium,
+            ),
+          ),
         ],
       ),
     );
@@ -554,7 +643,10 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Yêu Cầu Dọn Lại (15–30 phút)', style: NordicTypography.h3),
+            const Text(
+              'Yêu Cầu Dọn Lại (15–30 phút)',
+              style: NordicTypography.h3,
+            ),
             const SizedBox(height: 6.0),
             const Text(
               'Ghi rõ các khu vực thợ cần làm lại để hoàn thiện chất lượng ca làm.',
