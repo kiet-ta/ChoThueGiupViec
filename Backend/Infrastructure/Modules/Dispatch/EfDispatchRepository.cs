@@ -265,7 +265,7 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
             from order in db.JobOrders.AsNoTracking()
             join address in db.CustomerAddresses.AsNoTracking() on order.AddressId equals address.AddressId
             where order.OrderStatus == JobOrderStatus.AwaitingFallback
-            orderby order.OrderId
+            orderby order.ScheduledDate, order.OrderId
             select new DispatchOrderContext(
                 order.OrderId,
                 order.CustomerId,

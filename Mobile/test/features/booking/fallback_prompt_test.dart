@@ -85,6 +85,44 @@ void main() {
       expect(find.byKey(const Key('fallback-decline')), findsOneWidget);
     });
 
+    testWidgets('names the second shift the server reports and the deadline', (
+      tester,
+    ) async {
+      final service = FakeFallbackService()
+        ..status = FallbackStatus(
+          orderId: 100,
+          state: FallbackState.awaitingCustomer,
+          workerId: 101,
+          secondShiftCode: 'SHIFT_EVENING',
+          deadline: DateTime.utc(2026, 10, 15, 1),
+        );
+      await pumpCard(tester, service);
+
+      final question = tester
+          .widget<Text>(find.byKey(const Key('fallback-question')))
+          .data!;
+      expect(question, contains('ca tối'));
+      expect(question, isNot(contains('ca sáng')));
+      expect(find.byKey(const Key('fallback-deadline')), findsOneWidget);
+    });
+
+    testWidgets('without a second shift code the question stays neutral', (
+      tester,
+    ) async {
+      final service = FakeFallbackService()
+        ..status = const FallbackStatus(
+          orderId: 100,
+          state: FallbackState.awaitingCustomer,
+        );
+      await pumpCard(tester, service);
+
+      expect(
+        tester.widget<Text>(find.byKey(const Key('fallback-question'))).data,
+        contains('ca liền sau'),
+      );
+      expect(find.byKey(const Key('fallback-deadline')), findsNothing);
+    });
+
     testWidgets('agreeing sends accept=true and waits for the worker', (
       tester,
     ) async {

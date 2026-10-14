@@ -5,6 +5,7 @@ import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../logic/booking_logic.dart';
 import '../models/fallback_models.dart';
 import '../services/fallback_service.dart';
 
@@ -139,7 +140,7 @@ class _FallbackPromptCardState extends State<FallbackPromptCard> {
       );
     }
     return switch (status.state) {
-      FallbackState.awaitingCustomer => _question(),
+      FallbackState.awaitingCustomer => _question(status),
       FallbackState.awaitingWorker => _card(
         children: [
           const Text(
@@ -169,7 +170,7 @@ class _FallbackPromptCardState extends State<FallbackPromptCard> {
     };
   }
 
-  Widget _question() => _card(
+  Widget _question(FallbackStatus status) => _card(
     children: [
       const Text(
         'Chỉ có 1 thợ nhận đơn của bạn',
@@ -177,10 +178,19 @@ class _FallbackPromptCardState extends State<FallbackPromptCard> {
         style: NordicTypography.h3,
       ),
       const SizedBox(height: 8.0),
-      const Text(
-        'Thợ làm 2 ca liên tiếp (ca sáng rồi ca chiều cùng ngày)? Nếu không đồng ý, đơn sẽ được huỷ và hoàn tiền 100 %.',
+      Text(
+        'Thợ này làm luôn ${_secondShift(status)} ngay sau ca đã nhận (2 ca liên tiếp cùng ngày)? Nếu không đồng ý, đơn sẽ được huỷ và hoàn tiền 100 %.',
+        key: const Key('fallback-question'),
         style: NordicTypography.bodyRegular,
       ),
+      if (status.deadline != null) ...[
+        const SizedBox(height: 4.0),
+        Text(
+          'Trả lời trước ${_hhmm(status.deadline!)}; nếu không, đơn sẽ được huỷ.',
+          key: const Key('fallback-deadline'),
+          style: NordicTypography.bodySmall,
+        ),
+      ],
       if (_error != null) ...[
         const SizedBox(height: 8.0),
         Text(
@@ -205,6 +215,18 @@ class _FallbackPromptCardState extends State<FallbackPromptCard> {
       ),
     ],
   );
+
+  /// `ca chiều`, `ca tối`; the server names the second shift, so the sentence never claims one it does not know.
+  static String _secondShift(FallbackStatus status) {
+    final code = status.secondShiftCode;
+    return code == null ? 'ca liền sau' : shiftLabel(code).toLowerCase();
+  }
+
+  /// `08:00` in the phone's local time.
+  static String _hhmm(DateTime utc) {
+    final local = utc.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
 
   Widget _card({required List<Widget> children}) => NordicCard(
     key: const Key('fallback-card'),
