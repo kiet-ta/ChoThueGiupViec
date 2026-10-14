@@ -1,4 +1,5 @@
 using CommonService.Application.Features.Agencies;
+using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,5 +16,8 @@ public sealed class AgenciesModule : IModule
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IAgencyRepository, EfAgencyRepository>();
+        services.AddScoped<ICapacityRepository, EfCapacityRepository>();
+        // The real port replaces the Fake (FakePortRegistration only adds a Fake when nothing is registered, BASE-03).
+        services.AddScoped<IAgencyCapacityService, AgencyCapacityService>();
     }
 }
