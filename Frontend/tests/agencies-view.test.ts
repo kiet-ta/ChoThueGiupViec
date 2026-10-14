@@ -23,6 +23,7 @@ import {
   secondsLeft,
   subscriptionStatusText,
   expiryWarning,
+  isVerifiedPartner,
   txnRow,
   weekDays,
 } from '../src/features/agencies/view.ts'
@@ -221,5 +222,12 @@ describe('expiry warning', () => {
 
   it('tells the agency the package does not renew by itself', () => {
     assert.match(expiryWarning(pro('2026-10-16'), '2026-10-14') ?? '', /không tự gia hạn/)
+  })
+})
+
+describe('verified partner label', () => {
+  it('follows the Pro package in force', () => {
+    assert.equal(isVerifiedPartner({ tier: 'PRO' }), true)
+    assert.equal(isVerifiedPartner({ tier: 'FREE' }), false)
   })
 })

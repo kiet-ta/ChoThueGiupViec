@@ -6,7 +6,7 @@ import { agenciesApi } from './api'
 import { useAction } from './actions'
 import { Alert, PageHeader, PayBox, Panel } from './shared'
 import type { SubscriptionPurchase } from './types'
-import { commissionText, expiryWarning, featureList, priceText, quotaText, subscriptionStatusText, tierLabel } from './view'
+import { commissionText, expiryWarning, featureList, isVerifiedPartner, priceText, quotaText, subscriptionStatusText, tierLabel } from './view'
 
 /** WEB-M5-01: package, worker quota and buying or renewing a package (contract agencies.md, decisions Q08, D9). */
 export function SubscriptionPage() {
@@ -39,6 +39,7 @@ export function SubscriptionPage() {
         <Panel title="Gói hiện tại">
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge tone={current.tier === 'PRO' ? 'accent' : 'neutral'}>{tierLabel(current.tier)}</StatusBadge>
+            {isVerifiedPartner(current) && <StatusBadge tone="accent">Verified Partner</StatusBadge>}
             <span className="text-sm">{subscriptionStatusText(current)}</span>
           </div>
           <div className="mt-3 text-sm">

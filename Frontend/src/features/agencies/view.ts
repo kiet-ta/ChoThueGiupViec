@@ -105,6 +105,11 @@ export function subscriptionStatusText(state: SubscriptionState): string {
   return state.inGrace ? `Gói Pro đã hết hạn ngày ${end}, còn trong thời gian gia hạn 7 ngày` : `Gói Pro đến hết ngày ${end}`
 }
 
+/** The Verified Partner label is a benefit of the Pro package in force, grace days included (decisions D17). */
+export function isVerifiedPartner(state: Pick<SubscriptionState, 'tier'>): boolean {
+  return state.tier === 'PRO'
+}
+
 /** Days before the end date from which the page warns that the package must be bought again (decisions D16: 7 and 1 day). */
 export const EXPIRY_WARNING_DAYS = 7
 

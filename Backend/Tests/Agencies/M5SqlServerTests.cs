@@ -221,6 +221,66 @@ public class M5SqlServerTests
     }
 
     [Fact]
+    public async Task Verified_partner_label_follows_the_pro_package_with_its_grace_days()
+    {
+        if (!Available()) return;
+        var inForce = await SeedAsync(1);
+        var inGrace = await SeedAsync(1);
+        var expired = await SeedAsync(1);
+        var free = await SeedAsync(1);
+        var today = new DateOnly(2026, 10, 14);
+        await using (var db = NewDb())
+        {
+            var package = new SubscriptionPackage
+            {
+                PackageCode = Unique("V", 12),
+                PackageName = "Pro test",
+                Tier = "PRO",
+                BillingCycle = "MONTHLY",
+                Price = 1,
+                WorkerQuota = 50,
+                CommissionRate = 0m,
+                HasRosterDashboard = true,
+                HasAnalytics = true,
+                PriorityDispatch = true,
+                IsActive = true,
+            };
+            db.SubscriptionPackages.Add(package);
+            await db.SaveChangesAsync();
+            PartnerSubscription Sub(int agencyId, DateOnly end) => new()
+            {
+                AgencyId = agencyId,
+                PackageId = package.PackageId,
+                StartDate = end.AddDays(-30),
+                EndDate = end,
+                SubStatus = "ACTIVE",
+                CreatedAt = Now,
+            };
+            db.PartnerSubscriptions.Add(Sub(inForce.AgencyId, today.AddDays(10)));
+            db.PartnerSubscriptions.Add(Sub(inGrace.AgencyId, today.AddDays(-7)));   // ended 7 days ago: last grace day
+            db.PartnerSubscriptions.Add(Sub(expired.AgencyId, today.AddDays(-8)));   // past the grace days
+            var staleLabel = await db.PartnerAgencies.SingleAsync(a => a.AgencyId == expired.AgencyId);
+            staleLabel.IsVerifiedPartner = true;
+            await db.SaveChangesAsync();
+        }
+
+        await using var write = NewDb();
+        var repo = new EfVerifiedPartnerRepository(write);
+        // only this test's agencies are looked at through the agency filter
+        foreach (var id in new[] { inForce.AgencyId, inGrace.AgencyId, expired.AgencyId, free.AgencyId })
+        {
+            await repo.SyncAsync(today, 7, id);
+        }
+
+        await using var read = NewDb();
+        bool Label(int id) => read.PartnerAgencies.AsNoTracking().Single(a => a.AgencyId == id).IsVerifiedPartner;
+        Assert.True(Label(inForce.AgencyId));
+        Assert.True(Label(inGrace.AgencyId));
+        Assert.False(Label(expired.AgencyId));
+        Assert.False(Label(free.AgencyId));
+    }
+
+    [Fact]
     public async Task Capacity_does_not_offer_the_slot_of_a_locked_worker()
     {
         if (!Available()) return;
