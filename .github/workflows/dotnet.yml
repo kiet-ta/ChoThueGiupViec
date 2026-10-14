@@ -43,6 +43,12 @@ jobs:
         node-version: 22
         cache: npm
         cache-dependency-path: Frontend/package-lock.json
+    # Mobile is part of verify (MOB-BASE-05); action pinned to the v2.23.0 release commit
+    - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+      with:
+        channel: stable
+        flutter-version: 3.47.7
+        cache: true
     - run: dotnet restore
       working-directory: Backend
     - run: npm ci

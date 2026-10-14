@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -10,6 +11,7 @@ import '../../payouts/logic/payout_logic.dart';
 import '../logic/dispute_logic.dart';
 import '../models/dispute_models.dart';
 import '../services/disputes_service.dart';
+import '../services/api_evidence_uploader.dart';
 import '../services/evidence_uploader.dart';
 import 'dispute_create_screen.dart';
 
@@ -30,7 +32,13 @@ class DisputeScreen extends StatefulWidget {
   final IDisputesService? service;
   final IEvidenceUploader? uploader;
 
-  const DisputeScreen({super.key, required this.role, this.orderId, this.service, this.uploader});
+  const DisputeScreen({
+    super.key,
+    required this.role,
+    this.orderId,
+    this.service,
+    this.uploader,
+  });
 
   @override
   State<DisputeScreen> createState() => _DisputeScreenState();
@@ -48,7 +56,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
   void initState() {
     super.initState();
     _service = widget.service ?? DisputesService();
-    _uploader = widget.uploader ?? const UnavailableEvidenceUploader();
+    _uploader = widget.uploader ?? ApiEvidenceUploader(role: widget.role);
     _load();
   }
 
@@ -76,7 +84,12 @@ class _DisputeScreenState extends State<DisputeScreen> {
   Future<void> _startNew() async {
     final created = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
-        builder: (_) => DisputeCreateScreen(role: widget.role, orderId: widget.orderId!, service: _service, uploader: _uploader),
+        builder: (_) => DisputeCreateScreen(
+          role: widget.role,
+          orderId: widget.orderId!,
+          service: _service,
+          uploader: _uploader,
+        ),
       ),
     );
     if (created == true && mounted) await _load();
@@ -97,20 +110,32 @@ class _DisputeScreenState extends State<DisputeScreen> {
   }
 
   Widget _body() {
-    if (_loading) return const LoadingStateWidget(message: 'Đang tải khiếu nại…');
-    if (_error != null) return ErrorStateWidget(message: _error!, onRetry: _load);
+    if (_loading) {
+      return const LoadingStateWidget(message: 'Đang tải khiếu nại…');
+    }
+    if (_error != null) {
+      return ErrorStateWidget(message: _error!, onRetry: _load);
+    }
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
         const EyebrowBadge(text: 'Bảo Vệ Quyền Lợi'),
         const SizedBox(height: 12.0),
         if (widget.orderId != null) ...[
-          NordicButton(key: const Key('dispute-new'), label: 'Khiếu nại ca này', onPressed: _startNew),
+          NordicButton(
+            key: const Key('dispute-new'),
+            label: 'Khiếu nại ca này',
+            onPressed: _startNew,
+          ),
           const SizedBox(height: 16.0),
         ],
         if (_items.isEmpty)
           const NordicCard(
-            child: Text('Bạn chưa có khiếu nại nào.', key: Key('dispute-empty'), style: NordicTypography.bodyRegular),
+            child: Text(
+              'Bạn chưa có khiếu nại nào.',
+              key: Key('dispute-empty'),
+              style: NordicTypography.bodyRegular,
+            ),
           )
         else
           for (final d in _items) _tile(d),
@@ -127,15 +152,32 @@ class _DisputeScreenState extends State<DisputeScreen> {
           children: [
             Row(
               children: [
-                Expanded(child: Text('Đơn #${d.orderId} · ${categoryLabel(d.category)}', style: NordicTypography.bodyLarge)),
+                Expanded(
+                  child: Text(
+                    'Đơn #${d.orderId} · ${categoryLabel(d.category)}',
+                    style: NordicTypography.bodyLarge,
+                  ),
+                ),
                 const SizedBox(width: 8.0),
-                Text(statusLabel(d.disputeStatus), key: Key('dispute-status-${d.disputeId}'), style: NordicTypography.labelMedium),
+                Text(
+                  statusLabel(d.disputeStatus),
+                  key: Key('dispute-status-${d.disputeId}'),
+                  style: NordicTypography.labelMedium,
+                ),
               ],
             ),
             const SizedBox(height: 6.0),
-            Text(d.description, maxLines: 3, overflow: TextOverflow.ellipsis, style: NordicTypography.bodyRegular),
+            Text(
+              d.description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: NordicTypography.bodyRegular,
+            ),
             const SizedBox(height: 6.0),
-            Text('Gửi lúc ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh', style: NordicTypography.bodySmall),
+            Text(
+              'Gửi lúc ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh',
+              style: NordicTypography.bodySmall,
+            ),
             ..._outcome(d),
           ],
         ),
@@ -148,20 +190,34 @@ class _DisputeScreenState extends State<DisputeScreen> {
     if (d.disputeStatus == Dispute.resolved) {
       return [
         const SizedBox(height: 8.0),
-        Text(faultLabel(d.faultParty), key: Key('dispute-fault-${d.disputeId}'), style: NordicTypography.bodyLarge),
+        Text(
+          faultLabel(d.faultParty),
+          key: Key('dispute-fault-${d.disputeId}'),
+          style: NordicTypography.bodyLarge,
+        ),
         if (d.compensationAmount != null)
-          Text('Bồi thường: ${formatVnd(d.compensationAmount!)}', key: Key('dispute-compensation-${d.disputeId}'), style: NordicTypography.bodyRegular),
+          Text(
+            'Bồi thường: ${formatVnd(d.compensationAmount!)}',
+            key: Key('dispute-compensation-${d.disputeId}'),
+            style: NordicTypography.bodyRegular,
+          ),
       ];
     }
     if (d.disputeStatus == Dispute.dismissed) {
       return [
         const SizedBox(height: 8.0),
-        const Text('Khiếu nại đã bị bác bỏ, không có khoản bồi thường.', style: NordicTypography.bodyRegular),
+        const Text(
+          'Khiếu nại đã bị bác bỏ, không có khoản bồi thường.',
+          style: NordicTypography.bodyRegular,
+        ),
       ];
     }
     return [
       const SizedBox(height: 8.0),
-      Text('Hạn xử lý dự kiến: ${formatVietnamDateTime(d.slaDueAt)}', style: NordicTypography.bodySmall),
+      Text(
+        'Hạn xử lý dự kiến: ${formatVietnamDateTime(d.slaDueAt)}',
+        style: NordicTypography.bodySmall,
+      ),
     ];
   }
 }

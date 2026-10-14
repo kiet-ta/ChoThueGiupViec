@@ -13,7 +13,9 @@ void main() {
       service = CustomerAddressService(isMock: true);
     });
 
-    testWidgets('renders address list with items, badges, and S_total info', (tester) async {
+    testWidgets('renders address list with items, badges, and S_total info', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -37,7 +39,9 @@ void main() {
       expect(find.textContaining('S_total'), findsWidgets);
     });
 
-    testWidgets('navigates to AddressFormScreen when tap Thêm Địa Chỉ Mới', (tester) async {
+    testWidgets('navigates to AddressFormScreen when tap Thêm Địa Chỉ Mới', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -82,7 +86,9 @@ void main() {
       expect(find.text('Thêm Địa Chỉ Mới'), findsOneWidget);
     });
 
-    testWidgets('shows delete confirmation dialog and deletes address', (tester) async {
+    testWidgets('shows delete confirmation dialog and deletes address', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

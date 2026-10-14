@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+
 import '../../app/feature_module.dart';
 import 'screens/agency_screen.dart';
 
@@ -17,7 +18,7 @@ class AgenciesFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        AgencyRoutes.roster: (context) => const AgencyScreen(),
-        AgencyRoutes.profile: (context) => const AgencyScreen(),
-      };
+    AgencyRoutes.roster: (context) => const AgencyScreen(),
+    AgencyRoutes.profile: (context) => const AgencyScreen(),
+  };
 }

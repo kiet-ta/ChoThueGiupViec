@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
@@ -44,7 +45,9 @@ class GpsCoordinatePicker extends StatelessWidget {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
           backgroundColor: NordicColors.surface,
           title: Text('Nhập Toạ Độ GPS', style: NordicTypography.h3),
           content: Column(
@@ -52,7 +55,10 @@ class GpsCoordinatePicker extends StatelessWidget {
             children: [
               TextField(
                 controller: latController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Vĩ độ (Latitude: -90 đến 90)',
                   border: OutlineInputBorder(),
@@ -61,7 +67,10 @@ class GpsCoordinatePicker extends StatelessWidget {
               const SizedBox(height: 12.0),
               TextField(
                 controller: lngController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Kinh độ (Longitude: -180 đến 180)',
                   border: OutlineInputBorder(),
@@ -71,7 +80,9 @@ class GpsCoordinatePicker extends StatelessWidget {
                 const SizedBox(height: 8.0),
                 Text(
                   localError!,
-                  style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.error,
+                  ),
                 ),
               ],
             ],
@@ -86,11 +97,15 @@ class GpsCoordinatePicker extends StatelessWidget {
                 final lat = double.tryParse(latController.text);
                 final lng = double.tryParse(lngController.text);
                 if (lat == null || lat < -90 || lat > 90) {
-                  setDialogState(() => localError = 'Vĩ độ không hợp lệ (-90 đến 90)');
+                  setDialogState(
+                    () => localError = 'Vĩ độ không hợp lệ (-90 đến 90)',
+                  );
                   return;
                 }
                 if (lng == null || lng < -180 || lng > 180) {
-                  setDialogState(() => localError = 'Kinh độ không hợp lệ (-180 đến 180)');
+                  setDialogState(
+                    () => localError = 'Kinh độ không hợp lệ (-180 đến 180)',
+                  );
                   return;
                 }
                 onCoordinatesChanged(lat, lng);
@@ -182,7 +197,8 @@ class GpsCoordinatePicker extends StatelessWidget {
           runSpacing: 6.0,
           children: presets.map((preset) {
             final isSelected =
-                (latitude - preset.lat).abs() < 0.001 && (longitude - preset.lng).abs() < 0.001;
+                (latitude - preset.lat).abs() < 0.001 &&
+                (longitude - preset.lng).abs() < 0.001;
             return ChoiceChip(
               label: Text(preset.title),
               labelStyle: TextStyle(
@@ -196,7 +212,9 @@ class GpsCoordinatePicker extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.0),
                 side: BorderSide(
-                  color: isSelected ? NordicColors.primary : NordicColors.border,
+                  color: isSelected
+                      ? NordicColors.primary
+                      : NordicColors.border,
                 ),
               ),
               onSelected: (_) => onCoordinatesChanged(preset.lat, preset.lng),
@@ -207,14 +225,20 @@ class GpsCoordinatePicker extends StatelessWidget {
         NordicButton(
           label: 'Lấy GPS Hiện Tại',
           variant: NordicButtonVariant.secondary,
-          icon: const Icon(Icons.gps_fixed, size: 16.0, color: NordicColors.primary),
+          icon: const Icon(
+            Icons.gps_fixed,
+            size: 16.0,
+            color: NordicColors.primary,
+          ),
           width: double.infinity,
           onPressed: () {
             // Simulated GPS acquisition
             onCoordinatesChanged(10.7769, 106.7009);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Đã cập nhật toạ độ GPS hiện tại (10.7769, 106.7009)'),
+                content: Text(
+                  'Đã cập nhật toạ độ GPS hiện tại (10.7769, 106.7009)',
+                ),
                 duration: Duration(seconds: 2),
                 backgroundColor: NordicColors.primary,
               ),

@@ -41,7 +41,7 @@ public class FakePortTests
             .Where(t => t.IsInterface && t.Namespace == typeof(IClock).Namespace)
             .ToList();
 
-        Assert.Equal(17, ports.Count);
+        Assert.Equal(18, ports.Count);
         foreach (var port in ports)
         {
             var instance = provider.GetRequiredService(port);
@@ -295,7 +295,7 @@ public class FakePortTests
     public async Task AgencyCapacity_hold_is_atomic_and_release_gives_the_slots_back()
     {
         var capacity = new FakeAgencyCapacityService { RemainingSlots = 2 };
-        var request = new CapacityRequest(new DateOnly(2026, 10, 6), "SHIFT_1", 2);
+        var request = new CapacityRequest(new DateOnly(2026, 10, 6), "SHIFT_1", 2, OrderId: 1);
 
         var first = await capacity.TryReserveAsync(request);
         var second = await capacity.TryReserveAsync(request);
@@ -307,6 +307,46 @@ public class FakePortTests
 
         await capacity.ReleaseAsync(first.ReservationId);
         Assert.True(await capacity.HasCapacityAsync(request));
+    }
+
+    [Fact]
+    public async Task AgencyCapacity_release_by_order_gives_back_every_hold_of_that_order_only_and_can_be_repeated()
+    {
+        var capacity = new FakeAgencyCapacityService { RemainingSlots = 5 };
+        var date = new DateOnly(2026, 10, 6);
+
+        await capacity.TryReserveAsync(new CapacityRequest(date, "SHIFT_1", 2, OrderId: 1));
+        await capacity.TryReserveAsync(new CapacityRequest(date, "SHIFT_1", 1, OrderId: 1));
+        var other = await capacity.TryReserveAsync(new CapacityRequest(date, "SHIFT_1", 2, OrderId: 2));
+        Assert.Equal(0, capacity.RemainingSlots);
+
+        await capacity.ReleaseByOrderAsync(1);
+        Assert.Equal(3, capacity.RemainingSlots);
+
+        await capacity.ReleaseByOrderAsync(1); // a repeat
+        await capacity.ReleaseByOrderAsync(99); // an order without a hold
+        Assert.Equal(3, capacity.RemainingSlots);
+
+        await capacity.ReleaseAsync(other!.ReservationId);
+        await capacity.ReleaseByOrderAsync(2); // already released by its reservation id
+        Assert.Equal(5, capacity.RemainingSlots);
+    }
+
+    [Fact]
+    public async Task AgencyCapacity_reservation_of_an_order_is_read_back_without_reserving_again()
+    {
+        var capacity = new FakeAgencyCapacityService { RemainingSlots = 3 };
+        var held = await capacity.TryReserveAsync(new CapacityRequest(new DateOnly(2026, 10, 6), "SHIFT_1", 2, OrderId: 7));
+
+        var readBack = await capacity.GetReservationByOrderAsync(7);
+
+        Assert.Same(held, readBack);
+        Assert.Equal(1, capacity.RemainingSlots); // reading does not take more slots (decisions Q23 B8)
+        Assert.Equal(0.200m, readBack!.CommissionRate); // the fake agency is on FREE (Q08, Q11)
+        Assert.Null(await capacity.GetReservationByOrderAsync(8));
+
+        await capacity.ReleaseByOrderAsync(7);
+        Assert.Null(await capacity.GetReservationByOrderAsync(7));
     }
 
     [Fact]
@@ -357,6 +397,29 @@ public class FakePortTests
         Assert.Equal("Nguyen Van A", (await profiles.GetAsync(5))!.FullName);
         var many = await profiles.GetManyAsync([5, 6, 5]);
         Assert.Equal([5], many.Keys);
+    }
+
+    // ---- Customer address (Booking B2) ---------------------------------------------------------
+
+    [Fact]
+    public async Task CustomerAddressQuery_returns_only_an_address_owned_by_the_customer()
+    {
+        var addresses = new FakeCustomerAddressQuery();
+        addresses.Add(7, new CustomerAddressInfo(3, 55.5m, 10.76m, 106.66m));
+
+        Assert.Equal(55.5m, (await addresses.GetOwnedAsync(7, 3))!.TotalAreaM2);
+        Assert.Null(await addresses.GetOwnedAsync(8, 3));
+        Assert.Null(await addresses.GetOwnedAsync(7, 4));
+    }
+
+    [Fact]
+    public async Task AddFakePorts_registers_a_customer_address_query()
+    {
+        var services = new ServiceCollection();
+        services.AddFakePorts();
+        await using var provider = services.BuildServiceProvider();
+
+        Assert.IsType<FakeCustomerAddressQuery>(provider.GetRequiredService<ICustomerAddressQuery>());
     }
 
     // ---- eKYC / image quality ----------------------------------------------------------------

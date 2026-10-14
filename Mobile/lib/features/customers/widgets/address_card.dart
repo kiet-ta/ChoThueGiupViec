@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_card.dart';
@@ -53,7 +54,9 @@ class AddressCard extends StatelessWidget {
                 ),
                 child: Icon(
                   _getHousingIcon(),
-                  color: address.isDefault ? NordicColors.primary : NordicColors.secondaryAccent,
+                  color: address.isDefault
+                      ? NordicColors.primary
+                      : NordicColors.secondaryAccent,
                   size: 18.0,
                 ),
               ),
@@ -77,8 +80,7 @@ class AddressCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (address.isDefault)
-                const TrustBadge(text: 'MẶC ĐỊNH'),
+              if (address.isDefault) const TrustBadge(text: 'MẶC ĐỊNH'),
             ],
           ),
           const SizedBox(height: 12.0),
@@ -107,7 +109,10 @@ class AddressCard extends StatelessWidget {
 
           // S_total metric banner
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10.0,
+              vertical: 8.0,
+            ),
             decoration: BoxDecoration(
               color: NordicColors.surfaceSubtle,
               borderRadius: BorderRadius.circular(8.0),
@@ -121,7 +126,9 @@ class AddressCard extends StatelessWidget {
                     children: [
                       Text(
                         'Tổng diện tích (S_total):',
-                        style: NordicTypography.labelSmall.copyWith(fontSize: 10.0),
+                        style: NordicTypography.labelSmall.copyWith(
+                          fontSize: 10.0,
+                        ),
                       ),
                       Text(
                         '${address.totalAreaM2.toStringAsFixed(1)} m²',
@@ -133,11 +140,7 @@ class AddressCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Container(
-                  width: 1.0,
-                  height: 24.0,
-                  color: NordicColors.border,
-                ),
+                Container(width: 1.0, height: 24.0, color: NordicColors.border),
                 const SizedBox(width: 10.0),
                 Expanded(
                   child: Column(
@@ -145,7 +148,9 @@ class AddressCard extends StatelessWidget {
                     children: [
                       Text(
                         'Diện tích sàn:',
-                        style: NordicTypography.labelSmall.copyWith(fontSize: 10.0),
+                        style: NordicTypography.labelSmall.copyWith(
+                          fontSize: 10.0,
+                        ),
                       ),
                       Text(
                         '${address.floorAreaM2.toStringAsFixed(1)} m²',

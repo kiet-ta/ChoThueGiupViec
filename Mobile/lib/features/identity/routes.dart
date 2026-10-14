@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/feature_module.dart';
 import '../../core/models/user_role.dart';
 import 'screens/otp_verify_screen.dart';
@@ -20,9 +21,9 @@ class IdentityFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        IdentityRoutes.phoneInput: (context) => const PhoneInputScreen(),
-        IdentityRoutes.login: (context) => const PhoneInputScreen(),
-      };
+    IdentityRoutes.phoneInput: (context) => const PhoneInputScreen(),
+    IdentityRoutes.login: (context) => const PhoneInputScreen(),
+  };
 
   @override
   Route<dynamic>? onGenerateRoute(RouteSettings settings) {
@@ -34,8 +35,7 @@ class IdentityFeatureModule extends FeatureModule {
           builder: (context) => OtpVerifyScreen(
             phoneNumber: args['phoneNumber'] as String? ?? '',
             role: args['role'] as AppRole? ?? AppRole.customer,
-            resendCooldownSeconds:
-                args['resendCooldownSeconds'] as int? ?? 60,
+            resendCooldownSeconds: args['resendCooldownSeconds'] as int? ?? 60,
           ),
         );
       }

@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_profile.dart';
@@ -20,18 +21,18 @@ class CustomerProfileService {
     HttpClient? httpClient,
     TokenStorage? tokenStorage,
     this.isMock = false,
-  })  : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
-        _httpClient = httpClient ?? HttpClient(),
-        _tokenStorage = tokenStorage ?? TokenStorage(),
-        _mockProfile = CustomerProfile(
-          customerId: 1,
-          phoneNumber: '0901234567',
-          fullName: 'Nguyễn Văn An',
-          email: 'an.nguyen@example.com',
-          trustScore: 5.0,
-          accountStatus: 'ACTIVE',
-          createdAt: DateTime(2026, 1, 15),
-        );
+  }) : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
+       _httpClient = httpClient ?? HttpClient(),
+       _tokenStorage = tokenStorage ?? TokenStorage(),
+       _mockProfile = CustomerProfile(
+         customerId: 1,
+         phoneNumber: '0901234567',
+         fullName: 'Nguyễn Văn An',
+         email: 'an.nguyen@example.com',
+         trustScore: 5.0,
+         accountStatus: 'ACTIVE',
+         createdAt: DateTime(2026, 1, 15),
+       );
 
   CustomerProfile get mockProfile => _mockProfile;
 
@@ -39,14 +40,18 @@ class CustomerProfileService {
     _mockProfile = profile;
   }
 
-  Future<Map<String, dynamic>> _call(String method, String fallbackMessage, {Object? body}) => apiRequest(
-        _httpClient,
-        method,
-        Uri.parse('$baseUrl/api/customers/me'),
-        bearerToken: _tokenStorage.accessToken,
-        body: body,
-        fallbackMessage: fallbackMessage,
-      );
+  Future<Map<String, dynamic>> _call(
+    String method,
+    String fallbackMessage, {
+    Object? body,
+  }) => apiRequest(
+    _httpClient,
+    method,
+    Uri.parse('$baseUrl/api/customers/me'),
+    bearerToken: _tokenStorage.accessToken,
+    body: body,
+    fallbackMessage: fallbackMessage,
+  );
 
   /// GET /api/customers/me
   Future<CustomerProfile> getProfile() async {
@@ -81,7 +86,9 @@ class CustomerProfileService {
       }
     }
 
-    final sanitizedEmail = (trimmedEmail != null && trimmedEmail.isNotEmpty) ? trimmedEmail : null;
+    final sanitizedEmail = (trimmedEmail != null && trimmedEmail.isNotEmpty)
+        ? trimmedEmail
+        : null;
 
     if (!isMock) {
       final envelope = await _call(

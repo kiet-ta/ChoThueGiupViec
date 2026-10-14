@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/location_wrapper.dart';
 import '../../../core/theme/nordic_colors.dart';
@@ -158,9 +159,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: const Text('Check-in Hiện Trường'),
-      ),
+      appBar: AppBar(title: const Text('Check-in Hiện Trường')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
@@ -200,10 +199,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
       children: [
         const EyebrowBadge(text: 'XÁC THỰC HIỆN TRƯỜNG (BR-04)'),
         const SizedBox(height: 8.0),
-        const Text(
-          'Đã đến địa chỉ ca làm việc?',
-          style: NordicTypography.h2,
-        ),
+        const Text('Đã đến địa chỉ ca làm việc?', style: NordicTypography.h2),
         const SizedBox(height: 4.0),
         Text(
           'Vui lòng bấm nút dưới đây để kiểm tra toạ độ hiện tại. Dung sai cho phép ≤ 100 mét.',
@@ -220,7 +216,11 @@ class _CheckInScreenState extends State<CheckInScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.home_outlined, color: NordicColors.primary, size: 22.0),
+                    const Icon(
+                      Icons.home_outlined,
+                      color: NordicColors.primary,
+                      size: 22.0,
+                    ),
                     const SizedBox(width: 8.0),
                     Expanded(
                       child: Text(
@@ -261,7 +261,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
             ),
             child: Text(
               _errorMessage!,
-              style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
             ),
           ),
         ],
@@ -284,14 +286,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
       children: [
         const EyebrowBadge(text: 'LỆCH GPS > 100M'),
         const SizedBox(height: 8.0),
-        const Text(
-          'Vị trí chưa khớp',
-          style: NordicTypography.h2,
-        ),
+        const Text('Vị trí chưa khớp', style: NordicTypography.h2),
         const SizedBox(height: 8.0),
         Text(
           'Toạ độ GPS của bạn cách địa chỉ đơn ${distance.toStringAsFixed(0)} mét (vượt mức cho phép ≤ 100m).',
-          style: NordicTypography.bodyRegular.copyWith(color: NordicColors.error),
+          style: NordicTypography.bodyRegular.copyWith(
+            color: NordicColors.error,
+          ),
         ),
         const SizedBox(height: 16.0),
 
@@ -311,11 +312,15 @@ class _CheckInScreenState extends State<CheckInScreen> {
                 // Option 1: Plate photo
                 OutlinedButton.icon(
                   key: const Key('take_plate_photo_button'),
-                  onPressed: _isSubmittingPhoto ? null : _handleCapturePlatePhoto,
+                  onPressed: _isSubmittingPhoto
+                      ? null
+                      : _handleCapturePlatePhoto,
                   icon: const Icon(Icons.camera_alt_outlined),
-                  label: Text(_isSubmittingPhoto
-                      ? 'Đang tải ảnh...'
-                      : 'Chụp ảnh biển số nhà / số phòng'),
+                  label: Text(
+                    _isSubmittingPhoto
+                        ? 'Đang tải ảnh...'
+                        : 'Chụp ảnh biển số nhà / số phòng',
+                  ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14.0),
                   ),
@@ -336,9 +341,11 @@ class _CheckInScreenState extends State<CheckInScreen> {
                       ? null
                       : _handleCustomerConfirmation,
                   icon: const Icon(Icons.person_pin_circle_outlined),
-                  label: Text(_isRequestingCustomerConfirmation
-                      ? 'Đang gửi yêu cầu...'
-                      : 'Nhờ khách xác nhận trên ứng dụng'),
+                  label: Text(
+                    _isRequestingCustomerConfirmation
+                        ? 'Đang gửi yêu cầu...'
+                        : 'Nhờ khách xác nhận trên ứng dụng',
+                  ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14.0),
                   ),

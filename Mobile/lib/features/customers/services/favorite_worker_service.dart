@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/favorite_worker.dart';
@@ -21,9 +22,9 @@ class FavoriteWorkerService {
     HttpClient? httpClient,
     TokenStorage? tokenStorage,
     this.isMock = false,
-  })  : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
-        _httpClient = httpClient ?? HttpClient(),
-        _tokenStorage = tokenStorage ?? TokenStorage() {
+  }) : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
+       _httpClient = httpClient ?? HttpClient(),
+       _tokenStorage = tokenStorage ?? TokenStorage() {
     if (isMock) _seedDefaultMockData();
   }
 
@@ -62,37 +63,56 @@ class FavoriteWorkerService {
     _mockStore.clear();
   }
 
-  Future<Map<String, dynamic>> _call(String method, String path, String fallbackMessage) => apiRequest(
-        _httpClient,
-        method,
-        Uri.parse('$baseUrl/api/customers/me/favorite-workers$path'),
-        bearerToken: _tokenStorage.accessToken,
-        fallbackMessage: fallbackMessage,
-      );
+  Future<Map<String, dynamic>> _call(
+    String method,
+    String path,
+    String fallbackMessage,
+  ) => apiRequest(
+    _httpClient,
+    method,
+    Uri.parse('$baseUrl/api/customers/me/favorite-workers$path'),
+    bearerToken: _tokenStorage.accessToken,
+    fallbackMessage: fallbackMessage,
+  );
 
   /// GET /api/customers/me/favorite-workers
   Future<List<FavoriteWorker>> getFavoriteWorkers() async {
     if (!isMock) {
-      final envelope = await _call('GET', '', 'Không tải được danh sách thợ quen.');
+      final envelope = await _call(
+        'GET',
+        '',
+        'Không tải được danh sách thợ quen.',
+      );
       final data = envelope['data'] as List<dynamic>? ?? [];
-      return data.map((item) => FavoriteWorker.fromJson(item as Map<String, dynamic>)).toList();
+      return data
+          .map((item) => FavoriteWorker.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
 
     // Sort by addedAt descending
     final sorted = List<FavoriteWorker>.from(_mockStore);
-    sorted.sort((a, b) => (b.addedAt ?? DateTime(2000)).compareTo(a.addedAt ?? DateTime(2000)));
+    sorted.sort(
+      (a, b) =>
+          (b.addedAt ?? DateTime(2000)).compareTo(a.addedAt ?? DateTime(2000)),
+    );
     return sorted;
   }
 
   /// PUT /api/customers/me/favorite-workers/{workerId} (Idempotent)
   Future<FavoriteWorker> addFavoriteWorker(int workerId) async {
     if (!isMock) {
-      final envelope = await _call('PUT', '/$workerId', 'Thêm thợ quen thất bại.');
+      final envelope = await _call(
+        'PUT',
+        '/$workerId',
+        'Thêm thợ quen thất bại.',
+      );
       return FavoriteWorker.fromJson(envelope['data'] as Map<String, dynamic>);
     }
 
     // Mock addition
-    final existing = _mockStore.where((w) => w.workerId == workerId).firstOrNull;
+    final existing = _mockStore
+        .where((w) => w.workerId == workerId)
+        .firstOrNull;
     if (existing != null) return existing;
 
     final newWorker = FavoriteWorker(

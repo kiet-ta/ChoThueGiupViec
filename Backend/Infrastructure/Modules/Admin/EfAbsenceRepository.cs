@@ -69,6 +69,12 @@ public sealed class EfAbsenceRepository(AppDbContext db) : IAbsenceRepository
         return changed == 1;
     }
 
+    public async Task<IReadOnlyList<int>> GetActiveAdminIdsAsync(CancellationToken cancellationToken = default) =>
+        await db.Admins.AsNoTracking().Where(a => a.IsActive).OrderBy(a => a.AdminId).Select(a => a.AdminId).ToListAsync(cancellationToken);
+
+    public async Task<int?> GetCustomerIdOfOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await db.JobOrders.AsNoTracking().Where(o => o.OrderId == orderId).Select(o => (int?)o.CustomerId).FirstOrDefaultAsync(cancellationToken);
+
     private static AbsenceReportRow ToRow(Raw r) => new(
         r.AssignmentId, r.OrderId, r.OrderCode, r.WorkerId, r.WorkerName, r.WorkerType, r.AgencyName, r.CustomerName,
         r.AssignmentStatus, r.GrossAmount, r.AbsenceFeeAmount, r.CheckedInAt, r.CustomerAbsentAt ?? default,

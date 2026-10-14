@@ -19,7 +19,8 @@ void main() {
 
   tearDown(() => backend.stop());
 
-  AuthService service([String? baseUrl]) => AuthService(baseUrl: baseUrl ?? backend.baseUrl, tokenStorage: storage);
+  AuthService service([String? baseUrl]) =>
+      AuthService(baseUrl: baseUrl ?? backend.baseUrl, tokenStorage: storage);
 
   test('the real app does not use mock mode by default', () {
     expect(AuthService().useMockFallback, isFalse);
@@ -27,48 +28,84 @@ void main() {
 
   group('requestOtp', () {
     test('200 returns the server TTL and cooldown', () async {
-      backend.on('POST', '/api/auth/otp/request', 200,
-          FakeBackend.ok({'expiresInSeconds': 120, 'resendAvailableInSeconds': 30}));
+      backend.on(
+        'POST',
+        '/api/auth/otp/request',
+        200,
+        FakeBackend.ok({
+          'expiresInSeconds': 120,
+          'resendAvailableInSeconds': 30,
+        }),
+      );
 
-      final result = await service().requestOtp(phoneNumber: '+84912345678', role: AppRole.worker);
+      final result = await service().requestOtp(
+        phoneNumber: '+84912345678',
+        role: AppRole.worker,
+      );
 
       expect(result.expiresInSeconds, 120);
       expect(result.resendAvailableInSeconds, 30);
-      expect(backend.requestBodies['POST /api/auth/otp/request'], {'phoneNumber': '0912345678', 'role': 'Worker'});
+      expect(backend.requestBodies['POST /api/auth/otp/request'], {
+        'phoneNumber': '0912345678',
+        'role': 'Worker',
+      });
     });
 
     test('429 throws with the server message and Retry-After, instead of pretending the OTP was sent', () async {
-      backend.on('POST', '/api/auth/otp/request', 429, FakeBackend.error('Vui lòng chờ 45 giây.'),
-          {'Retry-After': '45'});
+      backend.on(
+        'POST',
+        '/api/auth/otp/request',
+        429,
+        FakeBackend.error('Vui lòng chờ 45 giây.'),
+        {'Retry-After': '45'},
+      );
 
       await expectLater(
         service().requestOtp(phoneNumber: '0912345678', role: AppRole.customer),
-        throwsA(isA<ApiException>()
-            .having((e) => e.statusCode, 'statusCode', 429)
-            .having((e) => e.message, 'message', 'Vui lòng chờ 45 giây.')
-            .having((e) => e.retryAfterSeconds, 'retryAfterSeconds', 45)),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 429)
+              .having((e) => e.message, 'message', 'Vui lòng chờ 45 giây.')
+              .having((e) => e.retryAfterSeconds, 'retryAfterSeconds', 45),
+        ),
       );
     });
 
     test('backend unreachable throws a network error (status 0)', () async {
       await expectLater(
-        service(FakeBackend.unreachableBaseUrl).requestOtp(phoneNumber: '0912345678', role: AppRole.customer),
-        throwsA(isA<ApiException>().having((e) => e.isNetworkError, 'isNetworkError', isTrue)),
+        service(FakeBackend.unreachableBaseUrl)
+            .requestOtp(phoneNumber: '0912345678', role: AppRole.customer),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.isNetworkError,
+            'isNetworkError',
+            isTrue,
+          ),
+        ),
       );
     });
   });
 
   group('verifyOtp', () {
     test('200 saves the real tokens', () async {
-      backend.on('POST', '/api/auth/otp/verify', 200, FakeBackend.ok({
-        'tokenType': 'Bearer',
-        'accessToken': 'real-access',
-        'accessTokenExpiresInSeconds': 900,
-        'refreshToken': 'real-refresh',
-        'user': {'id': 7, 'role': 'Customer', 'isNewUser': false},
-      }));
+      backend.on(
+        'POST',
+        '/api/auth/otp/verify',
+        200,
+        FakeBackend.ok({
+          'tokenType': 'Bearer',
+          'accessToken': 'real-access',
+          'accessTokenExpiresInSeconds': 900,
+          'refreshToken': 'real-refresh',
+          'user': {'id': 7, 'role': 'Customer', 'isNewUser': false},
+        }),
+      );
 
-      final response = await service().verifyOtp(phoneNumber: '0912345678', role: AppRole.customer, code: '123456');
+      final response = await service().verifyOtp(
+        phoneNumber: '0912345678',
+        role: AppRole.customer,
+        code: '123456',
+      );
 
       expect(response.isSuccess, isTrue);
       expect(storage.accessToken, 'real-access');
@@ -76,9 +113,18 @@ void main() {
     });
 
     test('401 returns the server message and saves no token', () async {
-      backend.on('POST', '/api/auth/otp/verify', 401, FakeBackend.error('Mã không đúng hoặc đã hết hạn.'));
+      backend.on(
+        'POST',
+        '/api/auth/otp/verify',
+        401,
+        FakeBackend.error('Mã không đúng hoặc đã hết hạn.'),
+      );
 
-      final response = await service().verifyOtp(phoneNumber: '0912345678', role: AppRole.customer, code: '123456');
+      final response = await service().verifyOtp(
+        phoneNumber: '0912345678',
+        role: AppRole.customer,
+        code: '123456',
+      );
 
       expect(response.isSuccess, isFalse);
       expect(response.statusCode, 401);
@@ -87,9 +133,18 @@ void main() {
     });
 
     test('502 with a non-JSON body is an error, not a mock login', () async {
-      backend.on('POST', '/api/auth/otp/verify', 502, '<html>Bad Gateway</html>');
+      backend.on(
+        'POST',
+        '/api/auth/otp/verify',
+        502,
+        '<html>Bad Gateway</html>',
+      );
 
-      final response = await service().verifyOtp(phoneNumber: '0912345678', role: AppRole.customer, code: '123456');
+      final response = await service().verifyOtp(
+        phoneNumber: '0912345678',
+        role: AppRole.customer,
+        code: '123456',
+      );
 
       expect(response.isSuccess, isFalse);
       expect(response.statusCode, 502);
@@ -99,8 +154,11 @@ void main() {
     });
 
     test('backend unreachable is a network error, not a mock login', () async {
-      final response = await service(FakeBackend.unreachableBaseUrl)
-          .verifyOtp(phoneNumber: '0912345678', role: AppRole.customer, code: '424242');
+      final response = await service(FakeBackend.unreachableBaseUrl).verifyOtp(
+        phoneNumber: '0912345678',
+        role: AppRole.customer,
+        code: '424242',
+      );
 
       expect(response.isSuccess, isFalse);
       expect(response.statusCode, 0);

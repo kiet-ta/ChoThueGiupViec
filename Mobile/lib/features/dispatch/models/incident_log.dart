@@ -40,10 +40,13 @@ class IncidentLog {
       photoEvidenceUrl: json['photoEvidenceUrl'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      reportedAt: DateTime.tryParse(json['reportedAt'] as String? ?? '') ?? DateTime.now(),
+      reportedAt:
+          DateTime.tryParse(json['reportedAt'] as String? ?? '') ??
+          DateTime.now(),
       isPenaltyExempt: json['isPenaltyExempt'] as bool? ?? true,
       reDispatchStatus: json['reDispatchStatus'] as String? ?? 'SEARCHING',
-      reDispatchDeadline: DateTime.tryParse(json['reDispatchDeadline'] as String? ?? '') ??
+      reDispatchDeadline:
+          DateTime.tryParse(json['reDispatchDeadline'] as String? ?? '') ??
           DateTime.now().add(const Duration(minutes: 5)),
       substituteWorkerId: json['substituteWorkerId'] as int?,
     );

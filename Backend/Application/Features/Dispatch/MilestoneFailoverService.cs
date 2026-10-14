@@ -317,7 +317,7 @@ public class MilestoneFailoverService
         var shiftCode = slot?.ShiftCode ?? order?.ShiftCode ?? "SANG";
 
         // Step 1: Try finding another Agency via IAgencyCapacityService
-        var capacityReq = new CapacityRequest(date, shiftCode, RequiredWorkers: 1);
+        var capacityReq = new CapacityRequest(date, shiftCode, RequiredWorkers: 1, OrderId: originalAssignment.OrderId);
         var reservation = await _agencyCapacityService.TryReserveAsync(capacityReq, cancellationToken);
 
         decimal rescueCost = originalAssignment.PayoutAmount;

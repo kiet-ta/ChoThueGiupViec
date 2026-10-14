@@ -50,7 +50,9 @@ class TokenStorage implements ITokenStorage {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
     if (expiresInSeconds != null) {
-      _accessExpiresAt = DateTime.now().add(Duration(seconds: expiresInSeconds));
+      _accessExpiresAt = DateTime.now().add(
+        Duration(seconds: expiresInSeconds),
+      );
     } else {
       _accessExpiresAt = null;
     }

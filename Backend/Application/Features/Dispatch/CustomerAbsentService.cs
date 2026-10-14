@@ -18,6 +18,9 @@ public sealed record CustomerAbsentReportResult
     public required bool Success { get; init; }
     public required long AssignmentId { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>True when the absence was already reported for this assignment (a second report changes nothing).</summary>
+    public bool AlreadyReported { get; init; }
     public DateTime? ReportedAtUtc { get; init; }
     public int CallAttempts { get; init; }
     public int ElapsedMinutes { get; init; }
@@ -37,6 +40,9 @@ public interface ICustomerAbsentRepository
     Task<CheckInLog> SaveCheckInLogAsync(CheckInLog log, CancellationToken cancellationToken = default);
     Task<bool> UpdateAssignmentAbsentFeeAsync(long assignmentId, decimal absenceFeeAmount, CancellationToken cancellationToken = default);
     Task<bool> RecordCallAttemptAsync(long assignmentId, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets <c>customer_absent_at</c> only while it is still null; false when the absence was already reported (two requests race).</summary>
+    Task<bool> TryMarkCustomerAbsentAsync(long assignmentId, DateTime reportedAtUtc, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -74,7 +80,7 @@ public class CustomerAbsentService
     public async Task<bool> RecordCallAttemptAsync(long assignmentId, int workerId, CancellationToken cancellationToken = default)
     {
         var assignment = await _repository.GetAssignmentAsync(assignmentId, cancellationToken);
-        if (assignment == null || (assignment.WorkerId != workerId && assignment.AgencyId == null))
+        if (assignment == null || assignment.WorkerId != workerId)
         {
             return false;
         }
@@ -107,7 +113,7 @@ public class CustomerAbsentService
             };
         }
 
-        if (assignment.WorkerId != workerId && assignment.AgencyId == null)
+        if (assignment.WorkerId != workerId)
         {
             return new CustomerAbsentReportResult
             {
@@ -135,6 +141,19 @@ public class CustomerAbsentService
                 Success = false,
                 AssignmentId = assignmentId,
                 ErrorMessage = "Chưa có dữ liệu check-in hiện trường."
+            };
+        }
+
+        if (log.CustomerAbsentAt != null)
+        {
+            return new CustomerAbsentReportResult
+            {
+                Success = false,
+                AssignmentId = assignmentId,
+                AlreadyReported = true,
+                ReportedAtUtc = log.CustomerAbsentAt,
+                CallAttempts = log.CallAttempts,
+                ErrorMessage = "Đã báo khách vắng mặt cho ca này; đang chờ Admin duyệt."
             };
         }
 
@@ -171,8 +190,17 @@ public class CustomerAbsentService
         }
 
         // Record customer_absent_at in CheckInLog
-        log.CustomerAbsentAt = nowUtc;
-        await _repository.SaveCheckInLogAsync(log, cancellationToken);
+        if (!await _repository.TryMarkCustomerAbsentAsync(assignmentId, nowUtc, cancellationToken))
+        {
+            return new CustomerAbsentReportResult
+            {
+                Success = false,
+                AssignmentId = assignmentId,
+                AlreadyReported = true,
+                CallAttempts = log.CallAttempts,
+                ErrorMessage = "Đã báo khách vắng mặt cho ca này; đang chờ Admin duyệt."
+            };
+        }
 
         // Calculate 40% compensation fee for worker and 60% refund for customer (Q10)
         decimal feeRate = _rules.Absence.FeeRate > 0 ? _rules.Absence.FeeRate : 0.40m;

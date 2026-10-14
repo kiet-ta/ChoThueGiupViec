@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -37,7 +38,10 @@ class AreaCalculatorCard extends StatelessWidget {
             children: [
               const EyebrowBadge(text: 'CÔNG THỨC S_TOTAL'),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 2.0,
+                ),
                 decoration: BoxDecoration(
                   color: NordicColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6.0),

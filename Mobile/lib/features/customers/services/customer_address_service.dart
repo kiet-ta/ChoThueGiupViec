@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_address.dart';
@@ -23,9 +24,9 @@ class CustomerAddressService {
     HttpClient? httpClient,
     TokenStorage? tokenStorage,
     this.isMock = false,
-  })  : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
-        _httpClient = httpClient ?? HttpClient(),
-        _tokenStorage = tokenStorage ?? TokenStorage() {
+  }) : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
+       _httpClient = httpClient ?? HttpClient(),
+       _tokenStorage = tokenStorage ?? TokenStorage() {
     if (isMock) _seedDefaultMockData();
   }
 
@@ -81,22 +82,28 @@ class CustomerAddressService {
     _mockStore.add(address);
   }
 
-  Future<Map<String, dynamic>> _call(String method, String path, String fallbackMessage, {Object? body}) =>
-      apiRequest(
-        _httpClient,
-        method,
-        Uri.parse('$baseUrl/api/customers/me/addresses$path'),
-        bearerToken: _tokenStorage.accessToken,
-        body: body,
-        fallbackMessage: fallbackMessage,
-      );
+  Future<Map<String, dynamic>> _call(
+    String method,
+    String path,
+    String fallbackMessage, {
+    Object? body,
+  }) => apiRequest(
+    _httpClient,
+    method,
+    Uri.parse('$baseUrl/api/customers/me/addresses$path'),
+    bearerToken: _tokenStorage.accessToken,
+    body: body,
+    fallbackMessage: fallbackMessage,
+  );
 
   /// GET /api/customers/me/addresses
   Future<List<CustomerAddress>> getAddresses() async {
     if (!isMock) {
       final envelope = await _call('GET', '', 'Không tải được sổ địa chỉ.');
       final data = envelope['data'] as List<dynamic>? ?? [];
-      return data.map((item) => CustomerAddress.fromJson(item as Map<String, dynamic>)).toList();
+      return data
+          .map((item) => CustomerAddress.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
 
     // Sort default first, then newest
@@ -104,7 +111,9 @@ class CustomerAddressService {
     sorted.sort((a, b) {
       if (a.isDefault && !b.isDefault) return -1;
       if (!a.isDefault && b.isDefault) return 1;
-      return (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000));
+      return (b.createdAt ?? DateTime(2000)).compareTo(
+        a.createdAt ?? DateTime(2000),
+      );
     });
     return sorted;
   }
@@ -113,7 +122,11 @@ class CustomerAddressService {
   Future<CustomerAddress?> getAddressById(int addressId) async {
     if (!isMock) {
       try {
-        final envelope = await _call('GET', '/$addressId', 'Không tải được địa chỉ.');
+        final envelope = await _call(
+          'GET',
+          '/$addressId',
+          'Không tải được địa chỉ.',
+        );
         final data = envelope['data'] as Map<String, dynamic>?;
         return data == null ? null : CustomerAddress.fromJson(data);
       } on ApiException catch (e) {
@@ -134,7 +147,12 @@ class CustomerAddressService {
     _validateAddressInput(input);
 
     if (!isMock) {
-      final envelope = await _call('POST', '', 'Tạo địa chỉ thất bại.', body: input.toJson());
+      final envelope = await _call(
+        'POST',
+        '',
+        'Tạo địa chỉ thất bại.',
+        body: input.toJson(),
+      );
       return CustomerAddress.fromJson(envelope['data'] as Map<String, dynamic>);
     }
 
@@ -150,7 +168,10 @@ class CustomerAddressService {
       }
     }
 
-    final total = CustomerAddress.calculateTotalArea(input.floorAreaM2, input.numFloors);
+    final total = CustomerAddress.calculateTotalArea(
+      input.floorAreaM2,
+      input.numFloors,
+    );
     final created = input.copyWith(
       addressId: ++_mockIdCounter,
       totalAreaM2: total,
@@ -163,11 +184,19 @@ class CustomerAddressService {
   }
 
   /// PUT /api/customers/me/addresses/{addressId}
-  Future<CustomerAddress> updateAddress(int addressId, CustomerAddress input) async {
+  Future<CustomerAddress> updateAddress(
+    int addressId,
+    CustomerAddress input,
+  ) async {
     _validateAddressInput(input);
 
     if (!isMock) {
-      final envelope = await _call('PUT', '/$addressId', 'Cập nhật địa chỉ thất bại.', body: input.toJson());
+      final envelope = await _call(
+        'PUT',
+        '/$addressId',
+        'Cập nhật địa chỉ thất bại.',
+        body: input.toJson(),
+      );
       return CustomerAddress.fromJson(envelope['data'] as Map<String, dynamic>);
     }
 
@@ -185,7 +214,10 @@ class CustomerAddressService {
       }
     }
 
-    final total = CustomerAddress.calculateTotalArea(input.floorAreaM2, input.numFloors);
+    final total = CustomerAddress.calculateTotalArea(
+      input.floorAreaM2,
+      input.numFloors,
+    );
     final updated = input.copyWith(
       addressId: addressId,
       totalAreaM2: total,
@@ -234,7 +266,8 @@ class CustomerAddressService {
     if (input.housingType == HousingType.room && input.floorAreaM2 > 30.0) {
       throw ArgumentError('Phòng trọ diện tích tối đa là 30 m² (PRD §1.1).');
     }
-    if (input.housingType == HousingType.apartment || input.housingType == HousingType.room) {
+    if (input.housingType == HousingType.apartment ||
+        input.housingType == HousingType.room) {
       if (input.numFloors != 1) {
         throw ArgumentError('Căn hộ và phòng trọ chỉ có 1 tầng.');
       }

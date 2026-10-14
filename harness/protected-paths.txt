@@ -4,6 +4,7 @@ harness/**
 .husky/**
 Backend/.husky/**
 Frontend/.husky/**
+Mobile/.husky/**
 .github/**
 .claude/**
 .spec/tasks.md

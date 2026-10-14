@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
@@ -53,7 +54,10 @@ class FavoriteWorkerCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2.0),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6.0,
+                        vertical: 2.0,
+                      ),
                       decoration: BoxDecoration(
                         color: worker.statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6.0),
@@ -71,7 +75,10 @@ class FavoriteWorkerCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.favorite_rounded, color: NordicColors.error),
+                icon: const Icon(
+                  Icons.favorite_rounded,
+                  color: NordicColors.error,
+                ),
                 tooltip: 'Bỏ yêu thích',
                 onPressed: onRemove,
               ),
@@ -81,7 +88,10 @@ class FavoriteWorkerCard extends StatelessWidget {
 
           // Metrics strip: Rating & Completed Jobs
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10.0,
+              vertical: 8.0,
+            ),
             decoration: BoxDecoration(
               color: NordicColors.surfaceSubtle,
               borderRadius: BorderRadius.circular(8.0),

@@ -1,20 +1,27 @@
-using Backend.Application.Features.Agencies;
-using Backend.Infrastructure.Modules.Agencies;
+using CommonService.Application.Features.Payments;
+using CommonService.Application.Features.Agencies;
+using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Backend.Infrastructure.Modules.Agencies;
+namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>
-/// Agencies module for dependency injection registration
+/// Module registration for Agencies (M5). Self-registers via <see cref="IModule"/> (BASE-02).
 /// </summary>
-public class AgenciesModule : IModule
+public sealed class AgenciesModule : IModule
 {
     public string Name => "Agencies";
 
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddScoped<IAgencyRepository, EfAgencyRepository>();
         services.AddScoped<ISubscriptionRepository, EfSubscriptionRepository>();
+        services.AddScoped<SubscriptionService>();
+        services.AddScoped<WorkerQuotaEnforcer>();
+        // The IPN endpoint finds the handler of a SUBSCRIPTION payment by purpose (BE-M5-02).
+        services.AddScoped<IPaymentPurposeSettlement, SubscriptionPaymentSettlement>();
+        services.AddHostedService<SubscriptionExpiryWorker>();
     }
 }

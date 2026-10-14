@@ -1,59 +1,92 @@
-using Backend.Application.Features.Agencies;
+using CommonService.Application.Features.Agencies;
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace Backend.Infrastructure.Modules.Agencies;
+namespace CommonService.Infrastructure.Modules.Agencies;
 
-/// <summary>
-/// Entity Framework implementation of the agency subscription repository
-/// </summary>
-public class EfSubscriptionRepository : ISubscriptionRepository
+/// <summary>EF Core implementation of <see cref="ISubscriptionRepository"/>. Not verified against a live SQL Server on this host.</summary>
+public sealed class EfSubscriptionRepository(AppDbContext db) : ISubscriptionRepository
 {
-    private readonly AppDbContext _dbContext;
-
-    public EfSubscriptionRepository(AppDbContext dbContext)
-    {
-        _dbContext = dbContext;
-    }
-
-    public async Task<SubscriptionPackage?> GetPackageByIdAsync(int packageId, CancellationToken cancellationToken = default)
-    {
-        return await _dbContext.Set<SubscriptionPackage>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.PackageId == packageId, cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<SubscriptionPackage>> GetActivePackagesAsync(CancellationToken cancellationToken = default)
-    {
-        return await _dbContext.Set<SubscriptionPackage>()
-            .AsNoTracking()
-            .Where(p => p.IsActive)
+    public async Task<IReadOnlyList<SubscriptionPackage>> ListPackagesAsync(bool activeOnly, CancellationToken cancellationToken = default) =>
+        await db.SubscriptionPackages.AsNoTracking()
+            .Where(p => !activeOnly || p.IsActive)
+            .OrderBy(p => p.Price).ThenBy(p => p.PackageId)
             .ToListAsync(cancellationToken);
-    }
 
-    public async Task<PartnerSubscription?> GetActiveSubscriptionByAgencyIdAsync(int agencyId, CancellationToken cancellationToken = default)
-    {
-        return await _dbContext.Set<PartnerSubscription>()
-            .AsNoTracking()
-            .Where(s => s.AgencyId == agencyId && s.SubStatus == "Active")
-            .OrderByDescending(s => s.CreatedAt)
+    public async Task<SubscriptionPackage?> GetPackageAsync(int packageId, CancellationToken cancellationToken = default) =>
+        await db.SubscriptionPackages.AsNoTracking().FirstOrDefaultAsync(p => p.PackageId == packageId, cancellationToken);
+
+    public async Task<SubscriptionPackage?> GetPackageForUpdateAsync(int packageId, CancellationToken cancellationToken = default) =>
+        await db.SubscriptionPackages.FirstOrDefaultAsync(p => p.PackageId == packageId, cancellationToken);
+
+    public async Task<SubscriptionPackage?> GetPackageByCodeAsync(string packageCode, CancellationToken cancellationToken = default) =>
+        await db.SubscriptionPackages.AsNoTracking().FirstOrDefaultAsync(p => p.PackageCode == packageCode, cancellationToken);
+
+    public async Task<string?> GetAgencyStatusAsync(int agencyId, CancellationToken cancellationToken = default) =>
+        await db.PartnerAgencies.AsNoTracking()
+            .Where(a => a.AgencyId == agencyId)
+            .Select(a => a.AgencyStatus)
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<(PartnerSubscription Subscription, SubscriptionPackage Package)>> ListSubscriptionsAsync(
+        int agencyId, CancellationToken cancellationToken = default)
+    {
+        var rows = await (
+            from s in db.PartnerSubscriptions.AsNoTracking()
+            join p in db.SubscriptionPackages.AsNoTracking() on s.PackageId equals p.PackageId
+            where s.AgencyId == agencyId
+            orderby s.EndDate descending
+            select new { s, p }
+        ).ToListAsync(cancellationToken);
+        return rows.Select(r => (r.s, r.p)).ToList();
     }
 
-    public async Task AddAsync(PartnerSubscription subscription, CancellationToken cancellationToken = default)
+    public async Task<PartnerSubscription?> FindPendingAsync(int agencyId, int packageId, CancellationToken cancellationToken = default) =>
+        await db.PartnerSubscriptions.AsNoTracking()
+            .Where(s => s.AgencyId == agencyId && s.PackageId == packageId && s.SubStatus == SubscriptionStatuses.PendingPayment)
+            .OrderByDescending(s => s.SubscriptionId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public void Add(PartnerSubscription subscription) => db.PartnerSubscriptions.Add(subscription);
+
+    public async Task<PartnerSubscription?> GetForUpdateAsync(int subscriptionId, CancellationToken cancellationToken = default) =>
+        await db.PartnerSubscriptions.FirstOrDefaultAsync(s => s.SubscriptionId == subscriptionId, cancellationToken);
+
+    public async Task<IReadOnlyList<(int WorkerId, DateTime CreatedAt)>> ListCountedWorkersAsync(int agencyId, CancellationToken cancellationToken = default)
     {
-        await _dbContext.Set<PartnerSubscription>().AddAsync(subscription, cancellationToken);
+        var rows = await db.Workers.AsNoTracking()
+            .Where(w => w.AgencyId == agencyId && w.WorkStatus != WorkStatus.Locked)
+            .Select(w => new { w.WorkerId, w.CreatedAt })
+            .ToListAsync(cancellationToken);
+        return rows.Select(r => (r.WorkerId, r.CreatedAt)).ToList();
     }
 
-    public async Task UpdateAsync(PartnerSubscription subscription, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<int>> ListAgenciesWithWorkersAsync(CancellationToken cancellationToken = default) =>
+        await db.Workers.AsNoTracking()
+            .Where(w => w.AgencyId != null && w.WorkStatus != WorkStatus.Locked)
+            .Select(w => w.AgencyId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+    public async Task<int> LockWorkersAsync(IReadOnlyCollection<int> workerIds, DateTime nowUtc, CancellationToken cancellationToken = default)
     {
-        _dbContext.Set<PartnerSubscription>().Update(subscription);
-        await Task.CompletedTask;
+        var workers = await db.Workers
+            .Where(w => workerIds.Contains(w.WorkerId) && w.WorkStatus != WorkStatus.Locked && w.WorkStatus != WorkStatus.Busy)
+            .ToListAsync(cancellationToken);
+        foreach (var worker in workers)
+        {
+            worker.TransitionTo(WorkStatus.Locked);
+            worker.UpdatedAt = nowUtc;
+        }
+
+        return workers.Count;
     }
 
-    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        await _dbContext.SaveChangesAsync(cancellationToken);
-    }
+    public async Task<PaymentTransaction?> FindPendingPaymentAsync(int subscriptionId, CancellationToken cancellationToken = default) =>
+        await db.PaymentTransactions.AsNoTracking()
+            .Where(t => t.SubscriptionId == subscriptionId && t.Purpose == PaymentPurpose.Subscription && t.TxnStatus == PaymentStatus.Pending)
+            .OrderByDescending(t => t.PaymentId)
+            .FirstOrDefaultAsync(cancellationToken);
 }

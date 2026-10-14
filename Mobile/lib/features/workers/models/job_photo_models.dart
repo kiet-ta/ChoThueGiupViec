@@ -11,10 +11,10 @@ class UploadJobPhotoRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'photoPhase': photoPhase,
-        'angleNo': angleNo,
-        'photoUrl': photoUrl,
-      };
+    'photoPhase': photoPhase,
+    'angleNo': angleNo,
+    'photoUrl': photoUrl,
+  };
 }
 
 /// Response returned from job photo upload/list endpoints (contract workers.md §2.4.1).

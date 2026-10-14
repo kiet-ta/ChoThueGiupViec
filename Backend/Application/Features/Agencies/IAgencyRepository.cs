@@ -1,42 +1,20 @@
 using CommonService.Domain.Entities;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Backend.Application.Features.Agencies.Repositories;
+namespace CommonService.Application.Features.Agencies;
 
-/// <summary>
-/// Repository for agency operations
-/// </summary>
+/// <summary>Persistence port of the Agencies module (registration part; later M5 tickets extend it).</summary>
 public interface IAgencyRepository
 {
-    /// <summary>
-    /// Gets an agency by its ID
-    /// </summary>
-    Task<PartnerAgency?> GetAsync(int agencyId, CancellationToken cancellationToken = default);
+    /// <summary>True when an agency with this exact tax code exists.</summary>
+    Task<bool> TaxCodeExistsAsync(string taxCode, CancellationToken cancellationToken = default);
+
+    /// <summary>True when an agency with this contact email exists (the caller passes the lower-cased email).</summary>
+    Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all agencies
-    /// </summary>
-    Task<IReadOnlyList<PartnerAgency>> GetAllAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Adds a new agency
+    /// Inserts the agency and saves. When the unique index on <c>tax_code</c> is violated by a concurrent registration,
+    /// throws <see cref="CommonService.Application.Exceptions.BusinessRuleViolationException"/> with code
+    /// <see cref="AgencyErrorCodes.TaxCodeExists"/> (HTTP 409), never a 500.
     /// </summary>
     Task AddAsync(PartnerAgency agency, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Updates an existing agency
-    /// </summary>
-    Task UpdateAsync(PartnerAgency agency, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Deletes an agency
-    /// </summary>
-    Task DeleteAsync(int agencyId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Saves all changes made in this repository
-    /// </summary>
-    Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

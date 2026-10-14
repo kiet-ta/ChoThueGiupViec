@@ -34,6 +34,8 @@ public sealed class DisputeVerdictService(
     private const string AuditEntityType = "DISPUTE_TICKET";
     private const string AuditStatusField = "dispute_status";
     private const string AuditLockField = "worker_lock_requested";
+    private const string AuditWorkerEntityType = "WORKER";
+    private const string AuditWorkStatusField = "work_status";
 
     /// <summary>Thrown inside the unit of work to undo it; never leaves this class.</summary>
     private sealed class VerdictAbortedException(string message) : Exception(message);
@@ -122,6 +124,17 @@ public sealed class DisputeVerdictService(
                         new AuditEntry(AuditActorType.Admin, adminId, AuditEntityType, disputeId.ToString(), AuditLockField,
                             "false", "true", note),
                         cancellationToken);
+
+                    // The request is real: lock the freelancers of the order in the same transaction, one audit row per worker changed.
+                    var locked = await disputes.LockFreelancersAsync(
+                        responsible.Select(a => a.WorkerId).Distinct().ToList(), cancellationToken);
+                    foreach (var workerId in locked)
+                    {
+                        await audit.WriteAsync(
+                            new AuditEntry(AuditActorType.Admin, adminId, AuditWorkerEntityType, workerId.ToString(), AuditWorkStatusField,
+                                null, "LOCKED", $"Dispute {disputeId}: {note}"),
+                            cancellationToken);
+                    }
                 }
 
                 return done;

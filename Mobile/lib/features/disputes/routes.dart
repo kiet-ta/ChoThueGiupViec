@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/feature_module.dart';
 import 'screens/dispute_create_screen.dart';
 import 'screens/dispute_screen.dart';
@@ -20,17 +21,19 @@ class DisputesFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-        DisputeRoutes.disputes: (context) {
-          final args = ModalRoute.of(context)?.settings.arguments;
-          if (args is! DisputeScreenArgs) return const _OpenFromJobNote();
-          return DisputeScreen(role: args.role, orderId: args.orderId);
-        },
-        DisputeRoutes.create: (context) {
-          final args = ModalRoute.of(context)?.settings.arguments;
-          if (args is! DisputeScreenArgs || args.orderId == null) return const _OpenFromJobNote();
-          return DisputeCreateScreen(role: args.role, orderId: args.orderId!);
-        },
-      };
+    DisputeRoutes.disputes: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is! DisputeScreenArgs) return const _OpenFromJobNote();
+      return DisputeScreen(role: args.role, orderId: args.orderId);
+    },
+    DisputeRoutes.create: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is! DisputeScreenArgs || args.orderId == null) {
+        return const _OpenFromJobNote();
+      }
+      return DisputeCreateScreen(role: args.role, orderId: args.orderId!);
+    },
+  };
 }
 
 class _OpenFromJobNote extends StatelessWidget {
@@ -43,7 +46,11 @@ class _OpenFromJobNote extends StatelessWidget {
       body: const Center(
         child: Padding(
           padding: EdgeInsets.all(24.0),
-          child: Text('Hãy mở khiếu nại từ một ca làm của bạn.', key: Key('dispute-open-from-job'), textAlign: TextAlign.center),
+          child: Text(
+            'Hãy mở khiếu nại từ một ca làm của bạn.',
+            key: Key('dispute-open-from-job'),
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     );

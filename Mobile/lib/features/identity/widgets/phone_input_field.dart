@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 
@@ -26,7 +27,10 @@ class PhoneInputField extends StatelessWidget {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 14.0,
+              ),
               decoration: BoxDecoration(
                 color: NordicColors.surfaceSubtle,
                 borderRadius: BorderRadius.circular(12.0),
@@ -67,7 +71,10 @@ class PhoneInputField extends StatelessWidget {
                     color: NordicColors.textSecondary.withValues(alpha: 0.6),
                     fontWeight: FontWeight.w400,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 14.0,
+                  ),
                   suffixIcon: controller.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear_rounded, size: 18.0),

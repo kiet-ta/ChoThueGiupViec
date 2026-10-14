@@ -1,66 +1,31 @@
-using Backend.Application.Features.Agencies.Commands;
-using Backend.Application.Features.Agencies.Dtos;
 using CommonService.Application.Common.Models;
-using CommonService.WebAPI;
+using CommonService.Application.Features.Agencies.Commands;
+using CommonService.Application.Features.Agencies.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Backend.WebAPI.Controllers.Agencies;
+namespace CommonService.WebAPI.Controllers.Agencies;
 
-/// <summary>
-/// Controller for agency-related operations
-/// </summary>
+/// <summary>Partner Agency endpoints (contract agencies.md).</summary>
 [ApiController]
 [Route("api/agencies")]
-public class AgenciesController : ControllerBase
+public class AgenciesController(ISender sender) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public AgenciesController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
-    /// Gets available subscription packages
+    /// Public self-service registration of a Partner Agency (BE-M5-01; leader decision). The agency is created
+    /// <c>PENDING</c>; it becomes <c>ACTIVE</c> only when its escrow reaches the minimum (decisions Q09, BE-M5-07).
+    /// 400 on invalid fields, 409 (<c>data.code</c> AGENCY_TAX_CODE_EXISTS / AGENCY_EMAIL_EXISTS) on a duplicate.
     /// </summary>
-    /// <response code="200">Returns the list of available subscription packages</response>
-    [HttpGet("packages")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<PackageDto>>>> GetPackages(
-        CancellationToken cancellationToken)
+    [HttpPost("registration")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<RegisterAgencyResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Register([FromBody] RegisterAgencyRequest? request, CancellationToken ct)
     {
-        var command = new GetPackagesCommand();
-        var response = await _mediator.Send(command, cancellationToken);
-        return Ok(response);
-    }
-
-    /// <summary>
-    /// Gets the current agency's subscription
-    /// </summary>
-    /// <response code="200">Returns the current subscription state</response>
-    [HttpGet("subscriptions/me")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<SubscriptionDto>>> GetMySubscription(
-        CancellationToken cancellationToken)
-    {
-        var command = new GetSubscriptionCommand();
-        var response = await _mediator.Send(command, cancellationToken);
-        return Ok(response);
-    }
-
-    /// <summary>
-    /// Subscribes to or renews an agency subscription package
-    /// </summary>
-    /// <response code="200">Returns the payment QR code for subscription</response>
-    [HttpPost("subscriptions")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<SubscriptionDto>>> Subscribe(
-        [FromBody] SubscribeCommand command,
-        CancellationToken cancellationToken)
-    {
-        var response = await _mediator.Send(command, cancellationToken);
-        return Ok(response);
+        var result = await sender.Send(new RegisterAgencyCommand(request), ct);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 }

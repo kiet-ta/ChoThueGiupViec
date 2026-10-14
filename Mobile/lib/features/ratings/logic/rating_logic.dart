@@ -42,26 +42,44 @@ class RatingErrors {
   bool get isEmpty => stars == null && criteria.isEmpty && comment == null;
 }
 
-bool _inRange(int? value) => value != null && value >= minScore && value <= maxScore;
+bool _inRange(int? value) =>
+    value != null && value >= minScore && value <= maxScore;
 
 /// Mirrors the 400 rules of the contract so the person sees the problem before sending: stars 1-5, every fixed criterion
 /// present and 1-5, a comment of at most 500 characters once trimmed.
-RatingErrors validateRating(RatingRole role, int? stars, Map<String, int> criteria, String comment) {
+RatingErrors validateRating(
+  RatingRole role,
+  int? stars,
+  Map<String, int> criteria,
+  String comment,
+) {
   final criteriaErrors = <String, String>{};
   for (final c in role.criteria) {
-    if (!_inRange(criteria[c.key])) criteriaErrors[c.key] = 'Chọn từ $minScore đến $maxScore sao cho "${c.label}".';
+    if (!_inRange(criteria[c.key])) {
+      criteriaErrors[c.key] =
+          'Chọn từ $minScore đến $maxScore sao cho "${c.label}".';
+    }
   }
   final trimmed = comment.trim();
   return RatingErrors(
-    stars: _inRange(stars) ? null : 'Chọn số sao tổng thể từ $minScore đến $maxScore.',
+    stars: _inRange(stars)
+        ? null
+        : 'Chọn số sao tổng thể từ $minScore đến $maxScore.',
     criteria: criteriaErrors,
-    comment: trimmed.length > maxCommentLength ? 'Nhận xét tối đa $maxCommentLength ký tự (đang ${trimmed.length}).' : null,
+    comment: trimmed.length > maxCommentLength
+        ? 'Nhận xét tối đa $maxCommentLength ký tự (đang ${trimmed.length}).'
+        : null,
   );
 }
 
 /// The request body: only the fixed keys of the role, a trimmed comment, `null` when it is blank.
 /// Call it only after [validateRating] returned no errors.
-RatingSubmission buildSubmission(RatingRole role, int stars, Map<String, int> criteria, String comment) {
+RatingSubmission buildSubmission(
+  RatingRole role,
+  int stars,
+  Map<String, int> criteria,
+  String comment,
+) {
   final trimmed = comment.trim();
   return RatingSubmission(
     stars: stars,
@@ -77,7 +95,11 @@ class RatingFailure {
   final Map<String, String> fields;
   final bool reloadWindow;
 
-  const RatingFailure(this.message, {this.fields = const {}, this.reloadWindow = false});
+  const RatingFailure(
+    this.message, {
+    this.fields = const {},
+    this.reloadWindow = false,
+  });
 }
 
 RatingFailure ratingFailure(ApiException e) {
@@ -94,7 +116,10 @@ RatingFailure ratingFailure(ApiException e) {
     e.fieldErrors?.forEach((key, messages) {
       if (messages.isNotEmpty) fields[key] = messages.first;
     });
-    return RatingFailure(fields.isEmpty ? e.message : 'Kiểm tra lại các ô báo lỗi.', fields: fields);
+    return RatingFailure(
+      fields.isEmpty ? e.message : 'Kiểm tra lại các ô báo lỗi.',
+      fields: fields,
+    );
   }
   return RatingFailure(e.message);
 }

@@ -26,7 +26,10 @@ void main() {
       expect(json['workerId'], 42);
       expect(json['incidentType'], 'ACCIDENT');
       expect(json['description'], 'Hỏng xe trên đường đến điểm hẹn');
-      expect(json['photoEvidenceUrl'], 'https://cdn.toam.vn/evidence/incident_10.jpg');
+      expect(
+        json['photoEvidenceUrl'],
+        'https://cdn.toam.vn/evidence/incident_10.jpg',
+      );
       expect(json['latitude'], 10.776889);
       expect(json['longitude'], 106.700806);
       expect(json['isPenaltyExempt'], true);
