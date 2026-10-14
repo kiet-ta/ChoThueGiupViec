@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../app/feature_module.dart';
+import 'screens/agency_schedule_screen.dart';
 import 'screens/agency_screen.dart';
 
 /// Route names owned by the Agencies feature module.
@@ -18,7 +19,7 @@ class AgenciesFeatureModule extends FeatureModule {
 
   @override
   Map<String, WidgetBuilder> get routes => {
-    AgencyRoutes.roster: (context) => const AgencyScreen(),
+    AgencyRoutes.roster: (context) => const AgencyScheduleScreen(),
     AgencyRoutes.profile: (context) => const AgencyScreen(),
   };
 }
