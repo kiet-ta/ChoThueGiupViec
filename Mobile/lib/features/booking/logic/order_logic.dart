@@ -22,6 +22,7 @@ String orderStatusLabel(String status) => switch (status) {
   OrderStatus.paid => 'Đã thanh toán',
   OrderStatus.dispatching => 'Đang tìm thợ',
   OrderStatus.assigned => 'Đã có thợ',
+  OrderStatus.awaitingFallback => 'Chờ bạn chọn: 1 thợ làm 2 ca',
   OrderStatus.completed => 'Hoàn thành',
   OrderStatus.cancelled => 'Đã huỷ',
   _ => status,
@@ -97,7 +98,9 @@ List<TimelineStep> orderTimeline(String status) {
   }
   final index = switch (status) {
     OrderStatus.pendingPayment => 0,
-    OrderStatus.paid || OrderStatus.dispatching => 1,
+    OrderStatus.paid ||
+    OrderStatus.dispatching ||
+    OrderStatus.awaitingFallback => 1,
     OrderStatus.assigned => 2,
     OrderStatus.completed => 3,
     _ => 0,

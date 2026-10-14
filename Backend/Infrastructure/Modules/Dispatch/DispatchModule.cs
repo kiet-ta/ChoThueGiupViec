@@ -27,6 +27,7 @@ public sealed class DispatchModule : IModule
         services.AddScoped<FieldCheckInService>();
         services.AddScoped<CustomerAbsentService>();
         services.AddScoped<WorkerDispatchService>();
+        services.AddScoped<ConsecutiveShiftFallbackService>();
         services.AddHostedService<OfferExpiryWorker>();
     }
 }
