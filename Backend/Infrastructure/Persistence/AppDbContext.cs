@@ -18,11 +18,14 @@ public class AppDbContext : DbContext
 
     public DbSet<AdminAccount> Admins => Set<AdminAccount>();
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
+    public DbSet<AgencySwapWindow> AgencySwapWindows => Set<AgencySwapWindow>();
+    public DbSet<AgencyCapacityHold> AgencyCapacityHolds => Set<AgencyCapacityHold>();
     public DbSet<BookingSlot> BookingSlots => Set<BookingSlot>();
     public DbSet<CheckInLog> CheckInLogs => Set<CheckInLog>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
     public DbSet<DisputeTicket> DisputeTickets => Set<DisputeTicket>();
+    public DbSet<EscrowAppeal> EscrowAppeals => Set<EscrowAppeal>();
     public DbSet<EscrowTransaction> EscrowTransactions => Set<EscrowTransaction>();
     public DbSet<FavoriteWorker> FavoriteWorkers => Set<FavoriteWorker>();
     public DbSet<IncidentLog> IncidentLogs => Set<IncidentLog>();
