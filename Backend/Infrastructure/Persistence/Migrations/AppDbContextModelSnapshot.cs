@@ -203,6 +203,57 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.ToTable("AGENCY_CAPACITY_HOLD", (string)null);
                 });
 
+            modelBuilder.Entity("CommonService.Domain.Entities.AgencySwapWindow", b =>
+                {
+                    b.Property<long>("AssignmentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("assignment_id");
+
+                    b.Property<int>("AgencyId")
+                        .HasColumnType("int")
+                        .HasColumnName("agency_id");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("closed_at");
+
+                    b.Property<DateTime>("DeadlineAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("deadline_at");
+
+                    b.Property<int?>("NewWorkerId")
+                        .HasColumnType("int")
+                        .HasColumnName("new_worker_id");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("opened_at");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("status");
+
+                    b.HasKey("AssignmentId");
+
+                    b.HasIndex("AgencyId");
+
+                    b.HasIndex("NewWorkerId");
+
+                    b.HasIndex("Status", "DeadlineAt");
+
+                    b.ToTable("AGENCY_SWAP_WINDOW", (string)null);
+                });
+
             modelBuilder.Entity("CommonService.Domain.Entities.BookingSlot", b =>
                 {
                     b.Property<int>("SlotId")
@@ -2102,6 +2153,26 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SlotId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("CommonService.Domain.Entities.AgencySwapWindow", b =>
+                {
+                    b.HasOne("CommonService.Domain.Entities.PartnerAgency", null)
+                        .WithMany()
+                        .HasForeignKey("AgencyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("CommonService.Domain.Entities.JobAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("CommonService.Domain.Entities.Worker", null)
+                        .WithMany()
+                        .HasForeignKey("NewWorkerId")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("CommonService.Domain.Entities.BookingSlot", b =>
