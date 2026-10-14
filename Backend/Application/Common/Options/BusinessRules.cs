@@ -71,6 +71,12 @@ public sealed class DispatchRules
     }
 
     public int OfferTimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// BR-02 fallback: how long the seat-1 worker has to confirm the second consecutive shift after the customer agreed (leader decision
+    /// 2026-10-14, 2 minutes). Longer than <see cref="OfferTimeoutSeconds"/> because a worker must read a different question.
+    /// </summary>
+    public int FallbackConfirmSeconds { get; set; } = 120;
 }
 
 public sealed class CommissionRules

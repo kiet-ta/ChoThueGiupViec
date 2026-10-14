@@ -9,15 +9,16 @@ It serves two primary personas within a unified responsive client:
 ## 2. Design System: TỔ ẤM — Nordic Care
 The visual identity follows the team design skill (`.agents/skills/project-team-design-template`):
 - **Design Frame:** 390×844 standard mobile layout.
-- **Canvas:** `#FAF8F5` / `#FAF8F3` (Warm Ivory / Paper texture).
-- **Primary Brand:** `#2D5A43` (Deep Forest Pine) for primary CTA buttons and active headers.
-- **Secondary Accent:** `#6B8F71` (Sage Green) for checkmarks, pill badges, and secondary highlights.
-- **Accent Amber:** `#D99B26` (Warm Amber) for 5-star ratings and trust badges.
-- **High-contrast Dark Anchor:** `#1A2F25` for the "Trụ Cột An Tâm" reassurance sections.
-- **Typography:** Plus Jakarta Sans & Newsreader styling.
+- **Source of truth:** `DESIGN.md` in that skill (YAML token values win over the prose and over any copy).
+- **Canvas:** `#FAF8F3` (`canvas-background`); cards `#FFFFFF` (`card-surface`).
+- **Primary Brand:** `#416448` (`primary`), hover `#56705B` (`primary-hover`), container `#597D60`.
+- **Accent Amber:** `#D9A441` (Warm Amber) for 5-star ratings and trust badges.
+- **Text:** `#2F3A34` (`text-primary`), `#6B7280` (`text-secondary`).
+- **Not in DESIGN.md yet** (kept as-is, awaiting a leader decision on issue #61): secondary accent `#6B8F71`, dark anchor `#1A2F25` / `#223B2F`, success `#2E7D32`, subtle surface `#F4F2EB`, body text `#4B5563`, border `#E5E7EB`.
+- **Typography:** Newsreader for headlines (`headline-*`), Plus Jakarta Sans for body, label and metric. No font file is bundled yet, so the platform default font renders until a ticket adds the assets.
 - **Elevation & Shapes:**
   - Pill buttons (`rounded-full` / `StadiumBorder`).
-  - Double-bezel white cards with 1px hairline borders (`#E5E7EB`) and soft 16px corner radii.
+  - Double-bezel white cards with 1px hairline borders (`#E5E7EB`, no DESIGN.md token yet) and soft 16px corner radii.
 
 ## 3. Directory Structure & Feature Module Registration
 ```

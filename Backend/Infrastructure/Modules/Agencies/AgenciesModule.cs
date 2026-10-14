@@ -17,6 +17,11 @@ public sealed class AgenciesModule : IModule
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IAgencyRepository, EfAgencyRepository>();
+        services.AddScoped<ISubscriptionRepository, EfSubscriptionRepository>();
+        services.AddScoped<SubscriptionService>();
+        services.AddScoped<IWorkerQuotaGuard>(sp => sp.GetRequiredService<SubscriptionService>());
+        services.AddScoped<IWorkerImportRepository, EfWorkerImportRepository>();
+        services.AddScoped<WorkerImportService>();
         services.AddScoped<IAgencyReportRepository, EfAgencyReportRepository>();
         services.AddScoped<AgencyReportService>();
         services.AddScoped<IAgencySwapRepository, EfAgencySwapRepository>();
@@ -24,14 +29,8 @@ public sealed class AgenciesModule : IModule
         services.AddHostedService<AgencySwapExpiryWorker>();
         services.AddScoped<IEscrowRepository, EfEscrowRepository>();
         services.AddScoped<EscrowService>();
-        // The real SLA penalty replaces the Fake (FakePortRegistration only adds a Fake when nothing is registered).
         services.AddScoped<ISlaPenaltyService>(sp => sp.GetRequiredService<EscrowService>());
         services.AddScoped<IPaymentPurposeSettlement, EscrowDepositSettlement>();
-        services.AddScoped<ISubscriptionRepository, EfSubscriptionRepository>();
-        services.AddScoped<SubscriptionService>();
-        services.AddScoped<IWorkerQuotaGuard>(sp => sp.GetRequiredService<SubscriptionService>());
-        services.AddScoped<IWorkerImportRepository, EfWorkerImportRepository>();
-        services.AddScoped<WorkerImportService>();
         services.AddScoped<IRosterRepository, EfRosterRepository>();
         services.AddScoped<ShiftRosterService>();
         services.AddScoped<WorkerQuotaEnforcer>();
