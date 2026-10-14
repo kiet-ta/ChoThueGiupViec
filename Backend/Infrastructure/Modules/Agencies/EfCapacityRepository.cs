@@ -3,6 +3,7 @@ using CommonService.Application.Features.Agencies;
 using CommonService.Application.Features.Dispatch;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -22,9 +23,11 @@ public sealed class EfCapacityRepository(AppDbContext db, IClock clock, IOptions
         var rows = await (
             from slot in db.BookingSlots.AsNoTracking()
             join agency in db.PartnerAgencies.AsNoTracking() on slot.AgencyId equals agency.AgencyId
+            join worker in db.Workers.AsNoTracking() on slot.WorkerId equals worker.WorkerId
             where slot.SlotDate == date
                 && slot.ShiftCode == shiftCode
                 && slot.SlotStatus == DispatchSlotStatuses.Available
+                && worker.WorkStatus != WorkStatus.Locked // a worker locked by the quota (or any lock) takes no new Premium job (D16)
                 && agency.AgencyStatus == AgencyStatuses.Active
                 && agency.SlaScore >= minSlaScore
                 && !db.AgencyCapacityHolds.Any(h => h.SlotId == slot.SlotId)

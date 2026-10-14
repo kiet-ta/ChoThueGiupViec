@@ -46,6 +46,10 @@ public class PartnerSubscriptionConfiguration : IEntityTypeConfiguration<Partner
             .HasColumnName("auto_renew")
             .IsRequired();
 
+        builder.Property(x => x.RenewalReminderDays)
+            .HasColumnName("renewal_reminder_days")
+            .HasColumnType("TINYINT");
+
         builder.Property(x => x.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("DATETIME2")

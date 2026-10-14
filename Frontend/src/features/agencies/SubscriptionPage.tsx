@@ -6,7 +6,7 @@ import { agenciesApi } from './api'
 import { useAction } from './actions'
 import { Alert, PageHeader, PayBox, Panel } from './shared'
 import type { SubscriptionPurchase } from './types'
-import { commissionText, featureList, priceText, quotaText, subscriptionStatusText, tierLabel } from './view'
+import { commissionText, expiryWarning, featureList, priceText, quotaText, subscriptionStatusText, tierLabel } from './view'
 
 /** WEB-M5-01: package, worker quota and buying or renewing a package (contract agencies.md, decisions Q08, D9). */
 export function SubscriptionPage() {
@@ -14,6 +14,8 @@ export function SubscriptionPage() {
   const packages = useResource(() => agenciesApi.packages(), [])
   const [purchase, setPurchase] = useState<SubscriptionPurchase | null>(null)
   const action = useAction()
+  // Today in Vietnam (UTC+7), read once per visit.
+  const [today] = useState(() => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10))
 
   async function buy(packageId: number) {
     const result = await action.run(() => agenciesApi.subscribe(packageId))
@@ -22,15 +24,17 @@ export function SubscriptionPage() {
 
   const current = state.data
   const quota = current ? quotaText(current) : null
+  const warning = current ? expiryWarning(current, today) : null
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader eyebrow="Đối tác · Gói thuê bao" title="Gói thuê bao và hạn mức thợ">
         Gói Free tối đa 3 thợ, hoa hồng 20%. Gói Pro mở bảng phân ca, báo cáo hiệu suất và ưu tiên điều phối. Hết hạn Pro có 7 ngày gia hạn,
-        sau đó thợ vượt hạn mức bị khoá (không bị xoá).
+        sau đó thợ vượt hạn mức bị khoá (không bị xoá). Gói không tự gia hạn; hệ thống nhắc trước 7 ngày và 1 ngày.
       </PageHeader>
 
       {state.error && <Alert>{state.error}</Alert>}
+      {warning && <Alert>{warning}</Alert>}
       {current && quota && (
         <Panel title="Gói hiện tại">
           <div className="flex flex-wrap items-center gap-3">
