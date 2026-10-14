@@ -107,7 +107,7 @@ public sealed class OrderCancellationService(
     {
         switch (order.OrderStatus)
         {
-            case JobOrderStatus.PendingPayment or JobOrderStatus.Paid or JobOrderStatus.Dispatching:
+            case JobOrderStatus.PendingPayment or JobOrderStatus.Paid or JobOrderStatus.Dispatching or JobOrderStatus.AwaitingFallback:
                 return;
 
             case JobOrderStatus.Assigned:

@@ -1,39 +1,37 @@
 import 'package:flutter/material.dart';
 
 /// Semantic color tokens for the TỔ ẤM — Nordic Care design system.
-/// Values are defined in .agents/skills/project-team-design-template/DESIGN.md.
+/// DESIGN.md is the single source of truth (.agents/skills/project-team-design-template/DESIGN.md).
+/// A constant marked "no DESIGN.md token" has no YAML token yet; it awaits a leader decision (issue #61).
 class NordicColors {
   NordicColors._();
 
   // Canvas and Surfaces
-  static const Color canvas = Color(0xFFFAF8F5);
-  static const Color canvasVariant = Color(0xFFFAF8F3);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceSubtle = Color(0xFFF4F2EB);
-  static const Color surfaceContainer = Color(0xFFF0EEE9);
-  static const Color surfaceDim = Color(0xFFDBD0D5);
+  static const Color canvas = Color(0xFFFAF8F3); // canvas-background
+  static const Color surface = Color(0xFFFFFFFF); // card-surface
+  static const Color surfaceSubtle = Color(0xFFF4F2EB); // no DESIGN.md token
+  static const Color surfaceContainer = Color(0xFFF0EEE9); // surface-container
+  static const Color surfaceDim = Color(0xFFDBDAD5); // surface-dim
 
   // Brand Palette
-  static const Color primary = Color(0xFF2D5A43); // Deep Forest Pine
-  static const Color primaryHover = Color(0xFF224432);
-  static const Color primaryContainer = Color(0xFF597D60);
-  static const Color secondaryAccent = Color(0xFF6B8F71); // Sage Green
-  static const Color accentAmber = Color(0xFFD99B26); // Warm Amber
-  static const Color contrastDark = Color(
-    0xFF1A2F25,
-  ); // Deep Forest Dark Anchor
-  static const Color contrastCard = Color(0xFF223B2F);
+  static const Color primary = Color(0xFF416448); // primary
+  static const Color primaryHover = Color(0xFF56705B); // primary-hover
+  static const Color primaryContainer = Color(0xFF597D60); // primary-container
+  static const Color secondaryAccent = Color(0xFF6B8F71); // no DESIGN.md token
+  static const Color accentAmber = Color(0xFFD9A441); // Warm Amber (prose)
+  static const Color contrastDark = Color(0xFF1A2F25); // no DESIGN.md token
+  static const Color contrastCard = Color(0xFF223B2F); // no DESIGN.md token
 
   // Typography & Content
-  static const Color textTitle = Color(0xFF1F2923); // Dark Evergreen Charcoal
-  static const Color textBody = Color(0xFF4B5563); // Muted Slate
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color textInverse = Color(0xFFFFFFFF);
+  static const Color textTitle = Color(0xFF2F3A34); // text-primary
+  static const Color textBody = Color(0xFF4B5563); // no DESIGN.md token
+  static const Color textSecondary = Color(0xFF6B7280); // text-secondary
+  static const Color textInverse = Color(0xFFFFFFFF); // on-primary
 
   // Borders & Accents
-  static const Color border = Color(0xFFE5E7EB); // Hairline border
-  static const Color borderVariant = Color(0xFFC2C8BF);
-  static const Color error = Color(0xFFBA1A1A);
-  static const Color errorContainer = Color(0xFFFFDAD6);
-  static const Color success = Color(0xFF2E7D32);
+  static const Color border = Color(0xFFE5E7EB); // no DESIGN.md token
+  static const Color borderVariant = Color(0xFFC2C8BF); // outline-variant
+  static const Color error = Color(0xFFBA1A1A); // error
+  static const Color errorContainer = Color(0xFFFFDAD6); // error-container
+  static const Color success = Color(0xFF2E7D32); // no DESIGN.md token
 }
