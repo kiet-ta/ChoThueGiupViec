@@ -21,6 +21,10 @@ public class StateMachineTests
         (JobOrderStatus.Assigned, JobOrderStatus.Dispatching),
         (JobOrderStatus.Assigned, JobOrderStatus.Completed),
         (JobOrderStatus.Assigned, JobOrderStatus.Cancelled),
+        (JobOrderStatus.Dispatching, JobOrderStatus.AwaitingFallback),
+        (JobOrderStatus.AwaitingFallback, JobOrderStatus.Assigned),
+        (JobOrderStatus.AwaitingFallback, JobOrderStatus.Dispatching),
+        (JobOrderStatus.AwaitingFallback, JobOrderStatus.Cancelled),
     ];
 
     private static readonly HashSet<(JobAssignmentStatus, JobAssignmentStatus)> AssignmentAllowed =

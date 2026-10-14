@@ -237,6 +237,47 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
             return cancelled;
         }, cancellationToken);
 
+    public async Task<IReadOnlyList<JobAssignment>> GetLiveAssignmentsOfOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await db.JobAssignments.AsNoTracking()
+            .Where(a => a.OrderId == orderId
+                && a.AssignmentStatus != JobAssignmentStatus.Cancelled
+                && a.AssignmentStatus != JobAssignmentStatus.CancelledByWorker
+                && a.AssignmentStatus != JobAssignmentStatus.Reassigned)
+            .OrderBy(a => a.AssignmentSeq)
+            .ToListAsync(cancellationToken);
+
+    public async Task<bool> TryMoveOrderStatusAsync(
+        long orderId, JobOrderStatus from, JobOrderStatus to, DateTime atUtc, CancellationToken cancellationToken = default) =>
+        await db.JobOrders
+            .Where(o => o.OrderId == orderId && o.OrderStatus == from)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(o => o.OrderStatus, to)
+                .SetProperty(o => o.UpdatedAt, atUtc), cancellationToken) == 1;
+
+    public async Task<BookingSlot?> GetAvailableSlotAsync(int workerId, DateOnly date, string shiftCode, CancellationToken cancellationToken = default) =>
+        await db.BookingSlots.AsNoTracking()
+            .Where(s => s.WorkerId == workerId && s.SlotDate == date && s.ShiftCode == shiftCode && s.SlotStatus == DispatchSlotStatuses.Available)
+            .OrderBy(s => s.SlotId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<DispatchOrderContext>> GetAwaitingFallbackOrdersAsync(CancellationToken cancellationToken = default) =>
+        await (
+            from order in db.JobOrders.AsNoTracking()
+            join address in db.CustomerAddresses.AsNoTracking() on order.AddressId equals address.AddressId
+            where order.OrderStatus == JobOrderStatus.AwaitingFallback
+            orderby order.OrderId
+            select new DispatchOrderContext(
+                order.OrderId,
+                order.CustomerId,
+                order.ServiceTier,
+                order.ScheduledDate,
+                order.ShiftCode,
+                order.RequiredWorkers,
+                new GeoPoint((double)address.Latitude, (double)address.Longitude),
+                order.TotalAmount,
+                order.OrderStatus)
+        ).Take(MissingSeatBatchSize).ToListAsync(cancellationToken);
+
     /// <summary>provenance: an upper bound per 5 s sweep so one tick stays short; leftover orders are taken at the next tick.</summary>
     private const int MissingSeatBatchSize = 50;
 

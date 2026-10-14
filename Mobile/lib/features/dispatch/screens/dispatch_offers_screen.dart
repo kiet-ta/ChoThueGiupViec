@@ -114,10 +114,12 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
 
   void _handleTimeout() {
     if (!mounted) return;
+    final consecutive = _currentOffer?.isConsecutiveShift ?? false;
     setState(() {
       _currentOffer = null;
-      _errorMessage =
-          'Hết thời gian nhận cuốc (30s). Đơn đã chuyển cho thợ khác.';
+      _errorMessage = consecutive
+          ? 'Hết thời gian xác nhận ca thứ hai (120s). Đơn có thể bị huỷ và hoàn tiền cho khách.'
+          : 'Hết thời gian nhận cuốc (30s). Đơn đã chuyển cho thợ khác.';
     });
   }
 
@@ -224,7 +226,11 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const EyebrowBadge(text: 'ĐỀ NGHỊ CA MỚI (30S)'),
+          EyebrowBadge(
+            text: _currentOffer!.isConsecutiveShift
+                ? 'XÁC NHẬN CA THỨ HAI (120S)'
+                : 'ĐỀ NGHỊ CA MỚI (30S)',
+          ),
           const SizedBox(height: 8.0),
           const Text('Có khách cần giúp việc!', style: NordicTypography.h2),
           const SizedBox(height: 16.0),
