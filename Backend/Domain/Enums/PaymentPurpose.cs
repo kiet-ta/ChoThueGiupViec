@@ -5,5 +5,8 @@ public enum PaymentPurpose
 {
     Order,
     Extension,
-    Subscription
+    Subscription,
+
+    /// <summary>An agency tops up its escrow (decisions Q09, BE-M5-07); carries <c>agency_id</c>, stored ESCROW_DEPOSIT (SC-12).</summary>
+    EscrowDeposit
 }

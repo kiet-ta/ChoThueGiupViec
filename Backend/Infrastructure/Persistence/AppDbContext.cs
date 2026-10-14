@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
     public DbSet<DisputeTicket> DisputeTickets => Set<DisputeTicket>();
+    public DbSet<EscrowAppeal> EscrowAppeals => Set<EscrowAppeal>();
     public DbSet<EscrowTransaction> EscrowTransactions => Set<EscrowTransaction>();
     public DbSet<FavoriteWorker> FavoriteWorkers => Set<FavoriteWorker>();
     public DbSet<IncidentLog> IncidentLogs => Set<IncidentLog>();
