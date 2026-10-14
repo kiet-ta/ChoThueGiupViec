@@ -14,6 +14,13 @@ using Microsoft.Extensions.Options;
 
 namespace CommonService.Application.Features.Agencies;
 
+/// <summary>The worker quota in force (decisions Q08); what features that add workers (import, roster) ask before they write.</summary>
+public interface IWorkerQuotaGuard
+{
+    /// <summary>Throws a 409 <see cref="SubscriptionErrorCodes.QuotaExceeded"/> when adding the workers would exceed the quota in force.</summary>
+    Task EnsureCanAddWorkersAsync(int agencyId, int additionalWorkers, CancellationToken cancellationToken = default);
+}
+
 /// <summary>Persistence of subscription packages and partner subscriptions (BE-M5-02).</summary>
 public interface ISubscriptionRepository
 {
@@ -71,7 +78,7 @@ public sealed class SubscriptionService(
     ICurrentUser currentUser,
     IClock clock,
     IOptions<BusinessRules> rules,
-    ILogger<SubscriptionService>? logger = null)
+    ILogger<SubscriptionService>? logger = null) : IWorkerQuotaGuard
 {
     private readonly ILogger<SubscriptionService> _logger = logger ?? NullLogger<SubscriptionService>.Instance;
 
