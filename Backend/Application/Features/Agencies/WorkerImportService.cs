@@ -51,8 +51,11 @@ public interface IWorkerImportRepository
     /// <summary>The national ids among <paramref name="nationalIds"/> that already belong to a worker.</summary>
     Task<IReadOnlySet<string>> FindExistingNationalIdsAsync(IReadOnlyCollection<string> nationalIds, CancellationToken cancellationToken = default);
 
-    /// <summary>Stages the workers; the unit of work saves them all in one transaction.</summary>
-    void AddWorkers(IEnumerable<Worker> workers);
+    /// <summary>
+    /// Adds the workers and saves them in the caller's transaction. False, with none added, when a phone number or a national id was taken
+    /// in the meantime (the unique indexes of WORKER).
+    /// </summary>
+    Task<bool> TryAddWorkersAsync(IReadOnlyCollection<Worker> workers, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -209,19 +212,25 @@ public sealed class WorkerImportService(
         }
 
         var now = clock.UtcNow;
-        await unitOfWork.ExecuteInTransactionAsync(async () =>
+        var workers = rows.Select(r =>
         {
-            repository.AddWorkers(rows.Select(r =>
-            {
-                var worker = Worker.CreateAgencyStaff(agencyId, r.PhoneNumber, r.NationalId, r.FullName);
-                worker.BankName = r.BankName;
-                worker.BankAccountNo = r.BankAccountNo;
-                worker.CreatedAt = now;
-                worker.UpdatedAt = now;
-                return worker;
-            }));
-            return await Task.FromResult(true);
-        }, cancellationToken);
+            var worker = Worker.CreateAgencyStaff(agencyId, r.PhoneNumber, r.NationalId, r.FullName);
+            worker.BankName = r.BankName;
+            worker.BankAccountNo = r.BankAccountNo;
+            worker.CreatedAt = now;
+            worker.UpdatedAt = now;
+            return worker;
+        }).ToList();
+
+        var created = await unitOfWork.ExecuteInTransactionAsync(
+            () => repository.TryAddWorkersAsync(workers, cancellationToken), cancellationToken);
+        if (!created)
+        {
+            // Someone registered one of these numbers between the check and the write: nothing was created.
+            throw new ImportRejectedException(new ImportResultDto(
+                false, false, totalRows, 0, 0,
+                [new ImportRowError(0, string.Empty, ImportErrorCodes.AlreadyExists, "A phone number or national id of the file was taken at the same time.")]));
+        }
 
         _logger.LogInformation("Agency {AgencyId} imported {Count} workers.", agencyId, rows.Count);
         return new ImportResultDto(true, Committed: true, totalRows, totalRows, rows.Count, []);

@@ -48,7 +48,36 @@ public sealed class EfRosterRepository(AppDbContext db) : IRosterRepository
         return candidates.Where(s => wanted.Contains((s.WorkerId, s.SlotDate, s.ShiftCode))).ToList();
     }
 
-    public void AddSlots(IEnumerable<BookingSlot> slots) => db.BookingSlots.AddRange(slots);
+    public async Task<bool> TryAddSlotsAsync(IReadOnlyCollection<BookingSlot> slots, CancellationToken cancellationToken = default)
+    {
+        var tx = db.Database.CurrentTransaction;
+        const string savepoint = "roster_add";
+        if (tx is not null)
+        {
+            await tx.CreateSavepointAsync(savepoint, cancellationToken);
+        }
+
+        db.BookingSlots.AddRange(slots);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException ex) when (SqlUniqueViolation.IsUniqueViolation(ex))
+        {
+            foreach (var slot in slots)
+            {
+                db.Entry(slot).State = EntityState.Detached;
+            }
+
+            if (tx is not null)
+            {
+                await tx.RollbackToSavepointAsync(savepoint, cancellationToken);
+            }
+
+            return false;
+        }
+    }
 
     public async Task<BookingSlot?> GetOwnedSlotAsync(int agencyId, int slotId, CancellationToken cancellationToken = default) =>
         await db.BookingSlots.FirstOrDefaultAsync(s => s.SlotId == slotId && s.AgencyId == agencyId, cancellationToken);

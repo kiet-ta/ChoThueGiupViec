@@ -58,8 +58,11 @@ public interface IRosterRepository
     Task<IReadOnlyList<BookingSlot>> FindSlotsAsync(
         IReadOnlyCollection<(int WorkerId, DateOnly Date, string ShiftCode)> keys, CancellationToken cancellationToken = default);
 
-    /// <summary>Stages the new slots; the unit of work saves them. A concurrent duplicate surfaces as <see cref="BusinessRuleViolationException"/> with <see cref="RosterErrorCodes.SlotNotEditable"/>.</summary>
-    void AddSlots(IEnumerable<BookingSlot> slots);
+    /// <summary>
+    /// Adds the new slots and saves them (inside the caller's transaction). False, with nothing added, when a slot of the same worker, date
+    /// and shift appeared in the meantime (the unique index): the caller reads again and finds it.
+    /// </summary>
+    Task<bool> TryAddSlotsAsync(IReadOnlyCollection<BookingSlot> slots, CancellationToken cancellationToken = default);
 
     /// <summary>The slot, TRACKED, when it belongs to the agency; otherwise null.</summary>
     Task<BookingSlot?> GetOwnedSlotAsync(int agencyId, int slotId, CancellationToken cancellationToken = default);
@@ -205,11 +208,14 @@ public sealed class ShiftRosterService(
 
         if (toCreate.Count > 0)
         {
-            await unitOfWork.ExecuteInTransactionAsync(() =>
+            var added = await unitOfWork.ExecuteInTransactionAsync(
+                () => repository.TryAddSlotsAsync(toCreate, cancellationToken), cancellationToken);
+            if (!added)
             {
-                repository.AddSlots(toCreate);
-                return Task.FromResult(true);
-            }, cancellationToken);
+                // A concurrent request added one of these slots between the read and the write (UNIQUE worker, date, shift).
+                throw new BusinessRuleViolationException(
+                    "A slot of this request was created at the same time; read the roster again and retry.", RosterErrorCodes.SlotNotEditable);
+            }
         }
 
         var dates = parsed.Select(p => p.Date).ToList();

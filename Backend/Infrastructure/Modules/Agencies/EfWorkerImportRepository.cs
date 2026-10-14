@@ -35,5 +35,34 @@ public sealed class EfWorkerImportRepository(AppDbContext db) : IWorkerImportRep
         (await db.Workers.AsNoTracking().Where(w => nationalIds.Contains(w.NationalId)).Select(w => w.NationalId).ToListAsync(cancellationToken))
         .ToHashSet(StringComparer.Ordinal);
 
-    public void AddWorkers(IEnumerable<Worker> workers) => db.Workers.AddRange(workers);
+    public async Task<bool> TryAddWorkersAsync(IReadOnlyCollection<Worker> workers, CancellationToken cancellationToken = default)
+    {
+        var tx = db.Database.CurrentTransaction;
+        const string savepoint = "import_add";
+        if (tx is not null)
+        {
+            await tx.CreateSavepointAsync(savepoint, cancellationToken);
+        }
+
+        db.Workers.AddRange(workers);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException ex) when (SqlUniqueViolation.IsUniqueViolation(ex))
+        {
+            foreach (var worker in workers)
+            {
+                db.Entry(worker).State = EntityState.Detached;
+            }
+
+            if (tx is not null)
+            {
+                await tx.RollbackToSavepointAsync(savepoint, cancellationToken);
+            }
+
+            return false;
+        }
+    }
 }
