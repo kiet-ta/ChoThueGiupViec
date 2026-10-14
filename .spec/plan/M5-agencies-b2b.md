@@ -24,12 +24,12 @@
 - [ ] **BE-M5-10** Test: quota, đua công suất, khấu trừ ký quỹ không âm, import lỗi từng dòng, Pro/Free quyền tính năng · *needs:* BE-M5-01..09.
 
 ## Wave 3 — Web (Partner Portal desktop 1440×900) & Mobile · *needs:* nền Web của M6 + G4
-- [ ] **WEB-M5-01** Đăng nhập Partner + chọn/mua gói thuê bao, hiển thị quota.
-- [ ] **WEB-M5-02** Quản lý thợ + Bulk Import (xem lỗi theo dòng).
-- [ ] **WEB-M5-03** Bảng Shift Roster theo tuần (phân thợ vào ca, cảnh báo thiếu Skill).
-- [ ] **WEB-M5-04** Ký quỹ: số dư, nạp, lịch sử khấu trừ.
-- [ ] **WEB-M5-05** Đơn của công ty + báo cáo hiệu suất.
-- [ ] **WEB-M5-06** Cửa sổ 30 phút đổi thợ (đếm ngược).
-- [ ] **WEB-M5-07** Admin: quản trị danh mục Skill.
+- [x] **WEB-M5-01** Đăng nhập Partner + chọn/mua gói thuê bao, hiển thị quota. (login chung ở WEB-BASE-02; không còn cảnh báo thiếu Skill: Skill đã bỏ) — evidence: ticket #326 (`Frontend/tests/agencies-view.test.ts`; `npm run build` and `npm test` pass; PR of #326).
+- [x] **WEB-M5-02** Quản lý thợ + Bulk Import (xem lỗi theo dòng). — evidence: ticket #326 (`Frontend/tests/agencies-view.test.ts`; `npm run build` and `npm test` pass; PR of #326).
+- [x] **WEB-M5-03** Bảng Shift Roster theo tuần (phân thợ vào ca, cảnh báo thiếu Skill). (login chung ở WEB-BASE-02; không còn cảnh báo thiếu Skill: Skill đã bỏ) — evidence: ticket #326 (`Frontend/tests/agencies-view.test.ts`; `npm run build` and `npm test` pass; PR of #326).
+- [x] **WEB-M5-04** Ký quỹ: số dư, nạp, lịch sử khấu trừ. — evidence: ticket #326 (`Frontend/tests/agencies-view.test.ts`; `npm run build` and `npm test` pass; PR of #326).
+- [x] **WEB-M5-05** Đơn của công ty + báo cáo hiệu suất. — evidence: ticket #326 (`Frontend/tests/agencies-view.test.ts`; `npm run build` and `npm test` pass; PR of #326).
+- [x] **WEB-M5-06** Cửa sổ 30 phút đổi thợ (đếm ngược). — evidence: ticket #326 (`Frontend/tests/agencies-view.test.ts`; `npm run build` and `npm test` pass; PR of #326).
+- [x] **WEB-M5-07** ~~Admin: quản trị danh mục Skill.~~ Bỏ: Skill đã bị bỏ khỏi sản phẩm (leader 2026-10-13, CONTEXT.md).
 - [ ] **WEB-M5-08** Admin: sửa gói thuê bao (giá, quota, hoa hồng) bắt buộc nhập lý do + xem lịch sử `ADMIN_AUDIT_LOG` (G-5).
 - [ ] **MOB-M5-01** Thợ Agency: xem lịch ca được phân (Worker app, dùng chung nền M3).

@@ -58,7 +58,10 @@ export function buildQuery(query?: Query): string {
 
 export interface RequestOptions {
   query?: Query
-  /** Serialised as JSON; use for POST/PUT. */
+  /**
+   * Serialised as JSON; use for POST/PUT. A `FormData` is sent as it is (multipart, the browser sets the boundary), for a file upload
+   * such as the agency guarantee or the worker import.
+   */
   body?: unknown
   headers?: Record<string, string>
   signal?: AbortSignal
@@ -90,7 +93,8 @@ export function createApiClient(deps: { baseUrl: string; fetch: FetchLike; confi
     const token = config.getAccessToken?.() ?? null
 
     const headers: Record<string, string> = { Accept: 'application/json', ...options.headers }
-    if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+    const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData
+    if (options.body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
     if (token) headers.Authorization = `Bearer ${token}`
 
     let res: Response
@@ -98,7 +102,7 @@ export function createApiClient(deps: { baseUrl: string; fetch: FetchLike; confi
       res = await deps.fetch(`${deps.baseUrl}${path}${buildQuery(options.query)}`, {
         method,
         headers,
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        body: options.body === undefined ? undefined : isForm ? (options.body as FormData) : JSON.stringify(options.body),
         signal: options.signal,
       })
     } catch (cause) {
@@ -128,8 +132,32 @@ export function createApiClient(deps: { baseUrl: string; fetch: FetchLike; confi
     })
   }
 
+  /**
+   * A file answer (not an envelope), e.g. the worker import template. Sends the token like `request`; a non-2xx answer throws an
+   * ApiError with the status (the body of such an answer is the usual envelope).
+   */
+  async function download(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<Blob> {
+    const config = deps.config?.() ?? {}
+    const token = config.getAccessToken?.() ?? null
+    const headers: Record<string, string> = { ...options.headers }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    let res: Response
+    try {
+      res = await deps.fetch(`${deps.baseUrl}${path}${buildQuery(options.query)}`, { method: 'GET', headers, signal: options.signal })
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') throw cause
+      throw new ApiError(0, 'Không kết nối được tới máy chủ.')
+    }
+
+    if (res.status === 401 && token) config.onUnauthorized?.()
+    if (!res.ok) throw new ApiError(res.status, res.statusText || `HTTP ${res.status}`)
+    return res.blob()
+  }
+
   return {
     request,
+    download,
     get: <T>(path: string, options?: Omit<RequestOptions, 'body'>) => request<T>('GET', path, options),
     post: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'body'>) =>
       request<T>('POST', path, { ...options, body }),
