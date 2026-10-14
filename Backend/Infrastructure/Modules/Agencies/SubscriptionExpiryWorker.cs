@@ -32,6 +32,9 @@ public sealed class SubscriptionExpiryWorker(IServiceScopeFactory scopeFactory, 
                         logger.LogInformation("Agencies: {Count} worker(s) above the quota were locked.", locked);
                     }
 
+                    // The label follows the package in force, so it is switched off once the grace days pass.
+                    await scope.ServiceProvider.GetRequiredService<VerifiedPartnerSync>().SyncAsync(null, stoppingToken);
+
                     var reminders = scope.ServiceProvider.GetRequiredService<SubscriptionReminderService>();
                     var reminded = await reminders.RemindAsync(stoppingToken);
                     if (reminded > 0)
