@@ -26,6 +26,18 @@ internal sealed class InMemoryDispatchRepository : IDispatchRepository
         }
     }
 
+    /// <summary>Date and shift of the slots registered with <see cref="AddSlotOnShift"/> (the others have none).</summary>
+    public Dictionary<int, (DateOnly Date, string ShiftCode)> SlotShifts { get; } = new();
+
+    public void AddSlotOnShift(int slotId, int workerId, DateOnly date, string shiftCode, string status = DispatchSlotStatuses.Available)
+    {
+        lock (_gate)
+        {
+            Slots[slotId] = (workerId, status);
+            SlotShifts[slotId] = (date, shiftCode);
+        }
+    }
+
     public string SlotStatus(int slotId)
     {
         lock (_gate)
@@ -210,6 +222,56 @@ internal sealed class InMemoryDispatchRepository : IDispatchRepository
             }
 
             return Task.FromResult(open.Count);
+        }
+    }
+
+    public Task<IReadOnlyList<JobAssignment>> GetLiveAssignmentsOfOrderAsync(long orderId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult<IReadOnlyList<JobAssignment>>(Assignments.Values
+                .Where(a => a.OrderId == orderId && IsLive(a.AssignmentStatus))
+                .OrderBy(a => a.AssignmentSeq)
+                .ToList());
+        }
+    }
+
+    public Task<bool> TryMoveOrderStatusAsync(long orderId, JobOrderStatus from, JobOrderStatus to, DateTime atUtc, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            if (!Orders.TryGetValue(orderId, out var order) || order.OrderStatus != from)
+            {
+                return Task.FromResult(false);
+            }
+
+            Orders[orderId] = order with { OrderStatus = to };
+            OrderUpdatedAt[orderId] = atUtc;
+            return Task.FromResult(true);
+        }
+    }
+
+    public Task<BookingSlot?> GetAvailableSlotAsync(int workerId, DateOnly date, string shiftCode, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            var slotId = SlotShifts
+                .Where(s => s.Value.Date == date && s.Value.ShiftCode == shiftCode
+                    && Slots.TryGetValue(s.Key, out var slot) && slot.WorkerId == workerId && slot.Status == DispatchSlotStatuses.Available)
+                .Select(s => (int?)s.Key)
+                .FirstOrDefault();
+            return Task.FromResult<BookingSlot?>(slotId is null
+                ? null
+                : new BookingSlot { SlotId = slotId.Value, WorkerId = workerId, SlotDate = date, ShiftCode = shiftCode, SlotStatus = DispatchSlotStatuses.Available });
+        }
+    }
+
+    public Task<IReadOnlyList<DispatchOrderContext>> GetAwaitingFallbackOrdersAsync(CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult<IReadOnlyList<DispatchOrderContext>>(
+                Orders.Values.Where(o => o.OrderStatus == JobOrderStatus.AwaitingFallback).OrderBy(o => o.OrderId).ToList());
         }
     }
 

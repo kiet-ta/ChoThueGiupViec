@@ -20,7 +20,8 @@ public sealed record JobOfferDto(
     decimal NetEarnings,
     DateTime OfferedAt,
     DateTime ExpiresAt,
-    int RemainingSeconds);
+    int RemainingSeconds,
+    bool IsConsecutiveShift = false);
 
 /// <summary>Contract dispatch.md 3.1 accept response.</summary>
 public sealed record OfferAcceptedDto(long AssignmentId, string Status, DateTime? AcceptedAt, bool BookingSlotLocked);
@@ -84,6 +85,8 @@ public static class DispatchErrorCodes
     public const string InvalidAssignmentState = "ASSIGNMENT_STATE_INVALID";
     public const string AbsentConditionsNotMet = "ABSENT_CONDITIONS_NOT_MET";
     public const string AbsentAlreadyReported = "ABSENT_ALREADY_REPORTED";
+    public const string FallbackNotWaiting = "FALLBACK_NOT_WAITING";
+    public const string FallbackAlreadyAnswered = "FALLBACK_ALREADY_ANSWERED";
 }
 
 /// <summary>
@@ -144,7 +147,8 @@ public sealed class WorkerDispatchService(
             offer.PayoutAmount,
             offer.OfferedAtUtc,
             offer.ExpiresAtUtc,
-            remaining);
+            remaining,
+            offer.IsConsecutiveShift);
     }
 
     public async Task<OfferAcceptedDto> AcceptAsync(long assignmentId, CancellationToken cancellationToken = default)

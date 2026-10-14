@@ -40,6 +40,10 @@ class JobOfferCard extends StatelessWidget {
     return '${buffer.toString()} đ';
   }
 
+  static const int _consecutiveWindowSeconds = 120;
+  int get _windowSeconds =>
+      offer.isConsecutiveShift ? _consecutiveWindowSeconds : 30;
+
   @override
   Widget build(BuildContext context) {
     return NordicCard(
@@ -52,21 +56,31 @@ class JobOfferCard extends StatelessWidget {
             Row(
               children: [
                 EyebrowBadge(
-                  text: offer.serviceTier == 'PREMIUM'
+                  text: offer.isConsecutiveShift
+                      ? 'CA THỨ HAI LIÊN TIẾP'
+                      : offer.serviceTier == 'PREMIUM'
                       ? 'DỊCH VỤ PREMIUM'
                       : 'DỊCH VỤ TIÊU CHUẨN',
                 ),
               ],
             ),
+            if (offer.isConsecutiveShift) ...[
+              const SizedBox(height: 8.0),
+              Text(
+                'Đơn này thiếu một thợ. Khách đồng ý để bạn làm luôn ca ngay sau ca bạn đã nhận. Bạn có $_consecutiveWindowSeconds giây để xác nhận.',
+                key: const Key('consecutive_shift_notice'),
+                style: NordicTypography.bodySmall,
+              ),
+            ],
             const SizedBox(height: 12.0),
 
-            // 30s Countdown timer banner
+            // Countdown timer banner: 30 s for a normal offer, 120 s for the second consecutive shift
             Center(
               child: CountdownTimerWidget(
-                totalSeconds: 30,
+                totalSeconds: _windowSeconds,
                 initialSeconds: offer.remainingSeconds > 0
                     ? offer.remainingSeconds
-                    : 30,
+                    : _windowSeconds,
                 onTimeout: onTimeout,
               ),
             ),
@@ -178,7 +192,9 @@ class JobOfferCard extends StatelessWidget {
               children: [
                 NordicButton(
                   key: const Key('accept_offer_button'),
-                  label: 'Nhận Cuốc (30s)',
+                  label: offer.isConsecutiveShift
+                      ? 'Xác nhận ca thứ hai (${_windowSeconds}s)'
+                      : 'Nhận Cuốc (30s)',
                   variant: NordicButtonVariant.primary,
                   isLoading: isAccepting,
                   onPressed: isDeclining ? null : onAccept,
