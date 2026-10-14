@@ -14,7 +14,9 @@ import '../../payments/routes.dart';
 import '../logic/booking_logic.dart';
 import '../logic/order_logic.dart';
 import '../models/booking_models.dart';
+import '../services/fallback_service.dart';
 import '../services/order_service.dart';
+import 'fallback_prompt_card.dart';
 
 /// One order of the customer: its timeline and workers (MOB-M2-04), cancel, and "Làm lần 2" (MOB-M2-05).
 /// Contract booking.md 3.5 to 3.8.
@@ -26,6 +28,9 @@ class OrderDetailScreen extends StatefulWidget {
   final OrderDetailArgs? args;
   final IOrderService? service;
 
+  /// The BR-02 fallback question (an order with one worker and no second one); by default the real server.
+  final IFallbackService? fallbackService;
+
   /// How often the order is asked again.
   final Duration pollInterval;
 
@@ -36,6 +41,7 @@ class OrderDetailScreen extends StatefulWidget {
     super.key,
     this.args,
     this.service,
+    this.fallbackService,
     this.pollInterval = defaultProgressPollInterval,
     this.onPay,
   });
@@ -46,6 +52,7 @@ class OrderDetailScreen extends StatefulWidget {
 
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   late final IOrderService _service;
+  late final IFallbackService _fallbackService;
   int? _orderId;
   bool _started = false;
 
@@ -76,6 +83,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   void initState() {
     super.initState();
     _service = widget.service ?? OrderService();
+    _fallbackService = widget.fallbackService ?? FallbackService();
   }
 
   @override
@@ -349,6 +357,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           'Lý do huỷ: ${order.cancelReason}',
           key: const Key('order-cancel-reason'),
           style: NordicTypography.bodySmall,
+        ),
+      ],
+      if (order.orderStatus == OrderStatus.awaitingFallback) ...[
+        const SizedBox(height: 16.0),
+        FallbackPromptCard(
+          key: ValueKey('fallback-${order.orderId}'),
+          orderId: order.orderId,
+          service: _fallbackService,
+          onAnswered: _refresh,
         ),
       ],
       if (canPay(order.orderStatus)) ...[

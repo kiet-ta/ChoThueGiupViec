@@ -7,8 +7,11 @@ import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/screens/order_detail_screen.dart';
 import 'package:mobile/features/booking/screens/order_history_screen.dart';
+import 'package:mobile/features/booking/services/fallback_service.dart';
 import 'package:mobile/features/booking/services/order_service.dart';
 import 'package:mobile/features/payments/models/payment_models.dart';
+
+import 'fallback_prompt_test.dart' show FakeFallbackService;
 
 const _poll = Duration(seconds: 5);
 
@@ -187,6 +190,7 @@ Future<List<PaymentScreenArgs>> pumpDetail(
   WidgetTester tester,
   FakeOrderService service, {
   bool withArgs = true,
+  IFallbackService? fallback,
 }) async {
   _phone(tester);
   final paid = <PaymentScreenArgs>[];
@@ -196,6 +200,7 @@ Future<List<PaymentScreenArgs>> pumpDetail(
       home: OrderDetailScreen(
         args: withArgs ? const OrderDetailArgs(orderId: 100) : null,
         service: service,
+        fallbackService: fallback,
         pollInterval: _poll,
         onPay: paid.add,
       ),
@@ -218,6 +223,41 @@ String textOf(WidgetTester tester, String key) =>
     tester.widget<Text>(find.byKey(Key(key))).data!;
 
 void main() {
+  group('OrderDetailScreen: BR-02 fallback question', () {
+    testWidgets('an AWAITING_FALLBACK order shows the question', (
+      tester,
+    ) async {
+      final fallback = FakeFallbackService();
+      final service = FakeOrderService()..status = OrderStatus.awaitingFallback;
+      await pumpDetail(tester, service, fallback: fallback);
+
+      expect(textOf(tester, 'order-status'), 'Chờ bạn chọn: 1 thợ làm 2 ca');
+      expect(find.byKey(const Key('fallback-accept')), findsOneWidget);
+    });
+
+    testWidgets('answering reloads the order', (tester) async {
+      final fallback = FakeFallbackService();
+      final service = FakeOrderService()..status = OrderStatus.awaitingFallback;
+      await pumpDetail(tester, service, fallback: fallback);
+      final readsBefore = service.orderReads;
+
+      await tapKey(tester, 'fallback-accept');
+
+      expect(fallback.answers, [true]);
+      expect(service.orderReads, greaterThan(readsBefore));
+    });
+
+    testWidgets('a dispatching order has no question', (tester) async {
+      await pumpDetail(
+        tester,
+        FakeOrderService(),
+        fallback: FakeFallbackService(),
+      );
+
+      expect(find.byKey(const Key('fallback-card')), findsNothing);
+    });
+  });
+
   group('OrderDetailScreen: tracking (MOB-M2-04)', () {
     testWidgets(
       'shows the order, its timeline and that a worker is being found',

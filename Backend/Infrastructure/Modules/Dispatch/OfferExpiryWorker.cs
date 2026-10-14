@@ -34,6 +34,14 @@ public sealed class OfferExpiryWorker(IServiceScopeFactory scopeFactory, ILogger
                     {
                         logger.LogInformation("Dispatch: {Count} expired offer(s) moved to the next candidate.", expired);
                     }
+
+                    // BR-02 fallback: a customer who stayed silent until the shift started has declined.
+                    var fallback = scope.ServiceProvider.GetRequiredService<ConsecutiveShiftFallbackService>();
+                    var unanswered = await fallback.ExpireUnansweredAsync(stoppingToken);
+                    if (unanswered > 0)
+                    {
+                        logger.LogInformation("Dispatch: {Count} order(s) cancelled because the customer did not answer the fallback.", unanswered);
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {

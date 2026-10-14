@@ -12,9 +12,10 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
         {
             t.HasCheckConstraint(
                 "CK_PAYMENT_TRANSACTION_purpose",
-                "([purpose] = 'ORDER' AND [order_id] IS NOT NULL AND [extension_id] IS NULL AND [subscription_id] IS NULL) " +
-                "OR ([purpose] = 'EXTENSION' AND [order_id] IS NULL AND [extension_id] IS NOT NULL AND [subscription_id] IS NULL) " +
-                "OR ([purpose] = 'SUBSCRIPTION' AND [order_id] IS NULL AND [extension_id] IS NULL AND [subscription_id] IS NOT NULL)");
+                "([purpose] = 'ORDER' AND [order_id] IS NOT NULL AND [extension_id] IS NULL AND [subscription_id] IS NULL AND [agency_id] IS NULL) " +
+                "OR ([purpose] = 'EXTENSION' AND [order_id] IS NULL AND [extension_id] IS NOT NULL AND [subscription_id] IS NULL AND [agency_id] IS NULL) " +
+                "OR ([purpose] = 'SUBSCRIPTION' AND [order_id] IS NULL AND [extension_id] IS NULL AND [subscription_id] IS NOT NULL AND [agency_id] IS NULL) " +
+                "OR ([purpose] = 'ESCROW_DEPOSIT' AND [order_id] IS NULL AND [extension_id] IS NULL AND [subscription_id] IS NULL AND [agency_id] IS NOT NULL)");
         });
 
         builder.HasKey(x => x.PaymentId);
@@ -40,6 +41,12 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
             .HasForeignKey(x => x.ExtensionId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        builder.Property(x => x.AgencyId).HasColumnName("agency_id");
+        builder.HasOne<PartnerAgency>()
+            .WithMany()
+            .HasForeignKey(x => x.AgencyId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         builder.Property(x => x.SubscriptionId).HasColumnName("subscription_id");
         builder.HasOne<PartnerSubscription>()
             .WithMany()
@@ -48,7 +55,7 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
 
         builder.Property(x => x.Purpose)
             .HasColumnName("purpose")
-            .HasMaxLength(12)
+            .HasMaxLength(20)
             .IsUnicode(false)
             .IsRequired();
 

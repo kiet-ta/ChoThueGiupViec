@@ -9,7 +9,7 @@ namespace CommonService.Application.Features.Booking;
 
 /// <summary>
 /// Booking's answer to <see cref="AssignmentFailed"/> (BR-03 no worker within 10 km, BR-10 no substitute; contract booking.md section 5):
-/// a PAID / DISPATCHING / ASSIGNED order becomes CANCELLED (<c>cancel_reason</c> = the event's reason), OrderCancelled is published,
+/// a PAID / DISPATCHING / ASSIGNED / AWAITING_FALLBACK order becomes CANCELLED (<c>cancel_reason</c> = the event's reason), OrderCancelled is published,
 /// and the customer gets a 100 % refund through <see cref="IRefundService"/>. Idempotent: an order already CANCELLED (or not paid yet,
 /// or completed) changes nothing and is not refunded twice.
 /// Known gap: if the refund fails it is logged as an error and NOT retried (no retry mechanism yet; the order stays cancelled).
@@ -43,7 +43,7 @@ public sealed class AssignmentFailedHandler(
                 return false;
             }
 
-            if (order.OrderStatus is not (JobOrderStatus.Paid or JobOrderStatus.Dispatching or JobOrderStatus.Assigned))
+            if (order.OrderStatus is not (JobOrderStatus.Paid or JobOrderStatus.Dispatching or JobOrderStatus.Assigned or JobOrderStatus.AwaitingFallback))
             {
                 // Already cancelled (a repeat), still unpaid, or completed: nothing to cancel and nothing to refund.
                 return false;

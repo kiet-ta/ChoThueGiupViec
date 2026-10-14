@@ -19,6 +19,9 @@ public sealed record DispatchOffer
     public required decimal PayoutAmount { get; init; }
     public required DateTime OfferedAtUtc { get; init; }
     public required DateTime ExpiresAtUtc { get; init; }
+    /// <summary>True for the second shift of a BR-02 fallback (the worker already holds the other seat; window = Dispatch.FallbackConfirmSeconds).</summary>
+    public bool IsConsecutiveShift { get; init; }
+
     public bool IsAccepted { get; init; }
     public bool IsDeclined { get; init; }
     public string? DeclineReason { get; init; }
