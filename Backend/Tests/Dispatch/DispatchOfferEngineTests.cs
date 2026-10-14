@@ -373,7 +373,7 @@ public class DispatchOfferEngineTests
     }
 
     [Fact]
-    public async Task Two_seat_order_stops_after_the_seat_that_finds_nobody()
+    public async Task Two_seat_order_stops_after_the_seat_that_finds_nobody_and_waits_while_the_other_seat_is_only_offered()
     {
         var h = new Harness();
         h.AddOrder(516, requiredWorkers: 2, total: 520000m);
@@ -381,7 +381,13 @@ public class DispatchOfferEngineTests
 
         var offers = await h.Engine.DispatchPaidOrderAsync(516);
 
+        // BR-02 fallback (#310): the other seat is alive (offered), so the order is not failed yet. The missing-seat sweep tries the
+        // seat again once that offer was answered (accepted: the customer is asked; declined: nothing live is left and it fails).
         Assert.Single(offers);
+        Assert.DoesNotContain(h.Mediator.PublishedEvents, e => e is AssignmentFailed);
+
+        await h.Engine.DeclineOfferAsync(offers[0].AssignmentId, 801, "bận");
+
         Assert.Equal(516, Assert.IsType<AssignmentFailed>(Assert.Single(h.Mediator.PublishedEvents)).OrderId);
     }
 
@@ -526,6 +532,10 @@ public class DispatchOfferEngineTests
         public Task<IReadOnlyCollection<byte>> GetTakenSeatsAsync(long orderId, CancellationToken cancellationToken = default) => throw Down();
         public Task<IReadOnlyList<long>> GetOrdersMissingSeatsAsync(DateTime quietSinceUtc, DateOnly scheduledFrom, CancellationToken cancellationToken = default) => throw Down();
         public Task<int> CancelOpenAssignmentsOfOrderAsync(long orderId, DateTime cancelledAtUtc, CancellationToken cancellationToken = default) => throw Down();
+        public Task<IReadOnlyList<CommonService.Domain.Entities.JobAssignment>> GetLiveAssignmentsOfOrderAsync(long orderId, CancellationToken cancellationToken = default) => throw Down();
+        public Task<bool> TryMoveOrderStatusAsync(long orderId, JobOrderStatus from, JobOrderStatus to, DateTime atUtc, CancellationToken cancellationToken = default) => throw Down();
+        public Task<CommonService.Domain.Entities.BookingSlot?> GetAvailableSlotAsync(int workerId, DateOnly date, string shiftCode, CancellationToken cancellationToken = default) => throw Down();
+        public Task<IReadOnlyList<DispatchOrderContext>> GetAwaitingFallbackOrdersAsync(CancellationToken cancellationToken = default) => throw Down();
     }
 
     [Fact]
