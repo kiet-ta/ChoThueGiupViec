@@ -45,9 +45,11 @@ Mỗi offer gửi tới thợ có hiệu lực trong đúng 30 giây (BR-03, Q07
   "netEarnings": 208000.0,
   "offeredAt": "2026-10-15T01:00:00Z",
   "expiresAt": "2026-10-15T01:00:30Z",
-  "remainingSeconds": 28
+  "remainingSeconds": 28,
+  "isConsecutiveShift": false
 }
 ```
+`isConsecutiveShift = true` là ca thứ hai liên tiếp của fallback BR-02 (thợ đã giữ ca còn lại của cùng đơn): cửa sổ trả lời là `Dispatch.FallbackConfirmSeconds` (120 giây), không phải 30 giây; `expiresAt` / `remainingSeconds` đã tính theo cửa sổ đó.
 
 ### 2.2 `CheckInResultDto`
 Kết quả kiểm tra GPS hiện trường khi thợ bấm "Đã đến nơi" (BR-04):
@@ -280,6 +282,37 @@ Khách từ chối thợ thay thế hoặc quá 5 phút không tìm được th�
   "refundAmount": 260000.0
 }
 ```
+
+#### `GET /api/dispatch/orders/{orderId}/fallback`
+Đơn 2 thợ chỉ tìm được 1 thợ (BR-02 fallback, #310). Đơn không hủy mà chờ khách chọn: cho cùng một thợ làm 2 ca liên tiếp hay hủy + hoàn 100 %. Đơn của người khác -> `404`.
+
+- Response 200 (`state` = `AWAITING_CUSTOMER` | `AWAITING_WORKER` | `NOT_WAITING`):
+```json
+{
+  "orderId": 501,
+  "state": "AWAITING_CUSTOMER",
+  "workerId": 101,
+  "secondShiftCode": "SHIFT_AFTERNOON",
+  "secondShiftDate": "2026-10-15",
+  "deadlineUtc": "2026-10-15T01:00:00Z"
+}
+```
+`AWAITING_CUSTOMER`: `deadlineUtc` là giờ bắt đầu ca; khách im lặng đến lúc đó = từ chối. `AWAITING_WORKER`: khách đã đồng ý, `deadlineUtc` là hạn thợ xác nhận (120 giây). `NOT_WAITING`: các trường còn lại là `null`.
+
+#### `POST /api/dispatch/orders/{orderId}/fallback/respond`
+Khách trả lời câu hỏi "Chỉ có 1 thợ: thợ làm 2 ca liên tiếp?".
+
+- Request: `{ "accept": true }` (`accept` bắt buộc, thiếu -> `400`).
+- Response 200 khi đồng ý: thợ được hỏi xác nhận ca thứ hai (xem `isConsecutiveShift` ở 2.1; thợ dùng lại `offers/current`, `accept`, `decline` ở 3.1):
+```json
+{ "orderId": 501, "outcome": "WORKER_ASKED", "workerDeadlineUtc": "2026-10-14T03:02:00Z", "message": null }
+```
+- Response 200 khi từ chối, đã quá giờ ca, hoặc thợ không còn ca liền sau: đơn bị hủy và hoàn 100 % (`AssignmentFailed`):
+```json
+{ "orderId": 501, "outcome": "CANCELLED", "workerDeadlineUtc": null, "message": "Khách từ chối 1 thợ làm 2 ca liên tiếp (BR-02)." }
+```
+- `404` đơn không tồn tại / không phải của khách. `409` `data.code` = `FALLBACK_NOT_WAITING` (đơn không ở trạng thái chờ) hoặc `FALLBACK_ALREADY_ANSWERED` (khách đã đồng ý, đang chờ thợ).
+- Thợ từ chối hoặc không xác nhận trong 120 giây -> đơn bị hủy và hoàn 100 % như trên (khách thấy `state` = `NOT_WAITING` và đơn `CANCELLED`).
 
 ---
 

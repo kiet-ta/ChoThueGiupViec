@@ -23,5 +23,8 @@ public sealed class AgenciesModule : IModule
         // The IPN endpoint finds the handler of a SUBSCRIPTION payment by purpose (BE-M5-02).
         services.AddScoped<IPaymentPurposeSettlement, SubscriptionPaymentSettlement>();
         services.AddHostedService<SubscriptionExpiryWorker>();
+        services.AddScoped<ICapacityRepository, EfCapacityRepository>();
+        // The real port replaces the Fake (FakePortRegistration only adds a Fake when nothing is registered, BASE-03).
+        services.AddScoped<IAgencyCapacityService, AgencyCapacityService>();
     }
 }

@@ -14,6 +14,7 @@ public class JobOrderProgressTests
             JobOrderStatus.Dispatching => new[] { JobOrderStatus.Paid, JobOrderStatus.Dispatching },
             JobOrderStatus.Assigned => [JobOrderStatus.Paid, JobOrderStatus.Dispatching, JobOrderStatus.Assigned],
             JobOrderStatus.Paid => [JobOrderStatus.Paid],
+            JobOrderStatus.AwaitingFallback => [JobOrderStatus.Paid, JobOrderStatus.Dispatching, JobOrderStatus.AwaitingFallback],
             _ => throw new ArgumentOutOfRangeException(nameof(status)),
         };
         foreach (var s in path) order.TransitionTo(s);
@@ -39,6 +40,33 @@ public class JobOrderProgressTests
 
         Assert.True(order.SyncWithAssignments([Assigned, Assigned]));
         Assert.Equal(JobOrderStatus.Assigned, order.OrderStatus);
+    }
+
+    [Fact]
+    public void A_waiting_fallback_order_stays_waiting_while_one_seat_is_accepted()
+    {
+        var order = Order(2, JobOrderStatus.AwaitingFallback);
+
+        Assert.False(order.SyncWithAssignments([Assigned]));
+        Assert.Equal(JobOrderStatus.AwaitingFallback, order.OrderStatus);
+    }
+
+    [Fact]
+    public void A_waiting_fallback_order_becomes_assigned_when_the_second_shift_is_accepted()
+    {
+        var order = Order(2, JobOrderStatus.AwaitingFallback);
+
+        Assert.True(order.SyncWithAssignments([Assigned, Assigned]));
+        Assert.Equal(JobOrderStatus.Assigned, order.OrderStatus);
+    }
+
+    [Fact]
+    public void A_waiting_fallback_order_goes_back_to_dispatching_when_no_seat_is_accepted_any_more()
+    {
+        var order = Order(2, JobOrderStatus.AwaitingFallback);
+
+        Assert.True(order.SyncWithAssignments([CancelledByWorker]));
+        Assert.Equal(JobOrderStatus.Dispatching, order.OrderStatus);
     }
 
     [Theory]

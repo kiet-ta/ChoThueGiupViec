@@ -29,7 +29,14 @@ class EyebrowBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6.0),
-          Text(text.toUpperCase(), style: NordicTypography.labelSmall),
+          Flexible(
+            child: Text(
+              text.toUpperCase(),
+              style: NordicTypography.labelSmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

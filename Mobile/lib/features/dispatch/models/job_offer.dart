@@ -15,6 +15,10 @@ class JobOffer {
   final DateTime expiresAt;
   final int remainingSeconds;
 
+  /// BR-02 fallback (dispatch.md 2.1): the second, consecutive shift of an order the worker already holds one seat of.
+  /// Its answer window is 120 seconds, not 30.
+  final bool isConsecutiveShift;
+
   const JobOffer({
     required this.assignmentId,
     required this.orderId,
@@ -30,6 +34,7 @@ class JobOffer {
     required this.offeredAt,
     required this.expiresAt,
     required this.remainingSeconds,
+    this.isConsecutiveShift = false,
   });
 
   factory JobOffer.fromJson(Map<String, dynamic> json) {
@@ -54,6 +59,7 @@ class JobOffer {
           DateTime.tryParse(json['expiresAt'] as String? ?? '') ??
           DateTime.now().add(const Duration(seconds: 30)),
       remainingSeconds: json['remainingSeconds'] as int? ?? 30,
+      isConsecutiveShift: json['isConsecutiveShift'] as bool? ?? false,
     );
   }
 
@@ -73,6 +79,7 @@ class JobOffer {
       'offeredAt': offeredAt.toIso8601String(),
       'expiresAt': expiresAt.toIso8601String(),
       'remainingSeconds': remainingSeconds,
+      'isConsecutiveShift': isConsecutiveShift,
     };
   }
 }
