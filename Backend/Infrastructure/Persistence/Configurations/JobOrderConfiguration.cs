@@ -47,7 +47,7 @@ public class JobOrderConfiguration : IEntityTypeConfiguration<JobOrder>
 
         builder.Property(x => x.ShiftCode)
             .HasColumnName("shift_code")
-            .HasMaxLength(10)
+            .HasMaxLength(20)
             .IsUnicode(false)
             .IsRequired();
 

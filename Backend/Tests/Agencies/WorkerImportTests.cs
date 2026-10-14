@@ -137,7 +137,18 @@ public class WorkerImportTests
         public Task<IReadOnlySet<string>> FindExistingNationalIdsAsync(IReadOnlyCollection<string> nationalIds, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlySet<string>>(nationalIds.Where(ExistingIds.Contains).ToHashSet());
 
-        public void AddWorkers(IEnumerable<Worker> workers) => Added.AddRange(workers);
+        public bool LoseWrite { get; set; }
+
+        public Task<bool> TryAddWorkersAsync(IReadOnlyCollection<Worker> workers, CancellationToken cancellationToken = default)
+        {
+            if (LoseWrite)
+            {
+                return Task.FromResult(false);
+            }
+
+            Added.AddRange(workers);
+            return Task.FromResult(true);
+        }
     }
 
     private sealed class Quota(int allowed) : IWorkerQuotaGuard
@@ -219,6 +230,18 @@ public class WorkerImportTests
         });
         Assert.Equal("Vietcombank", repo.Added[0].BankName);
         Assert.Null(repo.Added[1].BankName);
+    }
+
+    [Fact]
+    public async Task A_number_taken_at_the_same_time_rejects_the_commit_with_a_422_style_result()
+    {
+        var (service, repo) = Create();
+        repo.LoseWrite = true;
+
+        var ex = await Assert.ThrowsAsync<ImportRejectedException>(() => service.CommitAsync(Stream(ThreeGoodRows())));
+
+        Assert.Contains(ex.Result.Errors, e => e.Code == ImportErrorCodes.AlreadyExists);
+        Assert.Empty(repo.Added);
     }
 
     [Fact]

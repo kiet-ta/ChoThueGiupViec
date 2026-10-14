@@ -48,13 +48,27 @@ public class ShiftRosterTests
             IReadOnlyCollection<(int WorkerId, DateOnly Date, string ShiftCode)> keys, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<BookingSlot>>(Slots.Where(s => keys.Contains((s.WorkerId, s.SlotDate, s.ShiftCode))).ToList());
 
-        public void AddSlots(IEnumerable<BookingSlot> slots)
+        /// <summary>Set to make the next write lose a race: the slot is "added by someone else" first and the write reports false.</summary>
+        public bool LoseNextWrite { get; set; }
+
+        public Task<bool> TryAddSlotsAsync(IReadOnlyCollection<BookingSlot> slots, CancellationToken cancellationToken = default)
         {
+            if (LoseNextWrite)
+            {
+                LoseNextWrite = false;
+                var first = slots.First();
+                first.SlotId = _next++;
+                Slots.Add(first);
+                return Task.FromResult(false);
+            }
+
             foreach (var slot in slots)
             {
                 slot.SlotId = _next++;
                 Slots.Add(slot);
             }
+
+            return Task.FromResult(true);
         }
 
         public Task<BookingSlot?> GetOwnedSlotAsync(int agencyId, int slotId, CancellationToken cancellationToken = default) =>
@@ -101,6 +115,18 @@ public class ShiftRosterTests
         Assert.Equal(new TimeOnly(8, 0), slot.StartTime);
         Assert.Equal(new TimeOnly(12, 0), slot.EndTime);
         Assert.Equal(new TimeOnly(13, 0), repo.Slots.Single(s => s.WorkerId == 2).StartTime);
+    }
+
+    [Fact]
+    public async Task A_slot_added_by_a_concurrent_request_is_a_slot_not_editable_conflict()
+    {
+        var (service, repo) = Create();
+        repo.LoseNextWrite = true;
+
+        var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => service.PutAsync(Request((1, Today.AddDays(1), Morning))));
+
+        Assert.Equal(RosterErrorCodes.SlotNotEditable, ex.Code);
+        Assert.Single(repo.Slots);
     }
 
     [Fact]

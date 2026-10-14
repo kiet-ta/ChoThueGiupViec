@@ -273,9 +273,9 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("ShiftCode")
                         .IsRequired()
-                        .HasMaxLength(10)
+                        .HasMaxLength(20)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(10)")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("shift_code");
 
                     b.Property<string>("SkillTags")
@@ -1059,9 +1059,9 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("ShiftCode")
                         .IsRequired()
-                        .HasMaxLength(10)
+                        .HasMaxLength(20)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(10)")
+                        .HasColumnType("varchar(20)")
                         .HasColumnName("shift_code");
 
                     b.Property<decimal>("TotalAmount")
