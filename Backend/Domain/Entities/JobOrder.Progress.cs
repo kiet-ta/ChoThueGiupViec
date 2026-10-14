@@ -18,12 +18,14 @@ public partial class JobOrder
     /// Recompute the order status from the statuses of ALL its assignments (including cancelled/reassigned ones) and apply it:
     /// COMPLETED when <see cref="RequiredWorkers"/> assignments are COMPLETED; ASSIGNED when enough are accepted;
     /// otherwise DISPATCHING (a worker cancelled or had an incident: only the missing seat is re-dispatched).
-    /// Applies only while the order is DISPATCHING or ASSIGNED. An ABSENT assignment is left to the Admin approval flow (BR-05):
+    /// Applies only while the order is DISPATCHING, ASSIGNED or AWAITING_FALLBACK (BR-02 fallback; it stays there while one seat is
+    /// accepted and the other waits for the customer's or the worker's answer, and returns to DISPATCHING only when no seat is accepted
+    /// any more). An ABSENT assignment is left to the Admin approval flow (BR-05):
     /// no automatic change. Returns true when the status changed.
     /// </summary>
     public bool SyncWithAssignments(IEnumerable<JobAssignmentStatus> assignmentStatuses)
     {
-        if (OrderStatus is not (JobOrderStatus.Dispatching or JobOrderStatus.Assigned))
+        if (OrderStatus is not (JobOrderStatus.Dispatching or JobOrderStatus.Assigned or JobOrderStatus.AwaitingFallback))
         {
             return false;
         }
@@ -40,7 +42,7 @@ public partial class JobOrder
             : accepted >= RequiredWorkers ? JobOrderStatus.Assigned
             : JobOrderStatus.Dispatching;
 
-        if (target == OrderStatus)
+        if (target == OrderStatus || (OrderStatus == JobOrderStatus.AwaitingFallback && accepted > 0 && target == JobOrderStatus.Dispatching))
         {
             return false;
         }

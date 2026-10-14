@@ -80,4 +80,22 @@ void main() {
       expect(result.bookingSlotLocked, isTrue);
     });
   });
+
+  group('JobOffer second consecutive shift (BR-02 fallback)', () {
+    test('isConsecutiveShift is read from the offer and defaults to false', () {
+      final base = {
+        'assignmentId': 1002,
+        'orderId': 501,
+        'offeredAt': '2026-10-14T03:00:00Z',
+        'expiresAt': '2026-10-14T03:02:00Z',
+        'remainingSeconds': 118,
+      };
+
+      expect(JobOffer.fromJson(base).isConsecutiveShift, isFalse);
+      final second = JobOffer.fromJson({...base, 'isConsecutiveShift': true});
+      expect(second.isConsecutiveShift, isTrue);
+      expect(second.remainingSeconds, 118);
+      expect(second.toJson()['isConsecutiveShift'], isTrue);
+    });
+  });
 }

@@ -25,8 +25,11 @@ public sealed record DispatchOrderContext(
     /// <summary>Seats are offered only while the order is being dispatched (contract booking.md B4: PAID -&gt; DISPATCHING before OrderPaid).</summary>
     public bool IsDispatchable => OrderStatus is JobOrderStatus.Paid or JobOrderStatus.Dispatching;
 
-    /// <summary>An accept is still valid while the order is dispatching or already partly assigned.</summary>
-    public bool AcceptsAssignments => IsDispatchable || OrderStatus == JobOrderStatus.Assigned;
+    /// <summary>
+    /// An accept is still valid while the order is dispatching or already partly assigned. AWAITING_FALLBACK counts: the seat-1 worker
+    /// confirms the second consecutive shift while the order waits there (BR-02 fallback).
+    /// </summary>
+    public bool AcceptsAssignments => IsDispatchable || OrderStatus is JobOrderStatus.Assigned or JobOrderStatus.AwaitingFallback;
 }
 
 /// <summary>
@@ -79,6 +82,21 @@ public interface IDispatchRepository
 
     /// <summary>The order was cancelled: open offers and not-started assignments become CANCELLED and their slots AVAILABLE. Returns how many rows changed.</summary>
     Task<int> CancelOpenAssignmentsOfOrderAsync(long orderId, DateTime cancelledAtUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Assignments of the order that are not CANCELLED, CANCELLED_BY_WORKER or REASSIGNED (the seats that are still alive).</summary>
+    Task<IReadOnlyList<JobAssignment>> GetLiveAssignmentsOfOrderAsync(long orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Conditional order status move (<paramref name="from"/> -&gt; <paramref name="to"/>) for the BR-02 fallback; false when the order was no
+    /// longer in <paramref name="from"/>. The legal pairs are those of the JobOrder state machine.
+    /// </summary>
+    Task<bool> TryMoveOrderStatusAsync(long orderId, JobOrderStatus from, JobOrderStatus to, DateTime atUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>The worker's <c>AVAILABLE</c> slot on the date for the shift, or null (no such slot, blocked or already held/booked).</summary>
+    Task<BookingSlot?> GetAvailableSlotAsync(int workerId, DateOnly date, string shiftCode, CancellationToken cancellationToken = default);
+
+    /// <summary>Orders in <c>AWAITING_FALLBACK</c> (the customer or the worker has not answered yet).</summary>
+    Task<IReadOnlyList<DispatchOrderContext>> GetAwaitingFallbackOrdersAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -121,6 +139,31 @@ public class DispatchOfferEngine
 
     /// <summary>Offers created at or before this instant have expired.</summary>
     private DateTime ExpiryCutoff(DateTime nowUtc) => nowUtc.AddSeconds(-OfferTimeoutSeconds);
+
+    /// <summary>
+    /// The window of a consecutive-shift offer (BR-02 fallback): the seat-1 worker confirms the second shift within this many seconds
+    /// (<c>Dispatch.FallbackConfirmSeconds</c>, 120). Never shorter than the normal offer window.
+    /// </summary>
+    private int FallbackConfirmSeconds => Math.Max(OfferTimeoutSeconds, _businessRules.Dispatch.FallbackConfirmSeconds > 0
+        ? _businessRules.Dispatch.FallbackConfirmSeconds
+        : 120);
+
+    private DateTime FallbackExpiryCutoff(DateTime nowUtc) => nowUtc.AddSeconds(-FallbackConfirmSeconds);
+
+    /// <summary>
+    /// A consecutive-shift offer is recognised without a column: its worker already holds another live seat of the same order. Normal
+    /// dispatch can never produce that (<see cref="IDispatchRepository.GetWorkerIdsAlreadyOfferedAsync"/> excludes such workers).
+    /// </summary>
+    private async Task<bool> IsConsecutiveShiftOfferAsync(JobAssignment offer, CancellationToken cancellationToken)
+    {
+        if (offer.ServiceTier == ServiceTier.Premium)
+        {
+            return false;
+        }
+
+        var live = await _dispatchRepository.GetLiveAssignmentsOfOrderAsync(offer.OrderId, cancellationToken);
+        return live.Any(a => a.AssignmentId != offer.AssignmentId && a.WorkerId == offer.WorkerId);
+    }
 
     /// <summary>
     /// Entry point when an order is paid: reads the order and dispatches every seat (BR-02: 2 seats when <c>RequiredWorkers = 2</c>, each
@@ -219,6 +262,11 @@ public class DispatchOfferEngine
                     ? "Quá bán kính 10 km không tìm được thợ phù hợp (BR-03)."
                     : "Không tìm thấy thợ phù hợp cho đơn hàng.";
 
+                if (await TryHoldForConsecutiveShiftFallbackAsync(orderId, assignmentSeq, cancellationToken))
+                {
+                    return null;
+                }
+
                 _logger.LogWarning("No eligible candidate left for order {OrderId} seat {Seq}. Reason: {Reason}. Publishing AssignmentFailed.",
                     orderId, assignmentSeq, reason);
 
@@ -243,6 +291,56 @@ public class DispatchOfferEngine
             }
             // Every candidate of that step lost its slot in the meantime: scan again without them.
         }
+    }
+
+    /// <summary>
+    /// BR-02 fallback. A seat found nobody; if the order's other seat is alive the order is NOT cancelled:
+    /// the other seat is accepted and its worker has a free consecutive shift -&gt; the order moves to AWAITING_FALLBACK and waits for the
+    /// customer's choice; the other seat is only offered -&gt; nothing is decided yet (the missing-seat sweep tries this seat again once
+    /// that offer was answered). Returns false when the order has to fail as before (no live seat, Premium, no consecutive shift).
+    /// Keyed on seat state, not on the sequence number.
+    /// </summary>
+    private async Task<bool> TryHoldForConsecutiveShiftFallbackAsync(long orderId, byte exhaustedSeq, CancellationToken cancellationToken)
+    {
+        var order = await _dispatchRepository.GetOrderContextAsync(orderId, cancellationToken);
+        if (order == null || order.ServiceTier != ServiceTier.Economy || order.RequiredWorkers != 2
+            || order.OrderStatus != JobOrderStatus.Dispatching)
+        {
+            return false;
+        }
+
+        var others = (await _dispatchRepository.GetLiveAssignmentsOfOrderAsync(orderId, cancellationToken))
+            .Where(a => a.AssignmentSeq != exhaustedSeq)
+            .ToList();
+        if (others.Count == 0)
+        {
+            return false;
+        }
+
+        var filled = others.FirstOrDefault(a => a.AssignmentStatus == JobAssignmentStatus.Assigned);
+        if (filled == null)
+        {
+            _logger.LogInformation(
+                "Order {OrderId} seat {Seq} has no candidate but the other seat is only offered; waiting for that answer.", orderId, exhaustedSeq);
+            return true;
+        }
+
+        var next = ConsecutiveShifts.Next(order.ShiftCode);
+        if (next == null || await _dispatchRepository.GetAvailableSlotAsync(filled.WorkerId, order.ScheduledDate, next, cancellationToken) == null)
+        {
+            return false;
+        }
+
+        if (!await _dispatchRepository.TryMoveOrderStatusAsync(
+                orderId, JobOrderStatus.Dispatching, JobOrderStatus.AwaitingFallback, _clock.UtcNow, cancellationToken))
+        {
+            return false;
+        }
+
+        _logger.LogInformation(
+            "Order {OrderId} seat {Seq} has no candidate; waiting for the customer to accept worker {WorkerId} for two consecutive shifts (BR-02).",
+            orderId, exhaustedSeq, filled.WorkerId);
+        return true;
     }
 
     private async Task<DispatchOffer?> TryOfferAsync(
@@ -417,8 +515,20 @@ public class DispatchOfferEngine
     /// <summary>The worker's open (unexpired) offer, if any.</summary>
     public async Task<DispatchOffer?> GetCurrentOfferAsync(int workerId, CancellationToken cancellationToken = default)
     {
-        var open = await _dispatchRepository.GetOpenOfferForWorkerAsync(workerId, ExpiryCutoff(_clock.UtcNow), cancellationToken);
-        return open == null ? null : ToOffer(open, open.DispatchRadiusKm);
+        var nowUtc = _clock.UtcNow;
+        var open = await _dispatchRepository.GetOpenOfferForWorkerAsync(workerId, FallbackExpiryCutoff(nowUtc), cancellationToken);
+        if (open == null)
+        {
+            return null;
+        }
+
+        var consecutive = await IsConsecutiveShiftOfferAsync(open, cancellationToken);
+        if (!consecutive && open.CreatedAt <= ExpiryCutoff(nowUtc))
+        {
+            return null;
+        }
+
+        return ToOffer(open, open.DispatchRadiusKm, consecutive);
     }
 
     /// <summary>
@@ -444,9 +554,18 @@ public class DispatchOfferEngine
             return new OfferAcceptResult { Success = false, Error = OfferAcceptError.NotOpen, ErrorMessage = "Offer has already been accepted or closed." };
         }
 
-        if (existing.CreatedAt <= ExpiryCutoff(nowUtc))
+        var consecutive = await IsConsecutiveShiftOfferAsync(existing, cancellationToken);
+        var cutoff = consecutive ? FallbackExpiryCutoff(nowUtc) : ExpiryCutoff(nowUtc);
+        if (existing.CreatedAt <= cutoff)
         {
-            return new OfferAcceptResult { Success = false, Error = OfferAcceptError.Expired, ErrorMessage = "Offer has expired (30-second window elapsed)." };
+            return new OfferAcceptResult
+            {
+                Success = false,
+                Error = OfferAcceptError.Expired,
+                ErrorMessage = consecutive
+                    ? $"Offer has expired ({FallbackConfirmSeconds}-second window elapsed)."
+                    : "Offer has expired (30-second window elapsed).",
+            };
         }
 
         var order = await _dispatchRepository.GetOrderContextAsync(existing.OrderId, cancellationToken);
@@ -455,10 +574,17 @@ public class DispatchOfferEngine
             return new OfferAcceptResult { Success = false, Error = OfferAcceptError.OrderNotDispatching, ErrorMessage = "The order is no longer being dispatched." };
         }
 
-        var accepted = await _dispatchRepository.TryAcceptOfferAsync(assignmentId, workerId, ExpiryCutoff(nowUtc), nowUtc, cancellationToken);
+        var accepted = await _dispatchRepository.TryAcceptOfferAsync(assignmentId, workerId, cutoff, nowUtc, cancellationToken);
         if (!accepted)
         {
             return new OfferAcceptResult { Success = false, Error = OfferAcceptError.NotOpen, ErrorMessage = "Failed to book the slot or the offer was already modified." };
+        }
+
+        if (consecutive && order.OrderStatus == JobOrderStatus.AwaitingFallback)
+        {
+            // Both seats are accepted now: the waiting order is a normal assigned order again.
+            await _dispatchRepository.TryMoveOrderStatusAsync(
+                existing.OrderId, JobOrderStatus.AwaitingFallback, JobOrderStatus.Assigned, nowUtc, cancellationToken);
         }
 
         var assignment = await _dispatchRepository.GetAssignmentByIdAsync(assignmentId, cancellationToken);
@@ -490,12 +616,19 @@ public class DispatchOfferEngine
             return false;
         }
 
+        var consecutive = await IsConsecutiveShiftOfferAsync(offer, cancellationToken);
         if (!await _dispatchRepository.TryCloseOfferAsync(assignmentId, _clock.UtcNow, cancellationToken))
         {
             return false;
         }
 
         _logger.LogInformation("Worker {WorkerId} declined offer {AssignmentId}. Reason: {Reason}", workerId, assignmentId, reason ?? "None");
+
+        if (consecutive)
+        {
+            await PublishFallbackFailedAsync(offer.OrderId, "Thợ không nhận ca liên tiếp thứ hai (BR-02).", cancellationToken);
+            return true;
+        }
 
         try
         {
@@ -523,11 +656,25 @@ public class DispatchOfferEngine
         {
             try
             {
+                var consecutive = await IsConsecutiveShiftOfferAsync(offer, cancellationToken);
+                if (consecutive && offer.CreatedAt > FallbackExpiryCutoff(nowUtc))
+                {
+                    continue; // the worker still has time to confirm the second shift
+                }
+
                 if (await _dispatchRepository.TryCloseOfferAsync(offer.AssignmentId, nowUtc, cancellationToken))
                 {
                     expiredCount++;
-                    _logger.LogInformation("Offer {AssignmentId} expired after {Timeout} seconds and was closed.", offer.AssignmentId, OfferTimeoutSeconds);
-                    await OfferToNextCandidateAsync(offer, cancellationToken);
+                    _logger.LogInformation("Offer {AssignmentId} expired after {Timeout} seconds and was closed.",
+                        offer.AssignmentId, consecutive ? FallbackConfirmSeconds : OfferTimeoutSeconds);
+                    if (consecutive)
+                    {
+                        await PublishFallbackFailedAsync(offer.OrderId, "Thợ không xác nhận ca liên tiếp thứ hai trong thời hạn (BR-02).", cancellationToken);
+                    }
+                    else
+                    {
+                        await OfferToNextCandidateAsync(offer, cancellationToken);
+                    }
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -588,7 +735,11 @@ public class DispatchOfferEngine
             closedOffer.GrossAmount, closedOffer.AssignmentSeq, cancellationToken);
     }
 
-    private DispatchOffer ToOffer(JobAssignment assignment, double radiusKm) => new()
+    /// <summary>The fallback cannot be completed (customer or worker said no, or did not answer): cancel and refund like any failed dispatch.</summary>
+    internal Task PublishFallbackFailedAsync(long orderId, string reason, CancellationToken cancellationToken) =>
+        _mediator.Publish(new AssignmentFailed(orderId, reason, _clock.UtcNow), cancellationToken);
+
+    private DispatchOffer ToOffer(JobAssignment assignment, double radiusKm, bool isConsecutiveShift = false) => new()
     {
         AssignmentId = assignment.AssignmentId,
         OrderId = assignment.OrderId,
@@ -600,6 +751,7 @@ public class DispatchOfferEngine
         CommissionRate = assignment.CommissionRate,
         PayoutAmount = assignment.PayoutAmount,
         OfferedAtUtc = assignment.CreatedAt,
-        ExpiresAtUtc = assignment.CreatedAt.AddSeconds(OfferTimeoutSeconds),
+        ExpiresAtUtc = assignment.CreatedAt.AddSeconds(isConsecutiveShift ? FallbackConfirmSeconds : OfferTimeoutSeconds),
+        IsConsecutiveShift = isConsecutiveShift,
     };
 }
