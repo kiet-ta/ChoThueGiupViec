@@ -2,23 +2,13 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/auth/useAuth'
 import { cn } from '@/lib/utils'
-import type { Area, NavItem } from './feature-module'
+import type { Area } from './feature-module'
 import { navFor } from './feature-registry'
+import { groupBySection } from './nav-groups'
 
 const TITLES: Record<Area, string> = {
   admin: 'GiupViec Admin',
   partner: 'GiupViec Partner',
-}
-
-/** Group consecutive items under their optional `section` heading. */
-function groupBySection(items: NavItem[]): { section?: string; items: NavItem[] }[] {
-  const groups: { section?: string; items: NavItem[] }[] = []
-  for (const item of items) {
-    const last = groups[groups.length - 1]
-    if (last && last.section === item.section) last.items.push(item)
-    else groups.push({ section: item.section, items: [item] })
-  }
-  return groups
 }
 
 /**
