@@ -110,7 +110,7 @@ public class DomainModelTests
     [InlineData(typeof(UserRole), 10)]
     [InlineData(typeof(AuditActorType), 10)]
     [InlineData(typeof(EscrowTransactionType), 10)]
-    [InlineData(typeof(PaymentPurpose), 12)]
+    [InlineData(typeof(PaymentPurpose), 20)]
     [InlineData(typeof(PaymentStatus), 10)]
     [InlineData(typeof(JobOrderStatus), 20)]
     [InlineData(typeof(JobAssignmentStatus), 20)]
