@@ -77,6 +77,11 @@ void main() {
 
         // Try tapping submit without capturing photo
         final submitButton = find.byKey(const Key('submit_incident_button'));
+        await tester.scrollUntilVisible(
+          submitButton,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
         expect(submitButton, findsOneWidget);
         await tester.tap(submitButton);
         await tester.pumpAndSettle();
