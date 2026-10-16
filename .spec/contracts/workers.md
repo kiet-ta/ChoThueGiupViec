@@ -277,6 +277,21 @@ Enables or disables an availability slot for a given date and shift.
 
 ---
 
+### 2.3A Location and payout account (ECON-FLOW-FIX, decisions D19)
+
+#### `PUT /api/workers/me/location` (WorkerOnly)
+Where the worker is now. The dispatch search offers a job only to a worker who has a position (`WORKER.current_lat/current_lng`).
+
+**Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009 }` (latitude -90..90, longitude -180..180).
+**Response 200 `data`:** `{ "latitude": 10.7769, "longitude": 106.7009 }` (six decimals kept). 400 in the shared validation envelope when a value is missing or out of range.
+
+#### `GET /api/workers/me/bank` and `PUT /api/workers/me/bank` (WorkerOnly)
+The account the platform transfers the worker's monthly payout to (`WORKER.bank_name`, `bank_account_no`; the payout export reads them).
+- `GET` 200 `data`: `{ "bankName": "", "bankAccountNo": "", "isSet": false }` (empty strings while never set).
+- `PUT` body `{ "bankName": "Vietcombank", "bankAccountNo": "0011001234567" }`; both required; `bankName` <= 100 characters, `bankAccountNo` 6 to 30 digits (spaces dropped). 200 with the stored values and `isSet: true`; 400 otherwise.
+
+---
+
 ### 2.4 Image Quality & VoL Before/After Verification
 
 #### 2.4.1 `POST /api/workers/assignments/{assignmentId}/photos` (WorkerOnly)

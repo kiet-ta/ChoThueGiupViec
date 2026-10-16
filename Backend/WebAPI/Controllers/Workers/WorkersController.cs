@@ -53,6 +53,35 @@ public class WorkersController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>The account the worker's monthly payout is transferred to (decisions D19).</summary>
+    [HttpGet("me/bank")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerBankResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetBank(CancellationToken ct) =>
+        Ok(await sender.Send(new GetWorkerBankQuery(), ct));
+
+    /// <summary>Sets the payout account; 400 when a field is missing or malformed (decisions D19).</summary>
+    [HttpPut("me/bank")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerBankResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> PutBank([FromBody] UpdateWorkerBankRequest? request, CancellationToken ct) =>
+        Ok(await sender.Send(new UpdateWorkerBankCommand(request), ct));
+
+    /// <summary>Stores where the worker is now; the dispatch search needs it (decisions D19).</summary>
+    [HttpPut("me/location")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerLocationResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateLocation([FromBody] UpdateWorkerLocationRequest? request, CancellationToken ct)
+    {
+        var result = await sender.Send(new UpdateWorkerLocationCommand(request), ct);
+        return Ok(result);
+    }
+
     /// <summary>Updates editable profile fields of the authenticated worker (contract §2.1.3).</summary>
     [HttpPatch("me")]
     [Authorize(Policy = "WorkerOnly")]
