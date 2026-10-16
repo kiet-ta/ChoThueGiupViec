@@ -63,10 +63,12 @@ class LocationWrapper implements ILocationWrapper {
       return _mockCurrentLocation!;
     }
 
-    // Default fallback position (e.g. Hanoi center) if GPS sensor is not available
+    // Default position while the app has no GPS sensor: District 1, Ho Chi Minh City, the same default as the address form and the GPS
+    // picker (10.7769, 106.7009), so a worker and a customer who both use the defaults are at the same place (MOB-NAV). It was Hanoi,
+    // 1,100 km from every address the app creates, so no worker was ever found near an order.
     return GeoPoint(
-      latitude: 21.028511,
-      longitude: 105.854167,
+      latitude: 10.7769,
+      longitude: 106.7009,
       accuracyMeters: 5.0,
       timestamp: DateTime.now().toUtc(),
     );

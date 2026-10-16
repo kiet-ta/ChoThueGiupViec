@@ -72,6 +72,55 @@ class AuthService {
     return OtpRequestResult.fromJson(envelope['data'] as Map<String, dynamic>);
   }
 
+  /// Checks the profile of a new worker before it is sent: a full name and a 12-digit national id (contract workers.md 2.1.1).
+  /// Returns field -> message, empty when it can be sent.
+  static Map<String, String> workerProfileProblems({
+    required String fullName,
+    required String nationalId,
+  }) {
+    final out = <String, String>{};
+    if (fullName.trim().isEmpty) out['fullName'] = 'Vui lòng nhập họ và tên.';
+    if (!RegExp(r'^\d{12}$').hasMatch(nationalId.trim())) {
+      out['nationalId'] = 'Số CCCD gồm đúng 12 chữ số.';
+    }
+    return out;
+  }
+
+  /// Creates the profile of a new worker (`POST /api/workers/register`, anonymous, with the registration token the OTP step stored).
+  /// The answer carries no tokens: the worker signs in again afterwards. Throws [ApiException] (400 field errors, 409 already registered).
+  Future<void> registerWorker({
+    required String fullName,
+    required String nationalId,
+    required String address,
+    String? bio,
+  }) async {
+    final token = tokenStorage.registrationToken;
+    if (token == null || token.isEmpty) {
+      throw const ApiException(
+        400,
+        'Phiên đăng ký đã hết hạn. Vui lòng xác thực số điện thoại lại.',
+      );
+    }
+    if (useMockFallback) {
+      tokenStorage.clear();
+      return;
+    }
+    await apiRequest(
+      _client,
+      'POST',
+      Uri.parse('$baseUrl/api/workers/register'),
+      body: {
+        'registrationToken': token,
+        'fullName': fullName.trim(),
+        'nationalId': nationalId.trim(),
+        'address': address.trim(),
+        if (bio != null && bio.trim().isNotEmpty) 'bio': bio.trim(),
+      },
+      fallbackMessage: 'Không thể hoàn tất hồ sơ. Vui lòng thử lại.',
+    );
+    tokenStorage.clear();
+  }
+
   /// Verifies OTP code via /api/auth/otp/verify
   Future<VerifyOtpResponse> verifyOtp({
     required String phoneNumber,

@@ -7,6 +7,7 @@ import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../services/auth_service.dart';
+import 'worker_registration_screen.dart';
 import '../widgets/otp_code_field.dart';
 import '../widgets/resend_timer.dart';
 
@@ -72,23 +73,21 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
     if (response.isSuccess) {
       if (response.isNewWorker) {
-        // Worker needs profile registration
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Xác thực thành công. Vui lòng hoàn tất hồ sơ chuyên viên.',
-            ),
-            backgroundColor: NordicColors.secondaryAccent,
+        // A new worker has no profile yet: ask for it (there is no session until it exists and the worker signs in again).
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) =>
+                WorkerRegistrationScreen(authService: _authService),
           ),
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đăng nhập thành công vào TỔ ẤM!'),
-            backgroundColor: NordicColors.primary,
-          ),
-        );
+        return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đăng nhập thành công vào TỔ ẤM!'),
+          backgroundColor: NordicColors.primary,
+        ),
+      );
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
       setState(() {
