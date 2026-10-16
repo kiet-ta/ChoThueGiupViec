@@ -5,6 +5,7 @@ import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../models/booking_slot_models.dart';
+import '../services/workers_location_service.dart';
 import '../services/workers_slots_service.dart';
 import '../widgets/tinted_card.dart';
 
@@ -12,9 +13,15 @@ import '../widgets/tinted_card.dart';
 /// Implements MOB-M4-02: weekly grid toggle for Sáng/Chiều/Tối shifts.
 class WorkerSlotsScreen extends StatefulWidget {
   final WorkersSlotsService? slotsService;
+  final WorkersLocationService? locationService;
   final DateTime? initialDate;
 
-  const WorkerSlotsScreen({super.key, this.slotsService, this.initialDate});
+  const WorkerSlotsScreen({
+    super.key,
+    this.slotsService,
+    this.locationService,
+    this.initialDate,
+  });
 
   @override
   State<WorkerSlotsScreen> createState() => _WorkerSlotsScreenState();
@@ -22,6 +29,7 @@ class WorkerSlotsScreen extends StatefulWidget {
 
 class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   late final WorkersSlotsService _service;
+  late final WorkersLocationService _locationService;
   late DateTime _weekStartDate;
 
   bool _isLoading = false;
@@ -38,11 +46,22 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   void initState() {
     super.initState();
     _service = widget.slotsService ?? WorkersSlotsService();
+    _locationService = widget.locationService ?? WorkersLocationService();
 
     final now = widget.initialDate ?? DateTime.now();
     // Align to Monday of current week
     _weekStartDate = now.subtract(Duration(days: now.weekday - 1));
     _loadWeeklySlots();
+    _shareLocation();
+  }
+
+  /// Best effort: the dispatch search needs the worker's position (decisions D19). A failure must not change or block the screen.
+  Future<void> _shareLocation() async {
+    try {
+      await _locationService.shareCurrentLocation();
+    } catch (_) {
+      // The slot toggle is what the worker asked for; the position is sent again the next time.
+    }
   }
 
   String _formatDate(DateTime dt) {
@@ -121,6 +140,9 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
           isActive: newActive,
         ),
       );
+      if (newActive) {
+        _shareLocation();
+      }
     } catch (e) {
       // Revert on error
       setState(() {
