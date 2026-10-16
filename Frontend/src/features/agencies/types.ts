@@ -31,6 +31,13 @@ export interface Subscription {
   subStatus: string
 }
 
+/** The account the agency's payout is transferred to (GET/PUT /agencies/me/bank). */
+export interface AgencyBank {
+  bankName: string
+  bankAccountNo: string
+  isSet: boolean
+}
+
 export interface SubscriptionState {
   tier: string
   package: SubscriptionPackage

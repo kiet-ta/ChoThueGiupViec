@@ -281,6 +281,25 @@ public class M5SqlServerTests
     }
 
     [Fact]
+    public async Task Agency_bank_account_is_stored_and_read_back()
+    {
+        if (!Available()) return;
+        var w = await SeedAsync(1);
+
+        await using (var db = NewDb())
+        {
+            var repo = new EfAgencyBankRepository(db);
+            Assert.True(await repo.SetAsync(w.AgencyId, "Vietcombank", "0011001234567"));
+            Assert.False(await repo.SetAsync(int.MaxValue, "X", "123456"));
+        }
+
+        await using var read = NewDb();
+        var stored = await new EfAgencyBankRepository(read).GetAsync(w.AgencyId);
+        Assert.Equal(("Vietcombank", "0011001234567"), stored);
+        Assert.Null(await new EfAgencyBankRepository(read).GetAsync(int.MaxValue));
+    }
+
+    [Fact]
     public async Task Capacity_does_not_offer_the_slot_of_a_locked_worker()
     {
         if (!Available()) return;

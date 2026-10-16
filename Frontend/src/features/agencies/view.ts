@@ -127,6 +127,18 @@ export function expiryWarning(state: SubscriptionState, today: string): string |
   return `Gói Pro ${left} (đến hết ngày ${end}). Gói không tự gia hạn: hãy mua lại để nối tiếp, nếu không thợ vượt hạn mức Free sẽ bị khoá sau 7 ngày gia hạn.`
 }
 
+/** The problems of a bank account entry (same rules as the backend: a name up to 100 characters, 6 to 30 digits). Empty when it is fine. */
+export function bankProblems(bankName: string, bankAccountNo: string): string[] {
+  const out: string[] = []
+  const name = bankName.trim()
+  const account = bankAccountNo.replace(/\s+/g, '')
+  if (name.length === 0) out.push('Nhập tên ngân hàng.')
+  else if (name.length > 100) out.push('Tên ngân hàng tối đa 100 ký tự.')
+  if (account.length === 0) out.push('Nhập số tài khoản.')
+  else if (!/^[0-9]{6,30}$/.test(account)) out.push('Số tài khoản gồm 6 đến 30 chữ số.')
+  return out
+}
+
 // ---- WEB-M5-02 import
 
 export interface ErrorGroup {

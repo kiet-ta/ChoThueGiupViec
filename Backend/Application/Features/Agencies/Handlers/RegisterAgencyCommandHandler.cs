@@ -56,6 +56,8 @@ public sealed class RegisterAgencyCommandHandler(
             WorkerQuota = 0,
             IsVerifiedPartner = false,
             AgencyStatus = AgencyEligibility.StatusFor(initialEscrowBalance, rules.Agency.MinEscrowBalance),
+            BankName = input.BankName,
+            BankAccountNo = input.BankAccountNo,
             PasswordHash = passwordHasher.Hash(input.Password),
             CreatedAt = clock.UtcNow
         };

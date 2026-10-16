@@ -42,29 +42,89 @@ public class JobPhotoTests
         return new AppDbContext(options);
     }
 
-    private static async Task<(Worker worker, JobAssignment assignment)> SeedWorkerAndAssignmentAsync(AppDbContext db)
-    {
-        string phone = $"099{Random.Shared.Next(1000000, 9999999)}";
-        string nationalId = $"012{Random.Shared.Next(100000000, 999999999)}";
+    private static string Digits(int n) => string.Concat(Enumerable.Range(0, n).Select(_ => Random.Shared.Next(0, 10)));
 
-        var worker = Worker.CreateFreelancer(phone, nationalId, "Photo Worker");
+    /// <summary>A freelancer with an assignment of a real order on a real slot (the foreign keys of the schema hold), <c>CHECKED_IN</c> unless asked otherwise.</summary>
+    private static async Task<(Worker worker, JobAssignment assignment)> SeedWorkerAndAssignmentAsync(AppDbContext db, bool checkedIn = true)
+    {
+        var now = DateTime.UtcNow;
+        var worker = Worker.CreateFreelancer("09" + Digits(8), Digits(12), "Photo Worker");
+        worker.CreatedAt = now;
+        worker.UpdatedAt = now;
         db.Workers.Add(worker);
+        var customer = new Customer { PhoneNumber = "09" + Digits(8), FullName = "C", AccountStatus = CustomerAccountStatus.Active, CreatedAt = now, UpdatedAt = now };
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var address = new CustomerAddress
+        {
+            CustomerId = customer.CustomerId,
+            Label = "Home",
+            AddressLine = "1 Test St",
+            District = "D1",
+            City = "HCMC",
+            HousingType = HousingType.House,
+            FloorAreaM2 = 40m,
+            NumFloors = 2,
+            Latitude = 10.76m,
+            Longitude = 106.66m,
+            IsDefault = true,
+            CreatedAt = now,
+        };
+        db.CustomerAddresses.Add(address);
+        await db.SaveChangesAsync();
+
+        var day = DateOnly.FromDateTime(now).AddDays(1);
+        var order = new JobOrder
+        {
+            OrderCode = "T" + Digits(12),
+            CustomerId = customer.CustomerId,
+            AddressId = address.AddressId,
+            ServiceTier = ServiceTier.Economy,
+            ScheduledDate = day,
+            ShiftCode = "SHIFT_MORNING",
+            AreaSnapshotM2 = 40m,
+            RequiredWorkers = 1,
+            TotalAmount = 260000m,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        var slot = new BookingSlot
+        {
+            WorkerId = worker.WorkerId,
+            SlotDate = day,
+            ShiftCode = "SHIFT_MORNING",
+            StartTime = new TimeOnly(8, 0),
+            EndTime = new TimeOnly(12, 0),
+            SlotSource = "FREELANCER",
+            SlotStatus = "BOOKED",
+            UpdatedAt = now,
+        };
+        db.JobOrders.Add(order);
+        db.BookingSlots.Add(slot);
         await db.SaveChangesAsync();
 
         var assignment = new JobAssignment
         {
-            OrderId = 10001,
-            CustomerId = 2001,
+            OrderId = order.OrderId,
+            CustomerId = customer.CustomerId,
             WorkerId = worker.WorkerId,
-            SlotId = 501,
+            SlotId = slot.SlotId,
             ServiceTier = ServiceTier.Economy,
             AssignmentSeq = 1,
+            DispatchRadiusKm = 5,
             GrossAmount = 260000m,
             CommissionRate = 0.20m,
             PayoutAmount = 208000m,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = now,
+            UpdatedAt = now,
         };
+        assignment.TransitionTo(JobAssignmentStatus.Assigned);
+        if (checkedIn)
+        {
+            assignment.TransitionTo(JobAssignmentStatus.CheckedIn);
+        }
+
         db.JobAssignments.Add(assignment);
         await db.SaveChangesAsync();
 
@@ -102,6 +162,55 @@ public class JobPhotoTests
         var photoInDb = await db.JobPhotos.FirstOrDefaultAsync(p => p.AssignmentId == assignment.AssignmentId && p.AngleNo == 1);
         Assert.NotNull(photoInDb);
         Assert.True(photoInDb.IsAccepted);
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task UploadJobPhotoCommand_FirstAcceptedBeforePhoto_StartsTheWork()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+        var (worker, assignment) = await SeedWorkerAndAssignmentAsync(db);
+        var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
+        var handler = new UploadJobPhotoCommandHandler(
+            new EfWorkerRepository(db), new ImageQualityService(rules), new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, rules);
+
+        // A blurry BEFORE photo is refused and does not start anything.
+        await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(
+            new UploadJobPhotoCommand(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/a1_blur.jpg")), CancellationToken.None));
+        Assert.Equal(JobAssignmentStatus.CheckedIn, (await db.JobAssignments.AsNoTracking().SingleAsync(a => a.AssignmentId == assignment.AssignmentId)).AssignmentStatus);
+
+        // The first accepted BEFORE photo starts it (any normal URL is a sharp photo).
+        await handler.Handle(
+            new UploadJobPhotoCommand(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/a1.jpg")), CancellationToken.None);
+        Assert.Equal(JobAssignmentStatus.InProgress, (await db.JobAssignments.AsNoTracking().SingleAsync(a => a.AssignmentId == assignment.AssignmentId)).AssignmentStatus);
+
+        // Further photos keep it running.
+        await handler.Handle(
+            new UploadJobPhotoCommand(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 2, "https://storage.local/jobs/a2.jpg")), CancellationToken.None);
+        Assert.Equal(JobAssignmentStatus.InProgress, (await db.JobAssignments.AsNoTracking().SingleAsync(a => a.AssignmentId == assignment.AssignmentId)).AssignmentStatus);
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task UploadJobPhotoCommand_BeforeCheckIn_IsRefused()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+        var (worker, assignment) = await SeedWorkerAndAssignmentAsync(db, checkedIn: false);
+        var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
+        var handler = new UploadJobPhotoCommandHandler(
+            new EfWorkerRepository(db), new ImageQualityService(rules), new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, rules);
+
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() => handler.Handle(
+            new UploadJobPhotoCommand(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/a1.jpg")), CancellationToken.None));
+        Assert.Equal(0, await db.JobPhotos.CountAsync(p => p.AssignmentId == assignment.AssignmentId));
 
         await transaction.RollbackAsync();
     }
@@ -270,5 +379,40 @@ public class JobPhotoTests
         public int? UserId { get; set; }
         public UserRole? Role { get; set; } = UserRole.Worker;
         public bool IsAuthenticated => UserId.HasValue;
+    }
+}
+
+/// <summary>The deterministic stand-in of the photo quality check (decisions D18): no database needed.</summary>
+public class JobPhotoStandInTests
+{
+    private static async Task<ImageQualityResult> AssessAsync(string url)
+    {
+        var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
+        using var stream = new MemoryStream(JobPhotoStandIn.BytesFor(url));
+        return await new ImageQualityService(rules).AssessAsync(stream);
+    }
+
+    [Theory]
+    [InlineData("https://x/1.jpg")]
+    [InlineData("https://storage.giupviec.local/jobs/0123456789abcdef0123456789abcdef.jpg")]
+    [InlineData("https://storage.local/jobs/angle1_sharp.jpg")]
+    public async Task A_normal_url_is_always_a_sharp_photo(string url)
+    {
+        var result = await AssessAsync(url);
+
+        Assert.True(result.IsAccepted);
+        Assert.True(result.VolScore >= 100.0);
+    }
+
+    [Theory]
+    [InlineData("https://storage.local/jobs/angle1_blur.jpg")]
+    [InlineData("https://storage.local/jobs/LOW_QUALITY_1.jpg")]
+    [InlineData("https://storage.local/jobs/vol_45.jpg")]
+    public async Task A_url_with_a_blur_marker_is_a_blurry_photo(string url)
+    {
+        var result = await AssessAsync(url);
+
+        Assert.False(result.IsAccepted);
+        Assert.True(result.VolScore < 100.0);
     }
 }

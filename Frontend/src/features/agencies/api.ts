@@ -1,5 +1,6 @@
 import { ApiError, apiClient } from '@/services/api'
 import type {
+  AgencyBank,
   AgencyJob,
   DepositPurchase,
   EscrowAppeal,
@@ -31,6 +32,10 @@ export const agenciesApi = {
   packages: () => apiClient.get<SubscriptionPackage[]>('/agencies/packages'),
   subscription: () => apiClient.get<SubscriptionState>('/agencies/subscriptions/me'),
   subscribe: (packageId: number) => apiClient.post<SubscriptionPurchase>('/agencies/subscriptions', { packageId }),
+
+  // payout account (MAIN-FLOW-FIX)
+  bank: () => apiClient.get<AgencyBank>('/agencies/me/bank'),
+  saveBank: (bankName: string, bankAccountNo: string) => apiClient.put<AgencyBank>('/agencies/me/bank', { bankName, bankAccountNo }),
 
   // WEB-M5-02 worker import
   importTemplate: () => apiClient.download('/agencies/workers/import/template'),

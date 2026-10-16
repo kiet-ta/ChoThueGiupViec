@@ -44,9 +44,12 @@ These shapes map existing PRD concepts and schema fields; they remain proposals 
   "legalRepresentative": "string",
   "contactPhone": "0901234567",
   "contactEmail": "partner@example.com",
-  "password": "string"
+  "password": "string",
+  "bankName": "string | omitted",
+  "bankAccountNo": "string | omitted"
 }
 ```
+`bankName` (<= 100) and `bankAccountNo` (6 to 30 digits, spaces ignored) are optional at registration but come as a pair (decisions D18); the account the payout is transferred to.
 Validation (all errors returned together, **400**, shared envelope): `taxCode` matches `^[0-9]{10}(-[0-9]{3})?$` (Q25 R2); `legalName` required, at most 200 characters; `legalRepresentative` required, at most 100; `contactPhone` is a Vietnamese mobile number, stored as `0XXXXXXXXX` (O4); `contactEmail` is a plain address of at most 255 characters, stored lower-cased; `password` has at least `Auth.MinPasswordLength` characters with an upper-case letter, a lower-case letter and a digit (Q16). There is no separate business-registration field (Q25 R1).
 
 Success **201**, `data`: `agencyId, taxCode, legalName, legalRepresentative, contactPhone, contactEmail, agencyStatus` (`PENDING`), `escrowDepositBalance` (0), `slaScore` (`Sla.InitialScore`), `workerQuota` (0), `createdAt`. No password, hash or token is returned; the agency signs in through the Partner login. Duplicate `taxCode` or `contactEmail`: **409** with `data.code` `AGENCY_TAX_CODE_EXISTS` / `AGENCY_EMAIL_EXISTS`.
@@ -160,3 +163,10 @@ These endpoint-specific status assignments are proposals where not explicitly se
 11. Who persists/associates the capacity `ReservationId` with the order, and what is the required behavior for repeated `ReleaseAsync` calls? Align with booking contract B8 before implementation.
 12. Should M5 lock a slot at order creation as a temporary hold (booking contract proposal) or only when payment succeeds (PRD §2.5)?
 13. PRD §2.3 describes the Verified Partner label as a Pro capability, but Q08 has no package entitlement flag for it and the schema stores it on `PARTNER_AGENCY`. Does subscription activation set `is_verified_partner`, and what verification criteria/actor govern the flag?
+
+## 12. Payout account (MAIN-FLOW-FIX, decisions D18)
+
+`GET /api/agencies/me/bank` and `PUT /api/agencies/me/bank` (`PartnerOnly`): the account the platform transfers the agency's payout to (`PARTNER_AGENCY.bank_name`, `bank_account_no`; the payout export reads them).
+
+- `GET` 200 `data`: `{ "bankName": "", "bankAccountNo": "", "isSet": false }` (empty strings while never set).
+- `PUT` body `{ "bankName": "Vietcombank", "bankAccountNo": "0011001234567" }`; both required; `bankName` <= 100 characters, `bankAccountNo` 6 to 30 digits (spaces are dropped). 200 with the stored values and `isSet: true`; 400 in the shared validation envelope otherwise.
