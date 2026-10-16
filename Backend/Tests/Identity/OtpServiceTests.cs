@@ -184,13 +184,13 @@ public class OtpServiceTests
         // 5 requests spaced by 65 seconds (satisfying cooldown)
         for (var i = 0; i < 5; i++)
         {
-            var res = await service.RequestOtpAsync(phone, "Customer", $"10.0.0.{i + 1}");
+            var res = await service.RequestOtpAsync(phone, "Customer", GenerateTestIp()); // a fresh IP: rows of earlier runs stay in the database
             Assert.True(res.Success);
             clock.UtcNow = clock.UtcNow.AddSeconds(65);
         }
 
         // 6th request within the same 1 hour window
-        var sixth = await service.RequestOtpAsync(phone, "Customer", "10.0.0.99");
+        var sixth = await service.RequestOtpAsync(phone, "Customer", GenerateTestIp());
         Assert.False(sixth.Success);
         Assert.Equal(429, sixth.StatusCode);
         Assert.NotNull(sixth.RetryAfterSeconds);
@@ -205,7 +205,7 @@ public class OtpServiceTests
         var (service, db, clock, _) = CreateService();
         await using var _ = db;
 
-        var ip = $"192.168.1.{Random.Shared.Next(10, 200)}";
+        var ip = GenerateTestIp(); // random: the rows of earlier runs stay in the database
 
         // 20 requests from the same IP using different phones
         for (var i = 0; i < 20; i++)

@@ -37,7 +37,7 @@ public class BookingSlotTests
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(ConnectionString)
             .Options;
-        return new AppDbContext(options);
+        return new CommonService.Tests.Persistence.StampingDbContext(options);
     }
 
     [Fact]
@@ -190,9 +190,8 @@ public class BookingSlotTests
     {
         if (!IsSqlServerAvailable()) return;
 
+        // Two other contexts take part, so the worker must be committed (they cannot see an open transaction); it is removed at the end.
         using var dbMaster = CreateContext();
-        using var transaction = await dbMaster.Database.BeginTransactionAsync();
-
         string phone = $"094{Random.Shared.Next(1000000, 9999999)}";
         string nationalId = $"012{Random.Shared.Next(100000000, 999999999)}";
 
@@ -200,36 +199,42 @@ public class BookingSlotTests
         dbMaster.Workers.Add(worker);
         await dbMaster.SaveChangesAsync();
 
-        var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var slotDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2));
-
-        var req = new ToggleBookingSlotRequest(slotDate, "SHIFT_MORNING", IsActive: true);
-
-        // Run 2 handlers concurrently on the same worker
-        var task1 = Task.Run(async () =>
+        try
         {
-            using var db1 = CreateContext();
-            var repo1 = new EfWorkerRepository(db1);
-            var handler1 = new ToggleBookingSlotCommandHandler(repo1, currentUser);
-            return await handler1.Handle(new ToggleBookingSlotCommand(req), CancellationToken.None);
-        });
+            var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
+            var slotDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2));
 
-        var task2 = Task.Run(async () =>
+            var req = new ToggleBookingSlotRequest(slotDate, "SHIFT_MORNING", IsActive: true);
+
+            // Run 2 handlers concurrently on the same worker
+            var task1 = Task.Run(async () =>
+            {
+                using var db1 = CreateContext();
+                var repo1 = new EfWorkerRepository(db1);
+                var handler1 = new ToggleBookingSlotCommandHandler(repo1, currentUser);
+                return await handler1.Handle(new ToggleBookingSlotCommand(req), CancellationToken.None);
+            });
+
+            var task2 = Task.Run(async () =>
+            {
+                using var db2 = CreateContext();
+                var repo2 = new EfWorkerRepository(db2);
+                var handler2 = new ToggleBookingSlotCommandHandler(repo2, currentUser);
+                return await handler2.Handle(new ToggleBookingSlotCommand(req), CancellationToken.None);
+            });
+
+            var results = await Task.WhenAll(task1, task2);
+
+            Assert.All(results, r => Assert.True(r.Success));
+
+            var slotsInDb = await dbMaster.BookingSlots.Where(s => s.WorkerId == worker.WorkerId && s.SlotDate == slotDate && s.ShiftCode == "SHIFT_MORNING").ToListAsync();
+            Assert.Single(slotsInDb);
+        }
+        finally
         {
-            using var db2 = CreateContext();
-            var repo2 = new EfWorkerRepository(db2);
-            var handler2 = new ToggleBookingSlotCommandHandler(repo2, currentUser);
-            return await handler2.Handle(new ToggleBookingSlotCommand(req), CancellationToken.None);
-        });
-
-        var results = await Task.WhenAll(task1, task2);
-
-        Assert.All(results, r => Assert.True(r.Success));
-
-        var slotsInDb = await dbMaster.BookingSlots.Where(s => s.WorkerId == worker.WorkerId && s.SlotDate == slotDate && s.ShiftCode == "SHIFT_MORNING").ToListAsync();
-        Assert.Single(slotsInDb);
-
-        await transaction.RollbackAsync();
+            await dbMaster.BookingSlots.Where(s => s.WorkerId == worker.WorkerId).ExecuteDeleteAsync();
+            await dbMaster.Workers.Where(w => w.WorkerId == worker.WorkerId).ExecuteDeleteAsync();
+        }
     }
 
     private sealed class TestCurrentUser : ICurrentUser

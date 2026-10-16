@@ -38,7 +38,7 @@ public class JobAcceptanceTests
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(ConnectionString)
             .Options;
-        return new AppDbContext(options);
+        return new CommonService.Tests.Persistence.StampingDbContext(options);
     }
 
     [Fact]
@@ -55,12 +55,13 @@ public class JobAcceptanceTests
         db.Workers.Add(worker);
         await db.SaveChangesAsync();
 
+        var seed = await CommonService.Tests.Persistence.SqlSeed.OrderWithSlotAsync(db, worker.WorkerId);
         var assignment = new JobAssignment
         {
-            OrderId = Random.Shared.Next(10000, 99999),
-            CustomerId = 200,
+            OrderId = seed.OrderId,
+            CustomerId = seed.CustomerId,
             WorkerId = worker.WorkerId,
-            SlotId = 10,
+            SlotId = seed.SlotId,
             ServiceTier = ServiceTier.Economy,
             GrossAmount = 260000m,
             CommissionRate = 0.20m,
@@ -138,12 +139,13 @@ public class JobAcceptanceTests
         db.Workers.Add(worker);
         await db.SaveChangesAsync();
 
+        var seed = await CommonService.Tests.Persistence.SqlSeed.OrderWithSlotAsync(db, worker.WorkerId);
         var assignment = new JobAssignment
         {
-            OrderId = Random.Shared.Next(10000, 99999),
-            CustomerId = 200,
+            OrderId = seed.OrderId,
+            CustomerId = seed.CustomerId,
             WorkerId = worker.WorkerId,
-            SlotId = 11,
+            SlotId = seed.SlotId,
             ServiceTier = ServiceTier.Economy,
             GrossAmount = 260000m,
             CommissionRate = 0.20m,
@@ -182,12 +184,13 @@ public class JobAcceptanceTests
         db.Workers.Add(worker);
         await db.SaveChangesAsync();
 
+        var seed = await CommonService.Tests.Persistence.SqlSeed.OrderWithSlotAsync(db, worker.WorkerId);
         var assignment = new JobAssignment
         {
-            OrderId = Random.Shared.Next(10000, 99999),
-            CustomerId = 200,
+            OrderId = seed.OrderId,
+            CustomerId = seed.CustomerId,
             WorkerId = worker.WorkerId,
-            SlotId = 12,
+            SlotId = seed.SlotId,
             ServiceTier = ServiceTier.Economy,
             GrossAmount = 260000m,
             CommissionRate = 0.20m,
@@ -203,7 +206,7 @@ public class JobAcceptanceTests
         await db.SaveChangesAsync();
 
         var repository = new EfWorkerRepository(db);
-        var currentUser = new TestCurrentUser { UserId = 200, Role = UserRole.Customer };
+        var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
         var handler = new RequestJobRedoCommandHandler(repository, currentUser);
 
         // Act
@@ -238,13 +241,14 @@ public class JobAcceptanceTests
         db.Workers.Add(worker);
         await db.SaveChangesAsync();
 
+        var seed = await CommonService.Tests.Persistence.SqlSeed.OrderWithSlotAsync(db, worker.WorkerId);
         var assignment = new JobAssignment
         {
-            OrderId = Random.Shared.Next(10000, 99999),
-            CustomerId = 200,
+            OrderId = seed.OrderId,
+            CustomerId = seed.CustomerId,
             WorkerId = worker.WorkerId,
             AgencyId = null,
-            SlotId = 13,
+            SlotId = seed.SlotId,
             ServiceTier = ServiceTier.Economy,
             GrossAmount = 260000m,
             CommissionRate = 0.20m,
@@ -261,7 +265,7 @@ public class JobAcceptanceTests
         await db.SaveChangesAsync();
 
         var repository = new EfWorkerRepository(db);
-        var currentUser = new TestCurrentUser { UserId = 200, Role = UserRole.Customer };
+        var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
         var publisher = new TestPublisher();
         var handler = new AcceptJobCompletionCommandHandler(repository, publisher, currentUser);
 
@@ -302,18 +306,20 @@ public class JobAcceptanceTests
 
         var phone = $"099{Random.Shared.Next(1000000, 9999999)}";
         var nationalId = $"012{Random.Shared.Next(100000000, 999999999)}";
-        var worker = Worker.CreateAgencyStaff(5, phone, nationalId, "Agency Staff Worker");
+        var agencyId = await CommonService.Tests.Persistence.SqlSeed.AgencyAsync(db);
+        var worker = Worker.CreateAgencyStaff(agencyId, phone, nationalId, "Agency Staff Worker");
         worker.TransitionTo(WorkStatus.Busy);
         db.Workers.Add(worker);
         await db.SaveChangesAsync();
 
+        var seed = await CommonService.Tests.Persistence.SqlSeed.OrderWithSlotAsync(db, worker.WorkerId);
         var assignment = new JobAssignment
         {
-            OrderId = Random.Shared.Next(10000, 99999),
-            CustomerId = 200,
+            OrderId = seed.OrderId,
+            CustomerId = seed.CustomerId,
             WorkerId = worker.WorkerId,
-            AgencyId = 5,
-            SlotId = 14,
+            AgencyId = agencyId,
+            SlotId = seed.SlotId,
             ServiceTier = ServiceTier.Premium,
             GrossAmount = 390000m,
             CommissionRate = 0.00m, // PRO agency package (0% commission)
@@ -330,7 +336,7 @@ public class JobAcceptanceTests
         await db.SaveChangesAsync();
 
         var repository = new EfWorkerRepository(db);
-        var currentUser = new TestCurrentUser { UserId = 200, Role = UserRole.Customer };
+        var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
         var publisher = new TestPublisher();
         var handler = new AcceptJobCompletionCommandHandler(repository, publisher, currentUser);
 

@@ -41,7 +41,7 @@ public class WorkerProfileTests
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(ConnectionString)
             .Options;
-        return new AppDbContext(options);
+        return new CommonService.Tests.Persistence.StampingDbContext(options);
     }
 
     private readonly IConfiguration _config;

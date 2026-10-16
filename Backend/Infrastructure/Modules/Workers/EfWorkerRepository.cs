@@ -118,9 +118,23 @@ public sealed class EfWorkerRepository(AppDbContext dbContext) : IWorkerReposito
         await dbContext.JobPhotos.AddAsync(photo, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // A failed insert must not stay tracked as Added: the caller's retry (ToggleBookingSlot after a unique-index race) would insert it
+            // again and fail the same way.
+            foreach (var entry in dbContext.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
+
+            throw;
+        }
     }
 }
 
