@@ -56,6 +56,10 @@ To prevent merge conflicts across the 6 team members:
 3. Every feature defines its own `routes.dart` containing a class implementing `FeatureModule`.
 4. Route names are exposed through static constants in the feature's `routes.dart` and registered in its module's `routes` map or `onGenerateRoute` factory.
 
+### Worker position (`features/workers`, MOB-WORKER-LOCATION)
+- `WorkerSlotsScreen` sends the device position with `PUT /api/workers/me/location` (`WorkersLocationService`) when it opens and every time the worker switches a slot ON; the dispatch search offers a job only to a worker who has a position (decisions D19). A failing call is ignored (best effort).
+- `LocationWrapper` has no GPS plugin yet: it returns the mock position or a fixed Hanoi position (21.0285, 105.8542), the same source the check-in uses. Customer addresses and the check-in destination share that fixed position, so a test with the default wrapper finds the worker; a real sensor needs a package and platform permissions (separate ticket).
+
 ### Worker income (`features/payouts`, MOB-M6-04)
 - `/payouts` (`PayoutScreen`): month selector (default month and "today" are read in Asia/Ho_Chi_Minh, UTC+7; the next button stops at the current month because the server answers 400 for a future month; the previous button stops at January 2024) and `GET /api/workers/me/earnings?month=YYYY-MM`. It shows "Thu nhập tháng này" (net), gross, commission, penalty, the payout status (`NOT_BUILT`, `PENDING`, `TRANSFERRED`) with a hint, and the jobs; an approved absence fee carries a "Phí vắng mặt" tag. There is no wallet or "số dư khả dụng" (open question P6). A 403 (agency staff: the agency is paid) is explained and has no retry. A slow answer of an older month never overwrites a newer choice.
 - `/payouts/history` (`PayoutHistoryScreen`): `GET /api/workers/me/payouts?page=&pageSize=`, "Xem thêm" loads the next page; a failure on a later page keeps what is shown.
