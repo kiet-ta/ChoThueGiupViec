@@ -20,7 +20,9 @@ public sealed record ValidatedAgencyRegistration(
     string LegalRepresentative,
     string ContactPhone,
     string ContactEmail,
-    string Password);
+    string Password,
+    string BankName = "",
+    string BankAccountNo = "");
 
 /// <summary>
 /// All field rules of agency registration in one pure place (no framework, no database), so each rule has a unit test.
@@ -114,6 +116,20 @@ public static class AgencyRegistrationValidator
             errors["password"] = passwordErrors;
         }
 
+        var bankName = string.Empty;
+        var bankAccountNo = string.Empty;
+        try
+        {
+            (bankName, bankAccountNo) = AgencyBankValidator.Validate(request.BankName, request.BankAccountNo, required: false);
+        }
+        catch (ValidationException bank)
+        {
+            foreach (var (field, messages) in bank.Errors)
+            {
+                errors[field] = messages;
+            }
+        }
+
         if (errors.Count > 0)
         {
             throw new ValidationException(errors);
@@ -125,7 +141,9 @@ public static class AgencyRegistrationValidator
             representative,
             normalizedPhone,
             email.ToLowerInvariant(),
-            password);
+            password,
+            bankName,
+            bankAccountNo);
     }
 
     private static string[] PasswordErrors(string password, int minLength)

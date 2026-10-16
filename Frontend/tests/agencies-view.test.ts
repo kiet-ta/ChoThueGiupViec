@@ -24,6 +24,7 @@ import {
   subscriptionStatusText,
   expiryWarning,
   isVerifiedPartner,
+  bankProblems,
   txnRow,
   weekDays,
 } from '../src/features/agencies/view.ts'
@@ -229,5 +230,22 @@ describe('verified partner label', () => {
   it('follows the Pro package in force', () => {
     assert.equal(isVerifiedPartner({ tier: 'PRO' }), true)
     assert.equal(isVerifiedPartner({ tier: 'FREE' }), false)
+  })
+})
+
+describe('bank account entry', () => {
+  it('accepts a name and 6 to 30 digits, spaces ignored', () => {
+    assert.deepEqual(bankProblems('Vietcombank', '0011 0012 34567'), [])
+  })
+
+  it('asks for both fields', () => {
+    assert.equal(bankProblems('', '').length, 2)
+    assert.deepEqual(bankProblems('VCB', ''), ['Nhập số tài khoản.'])
+  })
+
+  it('rejects letters, a short number and a long name', () => {
+    assert.deepEqual(bankProblems('VCB', '12345'), ['Số tài khoản gồm 6 đến 30 chữ số.'])
+    assert.deepEqual(bankProblems('VCB', '00110012A4'), ['Số tài khoản gồm 6 đến 30 chữ số.'])
+    assert.deepEqual(bankProblems('B'.repeat(101), '0011001234'), ['Tên ngân hàng tối đa 100 ký tự.'])
   })
 })

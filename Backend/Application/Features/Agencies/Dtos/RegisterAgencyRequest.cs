@@ -4,7 +4,8 @@ namespace CommonService.Application.Features.Agencies.Dtos;
 /// Body of <c>POST /api/agencies/registration</c> (contract agencies.md §2). Every field is nullable on purpose: a
 /// missing field is reported by <see cref="AgencyRegistrationValidator"/> in the shared validation envelope instead of
 /// the framework's own model-state response. <c>taxCode</c> is also the identity of the business registration (ĐKKD):
-/// the leader decided not to add a separate column (docx/BE-M5-01-notes.md, decision 1).
+/// the leader decided not to add a separate column (docx/BE-M5-01-notes.md, decision 1). <c>bankName</c> and <c>bankAccountNo</c> are
+/// optional (both or neither): the account the payout is transferred to, also settable later with <c>PUT /api/agencies/me/bank</c>.
 /// </summary>
 public sealed record RegisterAgencyRequest(
     string? TaxCode,
@@ -12,5 +13,7 @@ public sealed record RegisterAgencyRequest(
     string? LegalRepresentative,
     string? ContactPhone,
     string? ContactEmail,
-    string? Password
+    string? Password,
+    string? BankName = null,
+    string? BankAccountNo = null
 );

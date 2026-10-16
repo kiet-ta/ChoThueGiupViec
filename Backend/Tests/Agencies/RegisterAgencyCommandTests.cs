@@ -335,7 +335,8 @@ public class RegisterAgencyCommandTests
 
         Assert.DoesNotContain(names, n => n.Contains("BusinessRegistration", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(
-            new[] { "ContactEmail", "ContactPhone", "LegalName", "LegalRepresentative", "Password", "TaxCode" },
+            // BankAccountNo / BankName: the optional payout account (MAIN-FLOW-FIX, decisions D18).
+            new[] { "BankAccountNo", "BankName", "ContactEmail", "ContactPhone", "LegalName", "LegalRepresentative", "Password", "TaxCode" },
             typeof(RegisterAgencyRequest).GetProperties().Select(p => p.Name).OrderBy(n => n, StringComparer.Ordinal));
     }
 }
