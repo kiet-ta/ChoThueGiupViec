@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { safeNext } from '@/auth/access'
 import type { LoginRole } from '@/auth/auth-controller'
@@ -109,6 +109,12 @@ export function LoginPage() {
         <Button type="submit" disabled={submitting || status === 'loading'}>
           {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </Button>
+        <p className="text-center text-sm">
+          Công ty chưa có tài khoản?{' '}
+          <Link to="/register" className="text-primary underline">
+            Đăng ký đối tác
+          </Link>
+        </p>
       </form>
     </main>
   )
