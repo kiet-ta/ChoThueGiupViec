@@ -31,7 +31,7 @@ public sealed class OrderTrackingQueryTests
     }
 
     private static AppDbContext CreateContext() =>
-        new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options);
+        new CommonService.Tests.Persistence.StampingDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options);
 
     [Fact]
     public void OrderProgressQuery_ReadsOnlyTheJobAssignmentTable_WithoutJoin()

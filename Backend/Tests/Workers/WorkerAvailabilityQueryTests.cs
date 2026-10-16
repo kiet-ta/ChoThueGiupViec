@@ -34,7 +34,7 @@ public class WorkerAvailabilityQueryTests
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(ConnectionString)
             .Options;
-        return new AppDbContext(options);
+        return new CommonService.Tests.Persistence.StampingDbContext(options);
     }
 
     [Fact]
@@ -158,7 +158,8 @@ public class WorkerAvailabilityQueryTests
         // 1. Agency Staff
         string phone1 = $"095{Random.Shared.Next(1000000, 9999999)}";
         string nid1 = $"012{Random.Shared.Next(100000000, 999999999)}";
-        var agencyWorker = Worker.CreateAgencyStaff(1, phone1, nid1, "Agency Worker");
+        var agencyId = await CommonService.Tests.Persistence.SqlSeed.AgencyAsync(db);
+        var agencyWorker = Worker.CreateAgencyStaff(agencyId, phone1, nid1, "Agency Worker");
         agencyWorker.CurrentLat = 10.7760m;
         agencyWorker.CurrentLng = 106.7000m;
         db.Workers.Add(agencyWorker);

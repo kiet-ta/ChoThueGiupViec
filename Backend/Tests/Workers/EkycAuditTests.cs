@@ -40,7 +40,7 @@ public class EkycAuditTests
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(ConnectionString)
             .Options;
-        return new AppDbContext(options);
+        return new CommonService.Tests.Persistence.StampingDbContext(options);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class EkycAuditTests
         db.Workers.Add(worker);
         await db.SaveChangesAsync();
 
-        int adminId = 999;
+        int adminId = await CommonService.Tests.Persistence.SqlSeed.AdminAsync(db);
         var currentUser = new TestCurrentUser { UserId = adminId, Role = UserRole.Admin };
         var handler = new ReviewEkycCommandHandler(repository, currentUser);
         var req = new ReviewEkycRequest(Approved: true);
@@ -138,7 +138,7 @@ public class EkycAuditTests
         db.Workers.Add(worker);
         await db.SaveChangesAsync();
 
-        int adminId = 999;
+        int adminId = await CommonService.Tests.Persistence.SqlSeed.AdminAsync(db);
         var currentUser = new TestCurrentUser { UserId = adminId, Role = UserRole.Admin };
         var handler = new ReviewEkycCommandHandler(repository, currentUser);
         var req = new ReviewEkycRequest(Approved: false, RejectionReason: "ID photo does not match selfie.");
