@@ -10,7 +10,11 @@ import '../../core/widgets/trust_badge.dart';
 import '../customers/screens/address_list_screen.dart';
 import '../customers/screens/customer_profile_screen.dart';
 import '../customers/screens/favorite_workers_screen.dart';
+import '../booking/routes.dart';
 import '../identity/screens/phone_input_screen.dart';
+import '../identity/services/token_storage.dart';
+import '../workers/routes.dart';
+import 'home_actions.dart';
 
 /// Main Welcome Screen of TỔ ẤM — Nordic Care Mobile application.
 /// Strictly conforms to the 390x844 mobile viewport specification.
@@ -23,6 +27,102 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   AppRole _selectedRole = AppRole.customer;
+
+  /// The signed-in user, or null: the Home shows the actions of this role (MOB-NAV).
+  AuthUserView? get _session {
+    final storage = TokenStorage();
+    final user = storage.currentUser;
+    if (!storage.isAuthenticated || user == null) return null;
+    return AuthUserView(user.role, user.id);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final role = _session?.role;
+    if (role == SessionRoles.worker) _selectedRole = AppRole.worker;
+  }
+
+  /// Back from a pushed screen (the login in particular): show the state of the session as it is now.
+  void _refresh() {
+    if (!mounted) return;
+    setState(() {
+      final role = _session?.role;
+      if (role == SessionRoles.worker) {
+        _selectedRole = AppRole.worker;
+      } else if (role == SessionRoles.customer) {
+        _selectedRole = AppRole.customer;
+      }
+    });
+  }
+
+  void _open(String route) {
+    Navigator.of(context).pushNamed(route).then((_) => _refresh());
+  }
+
+  void _openLogin(AppRole role) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => PhoneInputScreen(role: role)),
+    ).then((_) => _refresh());
+  }
+
+  void _signOut() {
+    TokenStorage().clear();
+    _refresh();
+  }
+
+  Widget _sessionPanel(AuthUserView session) {
+    final actions = homeActionsFor(session.role);
+    final isWorker = session.role == SessionRoles.worker;
+    return NordicCard(
+      isHighlighted: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isWorker ? Icons.engineering_rounded : Icons.person_rounded,
+                color: NordicColors.primary,
+              ),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: Text(
+                  isWorker ? 'Thợ #${session.id}' : 'Khách hàng #${session.id}',
+                  style: NordicTypography.h3,
+                ),
+              ),
+              TextButton(
+                key: const Key('home-sign-out'),
+                onPressed: _signOut,
+                child: const Text('Đăng xuất'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4.0),
+          for (final action in actions)
+            // Own Material: the card paints a background that would hide the ink of the tile.
+            Material(
+              type: MaterialType.transparency,
+              child: ListTile(
+                key: Key('home-action-${action.route}'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: Icon(action.icon, color: NordicColors.primary),
+                title: Text(action.label, style: NordicTypography.labelMedium),
+                subtitle: Text(
+                  action.subtitle,
+                  style: NordicTypography.bodySmall,
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _open(action.route),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +214,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 24.0),
+
+              if (_session != null) ...[
+                _sessionPanel(_session!),
+                const SizedBox(height: 24.0),
+              ],
 
               // Role selector toggle
               Text(
@@ -254,14 +359,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: 'Đặt Ca Ngay',
                         width: double.infinity,
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PhoneInputScreen(
-                                role: AppRole.customer,
-                              ),
-                            ),
+                          final route = routeWhenSignedIn(
+                            sessionRole: _session?.role,
+                            needed: SessionRoles.customer,
+                            route: BookingRoutes.booking,
                           );
+                          if (route != null) {
+                            _open(route);
+                          } else {
+                            _openLogin(AppRole.customer);
+                          }
                         },
                       ),
                     ],
@@ -460,13 +567,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: 'Vào Trực Ca',
                         width: double.infinity,
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const PhoneInputScreen(role: AppRole.worker),
-                            ),
+                          final route = routeWhenSignedIn(
+                            sessionRole: _session?.role,
+                            needed: SessionRoles.worker,
+                            route: WorkerRoutes.slots,
                           );
+                          if (route != null) {
+                            _open(route);
+                          } else {
+                            _openLogin(AppRole.worker);
+                          }
                         },
                       ),
                     ],
@@ -566,4 +676,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+}
+
+/// The role and id of the signed-in user, as the Home reads them.
+class AuthUserView {
+  final String role;
+  final int id;
+
+  const AuthUserView(this.role, this.id);
 }
