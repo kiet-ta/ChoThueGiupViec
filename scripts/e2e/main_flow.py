@@ -35,6 +35,8 @@ class Env:
     sqlcmd = ''
     server = 'localhost'
     database = 'ChoThueGiupViec'
+    sql_user = ''
+    sql_password = ''
     admin_email = 'admin@dev.local'
     admin_password = ''
     verbose = False
@@ -88,7 +90,8 @@ def multipart(field, filename, content, content_type):
 
 
 def sql(query):
-    cmd = [Env.sqlcmd, '-I', '-S', Env.server, '-d', Env.database, '-C', '-W', '-h', '-1', '-Q', 'SET NOCOUNT ON; ' + query]
+    login = ['-U', Env.sql_user, '-P', Env.sql_password] if Env.sql_user else []
+    cmd = [Env.sqlcmd, '-I', '-S', Env.server, '-d', Env.database, *login, '-C', '-W', '-h', '-1', '-Q', 'SET NOCOUNT ON; ' + query]
     out = subprocess.run(cmd, capture_output=True, text=True).stdout
     return [line.strip() for line in out.splitlines() if line.strip()]
 
@@ -380,6 +383,8 @@ def main():
     parser.add_argument('--sqlcmd', default=os.environ.get('SQLCMD', 'sqlcmd'), help='path of sqlcmd (needed to read worker ids and to date the payout month)')
     parser.add_argument('--sql-server', default='localhost')
     parser.add_argument('--database', default='ChoThueGiupViec')
+    parser.add_argument('--sql-user', help='SQL login (default: Windows authentication)')
+    parser.add_argument('--sql-password', default=os.environ.get('E2E_SQL_PASSWORD'), help='password of --sql-user; or env E2E_SQL_PASSWORD')
     parser.add_argument('--only', choices=['premium', 'economy'])
     parser.add_argument('-v', '--verbose', action='store_true')
     args = parser.parse_args()
@@ -387,6 +392,7 @@ def main():
         parser.error('--admin-password (or E2E_ADMIN_PASSWORD) is required')
     Env.base, Env.log, Env.sqlcmd, Env.server, Env.database = args.base_url, args.backend_log, args.sqlcmd, args.sql_server, args.database
     Env.verbose = args.verbose
+    Env.sql_user, Env.sql_password = args.sql_user or '', args.sql_password or ''
     Env.admin_email = args.admin_email
 
     status, _ = call('GET', '/api/dev/payments')

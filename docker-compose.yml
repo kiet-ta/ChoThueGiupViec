@@ -1,0 +1,57 @@
+# UAT stack: SQL Server + migrations + backend (Development) + Web. `docker compose up --build`, then http://localhost:8080.
+# The dev-only SA password has a default; override it with docker/uat.env.example copied to docker/uat.env (--env-file docker/uat.env).
+name: giupviec-uat
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Uat_Passw0rd!2026}
+      MSSQL_PID: Developer
+    ports:
+      - "${DB_HOST_PORT:-14330}:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  migrate:
+    build:
+      context: ./Backend
+      target: migrate
+    environment:
+      CONNECTION: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Uat_Passw0rd!2026};TrustServerCertificate=True;"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./Backend
+      target: runtime
+    environment:
+      # Development: the dev admin is seeded (Seed:Admin:* of appsettings.Development.json), the OTP is written to the log, payments are Fake.
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Uat_Passw0rd!2026};TrustServerCertificate=True;"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "5004:5004"
+
+  web:
+    build:
+      context: ./Frontend
+    depends_on:
+      - backend
+    ports:
+      - "${WEB_HOST_PORT:-8080}:80"
+
+volumes:
+  sqldata:

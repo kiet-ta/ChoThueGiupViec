@@ -37,6 +37,9 @@ export const agenciesApi = {
   bank: () => apiClient.get<AgencyBank>('/agencies/me/bank'),
   saveBank: (bankName: string, bankAccountNo: string) => apiClient.put<AgencyBank>('/agencies/me/bank', { bankName, bankAccountNo }),
 
+  // public registration (no token): a 409 carries data.code AGENCY_TAX_CODE_EXISTS | AGENCY_EMAIL_EXISTS
+  register: (body: Record<string, string>) => apiClient.post<{ agencyId: number }>('/agencies/registration', body),
+
   // WEB-M5-02 worker import
   importTemplate: () => apiClient.download('/agencies/workers/import/template'),
   signGuarantee: (file: File) => apiClient.post<{ guaranteeSignedAt: string }>('/agencies/guarantee', fileForm(file)),

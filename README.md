@@ -14,6 +14,9 @@ cd Backend && dotnet run --launch-profile http
 cd Frontend && npm install && npm run dev
 ```
 
+## UAT environment (Docker)
+`docker compose up --build -d` starts SQL Server, applies the migrations, runs the backend (Development, `:5004`) and the Web (`:8080`); `python scripts/uat/seed.py --admin-password ...` adds a demo agency with workers and a roster. Who tests what is in [scripts/uat/UAT.md](scripts/uat/UAT.md).
+
 ## End-to-end check
 `python scripts/e2e/main_flow.py ...` runs the main flows (Premium agency, Economy freelancer, payout) over HTTP against a local backend and SQL Server: see [scripts/e2e/README.md](scripts/e2e/README.md). Apply the migrations first (`cd Backend && dotnet ef database update`): the backend does not migrate on start.
 
