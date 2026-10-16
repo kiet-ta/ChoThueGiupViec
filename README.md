@@ -14,6 +14,9 @@ cd Backend && dotnet run --launch-profile http
 cd Frontend && npm install && npm run dev
 ```
 
+## End-to-end check
+`python scripts/e2e/main_flow.py ...` runs the main flows (Premium agency, Economy freelancer, payout) over HTTP against a local backend and SQL Server: see [scripts/e2e/README.md](scripts/e2e/README.md). Apply the migrations first (`cd Backend && dotnet ef database update`): the backend does not migrate on start.
+
 ## Rules
 - Never commit secrets (`.env`, API keys). Use `dotnet user-secrets` / env vars; see `Frontend/.env.example`.
 - AI agents: read [AGENTS.md](AGENTS.md) first.
