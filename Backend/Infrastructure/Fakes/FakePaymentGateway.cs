@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Collections.Concurrent;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Enums;
@@ -35,7 +36,10 @@ public sealed class FakePaymentGateway : IPaymentGateway
         }
 
         payload.TryGetValue("gatewayTxnRef", out var reference);
-        var amount = payload.TryGetValue("amount", out var rawAmount) && decimal.TryParse(rawAmount, out var parsed) ? parsed : 0m;
+        // Invariant: the amount is written with a "." decimal point (DevPaymentService, gateway IPN); the current culture of a Vietnamese
+        // Windows PC reads "5000000.00" as 500000000 and every dev confirmation was rejected as an amount mismatch.
+        var amount = payload.TryGetValue("amount", out var rawAmount)
+            && decimal.TryParse(rawAmount, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0m;
         var status = payload.TryGetValue("status", out var rawStatus) ? rawStatus switch
         {
             "success" => PaymentStatus.Success,
