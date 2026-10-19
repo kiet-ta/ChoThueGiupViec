@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/feature_module.dart';
 import 'screens/customer_acceptance_screen.dart';
@@ -32,10 +32,28 @@ class WorkersFeatureModule extends FeatureModule {
     WorkerRoutes.profile: (context) => const WorkerScreen(),
     WorkerRoutes.ekyc: (context) => const WorkerEkycScreen(),
     WorkerRoutes.slots: (context) => const WorkerSlotsScreen(),
-    WorkerRoutes.execution: (context) => const WorkerExecutionScreen(),
-    WorkerRoutes.photos: (context) => const WorkerPhotosScreen(),
+    WorkerRoutes.execution: (context) => withAssignmentArgument(
+      context,
+      (id) => WorkerExecutionScreen(assignmentId: id),
+    ),
+    WorkerRoutes.photos: (context) => withAssignmentArgument(
+      context,
+      (id) => WorkerPhotosScreen(assignmentId: id),
+    ),
     WorkerRoutes.extension: (context) => const WorkerExtensionScreen(),
     WorkerRoutes.customerAcceptance: (context) =>
         const CustomerAcceptanceScreen(),
   };
+}
+
+/// Field-work screens take the accepted assignment id (an `int`) as route argument; the offer and check-in screens push it.
+Widget withAssignmentArgument(
+  BuildContext context,
+  Widget Function(int) build,
+) {
+  final id = ModalRoute.of(context)?.settings.arguments;
+  if (id is int) return build(id);
+  return const Scaffold(
+    body: Center(child: Text('Hãy mở màn này từ một ca đã nhận.')),
+  );
 }

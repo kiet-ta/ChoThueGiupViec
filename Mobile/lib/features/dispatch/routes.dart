@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../app/feature_module.dart';
+import '../workers/routes.dart';
 import 'screens/check_in_screen.dart';
 import 'screens/customer_absent_screen.dart';
 import 'screens/dispatch_offers_screen.dart';
@@ -24,8 +25,10 @@ class DispatchFeatureModule extends FeatureModule {
   @override
   Map<String, WidgetBuilder> get routes => {
     DispatchRoutes.offers: (context) => const DispatchOffersScreen(),
-    DispatchRoutes.checkIn: (context) =>
-        const CheckInScreen(assignmentId: 1001),
+    DispatchRoutes.checkIn: (context) => withAssignmentArgument(
+      context,
+      (id) => CheckInScreen(assignmentId: id),
+    ),
     DispatchRoutes.customerAbsent: (context) => CustomerAbsentScreen(
       assignmentId: 1001,
       checkedInAt: DateTime.now().subtract(const Duration(minutes: 16)),

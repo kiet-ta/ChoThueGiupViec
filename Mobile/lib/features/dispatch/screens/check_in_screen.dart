@@ -11,6 +11,7 @@ import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../models/check_in_result.dart';
 import '../services/dispatch_service.dart';
+import '../../workers/routes.dart';
 
 /// Screen for field arrival check-in with GPS tolerance <=100m and alternative fallback verification (MOB-M3-02).
 class CheckInScreen extends StatefulWidget {
@@ -401,9 +402,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
             NordicButton(
               key: const Key('continue_to_job_button'),
               label: 'Bắt đầu ca làm',
-              onPressed: () {
-                Navigator.of(context).maybePop();
-              },
+              onPressed: () => Navigator.of(context).pushReplacementNamed(
+                WorkerRoutes.execution,
+                arguments: widget.assignmentId,
+              ),
             ),
           ],
         ),

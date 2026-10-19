@@ -21,6 +21,17 @@ class WorkersPhotosService {
     );
   }
 
+  /// Hands the finished job to the customer (POST .../submit-completion -> AWAITING_ACCEPTANCE); needs 3 BEFORE + 3 AFTER photos.
+  Future<ApiResponse<void>> submitCompletion(
+    int assignmentId, {
+    String? notes,
+  }) {
+    return _apiClient.post<void>(
+      '/api/workers/assignments/$assignmentId/submit-completion',
+      body: {'notes': notes},
+    );
+  }
+
   /// Returns all uploaded job photos for an assignment (contract workers.md §2.4.2).
   Future<ApiResponse<List<JobPhotoDto>>> getPhotos(int assignmentId) {
     return _apiClient.get<List<JobPhotoDto>>(
