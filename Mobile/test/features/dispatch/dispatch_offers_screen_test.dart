@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/features/dispatch/models/job_offer.dart';
 import 'package:mobile/features/dispatch/services/dispatch_service.dart';
 import 'package:mobile/features/dispatch/screens/dispatch_offers_screen.dart';
 
@@ -112,5 +113,50 @@ void main() {
       expect(find.text('Chưa có cuốc mới'), findsOneWidget);
       expect(find.textContaining('Hệ thống đang quét'), findsOneWidget);
     });
+    testWidgets(
+      'an offer made after the screen opened shows up without a tap; polling stops on dispose',
+      (tester) async {
+        final late = _LateOfferService();
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: DispatchOffersScreen(
+              dispatchService: late,
+              pollInterval: const Duration(seconds: 5),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Chưa có cuốc mới'), findsOneWidget);
+
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('accept_offer_button')), findsOneWidget);
+        final callsWithOffer = late.calls;
+
+        await tester.pump(const Duration(seconds: 15));
+        expect(
+          late.calls,
+          callsWithOffer,
+          reason: 'no polling while an offer is shown',
+        );
+
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(seconds: 15));
+        expect(late.calls, callsWithOffer, reason: 'no polling after dispose');
+      },
+    );
   });
+}
+
+/// No offer on the first call, the mock offer afterwards.
+class _LateOfferService extends DispatchService {
+  _LateOfferService() : super(isMock: true);
+  int calls = 0;
+
+  @override
+  Future<JobOffer?> getCurrentOffer() {
+    calls++;
+    return calls == 1 ? Future.value(null) : super.getCurrentOffer();
+  }
 }
