@@ -6,7 +6,9 @@ import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../models/customer_address.dart';
+import '../models/vn_admin_units.dart';
 import '../services/customer_address_service.dart';
+import '../widgets/admin_unit_picker_field.dart';
 import '../widgets/area_calculator_card.dart';
 import '../widgets/gps_picker.dart';
 
@@ -32,9 +34,11 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
 
   late final TextEditingController _labelController;
   late final TextEditingController _addressLineController;
-  late final TextEditingController _districtController;
-  late final TextEditingController _cityController;
   late final TextEditingController _floorAreaController;
+
+  /// Province or city, then ward / commune of [vietnamAdminUnits] (sent as `city` and `district`).
+  String? _city;
+  String? _ward;
   late final TextEditingController _numFloorsController;
 
   late HousingType _housingType;
@@ -57,12 +61,9 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     _addressLineController = TextEditingController(
       text: init?.addressLine ?? '',
     );
-    _districtController = TextEditingController(
-      text: init?.district ?? 'Quận 1',
-    );
-    _cityController = TextEditingController(
-      text: init?.city ?? 'TP. Hồ Chí Minh',
-    );
+    // A new address starts in Ho Chi Minh City, like the GPS default below; an old address keeps its saved text.
+    _city = init?.city ?? 'Thành phố Hồ Chí Minh';
+    _ward = init?.district;
     _floorAreaController = TextEditingController(
       text: init != null ? init.floorAreaM2.toString() : '60.0',
     );
@@ -85,8 +86,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     _numFloorsController.removeListener(_onAreaChanged);
     _labelController.dispose();
     _addressLineController.dispose();
-    _districtController.dispose();
-    _cityController.dispose();
     _floorAreaController.dispose();
     _numFloorsController.dispose();
     super.dispose();
@@ -140,8 +139,8 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
         addressId: widget.initialAddress?.addressId ?? 0,
         label: _labelController.text.trim(),
         addressLine: _addressLineController.text.trim(),
-        district: _districtController.text.trim(),
-        city: _cityController.text.trim(),
+        district: _ward!,
+        city: _city!,
         housingType: _housingType,
         floorAreaM2: _currentFloorArea,
         numFloors: _currentNumFloors,
@@ -271,8 +270,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                         controller: _addressLineController,
                         decoration: const InputDecoration(
                           labelText: 'Địa chỉ chi tiết (Số nhà, tên đường)*',
-                          hintText:
-                              'Ví dụ: 123 Nguyễn Thị Minh Khai, P. Bến Thành',
+                          hintText: 'Ví dụ: 123 Nguyễn Thị Minh Khai',
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
@@ -286,40 +284,31 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                         },
                       ),
                       const SizedBox(height: 12.0),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _districtController,
-                              decoration: const InputDecoration(
-                                labelText: 'Quận / Huyện*',
-                                border: OutlineInputBorder(),
-                              ),
-                              validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
-                                  return 'Nhập Quận/Huyện';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10.0),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _cityController,
-                              decoration: const InputDecoration(
-                                labelText: 'Tỉnh / Thành phố*',
-                                border: OutlineInputBorder(),
-                              ),
-                              validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
-                                  return 'Nhập Tỉnh/TP';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
+                      AdminUnitPickerField(
+                        label: 'Tỉnh / Thành phố',
+                        value: _city,
+                        options: vietnamAdminUnits.keys.toList(),
+                        requiredMessage: 'Vui lòng chọn Tỉnh/Thành phố',
+                        notInListMessage:
+                            'Chọn lại Tỉnh/Thành phố theo danh mục mới',
+                        onSelected: (city) => setState(() {
+                          _city = city;
+                          _ward = null;
+                        }),
+                      ),
+                      const SizedBox(height: 12.0),
+                      AdminUnitPickerField(
+                        label: 'Phường / Xã',
+                        value: _ward,
+                        options: vietnamAdminUnits[_city] ?? const [],
+                        enabled: vietnamAdminUnits.containsKey(_city),
+                        helperText: vietnamAdminUnits.containsKey(_city)
+                            ? null
+                            : 'Chọn Tỉnh/Thành phố trước',
+                        requiredMessage: 'Vui lòng chọn Phường/Xã',
+                        notInListMessage:
+                            'Chọn lại Phường/Xã theo danh mục mới',
+                        onSelected: (ward) => setState(() => _ward = ward),
                       ),
                     ],
                   ),
