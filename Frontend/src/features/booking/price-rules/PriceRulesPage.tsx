@@ -56,7 +56,7 @@ export function PriceRulesPage() {
         <h1 className="text-2xl font-semibold">Bảng giá dịch vụ</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Đơn giá cho một thợ, một ca (tối đa 4 giờ). Giá mới chỉ áp dụng cho đơn tạo sau khi sửa; đơn đã tạo giữ nguyên giá đã chốt.
-          Mọi lần sửa đều phải có lý do và được ghi vào lịch sử.
+          Mọi lần sửa đều phải có lý do và được ghi vào lịch sử. Bấm vào một dòng để sửa.
         </p>
       </header>
 
