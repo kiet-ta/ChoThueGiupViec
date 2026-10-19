@@ -234,8 +234,9 @@ public class JobPhotoTests
         var req = new UploadJobPhotoRequest(PhotoPhase: "BEFORE", AngleNo: 1, PhotoUrl: "https://storage.local/jobs/angle1_blur.jpg");
 
         // Act & Assert
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        var error = await Assert.ThrowsAsync<ValidationException>(() =>
             handler.Handle(new UploadJobPhotoCommand(assignment.AssignmentId, req), CancellationToken.None));
+        Assert.StartsWith("Ảnh bị mờ", error.Errors["volScore"].Single());
 
         // Rejected photo is saved in DB for audit trail
         var photoInDb = await db.JobPhotos.FirstOrDefaultAsync(p => p.AssignmentId == assignment.AssignmentId && p.AngleNo == 1);

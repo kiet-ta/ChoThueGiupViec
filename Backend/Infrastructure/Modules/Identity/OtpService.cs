@@ -89,7 +89,7 @@ public sealed class OtpService : IOtpService
             if (elapsedSeconds < cooldownSeconds)
             {
                 var retryAfter = (int)Math.Max(1, Math.Ceiling(cooldownSeconds - elapsedSeconds));
-                return OtpRequestResult.RateLimited(retryAfter, $"Please wait {retryAfter} seconds before requesting a new OTP code.");
+                return OtpRequestResult.RateLimited(retryAfter, $"Vui lòng đợi {retryAfter} giây trước khi yêu cầu mã OTP mới.");
             }
         }
 

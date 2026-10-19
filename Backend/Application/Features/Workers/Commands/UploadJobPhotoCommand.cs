@@ -122,7 +122,7 @@ public sealed class UploadJobPhotoCommandHandler(
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
-                { "volScore", [$"Photo blur score ({volScore:F1}) is below threshold ({_rules.Vol.Threshold:F1}). Please retake a sharper photo."] }
+                { "volScore", [$"Ảnh bị mờ (độ nét {volScore:F1}, cần tối thiểu {_rules.Vol.Threshold:F1}). Vui lòng chụp lại ảnh rõ hơn."] }
             });
         }
 
