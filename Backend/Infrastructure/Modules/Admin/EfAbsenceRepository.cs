@@ -97,7 +97,7 @@ public sealed class EfAbsenceRepository(AppDbContext db) : IAbsenceRepository
             WorkerName = w.FullName,
             WorkerType = w.WorkerType,
             AgencyName = db.PartnerAgencies.Where(p => p.AgencyId == w.AgencyId).Select(p => p.LegalName).FirstOrDefault(),
-            CustomerName = c.FullName,
+            CustomerName = c.FullName.Length == 0 ? c.PhoneNumber : c.FullName, // no name yet: show the phone number
             AssignmentStatus = a.AssignmentStatus,
             GrossAmount = a.GrossAmount,
             AbsenceFeeAmount = a.AbsenceFeeAmount,

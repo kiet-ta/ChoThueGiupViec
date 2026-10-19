@@ -150,7 +150,8 @@ public sealed class EfDisputeRepository(AppDbContext db) : IDisputeRepository
             from o in db.JobOrders.AsNoTracking()
             join c in db.Customers.AsNoTracking() on o.CustomerId equals c.CustomerId
             where ids.Contains(o.OrderId)
-            select new { o.OrderId, o.OrderCode, c.FullName })
+            // A customer who signed up with the phone only has no name yet: the Admin then sees the phone number (it has somebody to call).
+            select new { o.OrderId, o.OrderCode, FullName = c.FullName.Length == 0 ? c.PhoneNumber : c.FullName })
             .ToListAsync(cancellationToken);
 
         var workers = await (
