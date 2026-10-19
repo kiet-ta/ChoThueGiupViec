@@ -28,6 +28,7 @@ public sealed class DispatchModule : IModule
         services.AddScoped<CustomerAbsentService>();
         services.AddScoped<WorkerDispatchService>();
         services.AddScoped<ConsecutiveShiftFallbackService>();
+        services.AddScoped<IAdminIncidentQuery, EfAdminIncidentQuery>(); // Admin incident monitor (read only)
         services.AddHostedService<OfferExpiryWorker>();
     }
 }

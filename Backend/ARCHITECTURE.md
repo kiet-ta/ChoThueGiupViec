@@ -350,6 +350,8 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **Read-only access to other modules' tables** (`JOB_ORDER`, `JOB_ASSIGNMENT`, `DISPUTE_TICKET`) because no read port exists (contract question A6).
 - Tests: `Tests/Admin/AdminDashboardTests.cs` (window edges, mapping, DTO shape, controller, and one SQL Server test that seeds the edges of the day and week in 2092 and compares against the baseline counts; rows removed afterwards).
 
+- **Admin incident monitor (ADMIN-UAT-05, contract `dispatch.md` 3.3):** `GET api/dispatch/admin/incidents` (`AdminDispatchController`, `AdminOnly`) reads `INCIDENT_LOG` + `JOB_ASSIGNMENT` through `IAdminIncidentQuery` / `EfAdminIncidentQuery` (read only, newest first, 200 rows; stored `redispatch_status` mapped to `SEARCHING` / `REASSIGNED` / `FAILED` by `AdminIncidentStatus`). The Web page `features/dispatch` shows it and has no mock fallback. A worker cannot report an incident over HTTP yet.
+
 ### 7.6 Audit log (`IAuditLog`, BE-M6-09a, decisions G-5 / SC-3)
 - The real implementation is `Infrastructure/Modules/Admin/EfAuditLog.cs`, registered by `AdminModule` (`IModule`), so it wins over `FakeAuditLog`. The port is unchanged: `Task WriteAsync(AuditEntry entry, CancellationToken ct)`.
 - **Same unit of work:** `WriteAsync` only adds the `ADMIN_AUDIT_LOG` row to the scoped `AppDbContext`; it never calls `SaveChanges`. A module therefore calls it **before** its own `SaveChangesAsync` / `IUnitOfWork` commit (inside `ExecuteInTransactionAsync` when it has one), and the change and its audit row commit or roll back together.

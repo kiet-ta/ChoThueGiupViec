@@ -355,6 +355,7 @@ Admin từ chối báo cáo khách vắng mặt (nếu phát hiện gian lận).
 Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 
 - Response 200: `ApiResponse<List<IncidentLogDto>>`
+- **Implemented by ADMIN-UAT-05** (`AdminDispatchController`, `EfAdminIncidentQuery`): newest first, at most 200 rows, from `INCIDENT_LOG` joined with `JOB_ASSIGNMENT` (worker id). The stored `redispatch_status` is mapped to the contract values: `PENDING_REDISPATCH` -> `SEARCHING`, `REPLACED` -> `REASSIGNED`, `DECLINED_BY_CUSTOMER` and `TIMEOUT_CANCELLED` -> `FAILED`. `reDispatchDeadline` = `reportedAt` + `IncidentService.RedispatchWindowMinutes` (5). `substituteWorkerId` is always null: the table does not store it. **Known gap:** no HTTP endpoint lets a worker report an incident yet (`IncidentService` exists, `WorkerDispatchController` has no incident action), so the list is empty until one exists. The Admin console shows exactly this list; it no longer falls back to invented sample incidents.
 
 #### `POST /api/dispatch/admin/emergency-rescue`
 Admin can thiệp điều phối "Cứu hộ khẩn cấp" (Super-Freelancer) khi Agency không có thợ thay thế (Pha 2, §2.5, Q12).

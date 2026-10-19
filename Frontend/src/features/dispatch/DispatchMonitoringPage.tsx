@@ -136,10 +136,10 @@ export function DispatchMonitoringPage() {
   ]
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Giám Sát Điều Phối & Sự Cố</h1>
+          <h1 className="text-2xl font-semibold">Giám sát điều phối & sự cố</h1>
           <p className="text-sm text-muted-foreground">
             Bảng điều hành thời gian thực về điều phối và sự cố bất khả kháng hiện trường (BR-10).
           </p>
