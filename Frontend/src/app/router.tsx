@@ -21,7 +21,8 @@ export const router = createBrowserRouter([
       </RequireRole>
     ),
     children: [
-      { index: true, element: <AreaHomePage title="Admin console" /> },
+      // The sidebar's first item is the dashboard; the bare /admin used to be an empty page.
+      { index: true, element: <Navigate to="dashboard" replace /> },
       ...routesFor('admin'),
       { path: '*', element: <AreaNotFoundPage homeTo="/admin" /> },
     ],

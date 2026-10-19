@@ -130,7 +130,7 @@ export function VerdictPanel({ disputeId, workers, onDone }: { disputeId: number
             <span>
               <span className="font-medium">Khoá tài khoản thợ (cảnh cáo)</span>
               <span className="block text-muted-foreground">
-                Hệ thống ghi nhận yêu cầu khoá vào nhật ký; việc khoá thật do module Thợ thực hiện và chưa nối, nên tài khoản chưa tự bị khoá.
+                Khoá ngay khi phán quyết có hiệu lực: thợ không nhận thêm ca nào cho tới khi được mở khoá. Ghi vào nhật ký kiểm toán.
               </span>
             </span>
           </label>

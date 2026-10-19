@@ -13,6 +13,7 @@ import {
   safeEvidenceUrl,
   resolveRequest,
   statusInfo,
+  timelineDetail,
   timelineRows,
   toComparePhotos,
   validateResolve,
@@ -134,6 +135,29 @@ describe('timelineRows', () => {
 
   it('is empty for no events', () => {
     assert.deepEqual(timelineRows([]), [])
+  })
+
+  it('writes the detail of each line in Vietnamese from the fields and never prints the backend English', () => {
+    const rows = timelineRows(entries)
+
+    assert.deepEqual(rows.map((r) => r.detail), ['cách địa chỉ 12.5 m', 'góc 1, đạt', 'do khách gửi', ''])
+    assert.ok(rows.every((r) => !/[A-Za-z]{4,} [a-z]+ /.test(r.detail)))
+  })
+
+  it('reads a rejected photo, a dispute filed by the worker, a check-in without distance and an unknown type', () => {
+    assert.equal(timelineDetail({ at: 'x', type: 'PHOTO_AFTER', detail: 'After photo, angle 3, rejected' }), 'góc 3, bị từ chối')
+    assert.equal(timelineDetail({ at: 'x', type: 'CUSTOMER_DISPUTED', detail: 'Dispute filed by WORKER' }), 'do thợ gửi')
+    assert.equal(timelineDetail({ at: 'x', type: 'CHECK_IN', detail: 'whatever', distanceM: null }), '')
+    assert.equal(timelineDetail({ at: 'x', type: 'CHECK_IN', detail: 'x', distanceM: 0 }), 'cách địa chỉ 0 m')
+    assert.equal(timelineDetail({ at: 'x', type: 'X', detail: 'Something in English' }), '')
+    assert.equal(timelineDetail({ at: 'x', type: 'PHOTO_AFTER', detail: 'unexpected' }), '')
+  })
+
+  it('the verdict texts say the freelancer is locked now, not only recorded', () => {
+    const lines = effectText({ fault: 'FREELANCER', amount: '80000', lockWorker: true, note: 'n' } as ResolveForm)
+
+    assert.ok(lines.some((l) => l.startsWith('Khoá tài khoản thợ ngay')))
+    assert.ok(!lines.some((l) => l.includes('module Thợ')))
   })
 })
 
@@ -268,7 +292,7 @@ describe('effectText', () => {
     assert.deepEqual(effectText(form({ fault: 'FREELANCER', amount: '100000', lockWorker: true })), [
       'Hoàn 100.000 đ cho khách ngay.',
       'Trừ 100.000 đ vào kỳ payout kế tiếp của thợ.',
-      'Ghi nhận yêu cầu khoá tài khoản thợ (việc khoá do module Thợ thực hiện).',
+      'Khoá tài khoản thợ ngay: thợ không nhận thêm ca nào cho tới khi được mở khoá.',
     ])
   })
 

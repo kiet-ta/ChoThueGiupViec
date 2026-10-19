@@ -139,10 +139,31 @@ export function timelineRows(entries: TimelineEntry[]): TimelineRow[] {
       key: `${e.at}-${e.type}-${i}`,
       time: formatDateTime(e.at),
       label: TIMELINE_LABELS[e.type] ?? e.type,
-      detail: e.detail,
+      detail: timelineDetail(e),
       badge,
     }
   })
+}
+
+/**
+ * The detail of a timeline line in Vietnamese. The backend writes English sentences ("After photo, angle 1, accepted"); the page reads
+ * the numbers it needs from the fields and from those sentences instead of printing them, and prints nothing it does not understand.
+ */
+export function timelineDetail(e: TimelineEntry): string {
+  switch (e.type) {
+    case 'CHECK_IN':
+      return e.distanceM === null || e.distanceM === undefined ? '' : `cách địa chỉ ${Math.round(e.distanceM * 10) / 10} m`
+    case 'PHOTO_AFTER': {
+      const m = /angle (\d+), (accepted|rejected)/i.exec(e.detail)
+      return m ? `góc ${m[1]}, ${m[2].toLowerCase() === 'accepted' ? 'đạt' : 'bị từ chối'}` : ''
+    }
+    case 'CUSTOMER_DISPUTED': {
+      const m = /filed by (CUSTOMER|WORKER)/i.exec(e.detail)
+      return m ? (m[1].toUpperCase() === 'CUSTOMER' ? 'do khách gửi' : 'do thợ gửi') : ''
+    }
+    default:
+      return ''
+  }
 }
 
 /** The assignments of the order that have photos, ascending; the viewer shows one at a time. */
@@ -241,7 +262,7 @@ export function effectText(form: ResolveForm): string[] {
   switch (form.fault) {
     case 'FREELANCER': {
       const lines = amount > 0 ? [`Hoàn ${formatVnd(amount)} cho khách ngay.`, `Trừ ${formatVnd(amount)} vào kỳ payout kế tiếp của thợ.`] : ['Ghi nhận lỗi của Freelancer, không có khoản tiền nào.']
-      if (form.lockWorker) lines.push('Ghi nhận yêu cầu khoá tài khoản thợ (việc khoá do module Thợ thực hiện).')
+      if (form.lockWorker) lines.push('Khoá tài khoản thợ ngay: thợ không nhận thêm ca nào cho tới khi được mở khoá.')
       return lines
     }
     case 'AGENCY':
