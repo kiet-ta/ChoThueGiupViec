@@ -44,6 +44,72 @@ public class EkycAuditTests
     }
 
     [Fact]
+    public async Task GetEkycQueueQuery_FiltersByStatus_PendingApprovedByAdminAndRejected_AndRefusesAnythingElse()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+        var repository = new EfWorkerRepository(db);
+
+        Worker NewWorker(string name)
+        {
+            var w = Worker.CreateFreelancer($"095{Random.Shared.Next(1000000, 9999999)}", $"012{Random.Shared.Next(100000000, 999999999)}", name);
+            db.Workers.Add(w);
+            return w;
+        }
+
+        var admin = new AdminAccount
+        {
+            Email = "ekyc-" + Guid.NewGuid().ToString("N")[..10] + "@example.test",
+            FullName = "Ekyc Queue Admin",
+            PasswordHash = "x",
+            AdminRole = "SUPER_ADMIN",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+        db.Admins.Add(admin);
+        await db.SaveChangesAsync();
+
+        var waiting = NewWorker("Queue Waiting");
+        waiting.SetKycResult(72.0m, "MANUAL_REVIEW");
+        var approved = NewWorker("Queue Approved By Admin");
+        approved.SetKycResult(72.0m, "MANUAL_REVIEW");
+        approved.ReviewKyc(approved: true, adminId: admin.AdminId);
+        var autoApproved = NewWorker("Queue Auto Approved");
+        autoApproved.SetKycResult(92.0m, "APPROVED"); // approved by the provider: nobody reviewed it
+        var rejected = NewWorker("Queue Rejected");
+        rejected.SetKycResult(40.0m, "MANUAL_REVIEW");
+        rejected.ReviewKyc(approved: false, adminId: admin.AdminId);
+        await db.SaveChangesAsync();
+
+        var handler = new GetEkycQueueQueryHandler(repository, new TestCurrentUser { UserId = 1, Role = UserRole.Admin });
+        async Task<List<int>> Ids(string? status) =>
+            (await handler.Handle(new GetEkycQueueQuery(1, 200, status!), CancellationToken.None)).Data!.Items.Select(i => i.WorkerId).ToList();
+
+        var pending = await Ids("PENDING");
+        Assert.Contains(waiting.WorkerId, pending);
+        Assert.DoesNotContain(approved.WorkerId, pending);
+        Assert.DoesNotContain(rejected.WorkerId, pending);
+
+        var approvedList = await Ids("approved"); // case-insensitive
+        Assert.Contains(approved.WorkerId, approvedList);
+        Assert.DoesNotContain(waiting.WorkerId, approvedList);
+        Assert.DoesNotContain(autoApproved.WorkerId, approvedList);
+
+        var rejectedList = await Ids("REJECTED");
+        Assert.Contains(rejected.WorkerId, rejectedList);
+        Assert.DoesNotContain(waiting.WorkerId, rejectedList);
+
+        Assert.Contains(waiting.WorkerId, await Ids(null)); // no status = PENDING
+
+        var error = await Assert.ThrowsAsync<CommonService.Application.Exceptions.ValidationException>(() => Ids("DONE"));
+        Assert.Contains("status", error.Errors.Keys);
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
     public async Task GetEkycQueueQuery_ReturnsPagedManualReviewAndAuditItems()
     {
         if (!IsSqlServerAvailable()) return;

@@ -67,7 +67,7 @@ export function EkycAuditQueuePage() {
   const [refreshVersion, setRefreshVersion] = useState(0)
 
   const queueResource = useResource(
-    () => workersApi.listEkycQueue(page, PAGE_SIZE),
+    () => workersApi.listEkycQueue(page, PAGE_SIZE, statusTab),
     [page, statusTab, refreshVersion]
   )
 

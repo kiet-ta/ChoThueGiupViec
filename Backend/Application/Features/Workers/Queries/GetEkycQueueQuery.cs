@@ -7,7 +7,7 @@ using MediatR;
 
 namespace CommonService.Application.Features.Workers.Queries;
 
-public sealed record GetEkycQueueQuery(int Page = 1, int PageSize = 20) : IRequest<ApiResponse<EkycQueuePagedResponse>>;
+public sealed record GetEkycQueueQuery(int Page = 1, int PageSize = 20, string Status = EkycQueueStatus.Pending) : IRequest<ApiResponse<EkycQueuePagedResponse>>;
 
 public sealed class GetEkycQueueQueryHandler(
     IWorkerRepository workerRepository,
@@ -22,7 +22,16 @@ public sealed class GetEkycQueueQueryHandler(
         }
 
 
-        var (workers, totalCount) = await workerRepository.GetEkycQueueAsync(query.Page, query.PageSize, cancellationToken);
+        var status = string.IsNullOrWhiteSpace(query.Status) ? EkycQueueStatus.Pending : query.Status.Trim().ToUpperInvariant();
+        if (!EkycQueueStatus.All.Contains(status))
+        {
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                ["status"] = [$"Status must be one of: {string.Join(", ", EkycQueueStatus.All)}."],
+            });
+        }
+
+        var (workers, totalCount) = await workerRepository.GetEkycQueueAsync(query.Page, query.PageSize, status, cancellationToken);
 
         var queueItems = workers.Select(w => new EkycQueueItemResponse(
             w.WorkerId,

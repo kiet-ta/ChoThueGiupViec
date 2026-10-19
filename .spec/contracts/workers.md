@@ -178,7 +178,9 @@ Submits CCCD photos and selfie for automated eKYC verification (`IEkycProvider`,
 #### 2.2.2 `GET /api/admin/workers/ekyc-queue` (AdminOnly)
 Lists pending manual eKYC reviews for Admin.
 
-**Query Parameters:** `page=1&pageSize=20`
+**Query Parameters:** `page=1&pageSize=20&status=PENDING`. `status` (ADMIN-UAT-06) selects the list of the Admin audit page: `PENDING` (default: `MANUAL_REVIEW`, `PENDING`, `AUDIT_PENDING`), `APPROVED` (`kyc_status = APPROVED` and `kyc_reviewed_by` set, that is approved by an Admin; a worker the provider approved is not in it) or `REJECTED`; any other value is a 400 with `errors.status`. The Web page sends the tab it shows.
+
+**Known gap:** `frontCccdUrl`, `backCccdUrl` and `selfieUrl` are always null: the worker's photo addresses are validated and passed to the provider but not stored (no column), so the Admin review dialog has no photo to compare. Needs a schema decision of M1/M4.
 
 **Response 200 `data` (`PagedList<EkycQueueItemResponse>`):**
 ```json

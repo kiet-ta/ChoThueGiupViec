@@ -1,5 +1,5 @@
 import { formatDateTime } from '../../lib/format.ts'
-import type { EkycFilterStatus, EkycQueueItemResponse } from './types'
+import type { EkycFilterStatus, EkycQueueItemResponse, EkycReviewRequest } from './types'
 
 export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent'
 
@@ -84,27 +84,12 @@ export function parseActionError(err: FailedCall): ActionError {
   return { message: err.message || 'Thao tác không thành công.', reasons: [] }
 }
 
-export const MOCK_EKYC_QUEUE: EkycQueueItemResponse[] = [
-  {
-    workerId: 102,
-    fullName: 'Trần Văn Bình',
-    phoneNumber: '0987654321',
-    nationalId: '098765432109',
-    frontCccdUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-    backCccdUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
-    selfieUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
-    confidenceScore: 78.5,
-    submittedAt: '2026-10-08T11:30:00Z',
-  },
-  {
-    workerId: 105,
-    fullName: 'Phạm Thị Hoa',
-    phoneNumber: '0912345678',
-    nationalId: '012345678905',
-    frontCccdUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&auto=format&fit=crop&q=80',
-    backCccdUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
-    selfieUrl: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=600&auto=format&fit=crop&q=80',
-    confidenceScore: 65.2,
-    submittedAt: '2026-10-08T14:15:00Z',
-  },
-]
+/** Path and query of the list call: the tab is sent, so each tab shows its own list. */
+export function ekycQueueRequest(page: number, pageSize: number, status: EkycFilterStatus) {
+  return { path: '/admin/workers/ekyc-queue', query: { page, pageSize, status } }
+}
+
+/** Path and body of the review call. The body is the request itself: wrapping it (`{ body }`) made the server read "approved" as false. */
+export function ekycReviewRequest(workerId: number, body: EkycReviewRequest) {
+  return { path: `/admin/workers/${workerId}/ekyc-review`, body }
+}
