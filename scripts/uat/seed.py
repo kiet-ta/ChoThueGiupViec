@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Sample data for UAT (Python 3.9+, standard library only; reuses the helpers of scripts/e2e/main_flow.py).
 
-Creates, once, a demo agency with everything a Partner tester needs: registered, escrow paid (ACTIVE), Pro package (Verified Partner),
-guarantee signed, bank account, 3 workers and a roster for the next days. Running it again is harmless (it reuses what exists).
+Creates, once, a sandbox demo agency with everything a Partner tester needs: registered, escrow paid (ACTIVE), Pro package (Verified Partner),
+a synthetic guarantee placeholder, bank account, 3 workers and a roster for the next days. The placeholder is not signed and is not a legally valid guarantee. Running it again is harmless (it reuses what exists).
 Needs the backend in Development (dev payment tool). Prints the logins at the end.
 """
 import argparse
@@ -64,8 +64,10 @@ def main():
         pay_open_payment(mf.data_of(response)['gatewayTxnRef'])
         print('subscription: Pro monthly paid')
 
+    # Sandbox-only placeholder accepted by the file-header check; never a signed or legally valid guarantee.
     body, ctype = mf.multipart('file', 'guarantee.pdf', b'%PDF-1.4\n%%EOF\n', 'application/pdf')
     mf.call('POST', '/api/agencies/guarantee', token=partner, raw=(body, ctype))
+    print('guarantee: sandbox-only synthetic placeholder; not a signed legal document')
     _, template = mf.download('/api/agencies/workers/import/template', partner)
     header = mf.read_xlsx_rows(template)[0]
     body, ctype = mf.multipart('file', 'workers.xlsx', mf.build_xlsx([header] + [[n, p, i, 'VCB', '0011001234'] for n, p, i in WORKERS]), mf.XLSX_TYPE)
