@@ -732,6 +732,76 @@
         }
       }
     },
+    "/api/dispatch/admin/incidents": {
+      "get": {
+        "tags": [
+          "AdminDispatch"
+        ],
+        "operationId": "AdminDispatch_Incidents",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIncidentDtoIReadOnlyListApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIncidentDtoIReadOnlyListApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIncidentDtoIReadOnlyListApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/disputes": {
       "get": {
         "tags": [
@@ -12025,6 +12095,84 @@
           },
           "data": {
             "$ref": "#/components/schemas/AdminDisputeDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdminIncidentDto": {
+        "type": "object",
+        "properties": {
+          "incidentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "workerId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "incidentType": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "photoEvidenceUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "reportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isPenaltyExempt": {
+            "type": "boolean"
+          },
+          "reDispatchStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "reDispatchDeadline": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "substituteWorkerId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdminIncidentDtoIReadOnlyListApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminIncidentDto"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
