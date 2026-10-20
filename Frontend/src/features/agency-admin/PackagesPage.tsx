@@ -36,7 +36,7 @@ export function PackagesPage() {
         <h1 className="text-2xl font-semibold">Gói thuê bao của đối tác</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Sửa giá, hạn mức thợ hoặc hoa hồng. Mọi lần sửa bắt buộc có lý do và được ghi vào lịch sử. Giá mới chỉ áp dụng cho lần mua sau; hoa hồng của
-          ca đã tạo không đổi.
+          ca đã tạo không đổi. Bấm vào một dòng để sửa.
         </p>
       </header>
 
