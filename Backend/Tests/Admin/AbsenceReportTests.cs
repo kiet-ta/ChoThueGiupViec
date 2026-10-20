@@ -927,6 +927,35 @@ public class AbsenceReportTests
     }
 
     [Fact]
+    public async Task Real_database_the_report_shows_the_customer_name_or_the_phone_when_the_name_is_empty()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        var now = DateTime.UtcNow;
+        var s = await SeedAsync(now);
+        try
+        {
+            await using var db = new AppDbContext(Options());
+            var named = await new EfAbsenceRepository(db).GetAsync(s.AssignmentId);
+            Assert.False(string.IsNullOrEmpty(named!.CustomerName));
+
+            var customer = await db.Customers.SingleAsync(c => c.CustomerId == s.CustomerId);
+            var previous = customer.FullName;
+            customer.FullName = string.Empty;
+            await db.SaveChangesAsync();
+
+            await using var again = new AppDbContext(Options());
+            var unnamed = await new EfAbsenceRepository(again).GetAsync(s.AssignmentId);
+            Assert.Equal(customer.PhoneNumber, unnamed!.CustomerName);
+            Assert.NotEqual(previous, unnamed.CustomerName);
+        }
+        finally
+        {
+            await CleanAsync(s);
+        }
+    }
+
+    [Fact]
     public async Task Real_database_the_notification_reads_find_the_active_admins_and_the_customer_of_the_order()
     {
         if (!IsSqlServerAvailable()) return;

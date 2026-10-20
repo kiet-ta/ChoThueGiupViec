@@ -556,6 +556,33 @@ public class DisputeVerdictTests
     }
 
     [Fact]
+    public async Task Real_database_the_summary_shows_the_customer_name_or_the_phone_when_the_name_is_empty()
+    {
+        if (!DisputeEndpointTests.IsSqlServerAvailable()) return;
+
+        var now = DateTime.UtcNow;
+        var s = await DisputeEndpointTests.SeedAsync(now);
+        try
+        {
+            await using var db = new AppDbContext(DisputeEndpointTests.Options());
+            var named = (await new EfDisputeRepository(db).GetSummaryDataAsync([s.OrderIds[0]]))[s.OrderIds[0]];
+            Assert.Equal("Dispute Customer", named.CustomerName);
+
+            var customer = await db.Customers.SingleAsync(c => c.CustomerId == s.CustomerId);
+            customer.FullName = string.Empty;
+            await db.SaveChangesAsync();
+
+            await using var again = new AppDbContext(DisputeEndpointTests.Options());
+            var unnamed = (await new EfDisputeRepository(again).GetSummaryDataAsync([s.OrderIds[0]]))[s.OrderIds[0]];
+            Assert.Equal(customer.PhoneNumber, unnamed.CustomerName);
+        }
+        finally
+        {
+            await CleanVerdictAsync(s, s.OrderIds);
+        }
+    }
+
+    [Fact]
     public async Task Real_database_lock_freelancers_locks_a_worker_once_and_skips_one_that_is_already_locked()
     {
         if (!DisputeEndpointTests.IsSqlServerAvailable()) return;
