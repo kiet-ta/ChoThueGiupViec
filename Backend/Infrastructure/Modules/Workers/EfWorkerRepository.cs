@@ -49,13 +49,19 @@ public sealed class EfWorkerRepository(AppDbContext dbContext) : IWorkerReposito
             .AnyAsync(w => w.PhoneNumber == phoneNumber || w.NationalId == nationalId, cancellationToken);
     }
 
-    public async Task<(IReadOnlyList<Worker> Items, int TotalCount)> GetEkycQueueAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<Worker> Items, int TotalCount)> GetEkycQueueAsync(
+        int page, int pageSize, string status = EkycQueueStatus.Pending, CancellationToken cancellationToken = default)
     {
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : pageSize;
 
-        var query = dbContext.Workers.AsNoTracking()
-            .Where(w => w.KycStatus == "MANUAL_REVIEW" || w.KycStatus == "PENDING" || w.KycStatus == "AUDIT_PENDING");
+        var workers = dbContext.Workers.AsNoTracking();
+        var query = status switch
+        {
+            EkycQueueStatus.Approved => workers.Where(w => w.KycStatus == "APPROVED" && w.KycReviewedBy != null),
+            EkycQueueStatus.Rejected => workers.Where(w => w.KycStatus == "REJECTED"),
+            _ => workers.Where(w => w.KycStatus == "MANUAL_REVIEW" || w.KycStatus == "PENDING" || w.KycStatus == "AUDIT_PENDING"),
+        };
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query

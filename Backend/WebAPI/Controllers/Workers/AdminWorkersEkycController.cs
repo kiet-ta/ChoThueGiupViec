@@ -20,14 +20,16 @@ public class AdminWorkersEkycController(ISender sender) : ControllerBase
     /// <summary>Lists pending manual eKYC reviews and sample audits for Admin (contract §2.2.2).</summary>
     [HttpGet("ekyc-queue")]
     [ProducesResponseType(typeof(ApiResponse<EkycQueuePagedResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetEkycQueue(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string status = "PENDING",
         CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetEkycQueueQuery(page, pageSize), ct);
+        var result = await sender.Send(new GetEkycQueueQuery(page, pageSize, status), ct);
         return Ok(result);
     }
 

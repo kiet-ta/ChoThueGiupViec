@@ -6,6 +6,8 @@ import {
   parseActionError,
   validateRejectionReason,
   TABS,
+  ekycQueueRequest,
+  ekycReviewRequest,
 } from '../src/features/workers/view.ts'
 import type { EkycQueueItemResponse } from '../src/features/workers/types.ts'
 
@@ -105,5 +107,20 @@ describe('parseActionError', () => {
       fieldErrors: {},
     } as any)
     assert.match(err.message, /đã được xử lý/)
+  })
+})
+
+describe('the two calls of the audit page', () => {
+  it('sends the status of the tab, so each tab asks for its own list', () => {
+    assert.deepEqual(ekycQueueRequest(2, 20, 'APPROVED'), { path: '/admin/workers/ekyc-queue', query: { page: 2, pageSize: 20, status: 'APPROVED' } })
+    assert.deepEqual(TABS.map((t) => ekycQueueRequest(1, 20, t.status).query.status), ['PENDING', 'APPROVED', 'REJECTED'])
+  })
+
+  it('sends the review as the body itself: a wrapped body made the server read approved as false and reject the worker', () => {
+    const request = ekycReviewRequest(9, { approved: true, rejectionReason: null })
+
+    assert.equal(request.path, '/admin/workers/9/ekyc-review')
+    assert.deepEqual(request.body, { approved: true, rejectionReason: null })
+    assert.equal(JSON.stringify(request.body), '{"approved":true,"rejectionReason":null}')
   })
 })
