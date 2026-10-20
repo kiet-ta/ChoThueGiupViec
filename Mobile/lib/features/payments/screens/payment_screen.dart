@@ -44,7 +44,8 @@ class PaymentScreen extends StatefulWidget {
   State<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PaymentScreenState extends State<PaymentScreen> {
+class _PaymentScreenState extends State<PaymentScreen>
+    with WidgetsBindingObserver {
   late final IPaymentsService _service;
   PaymentScreenArgs? _args;
   bool _started = false;
@@ -65,6 +66,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   void initState() {
     super.initState();
     _service = widget.service ?? PaymentsService();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
@@ -79,8 +81,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _stopTimers();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshAfterResume());
+    }
+  }
+
+  Future<void> _refreshAfterResume() async {
+    final payment = _payment;
+    if (payment == null) {
+      if (mounted) setState(() {});
+      return;
+    }
+    _stopTimers();
+    await _poll();
+    if (!mounted) return;
+    _watch();
   }
 
   void _stopTimers() {
@@ -127,6 +149,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   void _watch() {
     final payment = _payment;
     if (payment == null || !shouldKeepPolling(payment, _now())) return;
+    _stopTimers();
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final current = _payment;

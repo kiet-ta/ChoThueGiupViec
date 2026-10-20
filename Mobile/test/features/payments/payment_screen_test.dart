@@ -255,6 +255,63 @@ void main() {
       },
     );
 
+    testWidgets('refreshes the countdown and polling after app resume', (
+      tester,
+    ) async {
+      final clock = TestClock();
+      final service = FakePaymentsService()..polls.add(_payment());
+      await pumpPayment(tester, service, clock);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      clock.advance(const Duration(minutes: 5));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+
+      expect(service.pollCalls, 1);
+      expect(textOf(tester, 'payment-countdown'), '10:00');
+      await elapse(tester, clock, const Duration(seconds: 1));
+      expect(textOf(tester, 'payment-countdown'), '09:59');
+      await close(tester);
+    });
+
+    testWidgets(
+      'shows expiry immediately when app resumes after the deadline',
+      (tester) async {
+        final clock = TestClock();
+        final service = FakePaymentsService()
+          ..polls.add(_payment(status: 'EXPIRED'));
+        await pumpPayment(tester, service, clock);
+
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pump();
+        clock.advance(const Duration(minutes: 16));
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pump();
+        await tester.pump();
+
+        expect(service.pollCalls, 1);
+        expect(find.byKey(const Key('payment-expired')), findsOneWidget);
+        expect(find.textContaining('không bị trừ tiền'), findsOneWidget);
+        await close(tester);
+      },
+    );
+
     testWidgets(
       'a failed status check keeps the QR on screen and tries again; after three it says so',
       (tester) async {
