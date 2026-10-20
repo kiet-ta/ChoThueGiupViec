@@ -54,6 +54,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _loading = false;
   bool _creating = false; // one request per tap
   bool _polling = false; // one status check at a time
+  bool _returnedForPaidOrder = false;
   int _pollFailures = 0;
 
   Timer? _pollTimer;
@@ -111,6 +112,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _pollFailures = 0;
       });
       _watch();
+      _returnToPaidOrder(payment);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -153,6 +155,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _pollFailures = 0;
       });
       if (!shouldKeepPolling(fresh, _now())) _stopTimers();
+      _returnToPaidOrder(fresh);
     } on ApiException {
       if (!mounted) return;
       setState(() => _pollFailures++);
@@ -180,6 +183,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
   void _done(Payment payment) {
     if (widget.onPaid != null) return widget.onPaid!(payment);
     Navigator.of(context).maybePop(payment);
+  }
+
+  void _returnToPaidOrder(Payment payment) {
+    if (_returnedForPaidOrder ||
+        payment.purpose != 'ORDER' ||
+        payment.extensionId != null ||
+        !payment.isPaid) {
+      return;
+    }
+    _returnedForPaidOrder = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _done(payment);
+    });
   }
 
   @override

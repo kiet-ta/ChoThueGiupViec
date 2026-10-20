@@ -212,10 +212,64 @@ void main() {
 
         await elapse(tester, clock, const Duration(seconds: 30));
         expect(service.pollCalls, 2); // no more requests once paid
-
-        await tester.tap(find.text('Xem đơn'));
-        await tester.pump();
         expect(done.single.txnStatus, 'SUCCESS');
+      },
+    );
+
+    testWidgets(
+      'returns an order payment automatically when polling confirms it',
+      (tester) async {
+        final clock = TestClock();
+        final service = FakePaymentsService()
+          ..polls.add(_payment(status: 'SUCCESS'));
+        Payment? returned;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: StatefulBuilder(
+              builder: (context, setState) => Scaffold(
+                body: Center(
+                  child: returned == null
+                      ? TextButton(
+                          onPressed: () async {
+                            final result = await Navigator.of(context)
+                                .push<Payment>(
+                                  MaterialPageRoute(
+                                    builder: (_) => PaymentScreen(
+                                      args: const PaymentScreenArgs(
+                                        orderId: 42,
+                                        orderCode: 'GV261014ABC123',
+                                      ),
+                                      service: service,
+                                      now: () => clock.now,
+                                      pollInterval: const Duration(seconds: 3),
+                                    ),
+                                  ),
+                                );
+                            setState(() => returned = result);
+                          },
+                          child: const Text('Start payment'),
+                        )
+                      : Text(
+                          'Order detail ${returned!.orderId}',
+                          key: const Key('order-detail-order-id'),
+                        ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Start payment'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('payment-countdown')), findsOneWidget);
+
+        await elapse(tester, clock, const Duration(seconds: 3));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('order-detail-order-id')), findsOneWidget);
+        expect(find.text('Order detail 42'), findsOneWidget);
+        expect(find.text('Xem đơn'), findsNothing);
       },
     );
 
