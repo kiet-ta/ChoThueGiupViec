@@ -21,7 +21,7 @@ python scripts/uat/seed.py --admin-password "<Seed:Admin:Password of Backend/app
 - **Android emulator hangs on start?** Device Manager -> Cold Boot Now; if it still hangs: Edit -> Advanced -> Graphics: Software.
 - **Payments:** a QR is shown but cannot be scanned. Pay with Admin -> sidebar **Công cụ dev -> Xác nhận thanh toán** (button "Xác nhận đã thanh toán"; it works only on this Development build).
 - **Time:** the system uses the real clock of the Docker PC. A **Premium** shift must start at least **4 hours** from now and at most **14 days** ahead. Shifts: morning 08:00-12:00, afternoon 13:00-17:00, evening 17:30-20:30 (Vietnam time).
-- **Position (GPS):** the app has no GPS sensor yet: it sends a fixed position (Hanoi centre) for the worker and for check-in. Customer and worker therefore match each other; do not expect real distances.
+- **Position (GPS):** the app has no GPS sensor yet: it sends a fixed position (Q.1, TP.HCM: 10.7769, 106.7009, the default of the address picker) for the worker and for check-in. Customer and worker therefore match each other; do not expect real distances.
 
 Sample data after the seed: agency `demo.agency@example.com` / `Demo-Passw0rd!` (ACTIVE, Pro, bank account set), workers `0911000001`, `0911000002`, `0911000003`, a roster for tomorrow and the next 6 days (morning and afternoon).
 
@@ -50,7 +50,7 @@ Login: `admin@dev.local` and the password of `Seed:Admin:Password`.
 Phones `0911000001..3`; sign in with the OTP from the log. The shift the agency rostered is visible in the agency schedule. During S1: accept nothing (the job is assigned by the system), check in, take photos (BEFORE x3 then AFTER x3, same angles), submit.
 
 ### Freelancer (Mobile, role "Chuyên Viên / Thợ")
-1. Register with a new phone (OTP), full name, a 12-digit national id. 2. eKYC: send the three photos; the Fake provider approves at once. 3. Open "Lịch rảnh": switch **tomorrow morning ON** (this also sends the position; without it no job is ever offered). 4. During S2: the offer appears for 30 seconds: accept; check in; photos; submit.
+1. Register with a new phone (OTP), full name, a 12-digit national id; after "Hoàn tất hồ sơ" the app goes back to Home and you sign in again with a new OTP (by design). 2. eKYC: send the three photos; the Fake provider approves at once. 3. Open "Lịch rảnh": switch **tomorrow morning ON** (this also sends the position; without it no job is ever offered). 4. During S2: the offer appears for 30 seconds: accept; check in; photos; submit.
 
 ### Customer (Mobile, role "Khách Hàng")
 OTP sign-up, add an address (area decides the price and the number of workers), book, pay (Admin confirms), follow the order, accept the work.

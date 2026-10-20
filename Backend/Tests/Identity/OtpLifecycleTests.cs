@@ -345,6 +345,10 @@ public class OtpLifecycleTests
         var phone = fx.NewPhone();
         var oldCode = await fx.RequestCodeAsync(phone, "Customer");
 
+        var tooSoon = await fx.Service.RequestOtpAsync(phone, "Customer", Fixture.NewIp());
+        Assert.False(tooSoon.Success);
+        Assert.StartsWith("Vui lòng đợi", tooSoon.ErrorMessage);
+
         fx.Clock.UtcNow = fx.Clock.UtcNow.AddSeconds(61); // resend cooldown
         var newCode = await fx.RequestCodeAsync(phone, "Customer");
         Assert.NotEqual(oldCode, newCode);
