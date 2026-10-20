@@ -119,4 +119,13 @@ public class JobOrderProgressTests
         Assert.False(order.SyncWithAssignments([Assigned]));
         Assert.Equal(JobOrderStatus.Paid, order.OrderStatus);
     }
+
+    [Fact]
+    public void Every_worker_accepted_counts_assigned_or_later_seats_only()
+    {
+        Assert.True(JobOrder.HasEveryWorkerAccepted(1, [Assigned]));
+        Assert.True(JobOrder.HasEveryWorkerAccepted(2, [Assigned, InProgress]));
+        Assert.False(JobOrder.HasEveryWorkerAccepted(2, [Assigned, Offered]));
+        Assert.False(JobOrder.HasEveryWorkerAccepted(1, [Offered, Cancelled]));
+    }
 }
