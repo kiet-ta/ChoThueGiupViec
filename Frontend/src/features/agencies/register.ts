@@ -28,6 +28,10 @@ export const MIN_PASSWORD_LENGTH = 10
 
 const TAX_CODE = /^[0-9]{10}(-[0-9]{3})?$/
 const PHONE = /^0[35789][0-9]{8}$/
+
+export function isValidTaxCode(input: string): boolean {
+  return TAX_CODE.test(input.trim())
+}
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** The national form of a Vietnamese mobile number as the backend stores it (`+84` and separators accepted). */
@@ -45,7 +49,7 @@ export function registerProblems(form: RegisterForm): RegisterFieldErrors {
   const out: RegisterFieldErrors = {}
   const taxCode = form.taxCode.trim()
   if (!taxCode) out.taxCode = 'Nhập mã số thuế.'
-  else if (!TAX_CODE.test(taxCode)) out.taxCode = 'Mã số thuế gồm 10 chữ số, hoặc 10 chữ số, dấu gạch ngang và 3 chữ số (ví dụ 0123456789-001).'
+  else if (!isValidTaxCode(taxCode)) out.taxCode = 'Mã số thuế gồm 10 chữ số, hoặc 10 chữ số, dấu gạch ngang và 3 chữ số (ví dụ 0123456789-001).'
 
   const legalName = form.legalName.trim()
   if (!legalName) out.legalName = 'Nhập tên pháp lý của công ty.'

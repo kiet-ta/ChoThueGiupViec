@@ -102,13 +102,16 @@ The following are **DEFAULT seed values**, not permanent business truths. Packag
 
 ## 4. Guarantee and worker import (Q18, Q19)
 
-- The legal representative uploads the signed guarantee PDF. It is stored via `IFileStorage`, with the document version in the filename; persist `guarantee_signed_at` and `guarantee_file_url` (Q19, SC-1).
-- Import is from a downloadable `.xlsx` template. The contract must define its columns only after leader approval; each column maps to an existing `WORKER` column (Q18).
+- One signed guarantee is held at Agency level and covers the Agency's current and future imported Agency Staff; it does not enumerate workers or need to match rows in an import workbook. It remains in effect until replaced. Changes to the Agency legal identity or guarantee terms require a new signed copy (Q19, D20).
+- The Partner Portal provides an A4 printable form with fields for legal name, tax code, legal representative, signing date, the responsibility statement and signature area. The Partner enters these values from the Agency registration record; the UI does not compare them with the database or with workbook rows.
+- The legal representative must sign the document. A scan of a handwritten signature or an electronically signed PDF may be uploaded. The platform only checks the PDF header and the 10 MB size limit, stores the file via `IFileStorage`, and records the upload receipt time in `guarantee_signed_at` with the versioned `guarantee_file_url` (Q19, SC-1, D10, D20). It does not verify the document contents, signer identity, handwritten signature or cryptographic digital signature. Per D10, any authenticated Partner of the Agency may upload the signed document; the identity/authorization rule remains open under question 10.
+- Import is from a downloadable `.xlsx` template. Columns map to existing `WORKER` fields: `full_name`, `phone_number`, `national_id`, `bank_name`, `bank_account_no` (Q18, D10).
 - **Dry-run** validates each row, returns per-row errors, and writes nothing.
 - **Commit** is all-or-nothing. Any invalid row or quota overflow rejects the entire import; no worker is created on rejection.
 - Import is rejected unless `guarantee_signed_at` is set (Q19). Exact HTTP status and error code are an approval question; the shared 4xx envelope follows `identity.md`.
+- A successfully uploaded guarantee applies to subsequent import batches; it need not be uploaded again for every workbook. Re-upload only when it is replaced under D20.
 - Successful import creates `WORKER` rows as `AGENCY_STAFF`, linked to the importing Agency, without an Admin review queue (PRD §2.8). Agency workers do not use Freelancer eKYC (Q05).
-- The import DTO must not collect a free-text skill tag: skills are selected from the normalized catalog by ID (PRD §2.7). Exact import columns, duplicate detection, row-error DTO and worker profile fields are open questions.
+- The import DTO must not collect a free-text skill tag: skills are selected from the normalized catalog by ID (PRD §2.7). Duplicate detection and row-error DTO follow D10.
 
 ## 5. Roster and capacity boundaries
 

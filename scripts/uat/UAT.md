@@ -38,11 +38,11 @@ Login: `admin@dev.local` and the password of `Seed:Admin:Password`.
 ### Partner / agency (Web, role "Đối tác doanh nghiệp")
 1. **Register a new company:** `/register` (link on the login page): fill the form with a new tax code (10 digits) and e-mail. Expected: success message; a duplicate tax code or e-mail is refused with a clear message. Sign in; the escrow page says the company is PENDING.
 2. Escrow & SLA: top up 5.000.000 -> the QR appears -> Admin confirms the payment -> balance 5.000.000, status ACTIVE.
-3. Add workers: sign the guarantee (any PDF), download the template, fill 2 rows, dry-run (a wrong row is shown with its error), commit. The Free package allows 3 workers.
+3. Add workers: open “Tải mẫu cam kết”, copy the Agency legal name, tax code and representative from its registration, print/save the A4 form as PDF, have the legal representative sign it, then upload the signed PDF. The guarantee is Agency-wide and reused for later import batches. The platform records the uploaded PDF but does not verify its contents or signature. Next download the worker `.xlsx` template, fill 2 rows, dry-run (a wrong row is shown with its error), then commit. The Free package allows 3 workers.
 4. Weekly roster: put a worker on tomorrow morning; putting the same worker twice changes nothing.
 5. Subscription: buy "Pro monthly" -> Admin confirms -> "Pro" and the "Verified Partner" badge.
 6. Bank account: "Tài khoản nhận tiền" -> save a name and 6-30 digits.
-7. Or skip 1-6 and use the seeded demo agency.
+7. Or skip 1-6 and use the seeded demo agency. Its guarantee file is a synthetic sandbox-only placeholder and is not a signed or legally valid document.
 8. After S1: "Đơn & hiệu suất" lists the job and the performance report (Pro).
 9. 30-minute swap: see S3.
 
