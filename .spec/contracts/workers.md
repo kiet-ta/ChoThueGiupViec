@@ -276,6 +276,7 @@ Enables or disables an availability slot for a given date and shift.
 **Rules:**
 - Table `BOOKING_SLOT` has `UNIQUE(worker_id, slot_date, shift_code)`.
 - Operation is idempotent (double clicks / concurrent requests return existing slot state safely without duplicate row errors).
+- The toggle only moves `AVAILABLE <-> BLOCKED`. A slot owned by Dispatch (`HELD` by an offer or agency hold, `BOOKED` by an assignment) is refused with **409 `SLOT_IN_USE`** and keeps its status (#398).
 
 ---
 

@@ -42,6 +42,7 @@ public sealed class ToggleBookingSlotCommandHandler(
 
         if (existingSlot != null)
         {
+            EnsureToggleable(existingSlot);
             existingSlot.SlotStatus = newStatus;
             existingSlot.UpdatedAt = DateTime.UtcNow;
             workerRepository.UpdateSlot(existingSlot);
@@ -74,6 +75,7 @@ public sealed class ToggleBookingSlotCommandHandler(
                 var concurrentSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, req.SlotDate, shiftCode, cancellationToken);
                 if (concurrentSlot != null)
                 {
+                    EnsureToggleable(concurrentSlot);
                     concurrentSlot.SlotStatus = newStatus;
                     concurrentSlot.UpdatedAt = DateTime.UtcNow;
                     workerRepository.UpdateSlot(concurrentSlot);
@@ -95,5 +97,20 @@ public sealed class ToggleBookingSlotCommandHandler(
 
         string action = req.IsActive ? "enabled" : "disabled";
         return ApiResponse<BookingSlotResponse>.Ok(response, $"Slot {targetSlot.ShiftCode} on {targetSlot.SlotDate:yyyy-MM-dd} {action} successfully.");
+    }
+
+    /// <summary>409 code when the slot is held by an offer or booked by a job (contracts workers.md 2.3.2).</summary>
+    public const string SlotInUseCode = "SLOT_IN_USE";
+
+    /// <summary>
+    /// The worker's toggle only moves AVAILABLE &lt;-&gt; BLOCKED. A HELD or BOOKED slot belongs to Dispatch: switching it off would leave a
+    /// job on a blocked shift, switching it on would let the same shift be offered to a second order.
+    /// </summary>
+    private static void EnsureToggleable(BookingSlot slot)
+    {
+        if (slot.SlotStatus is not ("AVAILABLE" or "BLOCKED"))
+        {
+            throw new BusinessRuleViolationException("Ca này đang có đơn (đang được mời hoặc đã nhận), không thể bật/tắt.", SlotInUseCode);
+        }
     }
 }
