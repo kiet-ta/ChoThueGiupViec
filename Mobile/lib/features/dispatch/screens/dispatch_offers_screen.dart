@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
@@ -14,7 +16,14 @@ import '../widgets/job_offer_card.dart';
 class DispatchOffersScreen extends StatefulWidget {
   final DispatchService? dispatchService;
 
-  const DispatchOffersScreen({super.key, this.dispatchService});
+  /// How often the screen asks for a new offer while none is shown: the backend pushes nothing to the worker, and an offer lives 30 s.
+  final Duration pollInterval;
+
+  const DispatchOffersScreen({
+    super.key,
+    this.dispatchService,
+    this.pollInterval = const Duration(seconds: 5),
+  });
 
   @override
   State<DispatchOffersScreen> createState() => _DispatchOffersScreenState();
@@ -28,12 +37,39 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
   bool _isAccepting = false;
   bool _isDeclining = false;
   String? _successMessage;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _dispatchService = widget.dispatchService ?? DispatchService();
     _loadCurrentOffer();
+    _pollTimer = Timer.periodic(widget.pollInterval, (_) => _poll());
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Quiet check for a new offer: no spinner, errors ignored (the next tick retries). Skipped while an offer or a result is on screen.
+  Future<void> _poll() async {
+    if (_currentOffer != null ||
+        _isLoading ||
+        _isAccepting ||
+        _isDeclining ||
+        _successMessage != null) {
+      return;
+    }
+    try {
+      final offer = await _dispatchService.getCurrentOffer();
+      if (!mounted || offer == null || _currentOffer != null) return;
+      setState(() {
+        _currentOffer = offer;
+        _errorMessage = null;
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadCurrentOffer() async {
