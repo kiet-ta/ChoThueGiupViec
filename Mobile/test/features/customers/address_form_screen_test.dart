@@ -77,14 +77,23 @@ void main() {
 
       expect(find.text('Vui lòng nhập tên nhãn địa chỉ'), findsOneWidget);
       expect(find.text('Vui lòng nhập số nhà và tên đường'), findsOneWidget);
+      // The province starts at Ho Chi Minh City; the ward must be chosen.
+      expect(find.text('Thành phố Hồ Chí Minh'), findsOneWidget);
+      expect(find.text('Vui lòng chọn Phường/Xã'), findsOneWidget);
 
       // Fill valid values
       final textFields = find.byType(TextFormField);
       // Field 0: label
       await tester.enterText(textFields.at(0), 'Biệt thự Thảo Điền');
       // Field 1: addressLine
-      await tester.enterText(textFields.at(1), '12 Quốc Hương, P. Thảo Điền');
+      await tester.enterText(textFields.at(1), '12 Quốc Hương');
       await tester.pumpAndSettle();
+      await pickAdminUnit(
+        tester,
+        'Phường / Xã*',
+        'an khanh',
+        'Phường An Khánh',
+      );
 
       // Submit
       await tester.tap(find.text('Tạo Địa Chỉ Mới'));
@@ -92,7 +101,57 @@ void main() {
 
       // Verify created in service
       final addresses = await service.getAddresses();
-      expect(addresses.any((a) => a.label == 'Biệt thự Thảo Điền'), isTrue);
+      final created = addresses.firstWhere(
+        (a) => a.label == 'Biệt thự Thảo Điền',
+      );
+      expect(created.city, 'Thành phố Hồ Chí Minh');
+      expect(created.district, 'Phường An Khánh');
+    });
+
+    testWidgets('a new province clears the ward and lists only its units', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: AddressFormScreen(addressService: service),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await pickAdminUnit(tester, 'Phường / Xã*', 'sai gon', 'Phường Sài Gòn');
+      expect(find.text('Phường Sài Gòn'), findsOneWidget);
+
+      await pickAdminUnit(
+        tester,
+        'Tỉnh / Thành phố*',
+        'ha noi',
+        'Thành phố Hà Nội',
+      );
+      expect(find.text('Thành phố Hà Nội'), findsOneWidget);
+      expect(find.text('Phường Sài Gòn'), findsNothing);
+
+      // A ward of Ho Chi Minh City is not offered for Hanoi.
+      await openPicker(tester, 'Phường / Xã*');
+      await tester.enterText(
+        find.widgetWithText(TextField, searchHint),
+        'sai gon',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Không tìm thấy kết quả phù hợp'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, searchHint),
+        'ba dinh',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Phường Ba Đình'), findsOneWidget);
     });
 
     testWidgets('renders edit form with initialAddress and updates it', (
@@ -136,16 +195,68 @@ void main() {
       expect(find.text('Nhà Gốc'), findsOneWidget);
       expect(find.text('Lưu Thay Đổi'), findsOneWidget);
 
+      // The old free text values are shown as saved.
+      expect(find.text('TP. Hồ Chí Minh'), findsOneWidget);
+      expect(find.text('Quận 1'), findsOneWidget);
+
       // Edit label
       final textFields = find.byType(TextFormField);
       await tester.enterText(textFields.at(0), 'Nhà Gốc Đã Sửa');
       await tester.pumpAndSettle();
+
+      // Values outside the catalogue must be chosen again before saving.
+      await tester.tap(find.text('Lưu Thay Đổi'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Chọn lại Tỉnh/Thành phố theo danh mục mới'),
+        findsOneWidget,
+      );
+      expect((await service.getAddressById(99))?.label, 'Nhà Gốc');
+
+      await pickAdminUnit(
+        tester,
+        'Tỉnh / Thành phố*',
+        'ho chi minh',
+        'Thành phố Hồ Chí Minh',
+      );
+      await pickAdminUnit(
+        tester,
+        'Phường / Xã*',
+        'ben thanh',
+        'Phường Bến Thành',
+      );
 
       await tester.tap(find.text('Lưu Thay Đổi'));
       await tester.pumpAndSettle();
 
       final updated = await service.getAddressById(99);
       expect(updated?.label, 'Nhà Gốc Đã Sửa');
+      expect(updated?.city, 'Thành phố Hồ Chí Minh');
+      expect(updated?.district, 'Phường Bến Thành');
     });
   });
+}
+
+const searchHint = 'Tìm kiếm (có thể gõ không dấu)';
+
+Future<void> openPicker(WidgetTester tester, String fieldLabel) async {
+  final field = find.widgetWithText(TextFormField, fieldLabel);
+  await tester.ensureVisible(field);
+  await tester.pumpAndSettle();
+  await tester.tap(field);
+  await tester.pumpAndSettle();
+}
+
+/// Opens the picker labelled [fieldLabel], searches [query] and picks [option].
+Future<void> pickAdminUnit(
+  WidgetTester tester,
+  String fieldLabel,
+  String query,
+  String option,
+) async {
+  await openPicker(tester, fieldLabel);
+  await tester.enterText(find.widgetWithText(TextField, searchHint), query);
+  await tester.pumpAndSettle();
+  await tester.tap(find.widgetWithText(ListTile, option));
+  await tester.pumpAndSettle();
 }
