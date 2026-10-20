@@ -291,6 +291,20 @@ void main() {
       expect(textOf(tester, 'assignment-status-8'), 'Đã nhận ca');
     });
 
+    testWidgets(
+      'shows assigned when progress has an assigned worker but order status still dispatching',
+      (tester) async {
+        final service = FakeOrderService()
+          ..status = OrderStatus.dispatching
+          ..workers = [_worker(7, AssignmentStatus.assigned)];
+        await pumpDetail(tester, service);
+
+        expect(textOf(tester, 'order-status'), 'Đã có thợ');
+        expect(textOf(tester, 'assignment-status-7'), 'Đã nhận ca');
+        expect(find.text('Đang tìm thợ'), findsNothing);
+      },
+    );
+
     testWidgets('an unpaid order offers the payment of that order', (
       tester,
     ) async {

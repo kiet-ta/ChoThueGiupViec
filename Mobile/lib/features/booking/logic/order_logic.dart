@@ -28,6 +28,27 @@ String orderStatusLabel(String status) => switch (status) {
   _ => status,
 };
 
+/// The progress endpoint can expose an assigned worker before the aggregate order status catches up.
+/// Keep the customer-facing tracking state at "assigned" while any worker still holds the job.
+String orderStatusForDisplay(
+  String status,
+  List<ProgressAssignment> assignments,
+) {
+  if (status != OrderStatus.dispatching) return status;
+  const activeWorkerStatuses = {
+    AssignmentStatus.assigned,
+    AssignmentStatus.checkedIn,
+    AssignmentStatus.inProgress,
+    AssignmentStatus.awaitingAcceptance,
+    AssignmentStatus.completed,
+  };
+  return assignments.any(
+        (a) => activeWorkerStatuses.contains(a.assignmentStatus),
+      )
+      ? OrderStatus.assigned
+      : status;
+}
+
 String assignmentStatusLabel(String status) => switch (status) {
   AssignmentStatus.assigned => 'Đã nhận ca',
   AssignmentStatus.checkedIn => 'Đã đến nơi',

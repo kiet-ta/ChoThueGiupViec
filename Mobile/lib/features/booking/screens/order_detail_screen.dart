@@ -337,11 +337,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (order == null || progress == null) return const [];
 
     final workers = extendableAssignments(progress);
+    final displayStatus = orderStatusForDisplay(
+      order.orderStatus,
+      progress.assignments,
+    );
     final extension = progress.extension;
     return [
-      _summary(order),
+      _summary(order, displayStatus),
       const SizedBox(height: 16.0),
-      _timeline(order.orderStatus),
+      _timeline(displayStatus),
       if (_notice != null) ...[
         const SizedBox(height: 12.0),
         Text(
@@ -395,12 +399,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     ];
   }
 
-  Widget _summary(BookingOrder order) => NordicCard(
+  Widget _summary(BookingOrder order, String displayStatus) => NordicCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          orderStatusLabel(order.orderStatus),
+          orderStatusLabel(displayStatus),
           key: const Key('order-status'),
           style: NordicTypography.h2,
         ),
