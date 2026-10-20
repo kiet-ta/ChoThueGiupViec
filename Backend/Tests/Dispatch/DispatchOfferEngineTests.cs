@@ -392,6 +392,53 @@ public class DispatchOfferEngineTests
     }
 
     [Fact]
+    public async Task Accepting_the_only_seat_moves_the_order_to_ASSIGNED()
+    {
+        var h = new Harness();
+        h.AddOrder(530);
+        h.AddWorker(1001, slotId: 141, distanceKm: 1.0);
+        var offer = await h.OfferAsync(530);
+
+        Assert.Equal(JobOrderStatus.Dispatching, h.Repo.Orders[530].OrderStatus); // an offer is not an accepted seat
+
+        Assert.True((await h.Engine.AcceptOfferAsync(offer!.AssignmentId, 1001)).Success);
+
+        Assert.Equal(JobOrderStatus.Assigned, h.Repo.Orders[530].OrderStatus);
+        Assert.Equal(StartTime, h.Repo.OrderUpdatedAt[530]);
+    }
+
+    [Fact]
+    public async Task Two_seat_order_stays_DISPATCHING_until_the_second_seat_is_accepted()
+    {
+        var h = new Harness();
+        h.AddOrder(531, requiredWorkers: 2, total: 520000m);
+        h.AddWorker(1101, slotId: 151, distanceKm: 1.0);
+        h.AddWorker(1102, slotId: 152, distanceKm: 2.0);
+        var offers = await h.Engine.DispatchPaidOrderAsync(531);
+
+        Assert.True((await h.Engine.AcceptOfferAsync(offers[0].AssignmentId, 1101)).Success);
+        Assert.Equal(JobOrderStatus.Dispatching, h.Repo.Orders[531].OrderStatus);
+
+        Assert.True((await h.Engine.AcceptOfferAsync(offers[1].AssignmentId, 1102)).Success);
+        Assert.Equal(JobOrderStatus.Assigned, h.Repo.Orders[531].OrderStatus);
+    }
+
+    [Fact]
+    public async Task Premium_order_is_ASSIGNED_once_the_agency_hold_fills_every_seat()
+    {
+        var h = new Harness();
+        h.AddOrder(532, tier: ServiceTier.Premium, requiredWorkers: 2, total: 780000m);
+        var hold = await h.Capacity.TryReserveAsync(new CapacityRequest(ShiftDate, "SANG", 2, OrderId: 532));
+        h.Repo.AddSlot(hold!.SlotIds[0], workerId: 91, status: DispatchSlotStatuses.Held);
+        h.Repo.AddSlot(hold.SlotIds[1], workerId: 92, status: DispatchSlotStatuses.Held);
+
+        var assigned = await h.Engine.DispatchPaidOrderAsync(532);
+
+        Assert.Equal(2, assigned.Count);
+        Assert.Equal(JobOrderStatus.Assigned, h.Repo.Orders[532].OrderStatus);
+    }
+
+    [Fact]
     public async Task Cancelled_order_releases_its_offer_and_the_offer_can_no_longer_be_accepted()
     {
         var h = new Harness();

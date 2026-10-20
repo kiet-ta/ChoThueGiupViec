@@ -39,7 +39,7 @@ public partial class JobOrder
         var completed = statuses.Count(s => s == JobAssignmentStatus.Completed);
         var accepted = statuses.Count(Accepted.Contains);
         var target = completed >= RequiredWorkers ? JobOrderStatus.Completed
-            : accepted >= RequiredWorkers ? JobOrderStatus.Assigned
+            : HasEveryWorkerAccepted(RequiredWorkers, statuses) ? JobOrderStatus.Assigned
             : JobOrderStatus.Dispatching;
 
         if (target == OrderStatus || (OrderStatus == JobOrderStatus.AwaitingFallback && accepted > 0 && target == JobOrderStatus.Dispatching))
@@ -50,4 +50,11 @@ public partial class JobOrder
         TransitionTo(target);
         return true;
     }
+
+    /// <summary>
+    /// The ASSIGNED rule of <see cref="SyncWithAssignments"/>: at least <paramref name="requiredWorkers"/> assignments are accepted
+    /// (ASSIGNED or later). Dispatch uses it to move an order it cannot load as an entity.
+    /// </summary>
+    public static bool HasEveryWorkerAccepted(int requiredWorkers, IEnumerable<JobAssignmentStatus> assignmentStatuses) =>
+        assignmentStatuses.Count(Accepted.Contains) >= requiredWorkers;
 }

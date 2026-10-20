@@ -509,7 +509,31 @@ public class DispatchOfferEngine
             assignedOffers.Add(ToOffer(saved, 0) with { IsAccepted = true, ExpiresAtUtc = nowUtc });
         }
 
+        if (assignedOffers.Count > 0)
+        {
+            await MoveToAssignedWhenEveryWorkerAcceptedAsync(order.OrderId, nowUtc, cancellationToken);
+        }
+
         return assignedOffers;
+    }
+
+    /// <summary>
+    /// D7: a DISPATCHING order becomes ASSIGNED once its live assignments cover <c>required_workers</c> accepted seats
+    /// (<see cref="JobOrder.HasEveryWorkerAccepted"/>). Conditional move, so a concurrent change (e.g. a cancellation) is kept.
+    /// </summary>
+    private async Task MoveToAssignedWhenEveryWorkerAcceptedAsync(long orderId, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        var order = await _dispatchRepository.GetOrderContextAsync(orderId, cancellationToken);
+        if (order?.OrderStatus != JobOrderStatus.Dispatching)
+        {
+            return;
+        }
+
+        var live = await _dispatchRepository.GetLiveAssignmentsOfOrderAsync(orderId, cancellationToken);
+        if (JobOrder.HasEveryWorkerAccepted(Math.Max(1, order.RequiredWorkers), live.Select(a => a.AssignmentStatus)))
+        {
+            await _dispatchRepository.TryMoveOrderStatusAsync(orderId, JobOrderStatus.Dispatching, JobOrderStatus.Assigned, nowUtc, cancellationToken);
+        }
     }
 
     /// <summary>The worker's open (unexpired) offer, if any.</summary>
@@ -586,6 +610,8 @@ public class DispatchOfferEngine
             await _dispatchRepository.TryMoveOrderStatusAsync(
                 existing.OrderId, JobOrderStatus.AwaitingFallback, JobOrderStatus.Assigned, nowUtc, cancellationToken);
         }
+
+        await MoveToAssignedWhenEveryWorkerAcceptedAsync(existing.OrderId, nowUtc, cancellationToken);
 
         var assignment = await _dispatchRepository.GetAssignmentByIdAsync(assignmentId, cancellationToken);
         if (assignment != null)
