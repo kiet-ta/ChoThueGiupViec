@@ -43,3 +43,39 @@ Output: one `PASS` / `FAIL` line per check and a last line `RESULT: ALL PASS` (e
 ## What it does not cover
 
 The Mobile and Web screens (it calls the API they use), a real payment gateway / SMS / eKYC (all Fake), customer cancellation and refunds, disputes, ratings, the rescue of a failed shift, the 30-minute swap window and escrow penalties.
+
+# Customer UAT scenarios (`customer_uat.py`)
+
+The customer side of the Mobile UAT sheet, run over HTTP instead of by hand on an emulator. Python 3.9+, standard library only; it reuses
+the helpers of `main_flow.py` and needs no database access.
+
+| Id | Checks |
+|---|---|
+| KH-01 | an 8-digit phone is a 400; a resend inside the 60 s cooldown is a 429; wrong codes are 401 and the 5th a 429, after which the right code is dead; a new code logs in as `Customer`; a customer phone with role `Worker` gets no customer session |
+| KH-02 | empty name, bad email, name over 100 characters are 400 with the field; a valid profile is saved and read back; the phone number does not change |
+| KH-03 | label over 50 characters, room over 30 m2, area 0, 11 floors are 400 with the field; apartment 25 m2 (total 25, first address is the default), house 40 x 3 (total 120); one default only; an update recomputes the total; a deleted address is then 404 |
+| KH-14 | the favourite workers list answers 200, empty for a new customer |
+| KH-09 | a freelancer with an open slot and a position is offered the paid Economy order within 30 s and accepts; the progress lists it `ASSIGNED` and the order is `ASSIGNED` |
+| KH-16 | a two-worker Economy order with one freelancer: seat 1 accepted, then `AWAITING_CUSTOMER` for the afternoon of the same day; the customer agrees, the worker accepts the second-shift offer, the order is `ASSIGNED`. A second order where the customer declines is `CANCELLED` and its payment `REFUNDED` |
+| KH-10 | an Economy order with no freelancer within 10 km is `CANCELLED` with the BR-03 reason and its payment `REFUNDED` |
+| KH-12 | another customer has an empty address book and no order, and gets a 404 for the first customer's order and address |
+
+## Run
+
+Against the backend of a Docker compose stack (the Fake OTP is read with `docker compose logs backend`):
+```bash
+python scripts/e2e/customer_uat.py --compose-file docker-compose.yml
+```
+or against a backend whose console goes to a file: `--backend-log /tmp/backend.log`. Options: `--base-url` (default `http://localhost:5004`),
+`--only KH-02 KH-09 ...` (KH-01 always runs: it signs customer A in), `-v` (print every call). It takes about 4 minutes (it waits out one OTP
+cooldown and the BR-02 sweep).
+
+- Every run uses new phone numbers. Each dispatch scenario sits at a random position about 150 km from Ho Chi Minh City centre, the
+  scenarios 33 km apart, so the freelancers of the manual UAT data are never offered the run's orders and the KH-10 order has nobody in range.
+- **OTP limit:** the backend allows 20 OTP requests per IP and hour (`Otp.MaxPerIpPerHour`) and a run needs 7. An emulator on the same PC
+  shares that IP, so two runs in an hour leave little for manual logins; the script stops with a clear message when the limit is reached.
+
+## What stays manual
+
+The screens and their wording, the Android Back button, an app killed and reopened, a backend stopped while the app is open (KH-15), the
+province / ward picker of the address form (KH-03b, it only sends text to the API) and a double tap on "Đặt đơn".
