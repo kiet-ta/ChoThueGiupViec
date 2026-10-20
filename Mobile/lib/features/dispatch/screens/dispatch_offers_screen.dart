@@ -9,6 +9,7 @@ import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../models/job_offer.dart';
+import '../routes.dart';
 import '../services/dispatch_service.dart';
 import '../widgets/job_offer_card.dart';
 
@@ -38,6 +39,7 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
   bool _isDeclining = false;
   String? _successMessage;
   Timer? _pollTimer;
+  int? _acceptedAssignmentId;
 
   @override
   void initState() {
@@ -111,6 +113,7 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
       setState(() {
         _isAccepting = false;
         _currentOffer = null;
+        _acceptedAssignmentId = result.assignmentId;
         _successMessage =
             'Nhận cuốc thành công! Mã ca làm #${result.assignmentId}';
       });
@@ -225,6 +228,17 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
                       style: NordicTypography.h3,
                     ),
                     const SizedBox(height: 24.0),
+                    if (_acceptedAssignmentId != null) ...[
+                      NordicButton(
+                        key: const Key('go_to_check_in_button'),
+                        label: 'Đến nơi & Check-in',
+                        onPressed: () => Navigator.of(context).pushNamed(
+                          DispatchRoutes.checkIn,
+                          arguments: _acceptedAssignmentId,
+                        ),
+                      ),
+                      const SizedBox(height: 12.0),
+                    ],
                     NordicButton(
                       label: 'Tiếp tục tìm ca',
                       onPressed: _loadCurrentOffer,

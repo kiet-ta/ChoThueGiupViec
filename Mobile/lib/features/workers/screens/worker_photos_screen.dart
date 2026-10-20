@@ -19,7 +19,7 @@ class WorkerPhotosScreen extends StatefulWidget {
 
   const WorkerPhotosScreen({
     super.key,
-    this.assignmentId = 2001,
+    required this.assignmentId,
     this.photosService,
     this.volThreshold = 100.0,
   });

@@ -7,6 +7,9 @@ import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/network/api_client.dart';
+import '../routes.dart';
+import '../services/workers_photos_service.dart';
 import '../widgets/tinted_card.dart';
 
 class ExecutionChecklistItem {
@@ -32,10 +35,12 @@ class WorkerExecutionScreen extends StatefulWidget {
   final String workZone;
   final int maxShiftMinutes; // Default 240 mins (4 hours) per PRD BR-01
   final int initialElapsedSeconds;
+  final WorkersPhotosService? photosService;
 
   const WorkerExecutionScreen({
     super.key,
-    this.assignmentId = 2001,
+    required this.assignmentId,
+    this.photosService,
     this.workZone = 'Phòng khách & Bếp - Căn hộ 402',
     this.maxShiftMinutes = 240,
     this.initialElapsedSeconds = 0,
@@ -49,6 +54,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
   Timer? _timer;
   late int _elapsedSeconds;
   bool _isTimerRunning = true;
+  bool _isSubmitting = false;
 
   late final List<ExecutionChecklistItem> _checklist;
 
@@ -128,6 +134,31 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
     return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
+  Future<void> _submitCompletion() async {
+    setState(() => _isSubmitting = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await (widget.photosService ?? WorkersPhotosService()).submitCompletion(
+        widget.assignmentId,
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã gửi nghiệm thu. Chờ khách hàng xác nhận.'),
+        ),
+      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Gửi nghiệm thu không thành công: ${e.message}'),
+        ),
+      );
+    }
+  }
+
   int get _completedCount =>
       _checklist.where((item) => item.isCompleted).length;
 
@@ -171,29 +202,19 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
                 variant: NordicButtonVariant.primary,
                 icon: const Icon(Icons.camera_alt, size: 18.0),
                 width: double.infinity,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Chuyển sang màn hình chụp ảnh VoL'),
-                    ),
-                  );
-                },
+                onPressed: () => Navigator.of(context).pushNamed(
+                  WorkerRoutes.photos,
+                  arguments: widget.assignmentId,
+                ),
               ),
               const SizedBox(height: 10.0),
               NordicButton(
-                label: 'Gửi Nghiệm Thu Ca Làm',
+                key: const Key('submit_completion_button'),
+                label: _isSubmitting ? 'Đang gửi…' : 'Gửi Nghiệm Thu Ca Làm',
                 variant: NordicButtonVariant.secondary,
                 icon: const Icon(Icons.check_circle_outline, size: 18.0),
                 width: double.infinity,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Đã hoàn thành $_completedCount/${_checklist.length} công việc. Đang gửi nghiệm thu...',
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _isSubmitting ? null : _submitCompletion,
               ),
             ],
           ),
