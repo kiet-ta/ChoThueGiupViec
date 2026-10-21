@@ -172,8 +172,6 @@ public class WorkersController(
     [Authorize(Roles = nameof(UserRole.Worker) + "," + nameof(UserRole.Customer) + "," + nameof(UserRole.Admin))]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<JobPhotoResponse>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPhotos(
         long assignmentId,
         CancellationToken ct)
