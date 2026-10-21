@@ -146,6 +146,31 @@ public sealed class JobPhotoService(
 
     public async Task<ApiResponse<IReadOnlyList<JobPhotoResponse>>> GetPhotosAsync(long assignmentId, CancellationToken ct = default)
     {
+        // Contract workers.md 2.4.2: Worker, Customer or Admin. Fails closed: a caller without an id, or with any other role, is refused
+        // before the assignment is looked up, so it also learns nothing about which ids exist.
+        if (!currentUser.IsAuthenticated || currentUser.UserId is not int callerId || callerId <= 0
+            || currentUser.Role is not (UserRole.Worker or UserRole.Customer or UserRole.Admin))
+        {
+            throw new ForbiddenAccessException("Only the worker, the customer of this job assignment or an Admin can view its photos.");
+        }
+
+        var assignment = await workerRepository.GetAssignmentByIdAsync(assignmentId, ct);
+        if (assignment == null)
+        {
+            throw new NotFoundException($"Job assignment with ID {assignmentId} not found.");
+        }
+
+        var owner = currentUser.Role switch
+        {
+            UserRole.Worker => assignment.WorkerId == callerId,
+            UserRole.Customer => assignment.CustomerId == callerId,
+            _ => true, // Admin
+        };
+        if (!owner)
+        {
+            throw new ForbiddenAccessException("Only the worker, the customer of this job assignment or an Admin can view its photos.");
+        }
+
         var photos = await workerRepository.GetJobPhotosAsync(assignmentId, ct);
 
         var responses = photos.Select(p => new JobPhotoResponse(
