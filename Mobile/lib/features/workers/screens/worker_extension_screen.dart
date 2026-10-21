@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -12,13 +13,14 @@ import '../widgets/tinted_card.dart';
 /// Screen for Worker responding to extension request ("Làm lần 2", BR-08, contract workers.md §2.6).
 /// Implements MOB-M4-06.
 class WorkerExtensionScreen extends StatefulWidget {
-  final WorkerExtensionOffer? offer;
+  /// The extension to answer; there is no default one (a made-up offer could be answered as if it were real).
+  final WorkerExtensionOffer offer;
   final WorkerExtensionService? service;
   final void Function(WorkerExtensionResponseDto response)? onResponded;
 
   const WorkerExtensionScreen({
     super.key,
-    this.offer,
+    required this.offer,
     this.service,
     this.onResponded,
   });
@@ -40,18 +42,7 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
     super.initState();
     _service = widget.service ?? WorkerExtensionService();
 
-    _offer =
-        widget.offer ??
-        const WorkerExtensionOffer(
-          assignmentId: 2001,
-          extensionId: 301,
-          customerName: 'Nguyễn Văn An',
-          workZone: 'Phòng khách & Bếp - Căn hộ 402',
-          extraHours: 2,
-          extraAmount: 130000,
-          currentEndTime: '17:00',
-          newEndTime: '19:00',
-        );
+    _offer = widget.offer;
   }
 
   Future<void> _handleResponse({required bool accept}) async {
@@ -68,45 +59,51 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
 
       if (!mounted) return;
 
-      if (res.success && res.data != null) {
-        setState(() {
-          _isSubmitting = false;
-          _responseResult = res.data;
-        });
-        widget.onResponded?.call(res.data!);
-      } else {
-        // Fallback for demo/offline mock testing when server API endpoint is not yet connected
-        final fallbackDto = WorkerExtensionResponseDto(
-          assignmentId: _offer.assignmentId,
-          extensionId: _offer.extensionId,
-          extraHours: _offer.extraHours,
-          extraAmount: _offer.extraAmount,
-          status: accept ? 'ACCEPTED' : 'DECLINED',
-          newEndTime: accept ? _offer.newEndTime : _offer.currentEndTime,
-        );
-        setState(() {
-          _isSubmitting = false;
-          _responseResult = fallbackDto;
-        });
-        widget.onResponded?.call(fallbackDto);
+      final answer = res.data;
+      if (!res.success || answer == null) {
+        _fail('Máy chủ không trả kết quả của yêu cầu. Vui lòng thử lại.');
+        return;
       }
-    } catch (e) {
-      if (!mounted) return;
-      // If error occurs, fallback mock for smooth demo UX or show message
-      final fallbackDto = WorkerExtensionResponseDto(
-        assignmentId: _offer.assignmentId,
-        extensionId: _offer.extensionId,
-        extraHours: _offer.extraHours,
-        extraAmount: _offer.extraAmount,
-        status: accept ? 'ACCEPTED' : 'DECLINED',
-        newEndTime: accept ? _offer.newEndTime : _offer.currentEndTime,
-      );
       setState(() {
         _isSubmitting = false;
-        _responseResult = fallbackDto;
+        _responseResult = answer;
       });
-      widget.onResponded?.call(fallbackDto);
+      widget.onResponded?.call(answer);
+    } on ApiException catch (e) {
+      _fail(_failure(e));
+    } catch (_) {
+      _fail('Không gửi được câu trả lời. Vui lòng thử lại.');
     }
+  }
+
+  /// The words of a failed answer: a fixed text by status, the server's own for a network failure; never a made-up success.
+  String _failure(ApiException e) {
+    if (e.isNetworkError) return e.message;
+    if (e.isNotFound || e.isForbidden) {
+      return 'Không tìm thấy yêu cầu gia hạn của ca này.';
+    }
+    if (e.isConflict) {
+      return 'Yêu cầu này đã được trả lời hoặc chưa được thanh toán.';
+    }
+    return e.message.isNotEmpty
+        ? e.message
+        : 'Không gửi được câu trả lời. Vui lòng thử lại.';
+  }
+
+  void _fail(String message) {
+    if (!mounted) return;
+    setState(() {
+      _isSubmitting = false;
+      _errorMessage = message;
+    });
+  }
+
+  /// `2` for whole hours, `1,5` for half hours.
+  String _hoursText(double hours) {
+    final whole = hours == hours.roundToDouble();
+    return whole
+        ? hours.round().toString()
+        : hours.toString().replaceAll('.', ',');
   }
 
   String _formatVnd(int amount) {
@@ -237,7 +234,10 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
                   ],
                 ),
                 const SizedBox(height: 16.0),
-                _buildDetailRow('Số giờ làm thêm:', '${_offer.extraHours} giờ'),
+                _buildDetailRow(
+                  'Số giờ làm thêm:',
+                  '${_hoursText(_offer.extraHours)} giờ',
+                ),
                 const SizedBox(height: 8.0),
                 _buildDetailRow(
                   'Thời gian kết thúc mới:',
@@ -363,7 +363,7 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
         const SizedBox(height: 8.0),
         Text(
           isAccepted
-              ? 'Ca làm của bạn đã được gia hạn thêm ${result.extraHours}h đến ${result.newEndTime}.'
+              ? 'Ca làm của bạn đã được gia hạn thêm ${_hoursText(result.extraHours)}h đến ${result.newEndTime}.'
               : 'Bạn đã từ chối yêu cầu làm thêm giờ. Khách hàng sẽ được hoàn 100% chi phí gia hạn.',
           textAlign: TextAlign.center,
           style: const TextStyle(

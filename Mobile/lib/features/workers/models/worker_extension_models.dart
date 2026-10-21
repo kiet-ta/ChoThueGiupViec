@@ -4,8 +4,8 @@
 class WorkerExtensionResponseDto {
   final int assignmentId;
   final int extensionId;
-  final int extraHours;
-  final int extraAmount;
+  final double extraHours; // half hours exist: 1.5
+  final int extraAmount; // whole VND
   final String status; // ACCEPTED | DECLINED
   final String newEndTime;
 
@@ -22,12 +22,15 @@ class WorkerExtensionResponseDto {
     return WorkerExtensionResponseDto(
       assignmentId: json['assignmentId'] as int? ?? 0,
       extensionId: json['extensionId'] as int? ?? 0,
-      extraHours: json['extraHours'] as int? ?? 0,
-      extraAmount: json['extraAmount'] as int? ?? 0,
+      extraHours: _number(json['extraHours']),
+      extraAmount: _number(json['extraAmount']).round(),
       status: json['status'] as String? ?? 'ACCEPTED',
       newEndTime: json['newEndTime'] as String? ?? '',
     );
   }
+
+  /// The server's hours and amount are decimals: `2` and `2.0` and `97500.0` all arrive.
+  static double _number(Object? value) => value is num ? value.toDouble() : 0.0;
 
   Map<String, dynamic> toJson() => {
     'assignmentId': assignmentId,
@@ -45,7 +48,7 @@ class WorkerExtensionOffer {
   final int extensionId;
   final String customerName;
   final String workZone;
-  final int extraHours;
+  final double extraHours;
   final int extraAmount;
   final String currentEndTime;
   final String newEndTime;

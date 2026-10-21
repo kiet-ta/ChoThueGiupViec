@@ -4,6 +4,7 @@ import '../../app/feature_module.dart';
 import 'screens/customer_acceptance_screen.dart';
 import 'screens/worker_ekyc_screen.dart';
 import 'screens/worker_execution_screen.dart';
+import 'models/worker_extension_models.dart';
 import 'screens/worker_extension_screen.dart';
 import 'screens/worker_photos_screen.dart';
 import 'screens/worker_screen.dart';
@@ -40,7 +41,15 @@ class WorkersFeatureModule extends FeatureModule {
       context,
       (id) => WorkerPhotosScreen(assignmentId: id),
     ),
-    WorkerRoutes.extension: (context) => const WorkerExtensionScreen(),
+    WorkerRoutes.extension: (context) {
+      final offer = ModalRoute.of(context)?.settings.arguments;
+      if (offer is WorkerExtensionOffer) {
+        return WorkerExtensionScreen(offer: offer);
+      }
+      return const Scaffold(
+        body: Center(child: Text('Chưa có yêu cầu gia hạn nào để trả lời.')),
+      );
+    },
     WorkerRoutes.customerAcceptance: (context) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is CustomerAcceptanceArgs) {
