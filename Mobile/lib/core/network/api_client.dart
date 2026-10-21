@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import '../auth/token_storage.dart';
+import 'api_config.dart';
 import 'api_response.dart';
 
 const defaultApiTimeout = Duration(seconds: 15);
@@ -108,7 +109,7 @@ class ApiClient {
   final Duration timeout;
 
   ApiClient({
-    this.baseUrl = 'http://10.0.2.2:5004',
+    this.baseUrl = apiBaseUrl,
     TokenStorage? tokenStorage,
     HttpClient? httpClient,
     this.timeout = defaultApiTimeout,
