@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
 
 import '../auth/token_storage.dart';
 import 'api_response.dart';
 
 const defaultApiTimeout = Duration(seconds: 15);
+
+/// A file upload carries megabytes over a mobile network, so it gets more time than a JSON call.
+const defaultUploadTimeout = Duration(seconds: 60);
 const _networkErrorMessage =
     'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
 
@@ -36,6 +41,62 @@ class ApiException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// One file part of a `multipart/form-data` request.
+class ApiUploadFile {
+  final String field;
+  final String fileName;
+  final String contentType;
+  final Uint8List bytes;
+
+  const ApiUploadFile({
+    required this.field,
+    required this.fileName,
+    required this.contentType,
+    required this.bytes,
+  });
+}
+
+/// A built `multipart/form-data` body; kept whole so the 401 refresh retry can send it again.
+class _MultipartBody {
+  final String boundary;
+  final Uint8List bytes;
+
+  const _MultipartBody(this.boundary, this.bytes);
+
+  factory _MultipartBody.build(
+    Map<String, String> fields,
+    List<ApiUploadFile> files,
+  ) {
+    final random = Random.secure();
+    final boundary =
+        '----CommonServiceForm${List.generate(24, (_) => random.nextInt(16).toRadixString(16)).join()}';
+    final out = BytesBuilder(copy: false);
+    void text(String value) => out.add(utf8.encode(value));
+
+    fields.forEach((name, value) {
+      text('--$boundary\r\n');
+      text(
+        'Content-Disposition: form-data; name="${_quoted(name)}"\r\n\r\n$value\r\n',
+      );
+    });
+    for (final file in files) {
+      text('--$boundary\r\n');
+      text(
+        'Content-Disposition: form-data; name="${_quoted(file.field)}"; filename="${_quoted(file.fileName)}"\r\n'
+        'Content-Type: ${file.contentType}\r\n\r\n',
+      );
+      out.add(file.bytes);
+      text('\r\n');
+    }
+    text('--$boundary--\r\n');
+    return _MultipartBody(boundary, out.takeBytes());
+  }
+
+  /// A quote, a backslash or a line break would end the header value early.
+  static String _quoted(String value) =>
+      value.replaceAll(RegExp(r'["\\\r\n]'), '_');
 }
 
 /// Central typed HTTP client for all Mobile features.
@@ -96,6 +157,23 @@ class ApiClient {
     );
   }
 
+  /// POSTs `multipart/form-data` (the text [fields] and the [files]); the answer is read like any other call.
+  Future<ApiResponse<T>> postMultipart<T>(
+    String path, {
+    Map<String, String> fields = const {},
+    required List<ApiUploadFile> files,
+    T Function(dynamic)? fromJson,
+    Duration timeout = defaultUploadTimeout,
+  }) {
+    return _sendRequest<T>(
+      'POST',
+      path,
+      multipart: _MultipartBody.build(fields, files),
+      fromJson: fromJson,
+      timeoutOverride: timeout,
+    );
+  }
+
   Future<ApiResponse<T>> put<T>(
     String path, {
     Object? body,
@@ -136,15 +214,24 @@ class ApiClient {
     T Function(dynamic)? fromJson,
     bool requiresAuth = true,
     bool isRetry = false,
+    _MultipartBody? multipart,
+    Duration? timeoutOverride,
   }) async {
     final uri = _buildUri(path, queryParams);
+    final timeout = timeoutOverride ?? this.timeout;
 
     try {
       final request = await _httpClient.openUrl(method, uri).timeout(timeout);
 
       // Attach headers
       request.headers.set('Accept', 'application/json');
-      if (body != null) {
+      if (multipart != null) {
+        request.headers.set(
+          'Content-Type',
+          'multipart/form-data; boundary=${multipart.boundary}',
+        );
+        request.contentLength = multipart.bytes.length;
+      } else if (body != null) {
         request.headers.set('Content-Type', 'application/json; charset=utf-8');
       }
 
@@ -157,7 +244,9 @@ class ApiClient {
       }
 
       // Write request body
-      if (body != null) {
+      if (multipart != null) {
+        request.add(multipart.bytes);
+      } else if (body != null) {
         final encodedBody = utf8.encode(jsonEncode(body));
         request.add(encodedBody);
       }
@@ -181,6 +270,8 @@ class ApiClient {
             fromJson: fromJson,
             requiresAuth: requiresAuth,
             isRetry: true,
+            multipart: multipart,
+            timeoutOverride: timeoutOverride,
           );
         }
       }
@@ -252,6 +343,15 @@ class ApiClient {
     } catch (e) {
       throw ApiException(0, 'Lỗi kết nối: ${e.toString()}');
     }
+  }
+
+  /// The full address of an API [path] such as `/api/workers/assignments/1/photos/2/file`.
+  String resolveUrl(String path) => _buildUri(path).toString();
+
+  /// The `Authorization` header of the signed-in person (empty when signed out), for a file that only an API route serves.
+  Map<String, String> authHeaders() {
+    final token = tokenStorage.accessToken;
+    return token == null ? const {} : {'Authorization': 'Bearer $token'};
   }
 
   Future<bool> _tryRefreshToken() async {

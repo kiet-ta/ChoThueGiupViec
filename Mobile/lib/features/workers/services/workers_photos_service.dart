@@ -9,15 +9,38 @@ class WorkersPhotosService {
   WorkersPhotosService({ApiClient? apiClient})
     : _apiClient = apiClient ?? ApiClient();
 
-  /// Uploads and verifies a job photo (contract workers.md §2.4.1).
+  /// Uploads the photo as a file and has the server measure its sharpness (contract workers.md §2.4.1).
   Future<ApiResponse<JobPhotoDto>> uploadPhoto({
     required int assignmentId,
     required UploadJobPhotoRequest request,
   }) {
-    return _apiClient.post<JobPhotoDto>(
+    return _apiClient.postMultipart<JobPhotoDto>(
       '/api/workers/assignments/$assignmentId/photos',
-      body: request.toJson(),
+      fields: {
+        'photoPhase': request.photoPhase,
+        'angleNo': '${request.angleNo}',
+      },
+      files: [
+        ApiUploadFile(
+          field: 'file',
+          fileName: request.fileName,
+          contentType: request.contentType,
+          bytes: request.bytes,
+        ),
+      ],
       fromJson: (json) => JobPhotoDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// Where and how to load a stored photo (contract workers.md §2.4.3), or null when it is not one the API serves.
+  ///
+  /// The file endpoint is not anonymous, so the request carries the Bearer token. A `photoUrl` that is not an `/api/`
+  /// address (a client URL kept from before the upload existed) is never given the token: it would go to another host.
+  ({String url, Map<String, String> headers})? photoImage(String photoUrl) {
+    if (!photoUrl.startsWith('/api/')) return null;
+    return (
+      url: _apiClient.resolveUrl(photoUrl),
+      headers: _apiClient.authHeaders(),
     );
   }
 

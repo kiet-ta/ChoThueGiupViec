@@ -1,20 +1,31 @@
-/// Request payload for uploading a job photo (contract workers.md §2.4.1).
+import 'dart:typed_data';
+
+/// One photo to upload (contract workers.md §2.4.1): the file itself and the `photoPhase` / `angleNo` form fields.
 class UploadJobPhotoRequest {
+  /// The most the server accepts for one photo.
+  static const int maxBytes = 5 * 1024 * 1024;
+
   final String photoPhase; // BEFORE | AFTER
   final int angleNo; // 1..5
-  final String photoUrl;
+  final Uint8List bytes;
+  final String contentType; // image/jpeg | image/png | image/webp
 
   const UploadJobPhotoRequest({
     required this.photoPhase,
     required this.angleNo,
-    required this.photoUrl,
+    required this.bytes,
+    required this.contentType,
   });
 
-  Map<String, dynamic> toJson() => {
-    'photoPhase': photoPhase,
-    'angleNo': angleNo,
-    'photoUrl': photoUrl,
-  };
+  /// A name that says what the photo is; the device path stays on the device.
+  String get fileName {
+    final ext = switch (contentType) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      _ => 'jpg',
+    };
+    return '${photoPhase.toLowerCase()}_angle$angleNo.$ext';
+  }
 }
 
 /// Response returned from job photo upload/list endpoints (contract workers.md §2.4.1).
