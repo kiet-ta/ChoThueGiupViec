@@ -44,6 +44,7 @@ public sealed class OrderQueryServiceTests
 
         public void Add(JobOrder order) => throw new NotSupportedException();
         public Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<JobAssignmentStatus>> GetAssignmentStatusesAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 

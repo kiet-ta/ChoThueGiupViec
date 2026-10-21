@@ -1,5 +1,6 @@
 using CommonService.Application.Features.Booking;
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,6 +34,12 @@ public class OrderRepository(AppDbContext context) : IOrderRepository
 
     public async Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default) =>
         await context.JobOrders.FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
+
+    public async Task<IReadOnlyList<JobAssignmentStatus>> GetAssignmentStatusesAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await context.JobAssignments.AsNoTracking()
+            .Where(a => a.OrderId == orderId)
+            .Select(a => a.AssignmentStatus)
+            .ToListAsync(cancellationToken);
 
     public async Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default) =>
         await context.JobOrders.AsNoTracking().AnyAsync(o => o.OrderCode == orderCode, cancellationToken);

@@ -16,6 +16,8 @@ namespace CommonService.Application.Features.Booking.Services;
 /// The customer cancels an order (BE-M2-09, decisions Q15, contract booking.md 3.7): unpaid -> the open QR expires, nothing to refund;
 /// paid and not assigned yet, or assigned more than <c>Cancel.FullRefundHoursBefore</c> hours before the shift -> 100 % refund.
 /// An ASSIGNED order within that window is refused: its 40 % fee needs open question B10 (no decision yet).
+/// Whatever the time, an order with a worker whose job is under way or done (IN_PROGRESS, AWAITING_ACCEPTANCE, COMPLETED) is refused:
+/// the work was delivered, so the way to report a problem is a dispute, not a refund by cancelling.
 /// The order is CANCELLED in one transaction, OrderCancelled is published after the commit, then the refund is asked.
 /// A PREMIUM order also gives its agency capacity hold back (<see cref="PremiumHoldRelease"/>).
 /// Known gap: a failed refund is reported but not retried.
@@ -32,6 +34,8 @@ public sealed class OrderCancellationService(
     ILogger<OrderCancellationService> logger) : IOrderCancellationService
 {
     private const int MaxReasonLength = 255;
+    private static readonly HashSet<JobAssignmentStatus> WorkStarted =
+        [JobAssignmentStatus.InProgress, JobAssignmentStatus.AwaitingAcceptance, JobAssignmentStatus.Completed];
     private readonly BusinessRules _rules = rules.Value;
 
     public async Task<CancelOrderResult> CancelAsync(int customerId, long orderId, CancelOrderRequest request, CancellationToken cancellationToken = default)
@@ -59,6 +63,14 @@ public sealed class OrderCancellationService(
             }
 
             var previous = order.OrderStatus;
+            if (previous is not (JobOrderStatus.PendingPayment or JobOrderStatus.Paid)
+                && (await orders.GetAssignmentStatusesAsync(orderId, cancellationToken)).Any(WorkStarted.Contains))
+            {
+                throw new BusinessRuleViolationException(
+                    "The work has started or is done, so the order can no longer be cancelled. Report a problem with a dispute instead.",
+                    CancelErrorCodes.InvalidState);
+            }
+
             EnsureCancellable(order, now);
 
             if (previous == JobOrderStatus.PendingPayment)

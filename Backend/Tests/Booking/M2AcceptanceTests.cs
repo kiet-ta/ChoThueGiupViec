@@ -136,6 +136,8 @@ public sealed class M2AcceptanceTests
         }
 
         public Task<JobOrder?> GetOwnedAsync(int customerId, long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<JobAssignmentStatus>> GetAssignmentStatusesAsync(long orderId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<JobAssignmentStatus>>([]);
         public Task<(IReadOnlyList<JobOrder> Items, int Total)> ListByCustomerAsync(int customerId, JobOrderStatus? status, int skip, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default)
         {
