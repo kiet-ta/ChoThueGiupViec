@@ -104,15 +104,19 @@ public sealed class WorkerBookingSlotService(
                 // Unique constraint UNIQUE(worker_id, slot_date, shift_code) conflict during concurrent insertion.
                 // Fallback gracefully to query and update existing row idempotently.
                 var concurrentSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, request.SlotDate, shiftCode, ct);
-                if (concurrentSlot != null)
+                if (concurrentSlot == null)
                 {
-                    EnsureToggleable(concurrentSlot);
-                    concurrentSlot.SlotStatus = newStatus;
-                    concurrentSlot.UpdatedAt = DateTime.UtcNow;
-                    workerRepository.UpdateSlot(concurrentSlot);
-                    await workerRepository.SaveChangesAsync(ct);
-                    targetSlot = concurrentSlot;
+                    // Not that race: no row exists, so the insert failed for another reason (foreign key, truncation, timeout). The slot was
+                    // never saved, so do not answer success for it.
+                    throw;
                 }
+
+                EnsureToggleable(concurrentSlot);
+                concurrentSlot.SlotStatus = newStatus;
+                concurrentSlot.UpdatedAt = DateTime.UtcNow;
+                workerRepository.UpdateSlot(concurrentSlot);
+                await workerRepository.SaveChangesAsync(ct);
+                targetSlot = concurrentSlot;
             }
         }
 
