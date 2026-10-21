@@ -29,8 +29,7 @@ public sealed class WorkerEkycService(
             throw new NotFoundException("Worker profile not found.");
         }
 
-        var req = request;
-        if (string.IsNullOrWhiteSpace(req.FrontCccdUrl) || string.IsNullOrWhiteSpace(req.BackCccdUrl) || string.IsNullOrWhiteSpace(req.SelfieUrl))
+        if (string.IsNullOrWhiteSpace(request.FrontCccdUrl) || string.IsNullOrWhiteSpace(request.BackCccdUrl) || string.IsNullOrWhiteSpace(request.SelfieUrl))
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
@@ -39,7 +38,7 @@ public sealed class WorkerEkycService(
         }
 
         // 1. Call eKYC provider (Phase 1 Fake provider)
-        var ekycReq = new EkycRequest(worker.NationalId, req.FrontCccdUrl, req.SelfieUrl);
+        var ekycReq = new EkycRequest(worker.NationalId, request.FrontCccdUrl, request.SelfieUrl);
         var result = await ekycProvider.VerifyAsync(ekycReq, ct);
 
         // 2. Evaluate auto-approval threshold (Confidence >= 85.00% and no FraudFlag)
@@ -145,8 +144,7 @@ public sealed class WorkerEkycService(
             throw new NotFoundException($"Worker profile with ID {workerId} not found.");
         }
 
-        var req = request;
-        worker.ReviewKyc(req.Approved, adminId);
+        worker.ReviewKyc(request.Approved, adminId);
         workerRepository.Update(worker);
         await workerRepository.SaveChangesAsync(ct);
 
@@ -156,10 +154,10 @@ public sealed class WorkerEkycService(
             worker.KycStatus,
             false,
             worker.UpdatedAt,
-            req.Approved ? null : (req.RejectionReason ?? "Manual review rejected by Admin.")
+            request.Approved ? null : (request.RejectionReason ?? "Manual review rejected by Admin.")
         );
 
-        string message = req.Approved
+        string message = request.Approved
             ? $"eKYC manually approved for worker #{worker.WorkerId}."
             : $"eKYC manually rejected for worker #{worker.WorkerId}. Account locked.";
 

@@ -24,8 +24,7 @@ public sealed class JobPhotoService(
             throw new ForbiddenAccessException("Authenticated worker user ID is required.");
         }
 
-        var req = request;
-        if (string.IsNullOrWhiteSpace(req.PhotoUrl))
+        if (string.IsNullOrWhiteSpace(request.PhotoUrl))
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
@@ -33,20 +32,20 @@ public sealed class JobPhotoService(
             });
         }
 
-        if (req.AngleNo < 1 || req.AngleNo > 5)
+        if (request.AngleNo < 1 || request.AngleNo > 5)
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
-                { "angleNo", [$"Invalid angleNo ({req.AngleNo}). Must be between 1 and 5."] }
+                { "angleNo", [$"Invalid angleNo ({request.AngleNo}). Must be between 1 and 5."] }
             });
         }
 
-        string phase = req.PhotoPhase?.Trim().ToUpperInvariant() ?? "";
+        string phase = request.PhotoPhase?.Trim().ToUpperInvariant() ?? "";
         if (phase != "BEFORE" && phase != "AFTER")
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
-                { "photoPhase", [$"Invalid photoPhase '{req.PhotoPhase}'. Must be 'BEFORE' or 'AFTER'."] }
+                { "photoPhase", [$"Invalid photoPhase '{request.PhotoPhase}'. Must be 'BEFORE' or 'AFTER'."] }
             });
         }
 
@@ -81,18 +80,18 @@ public sealed class JobPhotoService(
         if (phase == "AFTER")
         {
             var acceptedBeforePhotos = await workerRepository.GetAcceptedJobPhotosByPhaseAsync(assignmentId, "BEFORE", ct);
-            bool hasMatchingBeforeAngle = acceptedBeforePhotos.Any(p => p.AngleNo == req.AngleNo);
+            bool hasMatchingBeforeAngle = acceptedBeforePhotos.Any(p => p.AngleNo == request.AngleNo);
             if (!hasMatchingBeforeAngle)
             {
                 throw new ValidationException(new Dictionary<string, string[]>
                 {
-                    { "angleNo", [$"AFTER photo angleNo ({req.AngleNo}) does not match an accepted BEFORE photo."] }
+                    { "angleNo", [$"AFTER photo angleNo ({request.AngleNo}) does not match an accepted BEFORE photo."] }
                 });
             }
         }
 
         // Assess VoL image quality on the stand-in image of this URL (deterministic, see JobPhotoStandIn).
-        var imageBytes = JobPhotoStandIn.BytesFor(req.PhotoUrl);
+        var imageBytes = JobPhotoStandIn.BytesFor(request.PhotoUrl);
 
         using var imageStream = new MemoryStream(imageBytes);
         var qualityResult = await imageQualityService.AssessAsync(imageStream, ct);
@@ -104,8 +103,8 @@ public sealed class JobPhotoService(
         {
             AssignmentId = assignmentId,
             PhotoPhase = phase,
-            AngleNo = req.AngleNo,
-            ImageUrl = req.PhotoUrl,
+            AngleNo = request.AngleNo,
+            ImageUrl = request.PhotoUrl,
             VolScore = volScore,
             IsAccepted = isAccepted,
             CapturedAt = DateTime.UtcNow

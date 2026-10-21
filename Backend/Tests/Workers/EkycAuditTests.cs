@@ -42,7 +42,7 @@ public class EkycAuditTests
     }
 
     [Fact]
-    public async Task GetEkycQueueQuery_FiltersByStatus_PendingApprovedByAdminAndRejected_AndRefusesAnythingElse()
+    public async Task GetQueueAsync_FiltersByStatus_PendingApprovedByAdminAndRejected_AndRefusesAnythingElse()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -108,7 +108,7 @@ public class EkycAuditTests
     }
 
     [Fact]
-    public async Task GetEkycQueueQuery_ReturnsPagedManualReviewAndAuditItems()
+    public async Task GetQueueAsync_ReturnsPagedManualReviewAndAuditItems()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -145,7 +145,7 @@ public class EkycAuditTests
     }
 
     [Fact]
-    public async Task ReviewEkycCommand_Approved_UpdatesStatusAndActivatesWorker()
+    public async Task ReviewAsync_Approved_UpdatesStatusAndActivatesWorker()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -185,7 +185,7 @@ public class EkycAuditTests
     }
 
     [Fact]
-    public async Task ReviewEkycCommand_Rejected_UpdatesStatusAndLocksWorker()
+    public async Task ReviewAsync_Rejected_UpdatesStatusAndLocksWorker()
     {
         if (!IsSqlServerAvailable()) return;
 

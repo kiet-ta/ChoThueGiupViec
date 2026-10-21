@@ -55,8 +55,7 @@ public sealed class WorkerBookingSlotService(
             throw new ForbiddenAccessException("Authenticated worker user ID is required.");
         }
 
-        var req = request;
-        if (req.SlotDate < DateOnly.FromDateTime(DateTime.UtcNow.Date))
+        if (request.SlotDate < DateOnly.FromDateTime(DateTime.UtcNow.Date))
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
@@ -64,11 +63,11 @@ public sealed class WorkerBookingSlotService(
             });
         }
 
-        var shiftCode = ShiftHelper.NormalizeShiftCode(req.ShiftCode);
+        var shiftCode = ShiftHelper.NormalizeShiftCode(request.ShiftCode);
         var (startTime, endTime) = ShiftHelper.GetShiftTimes(shiftCode);
-        string newStatus = req.IsActive ? "AVAILABLE" : "BLOCKED";
+        string newStatus = request.IsActive ? "AVAILABLE" : "BLOCKED";
 
-        var existingSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, req.SlotDate, shiftCode, ct);
+        var existingSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, request.SlotDate, shiftCode, ct);
 
         BookingSlot targetSlot;
 
@@ -86,7 +85,7 @@ public sealed class WorkerBookingSlotService(
             targetSlot = new BookingSlot
             {
                 WorkerId = workerId,
-                SlotDate = req.SlotDate,
+                SlotDate = request.SlotDate,
                 ShiftCode = shiftCode,
                 StartTime = startTime,
                 EndTime = endTime,
@@ -104,7 +103,7 @@ public sealed class WorkerBookingSlotService(
             {
                 // Unique constraint UNIQUE(worker_id, slot_date, shift_code) conflict during concurrent insertion.
                 // Fallback gracefully to query and update existing row idempotently.
-                var concurrentSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, req.SlotDate, shiftCode, ct);
+                var concurrentSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, request.SlotDate, shiftCode, ct);
                 if (concurrentSlot != null)
                 {
                     EnsureToggleable(concurrentSlot);
@@ -127,7 +126,7 @@ public sealed class WorkerBookingSlotService(
             targetSlot.SlotStatus == "AVAILABLE"
         );
 
-        string action = req.IsActive ? "enabled" : "disabled";
+        string action = request.IsActive ? "enabled" : "disabled";
         return ApiResponse<BookingSlotResponse>.Ok(response, $"Slot {targetSlot.ShiftCode} on {targetSlot.SlotDate:yyyy-MM-dd} {action} successfully.");
     }
 

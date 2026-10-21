@@ -18,10 +18,8 @@ public sealed class WorkerProfileService(
 
     public async Task<ApiResponse<WorkerProfileResponse>> RegisterAsync(RegisterWorkerRequest request, CancellationToken ct = default)
     {
-        var req = request;
-
         // 1. Validate registration token
-        var phoneNumber = RegistrationTokenValidator.ValidateRegistrationToken(req.RegistrationToken, configuration);
+        var phoneNumber = RegistrationTokenValidator.ValidateRegistrationToken(request.RegistrationToken, configuration);
         if (string.IsNullOrWhiteSpace(phoneNumber))
         {
             throw new ValidationException(new Dictionary<string, string[]>
@@ -31,7 +29,7 @@ public sealed class WorkerProfileService(
         }
 
         // 2. Validate inputs
-        if (string.IsNullOrWhiteSpace(req.FullName))
+        if (string.IsNullOrWhiteSpace(request.FullName))
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
@@ -39,7 +37,7 @@ public sealed class WorkerProfileService(
             });
         }
 
-        var trimmedNationalId = req.NationalId?.Trim() ?? string.Empty;
+        var trimmedNationalId = request.NationalId?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(trimmedNationalId) || trimmedNationalId.Length != 12 || !trimmedNationalId.All(char.IsDigit))
         {
             throw new ValidationException(new Dictionary<string, string[]>
@@ -56,7 +54,7 @@ public sealed class WorkerProfileService(
         }
 
         // 4. Create worker entity (Freelancer STI, WorkStatus = PENDING, KycStatus = PENDING)
-        var worker = Worker.CreateFreelancer(phoneNumber, trimmedNationalId, req.FullName.Trim());
+        var worker = Worker.CreateFreelancer(phoneNumber, trimmedNationalId, request.FullName.Trim());
         worker.KycStatus = "PENDING";
         worker.RatingAvg = 5.00m;
         worker.CompletedJobs = 0;

@@ -131,7 +131,7 @@ public class JobPhotoTests
     }
 
     [Fact]
-    public async Task UploadJobPhotoCommand_SharpBeforePhoto_AcceptedAndSavedInDb()
+    public async Task UploadAsync_SharpBeforePhoto_AcceptedAndSavedInDb()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -166,7 +166,7 @@ public class JobPhotoTests
     }
 
     [Fact]
-    public async Task UploadJobPhotoCommand_FirstAcceptedBeforePhoto_StartsTheWork()
+    public async Task UploadAsync_FirstAcceptedBeforePhoto_StartsTheWork()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -193,7 +193,7 @@ public class JobPhotoTests
     }
 
     [Fact]
-    public async Task UploadJobPhotoCommand_BeforeCheckIn_IsRefused()
+    public async Task UploadAsync_BeforeCheckIn_IsRefused()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -211,7 +211,7 @@ public class JobPhotoTests
     }
 
     [Fact]
-    public async Task UploadJobPhotoCommand_BlurryPhoto_SavedAsNotAcceptedAndThrowsValidationException()
+    public async Task UploadAsync_BlurryPhoto_SavedAsNotAcceptedAndThrowsValidationException()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -242,7 +242,7 @@ public class JobPhotoTests
     }
 
     [Fact]
-    public async Task UploadJobPhotoCommand_AfterPhoto_UnmatchedBeforeAngle_ThrowsValidationException()
+    public async Task UploadAsync_AfterPhoto_UnmatchedBeforeAngle_ThrowsValidationException()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -272,7 +272,7 @@ public class JobPhotoTests
     }
 
     [Fact]
-    public async Task UploadJobPhotoCommand_AfterPhoto_MatchingBeforeAngle_Succeeds()
+    public async Task UploadAsync_AfterPhoto_MatchingBeforeAngle_Succeeds()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -306,7 +306,7 @@ public class JobPhotoTests
     }
 
     [Fact]
-    public async Task UploadJobPhotoCommand_ExceedsMaxPhotosInPhase_ThrowsBusinessRuleViolationException()
+    public async Task UploadAsync_ExceedsMaxPhotosInPhase_ThrowsBusinessRuleViolationException()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -339,7 +339,7 @@ public class JobPhotoTests
     }
 
     [Fact]
-    public async Task GetJobPhotosQuery_ReturnsAllUploadedPhotos()
+    public async Task GetPhotosAsync_ReturnsAllUploadedPhotos()
     {
         if (!IsSqlServerAvailable()) return;
 

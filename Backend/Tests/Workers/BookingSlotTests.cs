@@ -40,7 +40,7 @@ public class BookingSlotTests
     }
 
     [Fact]
-    public async Task ToggleBookingSlotCommand_CreatesAndTogglesSlotCorrectly()
+    public async Task ToggleAsync_CreatesAndTogglesSlotCorrectly()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -84,7 +84,7 @@ public class BookingSlotTests
     }
 
     [Fact]
-    public async Task GetWorkerSlotsQuery_ReturnsSlotsInDateRange()
+    public async Task GetSlotsAsync_ReturnsSlotsInDateRange()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -125,7 +125,7 @@ public class BookingSlotTests
     }
 
     [Fact]
-    public async Task ToggleBookingSlotCommand_InvalidShiftCode_ThrowsValidationException()
+    public async Task ToggleAsync_InvalidShiftCode_ThrowsValidationException()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -155,7 +155,7 @@ public class BookingSlotTests
     }
 
     [Fact]
-    public async Task ToggleBookingSlotCommand_PastDate_ThrowsValidationException()
+    public async Task ToggleAsync_PastDate_ThrowsValidationException()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -185,7 +185,7 @@ public class BookingSlotTests
     }
 
     [Fact]
-    public async Task ToggleBookingSlotCommand_ConcurrentToggle_IsIdempotent()
+    public async Task ToggleAsync_ConcurrentToggle_IsIdempotent()
     {
         if (!IsSqlServerAvailable()) return;
 

@@ -131,7 +131,7 @@ public class EkycTests
     }
 
     [Fact]
-    public async Task GetEkycStatusQuery_ReturnsCurrentEkycStatus()
+    public async Task GetStatusAsync_ReturnsCurrentEkycStatus()
     {
         if (!IsSqlServerAvailable()) return;
 

@@ -155,7 +155,7 @@ public class WorkerProfileTests
     }
 
     [Fact]
-    public async Task GetWorkerProfileQuery_ReturnsProfileOfCurrentUser()
+    public async Task GetProfileAsync_ReturnsProfileOfCurrentUser()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -187,7 +187,7 @@ public class WorkerProfileTests
     }
 
     [Fact]
-    public async Task UpdateWorkerProfileCommand_UpdatesFullName()
+    public async Task UpdateProfileAsync_UpdatesFullName()
     {
         if (!IsSqlServerAvailable()) return;
 
