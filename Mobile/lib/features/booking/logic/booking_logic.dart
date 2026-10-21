@@ -12,7 +12,6 @@ class BookingErrorCode {
 }
 
 const int customerNoteMaxLength = 500;
-const int requiredSkillMaxLength = 100;
 
 /// How many days ahead the screen offers. The server is the authority (`Booking.MaxDaysAhead`, default 14, decisions Q23 B3) and
 /// answers 400 on `scheduledDate` beyond it; the options endpoint does not carry this number, so it is the one value kept here.
@@ -98,11 +97,6 @@ String? validateNote(String text) => text.trim().length > customerNoteMaxLength
     ? 'Ghi chú tối đa $customerNoteMaxLength ký tự (đang ${text.trim().length}).'
     : null;
 
-String? validateSkill(String text) =>
-    text.trim().length > requiredSkillMaxLength
-    ? 'Kỹ năng yêu cầu tối đa $requiredSkillMaxLength ký tự (đang ${text.trim().length}).'
-    : null;
-
 /// What is still missing before the order can be created; null when everything is chosen.
 String? missingChoice({
   required String? tier,
@@ -124,7 +118,7 @@ class CreateOrderFailure {
   /// A message for the whole form; null when every problem belongs to a field.
   final String? message;
 
-  /// Field name of the contract (`scheduledDate`, `shiftCode`, `customerNote`, `requiredSkill`, `addressId`, `serviceTier`) -> message.
+  /// Field name of the contract (`scheduledDate`, `shiftCode`, `customerNote`, `addressId`, `serviceTier`) -> message.
   final Map<String, String> fields;
 
   const CreateOrderFailure({this.message, this.fields = const {}});

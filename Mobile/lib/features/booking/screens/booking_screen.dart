@@ -50,7 +50,6 @@ class _BookingScreenState extends State<BookingScreen> {
   late final List<DateTime> _days;
 
   final _noteController = TextEditingController();
-  final _skillController = TextEditingController();
 
   BookingOptions? _options;
   List<BookingAddress>? _addresses;
@@ -83,7 +82,6 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void dispose() {
     _noteController.dispose();
-    _skillController.dispose();
     super.dispose();
   }
 
@@ -160,9 +158,6 @@ class _BookingScreenState extends State<BookingScreen> {
       _tier = tier;
       _failure = null;
       _hint = null;
-      if (tier != ServiceTier.premium) {
-        _skillController.clear(); // a required skill is a Premium-only field
-      }
     });
     _refreshQuote();
   }
@@ -179,7 +174,6 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _submit() async {
     if (_submitting) return;
     final noteError = validateNote(_noteController.text);
-    final skillError = validateSkill(_skillController.text);
     final missing = missingChoice(
       tier: _tier,
       addressId: _addressId,
@@ -187,27 +181,21 @@ class _BookingScreenState extends State<BookingScreen> {
       shiftCode: _shiftCode,
       hasQuote: _quote != null,
     );
-    if (missing != null || noteError != null || skillError != null) {
+    if (missing != null || noteError != null) {
       setState(() {
         _hint = missing;
-        _failure = CreateOrderFailure(
-          fields: {'customerNote': ?noteError, 'requiredSkill': ?skillError},
-        );
+        _failure = CreateOrderFailure(fields: {'customerNote': ?noteError});
       });
       return;
     }
 
     final note = _noteController.text.trim();
-    final skill = _skillController.text.trim();
     final input = CreateOrderInput(
       addressId: _addressId!,
       serviceTier: _tier!,
       scheduledDate: dateKey(_day!),
       shiftCode: _shiftCode!,
       customerNote: note.isEmpty ? null : note,
-      requiredSkill: _tier == ServiceTier.premium && skill.isNotEmpty
-          ? skill
-          : null,
     );
 
     setState(() {
@@ -394,16 +382,6 @@ class _BookingScreenState extends State<BookingScreen> {
           maxLines: 3,
         ),
         _fieldError('customerNote'),
-        if (_tier == ServiceTier.premium) ...[
-          const SizedBox(height: 8.0),
-          NordicTextInput(
-            key: const Key('skill-input'),
-            controller: _skillController,
-            label: 'Kỹ năng yêu cầu (không bắt buộc)',
-            hintText: 'Ví dụ: vệ sinh sau xây dựng',
-          ),
-          _fieldError('requiredSkill'),
-        ],
         const SizedBox(height: 16.0),
 
         _heading('5. Giá cố định'),

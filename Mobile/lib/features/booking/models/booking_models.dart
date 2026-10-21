@@ -132,7 +132,6 @@ class BookingOrder {
   final DateTime? shiftEndAt;
   final double areaSnapshotM2;
   final int requiredWorkers;
-  final String? requiredSkill;
   final int totalAmount;
   final String orderStatus;
   final String? customerNote;
@@ -151,7 +150,6 @@ class BookingOrder {
     required this.shiftEndAt,
     required this.areaSnapshotM2,
     required this.requiredWorkers,
-    required this.requiredSkill,
     required this.totalAmount,
     required this.orderStatus,
     required this.customerNote,
@@ -171,7 +169,6 @@ class BookingOrder {
     shiftEndAt: _date(json['shiftEndAt']),
     areaSnapshotM2: _double(json['areaSnapshotM2']),
     requiredWorkers: _int(json['requiredWorkers']),
-    requiredSkill: json['requiredSkill'] as String?,
     totalAmount: _int(json['totalAmount']),
     orderStatus: json['orderStatus'] as String? ?? '',
     customerNote: json['customerNote'] as String?,
@@ -190,7 +187,6 @@ class CreateOrderInput {
   final String scheduledDate;
   final String shiftCode;
   final String? customerNote;
-  final String? requiredSkill;
 
   const CreateOrderInput({
     required this.addressId,
@@ -198,7 +194,6 @@ class CreateOrderInput {
     required this.scheduledDate,
     required this.shiftCode,
     this.customerNote,
-    this.requiredSkill,
   });
 
   Map<String, dynamic> toJson() => {
@@ -207,7 +202,6 @@ class CreateOrderInput {
     'scheduledDate': scheduledDate,
     'shiftCode': shiftCode,
     'customerNote': customerNote,
-    'requiredSkill': requiredSkill,
   };
 }
 
