@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
@@ -13,7 +14,16 @@ import '../services/workers_photos_service.dart';
 import '../widgets/job_photo_image.dart';
 import '../widgets/tinted_card.dart';
 
+/// Arguments of the acceptance route: the assignment whose finished job the customer looks at. The order screen passes it.
+class CustomerAcceptanceArgs {
+  final int assignmentId;
+
+  const CustomerAcceptanceArgs({required this.assignmentId});
+}
+
 /// Screen for Customer to view Before/After photos and confirm acceptance or request redo (MOB-M4-05, contract workers.md §2.5).
+///
+/// It shows the real photos and the real answer of the server: a failed call is an error with a retry, never a made-up success.
 class CustomerAcceptanceScreen extends StatefulWidget {
   final int assignmentId;
   final CustomerAcceptanceService? acceptanceService;
@@ -21,7 +31,7 @@ class CustomerAcceptanceScreen extends StatefulWidget {
 
   const CustomerAcceptanceScreen({
     super.key,
-    this.assignmentId = 2001,
+    required this.assignmentId,
     this.acceptanceService,
     this.photosService,
   });
@@ -39,6 +49,8 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       'AWAITING_ACCEPTANCE'; // AWAITING_ACCEPTANCE | COMPLETED | IN_PROGRESS
   int _selectedAngle = 1;
   bool _isLoading = false;
+  bool _loadingPhotos = true;
+  String? _photosError;
   bool _showRedoForm = false;
   String? _errorMessage;
   String? _successMessage;
@@ -64,7 +76,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     _acceptanceService =
         widget.acceptanceService ?? CustomerAcceptanceService();
     _photosService = widget.photosService ?? WorkersPhotosService();
-    _loadSamplePhotos();
+    _loadPhotos();
   }
 
   @override
@@ -75,49 +87,53 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     super.dispose();
   }
 
-  Future<void> _loadSamplePhotos() async {
+  Future<void> _loadPhotos() async {
+    setState(() {
+      _loadingPhotos = true;
+      _photosError = null;
+    });
     try {
       final response = await _photosService.getPhotos(widget.assignmentId);
-      if (response.data != null && response.data!.isNotEmpty) {
-        setState(() {
-          _photos.clear();
-          _photos.addAll(response.data!);
-        });
-        return;
-      }
-    } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _photos
+          ..clear()
+          ..addAll(response.data ?? const <JobPhotoDto>[]);
+        _loadingPhotos = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingPhotos = false;
+        _photosError = _failure(e, 'Không tải được ảnh của ca này.');
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingPhotos = false;
+        _photosError = 'Không tải được ảnh của ca này.';
+      });
+    }
+  }
 
-    // Mock initial photo set for interactive demo & testing
+  /// What the worker of a failed call is told: the server's own words for a network failure, a fixed text for the states.
+  String _failure(ApiException e, String fallback) {
+    if (e.isNetworkError) return e.message;
+    if (e.isNotFound || e.isForbidden) {
+      return 'Không tìm thấy ca làm này trong đơn của bạn.';
+    }
+    if (e.isConflict) {
+      return 'Ca này không còn chờ nghiệm thu. Hãy quay lại chi tiết đơn để xem trạng thái mới.';
+    }
+    return e.message.isNotEmpty ? e.message : fallback;
+  }
+
+  void _fail(String message) {
+    if (!mounted) return;
     setState(() {
-      _photos.clear();
-      for (int angle = 1; angle <= 5; angle++) {
-        _photos.add(
-          JobPhotoDto(
-            photoId: angle * 10,
-            assignmentId: widget.assignmentId,
-            photoPhase: 'BEFORE',
-            angleNo: angle,
-            photoUrl:
-                'https://storage.giupviec.local/jobs/2001_before_angle$angle.jpg',
-            volScore: 135.0,
-            isAccepted: true,
-            uploadedAt: DateTime.now().subtract(const Duration(hours: 2)),
-          ),
-        );
-        _photos.add(
-          JobPhotoDto(
-            photoId: angle * 10 + 1,
-            assignmentId: widget.assignmentId,
-            photoPhase: 'AFTER',
-            angleNo: angle,
-            photoUrl:
-                'https://storage.giupviec.local/jobs/2001_after_angle$angle.jpg',
-            volScore: 148.2,
-            isAccepted: true,
-            uploadedAt: DateTime.now().subtract(const Duration(minutes: 15)),
-          ),
-        );
-      }
+      _isLoading = false;
+      _errorMessage = message;
+      _successMessage = null;
     });
   }
 
@@ -133,40 +149,22 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
         assignmentId: widget.assignmentId,
         feedback: _feedbackController.text.trim(),
       );
-
+      final done = response.data;
+      if (done == null) {
+        _fail('Máy chủ không trả kết quả nghiệm thu. Vui lòng thử lại.');
+        return;
+      }
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        if (response.data != null) {
-          _completionResult = response.data;
-          _status = response.data!.status;
-        } else {
-          _completionResult = AssignmentCompletionDto(
-            assignmentId: widget.assignmentId,
-            status: 'COMPLETED',
-            grossAmount: 260000,
-            commissionRate: 0.20,
-            payoutAmount: 208000,
-            completedAt: DateTime.now(),
-          );
-          _status = 'COMPLETED';
-        }
+        _completionResult = done;
+        _status = done.status;
         _successMessage = 'Nghiệm thu thành công! Ca làm việc đã hoàn tất.';
       });
+    } on ApiException catch (e) {
+      _fail(_failure(e, 'Không nghiệm thu được. Vui lòng thử lại.'));
     } catch (_) {
-      setState(() {
-        _isLoading = false;
-        // Fallback for UI flow
-        _completionResult = AssignmentCompletionDto(
-          assignmentId: widget.assignmentId,
-          status: 'COMPLETED',
-          grossAmount: 260000,
-          commissionRate: 0.20,
-          payoutAmount: 208000,
-          completedAt: DateTime.now(),
-        );
-        _status = 'COMPLETED';
-        _successMessage = 'Đã xác nhận nghiệm thu thành công!';
-      });
+      _fail('Không nghiệm thu được. Vui lòng thử lại.');
     }
   }
 
@@ -194,21 +192,23 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
           redoPhotoUrl: _redoPhotoController.text.trim(),
         ),
       );
-
+      final updated = response.data;
+      if (updated == null) {
+        _fail('Máy chủ không trả kết quả yêu cầu dọn lại. Vui lòng thử lại.');
+        return;
+      }
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _status = response.data?.status ?? 'IN_PROGRESS';
+        _status = updated.status;
         _showRedoForm = false;
         _successMessage =
             'Đã gửi yêu cầu dọn lại (15–30 ph). Thợ đã được thông báo bổ sung.';
       });
+    } on ApiException catch (e) {
+      _fail(_failure(e, 'Không gửi được yêu cầu dọn lại. Vui lòng thử lại.'));
     } catch (_) {
-      setState(() {
-        _isLoading = false;
-        _status = 'IN_PROGRESS';
-        _showRedoForm = false;
-        _successMessage = 'Đã ghi nhận yêu cầu dọn lại 15–30 phút cho thợ!';
-      });
+      _fail('Không gửi được yêu cầu dọn lại. Vui lòng thử lại.');
     }
   }
 
@@ -265,6 +265,40 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               const SizedBox(height: 16.0),
 
               // Side-by-side Photo Comparison Card
+              if (_photosError != null) ...[
+                TintedCard(
+                  key: const Key('photos-error'),
+                  backgroundColor: const Color(0xFFFEE2E2),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _photosError!,
+                          style: const TextStyle(
+                            color: Color(0xFF991B1B),
+                            fontSize: 13.0,
+                          ),
+                        ),
+                        const SizedBox(height: 8.0),
+                        NordicButton(
+                          key: const Key('photos-retry'),
+                          label: 'Thử lại',
+                          variant: NordicButtonVariant.secondary,
+                          onPressed: _loadPhotos,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+              ] else if (_loadingPhotos) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
               _buildPhotoComparisonCard(),
               const SizedBox(height: 16.0),
 
@@ -326,7 +360,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               ],
 
               // Completed Payout Breakdown
-              if (_completionResult != null || _status == 'COMPLETED') ...[
+              if (_completionResult != null) ...[
                 _buildCompletionSummaryCard(),
                 const SizedBox(height: 16.0),
               ],
@@ -548,8 +582,10 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
 
   Widget _buildCompletionSummaryCard() {
     final result = _completionResult;
-    final gross = result?.grossAmount ?? 260000;
-    final payout = result?.payoutAmount ?? 208000;
+    if (result == null) return const SizedBox.shrink();
+    final gross = result.grossAmount;
+    final payout = result.payoutAmount;
+    final commissionPercent = (result.commissionRate * 100).round();
 
     return TintedCard(
       backgroundColor: const Color(0xFFF0FDF4),
@@ -573,12 +609,12 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
             const Divider(),
             _buildDetailRow('Tổng Phí Dịch Vụ:', '${gross.toString()} đ'),
             _buildDetailRow(
-              'Chi Phí Nền Tảng (20%):',
+              'Chi Phí Nền Tảng ($commissionPercent%):',
               '${(gross - payout).toString()} đ',
             ),
             const Divider(),
             _buildDetailRow(
-              'Thu Nhập Thợ (80%):',
+              'Thu Nhập Thợ (${100 - commissionPercent}%):',
               '${payout.toString()} đ',
               isBold: true,
             ),

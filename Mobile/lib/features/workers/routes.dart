@@ -41,8 +41,17 @@ class WorkersFeatureModule extends FeatureModule {
       (id) => WorkerPhotosScreen(assignmentId: id),
     ),
     WorkerRoutes.extension: (context) => const WorkerExtensionScreen(),
-    WorkerRoutes.customerAcceptance: (context) =>
-        const CustomerAcceptanceScreen(),
+    WorkerRoutes.customerAcceptance: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is CustomerAcceptanceArgs) {
+        return CustomerAcceptanceScreen(assignmentId: args.assignmentId);
+      }
+      return const Scaffold(
+        body: Center(
+          child: Text('Hãy mở màn nghiệm thu từ chi tiết của một đơn.'),
+        ),
+      );
+    },
   };
 }
 

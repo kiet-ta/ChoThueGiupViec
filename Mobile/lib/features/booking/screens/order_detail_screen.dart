@@ -9,8 +9,16 @@ import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../disputes/models/dispute_models.dart';
+import '../../disputes/routes.dart';
+import '../../disputes/screens/dispute_screen.dart';
 import '../../payments/models/payment_models.dart';
 import '../../payments/routes.dart';
+import '../../ratings/models/rating_models.dart';
+import '../../ratings/routes.dart';
+import '../../ratings/screens/rating_screen.dart';
+import '../../workers/routes.dart';
+import '../../workers/screens/customer_acceptance_screen.dart';
 import '../logic/booking_logic.dart';
 import '../logic/order_logic.dart';
 import '../models/booking_models.dart';
@@ -37,6 +45,10 @@ class OrderDetailScreen extends StatefulWidget {
   /// What "Thanh toán" does; by default it opens the payment screen and reloads the order when the customer comes back.
   final void Function(PaymentScreenArgs args)? onPay;
 
+  /// What the acceptance, rating and dispute buttons do (the route name and its arguments); by default it opens that screen
+  /// and reloads the order when the customer comes back.
+  final void Function(String route, Object args)? onOpen;
+
   const OrderDetailScreen({
     super.key,
     this.args,
@@ -44,6 +56,7 @@ class OrderDetailScreen extends StatefulWidget {
     this.fallbackService,
     this.pollInterval = defaultProgressPollInterval,
     this.onPay,
+    this.onOpen,
   });
 
   @override
@@ -185,6 +198,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         .then((_) {
           if (mounted) _refresh();
         });
+  }
+
+  void _open(String route, Object args) {
+    if (widget.onOpen != null) return widget.onOpen!(route, args);
+    Navigator.of(context).pushNamed(route, arguments: args).then((_) {
+      if (mounted) _refresh();
+    });
   }
 
   Future<void> _cancel() async {
@@ -384,6 +404,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       const Text('Thợ của đơn', style: NordicTypography.h3),
       const SizedBox(height: 8.0),
       ..._assignments(order, progress),
+      if (canDispute(progress)) ...[
+        const SizedBox(height: 8.0),
+        NordicButton(
+          key: const Key('dispute-order'),
+          label: 'Khiếu nại về đơn này',
+          variant: NordicButtonVariant.secondary,
+          onPressed: () => _open(
+            DisputeRoutes.disputes,
+            DisputeScreenArgs(
+              role: DisputeRole.customer,
+              orderId: order.orderId,
+            ),
+          ),
+        ),
+      ],
       if (extension != null) ...[
         const SizedBox(height: 24.0),
         _extensionCard(extension),
@@ -494,32 +529,63 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       for (final a in progress.assignments) ...[
         NordicCard(
           key: Key('assignment-${a.assignmentId}'),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.person_outline_rounded,
-                color: NordicColors.primary,
-              ),
-              const SizedBox(width: 12.0),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ratingText(a.workerRatingAvg).isEmpty
-                          ? workerName(a)
-                          : '${workerName(a)} · ★ ${ratingText(a.workerRatingAvg)}',
-                      style: NordicTypography.labelMedium,
+              Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline_rounded,
+                    color: NordicColors.primary,
+                  ),
+                  const SizedBox(width: 12.0),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ratingText(a.workerRatingAvg).isEmpty
+                              ? workerName(a)
+                              : '${workerName(a)} · ★ ${ratingText(a.workerRatingAvg)}',
+                          style: NordicTypography.labelMedium,
+                        ),
+                        const SizedBox(height: 2.0),
+                        Text(
+                          assignmentStatusLabel(a.assignmentStatus),
+                          key: Key('assignment-status-${a.assignmentId}'),
+                          style: NordicTypography.bodySmall,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2.0),
-                    Text(
-                      assignmentStatusLabel(a.assignmentStatus),
-                      key: Key('assignment-status-${a.assignmentId}'),
-                      style: NordicTypography.bodySmall,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+              for (final action in assignmentActions(a.assignmentStatus)) ...[
+                const SizedBox(height: 8.0),
+                switch (action) {
+                  AssignmentAction.reviewAndAccept => NordicButton(
+                    key: Key('accept-${a.assignmentId}'),
+                    label: 'Xem ảnh & nghiệm thu',
+                    onPressed: () => _open(
+                      WorkerRoutes.customerAcceptance,
+                      CustomerAcceptanceArgs(assignmentId: a.assignmentId),
+                    ),
+                  ),
+                  AssignmentAction.rate => NordicButton(
+                    key: Key('rate-${a.assignmentId}'),
+                    label: 'Đánh giá thợ',
+                    variant: NordicButtonVariant.secondary,
+                    onPressed: () => _open(
+                      RatingRoutes.ratings,
+                      RatingScreenArgs(
+                        role: RatingRole.customer,
+                        assignmentId: a.assignmentId,
+                        ratedName: workerName(a),
+                      ),
+                    ),
+                  ),
+                },
+              ],
             ],
           ),
         ),
