@@ -174,6 +174,7 @@ Request `{ "reason": "string (1-255)" }`. Response 200 `data`: `Order` (`CANCELL
 | `ASSIGNED`, shift start more than `Cancel.FullRefundHoursBefore` (2) h away | **100 %** refund |
 | `ASSIGNED`, shift start within 2 h | per accepted assignment, `Cancel.LateFeeRate` (0.40) x `gross_amount` is kept as worker compensation, the rest refunded: **waits for B10** |
 | `COMPLETED`, `CANCELLED` | **409** `INVALID_STATE` |
+| any status except `PENDING_PAYMENT` and `PAID`, **and** an assignment of the order is `IN_PROGRESS`, `AWAITING_ACCEPTANCE` or `COMPLETED` (BOOKING-COMPLETE-01) | **409** `INVALID_STATE`, whatever the shift time: the work has started or is done, so a problem is reported with a dispute, not by cancelling for a refund. `CHECKED_IN` and earlier stay cancellable by the rows above |
 
 - Refunds go through the Payments module (`payments.md` §3.4); `OrderCancelled` is published after the commit (M3 cancels the open offers/assignments, M5 releases capacity), then `OrderRefunded` when money moved.
 - Plan scope of BE-M2-09 is "before a worker is assigned"; the `ASSIGNED` rows are listed so the rule is complete, but the late-fee row is not implemented before **B10** is answered.
@@ -225,6 +226,7 @@ Records are those of `Backend/Domain/Events/*.cs` (BASE-04); this contract does 
 - **Publishes** `OrderCancelled { OrderId, CustomerId, Reason, CancelledAtUtc }` after every cancel commit (customer cancel, QR expiry, `AssignmentFailed`, incident without substitute).
 - `PAID -> DISPATCHING`: who and when is **B4** (recommended: in the same transaction that marks the order `PAID`, before `OrderPaid` reaches Dispatch).
 - **Handles** `JobAssigned`, `JobCompleted` (M3/M4) and the seat-lost cases: re-reads the order's assignment statuses and applies `JobOrder.SyncWithAssignments` (Q22 D7), then notifies `job.tracking`. Seat-lost signal: **B4**.
+- **`JobCompleted` (BOOKING-COMPLETE-01, implemented by `JobCompletedHandler`):** an `ASSIGNED` order is re-read with the statuses of all its assignments and `SyncWithAssignments` makes it `COMPLETED` when `requiredWorkers` assignments are `COMPLETED` (a two-worker order stays `ASSIGNED` until the second one completes). Idempotent; an unknown order, a `CANCELLED` or `COMPLETED` order, or any status other than `ASSIGNED` changes nothing and never throws (the event is published inside the customer's accept call).
 - **Handles** `AssignmentFailed { OrderId, Reason, FailedAtUtc }` (M3, BR-03 no worker within 10 km, BR-10 no substitute): order -> `CANCELLED` (`cancel_reason = Reason`) and a **100 %** refund (`payments.md` §3.4). Idempotent: an order already `CANCELLED` changes nothing and is not refunded twice.
 - **Handles** `ExtensionDeclined` (M4): extension `extStatus = DECLINED`, `decidedAt`; refund in `payments.md` §3.4.
 - **Does not refund** on `CustomerAbsentApproved` or `DisputeResolved`: the Admin and Disputes modules already call `IRefundService` themselves (`admin.md` §2.2 "double-refund risk", `disputes.md` §2.3). Booking only notifies `job.tracking`.

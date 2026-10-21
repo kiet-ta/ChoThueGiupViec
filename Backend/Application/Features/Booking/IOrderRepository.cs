@@ -1,4 +1,5 @@
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Booking;
 
@@ -21,4 +22,7 @@ public interface IOrderRepository
 
     /// <summary>The order by id, TRACKED so the caller's unit of work saves its status change; null when unknown (BE-M2-07).</summary>
     Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>The status of every assignment of the order, cancelled and reassigned ones included (what <c>JobOrder.SyncWithAssignments</c> reads).</summary>
+    Task<IReadOnlyList<JobAssignmentStatus>> GetAssignmentStatusesAsync(long orderId, CancellationToken cancellationToken = default);
 }

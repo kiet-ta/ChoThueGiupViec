@@ -65,6 +65,12 @@ public sealed class OrderCancellationServiceTests
         public Task<JobOrder?> GetOwnedAsync(int customerId, long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<(IReadOnlyList<JobOrder> Items, int Total)> ListByCustomerAsync(int customerId, JobOrderStatus? status, int skip, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        /// <summary>The statuses of the assignments of an order; none unless a test sets them.</summary>
+        public Dictionary<long, List<JobAssignmentStatus>> Assignments { get; } = [];
+
+        public Task<IReadOnlyList<JobAssignmentStatus>> GetAssignmentStatusesAsync(long orderId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<JobAssignmentStatus>>(Assignments.GetValueOrDefault(orderId) ?? []);
     }
 
     /// <summary>Only what the cancel touches: the open QR transaction of the order.</summary>
@@ -395,5 +401,51 @@ public sealed class OrderCancellationServiceTests
         Assert.Equal(401, ((ObjectResult)anonymous).StatusCode);
         var authorize = typeof(BookingCancelController).GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true).Cast<AuthorizeAttribute>().Single();
         Assert.Equal("CustomerOnly", authorize.Policy);
+    }
+
+    [Theory]
+    [InlineData(JobAssignmentStatus.InProgress)]
+    [InlineData(JobAssignmentStatus.AwaitingAcceptance)]
+    [InlineData(JobAssignmentStatus.Completed)]
+    public async Task AnOrderWhoseWorkHasStarted_CannotBeCancelled_WhateverTheShiftTime_AndNothingIsRefunded(JobAssignmentStatus started)
+    {
+        // The shift is a day away, so the time rule alone would allow the cancel and the full refund.
+        var f = new Fixture(JobOrderStatus.Assigned);
+        f.Db.Assignments[OrderId] = [started];
+
+        var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => f.Service().CancelAsync(CustomerId, OrderId, Reason()));
+
+        Assert.Equal(CancelErrorCodes.InvalidState, ex.Code);
+        Assert.Contains("dispute", ex.Message);
+        Assert.Equal(JobOrderStatus.Assigned, f.Order.OrderStatus);
+        Assert.Null(f.Order.CancelReason);
+        Assert.Empty(f.Refunds.Requests);
+        Assert.Empty(f.Publisher.Published);
+    }
+
+    [Fact]
+    public async Task OneWorkerWorkingWhileTheOtherSeatIsRedispatched_BlocksTheCancelToo()
+    {
+        var f = new Fixture(JobOrderStatus.Dispatching);
+        f.Db.Assignments[OrderId] = [JobAssignmentStatus.InProgress, JobAssignmentStatus.CancelledByWorker];
+
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() => f.Service().CancelAsync(CustomerId, OrderId, Reason()));
+
+        Assert.Equal(JobOrderStatus.Dispatching, f.Order.OrderStatus);
+        Assert.Empty(f.Refunds.Requests);
+    }
+
+    [Theory]
+    [InlineData(JobAssignmentStatus.Assigned)]
+    [InlineData(JobAssignmentStatus.CheckedIn)]
+    public async Task AnAssignedOrderWhoseWorkHasNotStarted_StaysCancellableFarFromTheShift(JobAssignmentStatus status)
+    {
+        var f = new Fixture(JobOrderStatus.Assigned);
+        f.Db.Assignments[OrderId] = [status, JobAssignmentStatus.Reassigned, JobAssignmentStatus.Cancelled];
+
+        var result = await f.Service().CancelAsync(CustomerId, OrderId, Reason());
+
+        Assert.Equal(JobOrderStatus.Cancelled, result.Order.OrderStatus);
+        Assert.Single(f.Refunds.Requests);
     }
 }
