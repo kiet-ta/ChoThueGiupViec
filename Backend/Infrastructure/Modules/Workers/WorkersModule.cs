@@ -22,6 +22,12 @@ public sealed class WorkersModule : IModule
         services.AddScoped<IEkycProvider, EkycProvider>();
         services.AddScoped<IEkycAuditService, EkycAuditService>();
         services.AddScoped<IWorkerAvailabilityQuery, WorkerAvailabilityQuery>();
+
+        services.AddScoped<IWorkerProfileService, WorkerProfileService>();
+        services.AddScoped<IWorkerEkycService, WorkerEkycService>();
+        services.AddScoped<IWorkerBookingSlotService, WorkerBookingSlotService>();
+        services.AddScoped<IJobCompletionService, JobCompletionService>();
+        services.AddScoped<IJobPhotoService, JobPhotoService>();
     }
 }
 

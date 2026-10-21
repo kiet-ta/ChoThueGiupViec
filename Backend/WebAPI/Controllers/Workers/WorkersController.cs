@@ -1,8 +1,6 @@
 using CommonService.Application.Common.Models;
-using CommonService.Application.Features.Workers.Commands;
 using CommonService.Application.Features.Workers.Dtos;
-using CommonService.Application.Features.Workers.Queries;
-using MediatR;
+using CommonService.Application.Features.Workers.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +12,12 @@ namespace CommonService.WebAPI.Controllers.Workers;
 /// </summary>
 [ApiController]
 [Route("api/workers")]
-public class WorkersController(ISender sender) : ControllerBase
+public class WorkersController(
+    IWorkerProfileService profiles,
+    IWorkerEkycService ekyc,
+    IWorkerBookingSlotService slots,
+    IJobPhotoService photos,
+    IJobCompletionService completions) : ControllerBase
 {
     /// <summary>Registers a new Freelancer profile using a single-purpose registration token (contract §2.1.1).</summary>
     [HttpPost("register")]
@@ -37,7 +40,7 @@ public class WorkersController(ISender sender) : ControllerBase
             : headerToken ?? string.Empty;
 
         var fullRequest = request with { RegistrationToken = token };
-        var result = await sender.Send(new RegisterWorkerCommand(fullRequest), ct);
+        var result = await profiles.RegisterAsync(fullRequest, ct);
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
@@ -49,7 +52,7 @@ public class WorkersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProfile(CancellationToken ct)
     {
-        var result = await sender.Send(new GetWorkerProfileQuery(), ct);
+        var result = await profiles.GetProfileAsync(ct);
         return Ok(result);
     }
 
@@ -59,7 +62,7 @@ public class WorkersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<WorkerBankResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetBank(CancellationToken ct) =>
-        Ok(await sender.Send(new GetWorkerBankQuery(), ct));
+        Ok(await profiles.GetBankAsync(ct));
 
     /// <summary>Sets the payout account; 400 when a field is missing or malformed (decisions D19).</summary>
     [HttpPut("me/bank")]
@@ -68,7 +71,7 @@ public class WorkersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> PutBank([FromBody] UpdateWorkerBankRequest? request, CancellationToken ct) =>
-        Ok(await sender.Send(new UpdateWorkerBankCommand(request), ct));
+        Ok(await profiles.UpdateBankAsync(request, ct));
 
     /// <summary>Stores where the worker is now; the dispatch search needs it (decisions D19).</summary>
     [HttpPut("me/location")]
@@ -78,7 +81,7 @@ public class WorkersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UpdateLocation([FromBody] UpdateWorkerLocationRequest? request, CancellationToken ct)
     {
-        var result = await sender.Send(new UpdateWorkerLocationCommand(request), ct);
+        var result = await profiles.UpdateLocationAsync(request, ct);
         return Ok(result);
     }
 
@@ -90,7 +93,7 @@ public class WorkersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateWorkerProfileRequest request, CancellationToken ct)
     {
-        var result = await sender.Send(new UpdateWorkerProfileCommand(request), ct);
+        var result = await profiles.UpdateProfileAsync(request, ct);
         return Ok(result);
     }
 
@@ -102,7 +105,7 @@ public class WorkersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> SubmitEkyc([FromBody] SubmitEkycRequest request, CancellationToken ct)
     {
-        var result = await sender.Send(new SubmitEkycCommand(request), ct);
+        var result = await ekyc.SubmitAsync(request, ct);
         return Ok(result);
     }
 
@@ -114,7 +117,7 @@ public class WorkersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetEkycStatus(CancellationToken ct)
     {
-        var result = await sender.Send(new GetEkycStatusQuery(), ct);
+        var result = await ekyc.GetStatusAsync(ct);
         return Ok(result);
     }
 
@@ -128,7 +131,7 @@ public class WorkersController(ISender sender) : ControllerBase
         [FromQuery] DateOnly? endDate,
         CancellationToken ct)
     {
-        var result = await sender.Send(new GetWorkerSlotsQuery(startDate, endDate), ct);
+        var result = await slots.GetSlotsAsync(startDate, endDate, ct);
         return Ok(result);
     }
 
@@ -142,7 +145,7 @@ public class WorkersController(ISender sender) : ControllerBase
         [FromBody] ToggleBookingSlotRequest request,
         CancellationToken ct)
     {
-        var result = await sender.Send(new ToggleBookingSlotCommand(request), ct);
+        var result = await slots.ToggleAsync(request, ct);
         return Ok(result);
     }
 
@@ -159,7 +162,7 @@ public class WorkersController(ISender sender) : ControllerBase
         [FromBody] UploadJobPhotoRequest request,
         CancellationToken ct)
     {
-        var result = await sender.Send(new UploadJobPhotoCommand(assignmentId, request), ct);
+        var result = await photos.UploadAsync(assignmentId, request, ct);
         return Ok(result);
     }
 
@@ -172,7 +175,7 @@ public class WorkersController(ISender sender) : ControllerBase
         long assignmentId,
         CancellationToken ct)
     {
-        var result = await sender.Send(new GetJobPhotosQuery(assignmentId), ct);
+        var result = await photos.GetPhotosAsync(assignmentId, ct);
         return Ok(result);
     }
 
@@ -183,7 +186,7 @@ public class WorkersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetWorkerById(int id, CancellationToken ct)
     {
-        var result = await sender.Send(new GetWorkerByIdQuery(id), ct);
+        var result = await profiles.GetByIdAsync(id, ct);
         return Ok(result);
     }
 
@@ -200,7 +203,7 @@ public class WorkersController(ISender sender) : ControllerBase
         [FromBody] SubmitCompletionRequest? request,
         CancellationToken ct)
     {
-        var result = await sender.Send(new SubmitJobCompletionCommand(assignmentId, request?.Notes), ct);
+        var result = await completions.SubmitAsync(assignmentId, request?.Notes, ct);
         return Ok(result);
     }
 }

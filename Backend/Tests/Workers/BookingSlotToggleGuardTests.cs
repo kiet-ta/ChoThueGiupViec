@@ -1,7 +1,7 @@
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Workers;
-using CommonService.Application.Features.Workers.Commands;
 using CommonService.Application.Features.Workers.Dtos;
+using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -63,7 +63,7 @@ public class BookingSlotToggleGuardTests
         public void Delete(Worker entity) => throw new NotSupportedException();
     }
 
-    private static (SlotRepository Repo, ToggleBookingSlotCommandHandler Handler) Setup(string? existingStatus)
+    private static (SlotRepository Repo, WorkerBookingSlotService Handler) Setup(string? existingStatus)
     {
         var repo = new SlotRepository();
         if (existingStatus != null)
@@ -79,12 +79,12 @@ public class BookingSlotToggleGuardTests
             });
         }
 
-        return (repo, new ToggleBookingSlotCommandHandler(repo, new User()));
+        return (repo, new WorkerBookingSlotService(repo, new User()));
     }
 
     private static Task<CommonService.Application.Common.Models.ApiResponse<BookingSlotResponse>> Toggle(
-        ToggleBookingSlotCommandHandler handler, bool isActive) =>
-        handler.Handle(new ToggleBookingSlotCommand(new ToggleBookingSlotRequest(SlotDate, "SHIFT_MORNING", isActive)), default);
+        WorkerBookingSlotService handler, bool isActive) =>
+        handler.ToggleAsync(new ToggleBookingSlotRequest(SlotDate, "SHIFT_MORNING", isActive), default);
 
     [Theory]
     [InlineData("BOOKED", false)]
@@ -97,7 +97,7 @@ public class BookingSlotToggleGuardTests
 
         var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => Toggle(handler, isActive));
 
-        Assert.Equal(ToggleBookingSlotCommandHandler.SlotInUseCode, ex.Code);
+        Assert.Equal(WorkerBookingSlotService.SlotInUseCode, ex.Code);
         Assert.Equal(status, Assert.Single(repo.Slots).SlotStatus);
         Assert.Equal(0, repo.Saves);
     }

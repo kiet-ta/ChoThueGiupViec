@@ -5,31 +5,26 @@ using CommonService.Application.Features.Workers.Dtos;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
-using MediatR;
 using Microsoft.Extensions.Options;
 
-namespace CommonService.Application.Features.Workers.Commands;
+namespace CommonService.Application.Features.Workers.Services;
 
-public sealed record UploadJobPhotoCommand(long AssignmentId, UploadJobPhotoRequest Request) : IRequest<ApiResponse<JobPhotoResponse>>;
-
-public sealed class UploadJobPhotoCommandHandler(
+public sealed class JobPhotoService(
     IWorkerRepository workerRepository,
     IImageQualityService imageQualityService,
     ICurrentUser currentUser,
-    IOptions<BusinessRules> rulesOptions)
-    : IRequestHandler<UploadJobPhotoCommand, ApiResponse<JobPhotoResponse>>
+    IOptions<BusinessRules> rulesOptions) : IJobPhotoService
 {
     private readonly BusinessRules _rules = rulesOptions.Value;
 
-    public async Task<ApiResponse<JobPhotoResponse>> Handle(UploadJobPhotoCommand command, CancellationToken cancellationToken)
+    public async Task<ApiResponse<JobPhotoResponse>> UploadAsync(long assignmentId, UploadJobPhotoRequest request, CancellationToken ct = default)
     {
         if (currentUser.UserId is not int workerId)
         {
             throw new ForbiddenAccessException("Authenticated worker user ID is required.");
         }
 
-        var req = command.Request;
-        if (string.IsNullOrWhiteSpace(req.PhotoUrl))
+        if (string.IsNullOrWhiteSpace(request.PhotoUrl))
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
@@ -37,28 +32,28 @@ public sealed class UploadJobPhotoCommandHandler(
             });
         }
 
-        if (req.AngleNo < 1 || req.AngleNo > 5)
+        if (request.AngleNo < 1 || request.AngleNo > 5)
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
-                { "angleNo", [$"Invalid angleNo ({req.AngleNo}). Must be between 1 and 5."] }
+                { "angleNo", [$"Invalid angleNo ({request.AngleNo}). Must be between 1 and 5."] }
             });
         }
 
-        string phase = req.PhotoPhase?.Trim().ToUpperInvariant() ?? "";
+        string phase = request.PhotoPhase?.Trim().ToUpperInvariant() ?? "";
         if (phase != "BEFORE" && phase != "AFTER")
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
-                { "photoPhase", [$"Invalid photoPhase '{req.PhotoPhase}'. Must be 'BEFORE' or 'AFTER'."] }
+                { "photoPhase", [$"Invalid photoPhase '{request.PhotoPhase}'. Must be 'BEFORE' or 'AFTER'."] }
             });
         }
 
         // Verify assignment exists
-        var assignment = await workerRepository.GetAssignmentByIdAsync(command.AssignmentId, cancellationToken);
+        var assignment = await workerRepository.GetAssignmentByIdAsync(assignmentId, ct);
         if (assignment == null)
         {
-            throw new NotFoundException($"Job assignment with ID {command.AssignmentId} not found.");
+            throw new NotFoundException($"Job assignment with ID {assignmentId} not found.");
         }
 
         // Verify worker ownership if caller role is Worker
@@ -75,7 +70,7 @@ public sealed class UploadJobPhotoCommandHandler(
         }
 
         // Check max accepted photos per phase
-        var acceptedPhotosInPhase = await workerRepository.GetAcceptedJobPhotosByPhaseAsync(command.AssignmentId, phase, cancellationToken);
+        var acceptedPhotosInPhase = await workerRepository.GetAcceptedJobPhotosByPhaseAsync(assignmentId, phase, ct);
         if (acceptedPhotosInPhase.Count >= _rules.Photos.MaxPerPhase)
         {
             throw new BusinessRuleViolationException($"Phase '{phase}' already reached maximum allowed accepted photos ({_rules.Photos.MaxPerPhase}).");
@@ -84,39 +79,39 @@ public sealed class UploadJobPhotoCommandHandler(
         // If phase == AFTER: angleNo MUST match an accepted BEFORE photo angleNo
         if (phase == "AFTER")
         {
-            var acceptedBeforePhotos = await workerRepository.GetAcceptedJobPhotosByPhaseAsync(command.AssignmentId, "BEFORE", cancellationToken);
-            bool hasMatchingBeforeAngle = acceptedBeforePhotos.Any(p => p.AngleNo == req.AngleNo);
+            var acceptedBeforePhotos = await workerRepository.GetAcceptedJobPhotosByPhaseAsync(assignmentId, "BEFORE", ct);
+            bool hasMatchingBeforeAngle = acceptedBeforePhotos.Any(p => p.AngleNo == request.AngleNo);
             if (!hasMatchingBeforeAngle)
             {
                 throw new ValidationException(new Dictionary<string, string[]>
                 {
-                    { "angleNo", [$"AFTER photo angleNo ({req.AngleNo}) does not match an accepted BEFORE photo."] }
+                    { "angleNo", [$"AFTER photo angleNo ({request.AngleNo}) does not match an accepted BEFORE photo."] }
                 });
             }
         }
 
         // Assess VoL image quality on the stand-in image of this URL (deterministic, see JobPhotoStandIn).
-        var imageBytes = JobPhotoStandIn.BytesFor(req.PhotoUrl);
+        var imageBytes = JobPhotoStandIn.BytesFor(request.PhotoUrl);
 
         using var imageStream = new MemoryStream(imageBytes);
-        var qualityResult = await imageQualityService.AssessAsync(imageStream, cancellationToken);
+        var qualityResult = await imageQualityService.AssessAsync(imageStream, ct);
 
         bool isAccepted = qualityResult.IsAccepted;
         double volScore = qualityResult.VolScore;
 
         var photo = new JobPhoto
         {
-            AssignmentId = command.AssignmentId,
+            AssignmentId = assignmentId,
             PhotoPhase = phase,
-            AngleNo = req.AngleNo,
-            ImageUrl = req.PhotoUrl,
+            AngleNo = request.AngleNo,
+            ImageUrl = request.PhotoUrl,
             VolScore = volScore,
             IsAccepted = isAccepted,
             CapturedAt = DateTime.UtcNow
         };
 
-        await workerRepository.AddJobPhotoAsync(photo, cancellationToken);
-        await workerRepository.SaveChangesAsync(cancellationToken);
+        await workerRepository.AddJobPhotoAsync(photo, ct);
+        await workerRepository.SaveChangesAsync(ct);
 
         if (!isAccepted)
         {
@@ -132,7 +127,7 @@ public sealed class UploadJobPhotoCommandHandler(
         {
             assignment.TransitionTo(JobAssignmentStatus.InProgress);
             assignment.UpdatedAt = DateTime.UtcNow;
-            await workerRepository.SaveChangesAsync(cancellationToken);
+            await workerRepository.SaveChangesAsync(ct);
         }
 
         var response = new JobPhotoResponse(
@@ -148,43 +143,22 @@ public sealed class UploadJobPhotoCommandHandler(
 
         return ApiResponse<JobPhotoResponse>.Ok(response, "Photo uploaded and verified successfully.");
     }
-}
 
-/// <summary>
-/// The photo is sent as a URL, not as a file, so the real Variance of Laplacian cannot be measured yet (deferred). Until it is, the
-/// quality check runs on a deterministic stand-in image chosen by the URL: a URL containing <c>blur</c>, <c>low_quality</c> or
-/// <c>vol_45</c> is a blurry photo, any other URL is a sharp one. Before this, the stand-in was built from the URL text, so a normal URL
-/// scored 3 to 60 and was rejected at random (decisions D18).
-/// </summary>
-public static class JobPhotoStandIn
-{
-    private const int Pixels = 640 * 480;
-
-    private static readonly string[] BlurMarkers = ["blur", "low_quality", "vol_45"];
-
-    private static readonly byte[] Sharp = BuildSharp();
-
-    public static bool IsBlurry(string photoUrl) =>
-        BlurMarkers.Any(m => photoUrl.Contains(m, StringComparison.OrdinalIgnoreCase));
-
-    public static byte[] BytesFor(string photoUrl)
+    public async Task<ApiResponse<IReadOnlyList<JobPhotoResponse>>> GetPhotosAsync(long assignmentId, CancellationToken ct = default)
     {
-        if (IsBlurry(photoUrl))
-        {
-            // Constant grey: variance 0.
-            var flat = new byte[Pixels];
-            Array.Fill(flat, (byte)128);
-            return flat;
-        }
+        var photos = await workerRepository.GetJobPhotosAsync(assignmentId, ct);
 
-        return Sharp;
-    }
+        var responses = photos.Select(p => new JobPhotoResponse(
+            p.PhotoId,
+            p.AssignmentId,
+            p.PhotoPhase,
+            p.AngleNo,
+            p.ImageUrl,
+            p.VolScore,
+            p.IsAccepted,
+            p.CapturedAt
+        )).ToList();
 
-    // Fixed-seed noise: the same sharp image every time, with a Laplacian variance far above the threshold.
-    private static byte[] BuildSharp()
-    {
-        var bytes = new byte[Pixels];
-        new Random(20261016).NextBytes(bytes);
-        return bytes;
+        return ApiResponse<IReadOnlyList<JobPhotoResponse>>.Ok(responses, "Retrieved job photos successfully.");
     }
 }

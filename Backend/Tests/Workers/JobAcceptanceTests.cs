@@ -1,6 +1,6 @@
 using CommonService.Application.Exceptions;
-using CommonService.Application.Features.Workers.Commands;
 using CommonService.Application.Features.Workers.Dtos;
+using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -110,10 +110,10 @@ public class JobAcceptanceTests
 
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var handler = new SubmitJobCompletionCommandHandler(repository, currentUser);
+        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser);
 
         // Act
-        var response = await handler.Handle(new SubmitJobCompletionCommand(assignment.AssignmentId, "Done clean"), CancellationToken.None);
+        var response = await handler.SubmitAsync(assignment.AssignmentId, "Done clean", CancellationToken.None);
 
         // Assert
         Assert.True(response.Success);
@@ -161,11 +161,11 @@ public class JobAcceptanceTests
 
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var handler = new SubmitJobCompletionCommandHandler(repository, currentUser);
+        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser);
 
         // Act & Assert
         await Assert.ThrowsAsync<ValidationException>(() =>
-            handler.Handle(new SubmitJobCompletionCommand(assignment.AssignmentId), CancellationToken.None));
+            handler.SubmitAsync(assignment.AssignmentId, null, CancellationToken.None));
 
         await transaction.RollbackAsync();
     }
@@ -207,12 +207,10 @@ public class JobAcceptanceTests
 
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
-        var handler = new RequestJobRedoCommandHandler(repository, currentUser);
+        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser);
 
         // Act
-        var response = await handler.Handle(
-            new RequestJobRedoCommand(assignment.AssignmentId, new RequestRedoRequest("Chua sach dust")),
-            CancellationToken.None);
+        var response = await handler.RequestRedoAsync(assignment.AssignmentId, new RequestRedoRequest("Chua sach dust"), CancellationToken.None);
 
         // Assert
         Assert.True(response.Success);
@@ -267,10 +265,10 @@ public class JobAcceptanceTests
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
         var publisher = new TestPublisher();
-        var handler = new AcceptJobCompletionCommandHandler(repository, publisher, currentUser);
+        var handler = new JobCompletionService(repository, publisher, currentUser);
 
         // Act
-        var response = await handler.Handle(new AcceptJobCompletionCommand(assignment.AssignmentId), CancellationToken.None);
+        var response = await handler.AcceptAsync(assignment.AssignmentId, null, CancellationToken.None);
 
         // Assert
         Assert.True(response.Success);
@@ -338,10 +336,10 @@ public class JobAcceptanceTests
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
         var publisher = new TestPublisher();
-        var handler = new AcceptJobCompletionCommandHandler(repository, publisher, currentUser);
+        var handler = new JobCompletionService(repository, publisher, currentUser);
 
         // Act
-        var response = await handler.Handle(new AcceptJobCompletionCommand(assignment.AssignmentId), CancellationToken.None);
+        var response = await handler.AcceptAsync(assignment.AssignmentId, null, CancellationToken.None);
 
         // Assert
         Assert.True(response.Success);

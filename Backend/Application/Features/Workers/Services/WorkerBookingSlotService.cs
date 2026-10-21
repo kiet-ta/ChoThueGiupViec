@@ -4,27 +4,58 @@ using CommonService.Application.Features.Workers.Dtos;
 using CommonService.Application.Features.Workers.Helpers;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace CommonService.Application.Features.Workers.Commands;
+namespace CommonService.Application.Features.Workers.Services;
 
-public sealed record ToggleBookingSlotCommand(ToggleBookingSlotRequest Request) : IRequest<ApiResponse<BookingSlotResponse>>;
-
-public sealed class ToggleBookingSlotCommandHandler(
+public sealed class WorkerBookingSlotService(
     IWorkerRepository workerRepository,
-    ICurrentUser currentUser)
-    : IRequestHandler<ToggleBookingSlotCommand, ApiResponse<BookingSlotResponse>>
+    ICurrentUser currentUser) : IWorkerBookingSlotService
 {
-    public async Task<ApiResponse<BookingSlotResponse>> Handle(ToggleBookingSlotCommand command, CancellationToken cancellationToken)
+    /// <summary>409 code when the slot is held by an offer or booked by a job (contracts workers.md 2.3.2).</summary>
+    public const string SlotInUseCode = "SLOT_IN_USE";
+
+    public async Task<ApiResponse<IReadOnlyList<BookingSlotResponse>>> GetSlotsAsync(DateOnly? startDate, DateOnly? endDate, CancellationToken ct = default)
     {
         if (currentUser.UserId is not int workerId)
         {
             throw new ForbiddenAccessException("Authenticated worker user ID is required.");
         }
 
-        var req = command.Request;
-        if (req.SlotDate < DateOnly.FromDateTime(DateTime.UtcNow.Date))
+        var start = startDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var end = endDate ?? start.AddDays(7);
+
+        if (end < start)
+        {
+            throw new ValidationException(new Dictionary<string, string[]>
+            {
+                { "endDate", ["endDate must be greater than or equal to startDate."] }
+            });
+        }
+
+        var slots = await workerRepository.GetWorkerSlotsAsync(workerId, start, end, ct);
+
+        var responses = slots.Select(s => new BookingSlotResponse(
+            s.SlotId,
+            s.WorkerId,
+            s.SlotDate,
+            s.ShiftCode,
+            s.StartTime.ToString("HH:mm"),
+            s.EndTime.ToString("HH:mm"),
+            s.SlotStatus == "AVAILABLE"
+        )).ToList();
+
+        return ApiResponse<IReadOnlyList<BookingSlotResponse>>.Ok(responses, "Retrieved booking slots successfully.");
+    }
+
+    public async Task<ApiResponse<BookingSlotResponse>> ToggleAsync(ToggleBookingSlotRequest request, CancellationToken ct = default)
+    {
+        if (currentUser.UserId is not int workerId)
+        {
+            throw new ForbiddenAccessException("Authenticated worker user ID is required.");
+        }
+
+        if (request.SlotDate < DateOnly.FromDateTime(DateTime.UtcNow.Date))
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
@@ -32,11 +63,11 @@ public sealed class ToggleBookingSlotCommandHandler(
             });
         }
 
-        var shiftCode = ShiftHelper.NormalizeShiftCode(req.ShiftCode);
+        var shiftCode = ShiftHelper.NormalizeShiftCode(request.ShiftCode);
         var (startTime, endTime) = ShiftHelper.GetShiftTimes(shiftCode);
-        string newStatus = req.IsActive ? "AVAILABLE" : "BLOCKED";
+        string newStatus = request.IsActive ? "AVAILABLE" : "BLOCKED";
 
-        var existingSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, req.SlotDate, shiftCode, cancellationToken);
+        var existingSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, request.SlotDate, shiftCode, ct);
 
         BookingSlot targetSlot;
 
@@ -46,7 +77,7 @@ public sealed class ToggleBookingSlotCommandHandler(
             existingSlot.SlotStatus = newStatus;
             existingSlot.UpdatedAt = DateTime.UtcNow;
             workerRepository.UpdateSlot(existingSlot);
-            await workerRepository.SaveChangesAsync(cancellationToken);
+            await workerRepository.SaveChangesAsync(ct);
             targetSlot = existingSlot;
         }
         else
@@ -54,7 +85,7 @@ public sealed class ToggleBookingSlotCommandHandler(
             targetSlot = new BookingSlot
             {
                 WorkerId = workerId,
-                SlotDate = req.SlotDate,
+                SlotDate = request.SlotDate,
                 ShiftCode = shiftCode,
                 StartTime = startTime,
                 EndTime = endTime,
@@ -65,21 +96,21 @@ public sealed class ToggleBookingSlotCommandHandler(
 
             try
             {
-                await workerRepository.AddSlotAsync(targetSlot, cancellationToken);
-                await workerRepository.SaveChangesAsync(cancellationToken);
+                await workerRepository.AddSlotAsync(targetSlot, ct);
+                await workerRepository.SaveChangesAsync(ct);
             }
             catch (DbUpdateException)
             {
                 // Unique constraint UNIQUE(worker_id, slot_date, shift_code) conflict during concurrent insertion.
                 // Fallback gracefully to query and update existing row idempotently.
-                var concurrentSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, req.SlotDate, shiftCode, cancellationToken);
+                var concurrentSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, request.SlotDate, shiftCode, ct);
                 if (concurrentSlot != null)
                 {
                     EnsureToggleable(concurrentSlot);
                     concurrentSlot.SlotStatus = newStatus;
                     concurrentSlot.UpdatedAt = DateTime.UtcNow;
                     workerRepository.UpdateSlot(concurrentSlot);
-                    await workerRepository.SaveChangesAsync(cancellationToken);
+                    await workerRepository.SaveChangesAsync(ct);
                     targetSlot = concurrentSlot;
                 }
             }
@@ -95,12 +126,9 @@ public sealed class ToggleBookingSlotCommandHandler(
             targetSlot.SlotStatus == "AVAILABLE"
         );
 
-        string action = req.IsActive ? "enabled" : "disabled";
+        string action = request.IsActive ? "enabled" : "disabled";
         return ApiResponse<BookingSlotResponse>.Ok(response, $"Slot {targetSlot.ShiftCode} on {targetSlot.SlotDate:yyyy-MM-dd} {action} successfully.");
     }
-
-    /// <summary>409 code when the slot is held by an offer or booked by a job (contracts workers.md 2.3.2).</summary>
-    public const string SlotInUseCode = "SLOT_IN_USE";
 
     /// <summary>
     /// The worker's toggle only moves AVAILABLE &lt;-&gt; BLOCKED. A HELD or BOOKED slot belongs to Dispatch: switching it off would leave a

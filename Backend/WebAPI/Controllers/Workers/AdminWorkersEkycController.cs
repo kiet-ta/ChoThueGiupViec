@@ -1,8 +1,6 @@
 using CommonService.Application.Common.Models;
-using CommonService.Application.Features.Workers.Commands;
 using CommonService.Application.Features.Workers.Dtos;
-using CommonService.Application.Features.Workers.Queries;
-using MediatR;
+using CommonService.Application.Features.Workers.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Workers;
 [ApiController]
 [Route("api/admin/workers")]
 [Authorize(Policy = "AdminOnly")]
-public class AdminWorkersEkycController(ISender sender) : ControllerBase
+public class AdminWorkersEkycController(IWorkerEkycService ekyc) : ControllerBase
 {
     /// <summary>Lists pending manual eKYC reviews and sample audits for Admin (contract §2.2.2).</summary>
     [HttpGet("ekyc-queue")]
@@ -29,7 +27,7 @@ public class AdminWorkersEkycController(ISender sender) : ControllerBase
         [FromQuery] string status = "PENDING",
         CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetEkycQueueQuery(page, pageSize, status), ct);
+        var result = await ekyc.GetQueueAsync(page, pageSize, status, ct);
         return Ok(result);
     }
 
@@ -45,7 +43,7 @@ public class AdminWorkersEkycController(ISender sender) : ControllerBase
         [FromBody] ReviewEkycRequest request,
         CancellationToken ct = default)
     {
-        var result = await sender.Send(new ReviewEkycCommand(id, request), ct);
+        var result = await ekyc.ReviewAsync(id, request, ct);
         return Ok(result);
     }
 }

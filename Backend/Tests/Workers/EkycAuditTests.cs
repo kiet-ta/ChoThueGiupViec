@@ -1,7 +1,5 @@
 using CommonService.Application.Common.Options;
-using CommonService.Application.Features.Workers.Commands;
 using CommonService.Application.Features.Workers.Dtos;
-using CommonService.Application.Features.Workers.Queries;
 using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -44,7 +42,7 @@ public class EkycAuditTests
     }
 
     [Fact]
-    public async Task GetEkycQueueQuery_FiltersByStatus_PendingApprovedByAdminAndRejected_AndRefusesAnythingElse()
+    public async Task GetQueueAsync_FiltersByStatus_PendingApprovedByAdminAndRejected_AndRefusesAnythingElse()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -83,9 +81,9 @@ public class EkycAuditTests
         rejected.ReviewKyc(approved: false, adminId: admin.AdminId);
         await db.SaveChangesAsync();
 
-        var handler = new GetEkycQueueQueryHandler(repository, new TestCurrentUser { UserId = 1, Role = UserRole.Admin });
+        var handler = new WorkerEkycService(repository, null!, new TestCurrentUser { UserId = 1, Role = UserRole.Admin }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
         async Task<List<int>> Ids(string? status) =>
-            (await handler.Handle(new GetEkycQueueQuery(1, 200, status!), CancellationToken.None)).Data!.Items.Select(i => i.WorkerId).ToList();
+            (await handler.GetQueueAsync(1, 200, status!, CancellationToken.None)).Data!.Items.Select(i => i.WorkerId).ToList();
 
         var pending = await Ids("PENDING");
         Assert.Contains(waiting.WorkerId, pending);
@@ -110,7 +108,7 @@ public class EkycAuditTests
     }
 
     [Fact]
-    public async Task GetEkycQueueQuery_ReturnsPagedManualReviewAndAuditItems()
+    public async Task GetQueueAsync_ReturnsPagedManualReviewAndAuditItems()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -128,10 +126,10 @@ public class EkycAuditTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = 1, Role = UserRole.Admin };
-        var queryHandler = new GetEkycQueueQueryHandler(repository, currentUser);
+        var queryHandler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
 
         // Act
-        var result = await queryHandler.Handle(new GetEkycQueueQuery(1, 20), CancellationToken.None);
+        var result = await queryHandler.GetQueueAsync(1, 20, CommonService.Application.Features.Workers.EkycQueueStatus.Pending, CancellationToken.None);
 
         // Assert
         Assert.True(result.Success);
@@ -147,7 +145,7 @@ public class EkycAuditTests
     }
 
     [Fact]
-    public async Task ReviewEkycCommand_Approved_UpdatesStatusAndActivatesWorker()
+    public async Task ReviewAsync_Approved_UpdatesStatusAndActivatesWorker()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -166,11 +164,11 @@ public class EkycAuditTests
 
         int adminId = await CommonService.Tests.Persistence.SqlSeed.AdminAsync(db);
         var currentUser = new TestCurrentUser { UserId = adminId, Role = UserRole.Admin };
-        var handler = new ReviewEkycCommandHandler(repository, currentUser);
+        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
         var req = new ReviewEkycRequest(Approved: true);
 
         // Act
-        var result = await handler.Handle(new ReviewEkycCommand(worker.WorkerId, req), CancellationToken.None);
+        var result = await handler.ReviewAsync(worker.WorkerId, req, CancellationToken.None);
 
         // Assert
         Assert.True(result.Success);
@@ -187,7 +185,7 @@ public class EkycAuditTests
     }
 
     [Fact]
-    public async Task ReviewEkycCommand_Rejected_UpdatesStatusAndLocksWorker()
+    public async Task ReviewAsync_Rejected_UpdatesStatusAndLocksWorker()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -206,11 +204,11 @@ public class EkycAuditTests
 
         int adminId = await CommonService.Tests.Persistence.SqlSeed.AdminAsync(db);
         var currentUser = new TestCurrentUser { UserId = adminId, Role = UserRole.Admin };
-        var handler = new ReviewEkycCommandHandler(repository, currentUser);
+        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
         var req = new ReviewEkycRequest(Approved: false, RejectionReason: "ID photo does not match selfie.");
 
         // Act
-        var result = await handler.Handle(new ReviewEkycCommand(worker.WorkerId, req), CancellationToken.None);
+        var result = await handler.ReviewAsync(worker.WorkerId, req, CancellationToken.None);
 
         // Assert
         Assert.True(result.Success);

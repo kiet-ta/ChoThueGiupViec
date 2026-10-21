@@ -1,7 +1,6 @@
 using CommonService.Application.Exceptions;
-using CommonService.Application.Features.Workers.Commands;
 using CommonService.Application.Features.Workers.Dtos;
-using CommonService.Application.Features.Workers.Queries;
+using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -41,7 +40,7 @@ public class BookingSlotTests
     }
 
     [Fact]
-    public async Task ToggleBookingSlotCommand_CreatesAndTogglesSlotCorrectly()
+    public async Task ToggleAsync_CreatesAndTogglesSlotCorrectly()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -58,13 +57,13 @@ public class BookingSlotTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var toggleHandler = new ToggleBookingSlotCommandHandler(repository, currentUser);
+        var toggleHandler = new WorkerBookingSlotService(repository, currentUser);
 
         var slotDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
 
         // 1. Enable Morning Slot
         var req1 = new ToggleBookingSlotRequest(slotDate, "SHIFT_MORNING", IsActive: true);
-        var res1 = await toggleHandler.Handle(new ToggleBookingSlotCommand(req1), CancellationToken.None);
+        var res1 = await toggleHandler.ToggleAsync(req1, CancellationToken.None);
 
         Assert.True(res1.Success);
         Assert.NotNull(res1.Data);
@@ -75,7 +74,7 @@ public class BookingSlotTests
 
         // 2. Disable Morning Slot (Toggle off)
         var req2 = new ToggleBookingSlotRequest(slotDate, "SHIFT_MORNING", IsActive: false);
-        var res2 = await toggleHandler.Handle(new ToggleBookingSlotCommand(req2), CancellationToken.None);
+        var res2 = await toggleHandler.ToggleAsync(req2, CancellationToken.None);
 
         Assert.True(res2.Success);
         Assert.NotNull(res2.Data);
@@ -85,7 +84,7 @@ public class BookingSlotTests
     }
 
     [Fact]
-    public async Task GetWorkerSlotsQuery_ReturnsSlotsInDateRange()
+    public async Task GetSlotsAsync_ReturnsSlotsInDateRange()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -102,17 +101,17 @@ public class BookingSlotTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var toggleHandler = new ToggleBookingSlotCommandHandler(repository, currentUser);
-        var queryHandler = new GetWorkerSlotsQueryHandler(repository, currentUser);
+        var toggleHandler = new WorkerBookingSlotService(repository, currentUser);
+        var queryHandler = new WorkerBookingSlotService(repository, currentUser);
 
         var date1 = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
         var date2 = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2));
 
-        await toggleHandler.Handle(new ToggleBookingSlotCommand(new ToggleBookingSlotRequest(date1, "SHIFT_MORNING", true)), CancellationToken.None);
-        await toggleHandler.Handle(new ToggleBookingSlotCommand(new ToggleBookingSlotRequest(date2, "SHIFT_AFTERNOON", true)), CancellationToken.None);
+        await toggleHandler.ToggleAsync(new ToggleBookingSlotRequest(date1, "SHIFT_MORNING", true), CancellationToken.None);
+        await toggleHandler.ToggleAsync(new ToggleBookingSlotRequest(date2, "SHIFT_AFTERNOON", true), CancellationToken.None);
 
         // Act
-        var result = await queryHandler.Handle(new GetWorkerSlotsQuery(date1, date2), CancellationToken.None);
+        var result = await queryHandler.GetSlotsAsync(date1, date2, CancellationToken.None);
 
         // Assert
         Assert.True(result.Success);
@@ -126,7 +125,7 @@ public class BookingSlotTests
     }
 
     [Fact]
-    public async Task ToggleBookingSlotCommand_InvalidShiftCode_ThrowsValidationException()
+    public async Task ToggleAsync_InvalidShiftCode_ThrowsValidationException()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -143,20 +142,20 @@ public class BookingSlotTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var toggleHandler = new ToggleBookingSlotCommandHandler(repository, currentUser);
+        var toggleHandler = new WorkerBookingSlotService(repository, currentUser);
 
         var slotDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
         var req = new ToggleBookingSlotRequest(slotDate, "INVALID_SHIFT", IsActive: true);
 
         // Act & Assert
         await Assert.ThrowsAsync<ValidationException>(() =>
-            toggleHandler.Handle(new ToggleBookingSlotCommand(req), CancellationToken.None));
+            toggleHandler.ToggleAsync(req, CancellationToken.None));
 
         await transaction.RollbackAsync();
     }
 
     [Fact]
-    public async Task ToggleBookingSlotCommand_PastDate_ThrowsValidationException()
+    public async Task ToggleAsync_PastDate_ThrowsValidationException()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -173,20 +172,20 @@ public class BookingSlotTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var toggleHandler = new ToggleBookingSlotCommandHandler(repository, currentUser);
+        var toggleHandler = new WorkerBookingSlotService(repository, currentUser);
 
         var pastDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
         var req = new ToggleBookingSlotRequest(pastDate, "SHIFT_MORNING", IsActive: true);
 
         // Act & Assert
         await Assert.ThrowsAsync<ValidationException>(() =>
-            toggleHandler.Handle(new ToggleBookingSlotCommand(req), CancellationToken.None));
+            toggleHandler.ToggleAsync(req, CancellationToken.None));
 
         await transaction.RollbackAsync();
     }
 
     [Fact]
-    public async Task ToggleBookingSlotCommand_ConcurrentToggle_IsIdempotent()
+    public async Task ToggleAsync_ConcurrentToggle_IsIdempotent()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -211,16 +210,16 @@ public class BookingSlotTests
             {
                 using var db1 = CreateContext();
                 var repo1 = new EfWorkerRepository(db1);
-                var handler1 = new ToggleBookingSlotCommandHandler(repo1, currentUser);
-                return await handler1.Handle(new ToggleBookingSlotCommand(req), CancellationToken.None);
+                var handler1 = new WorkerBookingSlotService(repo1, currentUser);
+                return await handler1.ToggleAsync(req, CancellationToken.None);
             });
 
             var task2 = Task.Run(async () =>
             {
                 using var db2 = CreateContext();
                 var repo2 = new EfWorkerRepository(db2);
-                var handler2 = new ToggleBookingSlotCommandHandler(repo2, currentUser);
-                return await handler2.Handle(new ToggleBookingSlotCommand(req), CancellationToken.None);
+                var handler2 = new WorkerBookingSlotService(repo2, currentUser);
+                return await handler2.ToggleAsync(req, CancellationToken.None);
             });
 
             var results = await Task.WhenAll(task1, task2);

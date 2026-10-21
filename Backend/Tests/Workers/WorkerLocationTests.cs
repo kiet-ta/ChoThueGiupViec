@@ -1,7 +1,8 @@
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Workers;
-using CommonService.Application.Features.Workers.Commands;
+using CommonService.Application.Features.Workers.Dtos;
+using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -43,12 +44,12 @@ public class WorkerLocationTests
     }
 
     // The validation runs before the repository is read, so the validation tests need no database.
-    private static UpdateWorkerLocationCommandHandler Handler(IWorkerRepository? repository, int? userId = 7) =>
-        new(repository!, new User(userId), new FakeClock());
+    private static WorkerProfileService Handler(IWorkerRepository? repository, int? userId = 7) =>
+        new(repository!, new User(userId), new FakeClock(), null!);
 
     private static Task<CommonService.Application.Common.Models.ApiResponse<WorkerLocationResponse>> Send(
-        UpdateWorkerLocationCommandHandler handler, double? lat, double? lng) =>
-        handler.Handle(new UpdateWorkerLocationCommand(new UpdateWorkerLocationRequest(lat, lng)), default);
+        WorkerProfileService handler, double? lat, double? lng) =>
+        handler.UpdateLocationAsync(new UpdateWorkerLocationRequest(lat, lng), default);
 
     [Theory]
     [InlineData(91.0, 106.7, "latitude")]
@@ -75,7 +76,7 @@ public class WorkerLocationTests
     [Fact]
     public async Task A_missing_body_and_an_anonymous_caller_are_refused()
     {
-        await Assert.ThrowsAsync<ValidationException>(() => Handler(null).Handle(new UpdateWorkerLocationCommand(null), default));
+        await Assert.ThrowsAsync<ValidationException>(() => Handler(null).UpdateLocationAsync(null, default));
         await Assert.ThrowsAsync<ForbiddenAccessException>(() => Send(Handler(null, userId: null), 10, 106));
     }
 
