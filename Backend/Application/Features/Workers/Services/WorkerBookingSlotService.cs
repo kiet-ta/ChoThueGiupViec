@@ -10,7 +10,8 @@ namespace CommonService.Application.Features.Workers.Services;
 
 public sealed class WorkerBookingSlotService(
     IWorkerRepository workerRepository,
-    ICurrentUser currentUser) : IWorkerBookingSlotService
+    ICurrentUser currentUser,
+    IClock clock) : IWorkerBookingSlotService
 {
     /// <summary>409 code when the slot is held by an offer or booked by a job (contracts workers.md 2.3.2).</summary>
     public const string SlotInUseCode = "SLOT_IN_USE";
@@ -22,7 +23,7 @@ public sealed class WorkerBookingSlotService(
             throw new ForbiddenAccessException("Authenticated worker user ID is required.");
         }
 
-        var start = startDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var start = startDate ?? clock.LocalToday;
         var end = endDate ?? start.AddDays(7);
 
         if (end < start)
@@ -55,7 +56,8 @@ public sealed class WorkerBookingSlotService(
             throw new ForbiddenAccessException("Authenticated worker user ID is required.");
         }
 
-        if (request.SlotDate < DateOnly.FromDateTime(DateTime.UtcNow.Date))
+        // The slot date is a Vietnam local date (shift times are local, decisions G-3), so "today" is the local date, not the UTC one.
+        if (request.SlotDate < clock.LocalToday)
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
@@ -63,6 +65,7 @@ public sealed class WorkerBookingSlotService(
             });
         }
 
+        var nowUtc = clock.UtcNow;
         var shiftCode = ShiftHelper.NormalizeShiftCode(request.ShiftCode);
         var (startTime, endTime) = ShiftHelper.GetShiftTimes(shiftCode);
         string newStatus = request.IsActive ? "AVAILABLE" : "BLOCKED";
@@ -75,7 +78,7 @@ public sealed class WorkerBookingSlotService(
         {
             EnsureToggleable(existingSlot);
             existingSlot.SlotStatus = newStatus;
-            existingSlot.UpdatedAt = DateTime.UtcNow;
+            existingSlot.UpdatedAt = nowUtc;
             workerRepository.UpdateSlot(existingSlot);
             await workerRepository.SaveChangesAsync(ct);
             targetSlot = existingSlot;
@@ -91,7 +94,7 @@ public sealed class WorkerBookingSlotService(
                 EndTime = endTime,
                 SlotSource = "FREELANCER",
                 SlotStatus = newStatus,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = nowUtc
             };
 
             try
@@ -113,7 +116,7 @@ public sealed class WorkerBookingSlotService(
 
                 EnsureToggleable(concurrentSlot);
                 concurrentSlot.SlotStatus = newStatus;
-                concurrentSlot.UpdatedAt = DateTime.UtcNow;
+                concurrentSlot.UpdatedAt = nowUtc;
                 workerRepository.UpdateSlot(concurrentSlot);
                 await workerRepository.SaveChangesAsync(ct);
                 targetSlot = concurrentSlot;

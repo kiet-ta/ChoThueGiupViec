@@ -58,8 +58,9 @@ public sealed class WorkerProfileService(
         worker.KycStatus = "PENDING";
         worker.RatingAvg = 5.00m;
         worker.CompletedJobs = 0;
-        worker.CreatedAt = DateTime.UtcNow;
-        worker.UpdatedAt = DateTime.UtcNow;
+        var nowUtc = clock.UtcNow;
+        worker.CreatedAt = nowUtc;
+        worker.UpdatedAt = nowUtc;
 
         await workerRepository.AddAsync(worker, ct);
         await workerRepository.SaveChangesAsync(ct);

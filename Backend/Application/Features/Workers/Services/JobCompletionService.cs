@@ -12,7 +12,8 @@ namespace CommonService.Application.Features.Workers.Services;
 public sealed class JobCompletionService(
     IWorkerRepository workerRepository,
     IPublisher publisher,
-    ICurrentUser currentUser) : IJobCompletionService
+    ICurrentUser currentUser,
+    IClock clock) : IJobCompletionService
 {
     private const string WorkerNotAssigned = "Worker is not assigned to this job assignment.";
     private const string CustomerNotAuthorized = "Customer is not authorized for this assignment.";
@@ -68,8 +69,9 @@ public sealed class JobCompletionService(
             throw new ValidationException("angles", "AFTER photo angles do not match BEFORE photo angles.");
         }
 
+        var nowUtc = clock.UtcNow;
         assignment.TransitionTo(JobAssignmentStatus.AwaitingAcceptance);
-        assignment.UpdatedAt = DateTime.UtcNow;
+        assignment.UpdatedAt = nowUtc;
 
         await workerRepository.SaveChangesAsync(ct);
 
@@ -77,7 +79,7 @@ public sealed class JobCompletionService(
             new AssignmentStatusResponse(
                 assignment.AssignmentId,
                 "AWAITING_ACCEPTANCE",
-                DateTime.UtcNow,
+                nowUtc,
                 notes
             ),
             "Job completion submitted for customer acceptance."
@@ -104,7 +106,7 @@ public sealed class JobCompletionService(
             throw new BusinessRuleViolationException($"Cannot accept assignment in status {assignment.AssignmentStatus}.");
         }
 
-        var nowUtc = DateTime.UtcNow;
+        var nowUtc = clock.UtcNow;
 
         // Payout computation (Freelancer commission 20% -> 80% payout; Agency per package commission rate)
         decimal commissionRate = assignment.AgencyId == null ? 0.20m : assignment.CommissionRate;
@@ -174,8 +176,9 @@ public sealed class JobCompletionService(
 
         assignment.TransitionTo(JobAssignmentStatus.InProgress);
         var reworkNote = $"Rework requested: {request.Reason.Trim()}";
+        var nowUtc = clock.UtcNow;
         assignment.WorkZone = reworkNote;
-        assignment.UpdatedAt = DateTime.UtcNow;
+        assignment.UpdatedAt = nowUtc;
 
         await workerRepository.SaveChangesAsync(ct);
 
@@ -183,7 +186,7 @@ public sealed class JobCompletionService(
             new AssignmentStatusResponse(
                 assignment.AssignmentId,
                 "IN_PROGRESS",
-                DateTime.UtcNow,
+                nowUtc,
                 reworkNote
             ),
             "Rework request submitted to worker."

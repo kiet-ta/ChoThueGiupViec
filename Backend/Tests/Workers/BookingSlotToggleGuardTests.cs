@@ -5,6 +5,7 @@ using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using Xunit;
 
 namespace CommonService.Tests.Workers;
@@ -80,7 +81,7 @@ public class BookingSlotToggleGuardTests
             });
         }
 
-        return (repo, new WorkerBookingSlotService(repo, new User()));
+        return (repo, new WorkerBookingSlotService(repo, new User(), new FakeClock()));
     }
 
     private static Task<CommonService.Application.Common.Models.ApiResponse<BookingSlotResponse>> Toggle(

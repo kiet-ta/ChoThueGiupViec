@@ -5,6 +5,7 @@ using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using MediatR;
 using Xunit;
 
@@ -91,7 +92,7 @@ public class JobCompletionGuardTests
     };
 
     private static JobCompletionService Service(AssignmentRepository repository, ICurrentUser user, NoPublisher? publisher = null) =>
-        new(repository, publisher ?? new NoPublisher(), user);
+        new(repository, publisher ?? new NoPublisher(), user, new FakeClock());
 
     [Theory]
     [InlineData("submit", null, true)] // the role claim but no numeric id

@@ -13,7 +13,8 @@ public sealed class JobPhotoService(
     IWorkerRepository workerRepository,
     IImageQualityService imageQualityService,
     ICurrentUser currentUser,
-    IOptions<BusinessRules> rulesOptions) : IJobPhotoService
+    IOptions<BusinessRules> rulesOptions,
+    IClock clock) : IJobPhotoService
 {
     private readonly BusinessRules _rules = rulesOptions.Value;
 
@@ -99,6 +100,7 @@ public sealed class JobPhotoService(
         bool isAccepted = qualityResult.IsAccepted;
         double volScore = qualityResult.VolScore;
 
+        var nowUtc = clock.UtcNow;
         var photo = new JobPhoto
         {
             AssignmentId = assignmentId,
@@ -107,7 +109,7 @@ public sealed class JobPhotoService(
             ImageUrl = request.PhotoUrl,
             VolScore = volScore,
             IsAccepted = isAccepted,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = nowUtc
         };
 
         await workerRepository.AddJobPhotoAsync(photo, ct);
@@ -118,7 +120,7 @@ public sealed class JobPhotoService(
         if (isAccepted && phase == "BEFORE" && assignment.AssignmentStatus == JobAssignmentStatus.CheckedIn)
         {
             assignment.TransitionTo(JobAssignmentStatus.InProgress);
-            assignment.UpdatedAt = DateTime.UtcNow;
+            assignment.UpdatedAt = nowUtc;
         }
 
         await workerRepository.SaveChangesAsync(ct);

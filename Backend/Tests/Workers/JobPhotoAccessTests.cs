@@ -1,3 +1,4 @@
+using CommonService.Infrastructure.Fakes;
 using System.Reflection;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
@@ -75,7 +76,7 @@ public class JobPhotoAccessTests
     }
 
     private static JobPhotoService Service(AssignmentRepository repository, ICurrentUser user) =>
-        new(repository, null!, user, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        new(repository, null!, user, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new FakeClock());
 
     [Fact]
     public async Task GetPhotosAsync_TheAssignedWorker_GetsThePhotos()

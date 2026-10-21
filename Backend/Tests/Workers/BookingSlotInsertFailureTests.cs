@@ -5,6 +5,7 @@ using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Workers;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -88,7 +89,7 @@ public class BookingSlotInsertFailureTests
         SlotStatus = status,
     };
 
-    private static WorkerBookingSlotService Service(FailingInsertRepository repository) => new(repository, new User());
+    private static WorkerBookingSlotService Service(FailingInsertRepository repository) => new(repository, new User(), new FakeClock());
 
     private static ToggleBookingSlotRequest Request(bool isActive) => new(SlotDate, "SHIFT_MORNING", isActive);
 
