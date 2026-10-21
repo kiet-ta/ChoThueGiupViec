@@ -1,6 +1,7 @@
 using CommonService.Application.Common.Models;
 using CommonService.Application.Features.Workers.Dtos;
 using CommonService.Application.Features.Workers.Services;
+using CommonService.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -166,11 +167,13 @@ public class WorkersController(
         return Ok(result);
     }
 
-    /// <summary>Returns all uploaded photos for a job assignment (contract §2.4.2).</summary>
+    /// <summary>Returns all uploaded photos for a job assignment to its worker, its customer or an Admin (contract §2.4.2).</summary>
     [HttpGet("assignments/{assignmentId:long}/photos")]
-    [Authorize]
+    [Authorize(Roles = nameof(UserRole.Worker) + "," + nameof(UserRole.Customer) + "," + nameof(UserRole.Admin))]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<JobPhotoResponse>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPhotos(
         long assignmentId,
         CancellationToken ct)
