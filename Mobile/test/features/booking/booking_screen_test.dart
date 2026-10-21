@@ -40,7 +40,6 @@ BookingOrder _order(CreateOrderInput input) => BookingOrder(
   shiftEndAt: null,
   areaSnapshotM2: 50,
   requiredWorkers: 1,
-  requiredSkill: input.requiredSkill,
   totalAmount: 260000,
   orderStatus: OrderStatus.pendingPayment,
   customerNote: input.customerNote,
@@ -238,15 +237,20 @@ void main() {
       },
     );
 
-    testWidgets('the required skill is asked only for Premium', (tester) async {
-      await pumpBooking(tester, FakeBookingService());
+    testWidgets(
+      'neither tier asks for a required skill (skill matching was removed, decision D8)',
+      (tester) async {
+        await pumpBooking(tester, FakeBookingService());
 
-      expect(find.byKey(const Key('skill-input')), findsNothing);
-      await tapKey(tester, 'tier-PREMIUM');
-      expect(find.byKey(const Key('skill-input')), findsOneWidget);
-      await tapKey(tester, 'tier-ECONOMY');
-      expect(find.byKey(const Key('skill-input')), findsNothing);
-    });
+        expect(find.byKey(const Key('skill-input')), findsNothing);
+        expect(find.textContaining('Kỹ năng'), findsNothing);
+        await tapKey(tester, 'tier-PREMIUM');
+        expect(find.byKey(const Key('skill-input')), findsNothing);
+        expect(find.textContaining('Kỹ năng'), findsNothing);
+        await tapKey(tester, 'tier-ECONOMY');
+        expect(find.byKey(const Key('skill-input')), findsNothing);
+      },
+    );
 
     testWidgets(
       'says what is missing and creates nothing until everything is chosen',
@@ -292,10 +296,6 @@ void main() {
           find.byKey(const Key('note-input')),
           '  có thú cưng  ',
         );
-        await tester.enterText(
-          find.byKey(const Key('skill-input')),
-          'vệ sinh sau xây dựng',
-        );
         await tapKey(tester, 'submit-order');
 
         final input = service.created.single;
@@ -304,7 +304,13 @@ void main() {
         expect(input.scheduledDate, '2026-10-16');
         expect(input.shiftCode, 'SHIFT_EVENING');
         expect(input.customerNote, 'có thú cưng');
-        expect(input.requiredSkill, 'vệ sinh sau xây dựng');
+        expect(input.toJson().keys, [
+          'addressId',
+          'serviceTier',
+          'scheduledDate',
+          'shiftCode',
+          'customerNote',
+        ], reason: 'no requiredSkill in the request');
         expect(opened.single.orderId, 100);
       },
     );
@@ -315,14 +321,15 @@ void main() {
         final service = FakeBookingService();
         await pumpBooking(tester, service);
 
-        await tapKey(tester, 'tier-PREMIUM');
-        await tester.enterText(find.byKey(const Key('skill-input')), 'kỹ năng');
         await tapKey(tester, 'tier-ECONOMY');
         await tapKey(tester, 'day-2026-10-15');
         await tapKey(tester, 'shift-SHIFT_MORNING');
         await tapKey(tester, 'submit-order');
 
-        expect(service.created.single.requiredSkill, isNull);
+        expect(
+          service.created.single.toJson().containsKey('requiredSkill'),
+          isFalse,
+        );
         expect(service.created.single.customerNote, isNull);
       },
     );

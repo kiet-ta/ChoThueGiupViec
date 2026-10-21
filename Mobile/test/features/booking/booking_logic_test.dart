@@ -124,17 +124,12 @@ void main() {
   });
 
   group('validation', () {
-    test(
-      'limits the note to 500 and the skill to 100 characters after trimming',
-      () {
-        expect(validateNote(''), isNull);
-        expect(validateNote('a' * 500), isNull);
-        expect(validateNote('  ${'a' * 500}  '), isNull);
-        expect(validateNote('a' * 501), isNotNull);
-        expect(validateSkill('a' * 100), isNull);
-        expect(validateSkill('a' * 101), isNotNull);
-      },
-    );
+    test('limits the note to 500 characters after trimming', () {
+      expect(validateNote(''), isNull);
+      expect(validateNote('a' * 500), isNull);
+      expect(validateNote('  ${'a' * 500}  '), isNull);
+      expect(validateNote('a' * 501), isNotNull);
+    });
 
     test('tells what is still missing, in order', () {
       String? missing({

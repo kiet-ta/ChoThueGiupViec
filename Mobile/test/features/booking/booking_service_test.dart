@@ -159,7 +159,6 @@ void main() {
             scheduledDate: '2026-10-15',
             shiftCode: 'SHIFT_EVENING',
             customerNote: 'ring the bell',
-            requiredSkill: 'deep clean',
           ),
         );
 
@@ -171,8 +170,7 @@ void main() {
           'scheduledDate': '2026-10-15',
           'shiftCode': 'SHIFT_EVENING',
           'customerNote': 'ring the bell',
-          'requiredSkill': 'deep clean',
-        });
+        }, reason: 'the request has no requiredSkill');
         expect(order.orderId, 100);
         expect(order.orderCode, 'GV261014ABC123');
         expect(order.orderStatus, OrderStatus.pendingPayment);

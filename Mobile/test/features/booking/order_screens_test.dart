@@ -36,7 +36,6 @@ BookingOrder _order(String status, {String? cancelReason}) => BookingOrder(
   shiftEndAt: null,
   areaSnapshotM2: 50,
   requiredWorkers: 1,
-  requiredSkill: null,
   totalAmount: 260000,
   orderStatus: status,
   customerNote: null,
