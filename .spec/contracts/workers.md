@@ -464,6 +464,19 @@ Worker accepts or declines an extension request paid by the customer (`Extension
 - If `accept == true`: extension is activated, shift extended, worker remains `BUSY`.
 - If `accept == false`: extension status set to `DECLINED`, emits `ExtensionDeclined` domain event (M2 triggers 100% refund of extension fee to customer).
 
+**Implemented by WORKERS-EXT-01 (BE-M4-09):**
+- `newEndTime` is the local shift end (Asia/Ho_Chi_Minh, `HH:mm`) plus `extraHours` when accepted, the unchanged shift end when declined.
+- Accept is one conditional update of `JOB_ORDER_EXTENSION` that only applies while `ext_status = PAID`: `ext_status` and `worker_decision` become `ACCEPTED`, `decided_at` = now (`IClock`); two simultaneous answers decide once.
+- Decline only publishes `ExtensionDeclined`; Payments (`ExtensionDeclinedHandler`) sets `DECLINED` / `decided_at` and refunds 100 %. The Workers service does not write `DECLINED` itself: the handler treats an already `DECLINED` extension as done and would skip the refund. The `status` of the response is `DECLINED`.
+- There is no `ExtensionPaid` listener in Workers: Payments already writes `PAID`, and the worker reads the extension through this endpoint.
+
+| Status | Condition |
+|---|---|
+| 401 | no token |
+| 403 | the caller is not a Worker |
+| 404 | the assignment does not exist, is not the caller's, or its order has no extension asked of this worker |
+| 409 | `ext_status` is not `PAID` (`PENDING_PAYMENT`, `ACCEPTED`, `DECLINED`, `EXPIRED`), or another answer came first |
+
 ---
 
 ## 3. Ports & Interfaces (Module `Workers`)
