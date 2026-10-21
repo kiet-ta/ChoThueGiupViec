@@ -141,6 +141,45 @@ void main() {
     });
   });
 
+  group('orderStatusForDisplay', () {
+    test('an active assignment advances a lagging dispatching order', () {
+      expect(
+        orderStatusForDisplay(OrderStatus.dispatching, [
+          _assignment(1, AssignmentStatus.assigned),
+        ]),
+        OrderStatus.assigned,
+      );
+      expect(
+        orderStatusForDisplay(OrderStatus.dispatching, [
+          _assignment(1, AssignmentStatus.inProgress),
+        ]),
+        OrderStatus.assigned,
+      );
+    });
+
+    test(
+      'cancelled or absent assignments do not imply a worker is assigned',
+      () {
+        expect(
+          orderStatusForDisplay(OrderStatus.dispatching, [
+            _assignment(1, AssignmentStatus.cancelledByWorker),
+            _assignment(2, AssignmentStatus.absent),
+          ]),
+          OrderStatus.dispatching,
+        );
+      },
+    );
+
+    test('does not override other aggregate order states', () {
+      expect(
+        orderStatusForDisplay(OrderStatus.cancelled, [
+          _assignment(1, AssignmentStatus.assigned),
+        ]),
+        OrderStatus.cancelled,
+      );
+    });
+  });
+
   group('what is offered', () {
     test('polling stops for finished orders only', () {
       expect(shouldPollOrder('PENDING_PAYMENT'), isTrue);
