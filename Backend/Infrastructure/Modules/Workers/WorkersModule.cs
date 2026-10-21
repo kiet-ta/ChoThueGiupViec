@@ -29,6 +29,8 @@ public sealed class WorkersModule : IModule
         services.AddScoped<IWorkerBookingSlotService, WorkerBookingSlotService>();
         services.AddScoped<IJobCompletionService, JobCompletionService>();
         services.AddScoped<IJobPhotoService, JobPhotoService>();
+        services.AddScoped<IWorkerExtensionRepository, EfWorkerExtensionRepository>();
+        services.AddScoped<IWorkerExtensionService, WorkerExtensionService>();
 
         // The legacy JSON photo upload (a URL judged by the Development stand-in) only exists in Development; elsewhere a file is required.
         services.AddSingleton(sp => new JobPhotoUploadPolicy(sp.GetRequiredService<IHostEnvironment>().IsDevelopment()));

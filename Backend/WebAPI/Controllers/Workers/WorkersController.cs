@@ -18,7 +18,8 @@ public class WorkersController(
     IWorkerEkycService ekyc,
     IWorkerBookingSlotService slots,
     IJobPhotoService photos,
-    IJobCompletionService completions) : ControllerBase
+    IJobCompletionService completions,
+    IWorkerExtensionService extensions) : ControllerBase
 {
     /// <summary>Registers a new Freelancer profile using a single-purpose registration token (contract §2.1.1).</summary>
     [HttpPost("register")]
@@ -259,6 +260,23 @@ public class WorkersController(
         CancellationToken ct)
     {
         var result = await completions.SubmitAsync(assignmentId, request?.Notes, ct);
+        return Ok(result);
+    }
+
+    /// <summary>The worker accepts or declines an extension the customer paid for ("Làm lần 2", contract workers.md 2.6.1).</summary>
+    [HttpPost("assignments/{assignmentId:long}/extension/respond")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<ExtensionResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RespondToExtension(
+        long assignmentId,
+        [FromBody] RespondToExtensionRequest request,
+        CancellationToken ct)
+    {
+        var result = await extensions.RespondAsync(assignmentId, request.Accept, ct);
         return Ok(result);
     }
 }
