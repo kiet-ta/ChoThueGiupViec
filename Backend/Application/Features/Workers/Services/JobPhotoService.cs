@@ -111,23 +111,25 @@ public sealed class JobPhotoService(
         };
 
         await workerRepository.AddJobPhotoAsync(photo, ct);
+
+        // The first accepted BEFORE photo is the start of the work (leader decision 2026-10-16, D18): CHECKED_IN -> IN_PROGRESS.
+        // CHECKED_IN already means the check-in was verified (GPS, or the plate photo / customer confirmation fallback).
+        // The photo and this change are saved together, so an accepted photo never exists with the assignment still CHECKED_IN.
+        if (isAccepted && phase == "BEFORE" && assignment.AssignmentStatus == JobAssignmentStatus.CheckedIn)
+        {
+            assignment.TransitionTo(JobAssignmentStatus.InProgress);
+            assignment.UpdatedAt = DateTime.UtcNow;
+        }
+
         await workerRepository.SaveChangesAsync(ct);
 
+        // A blurry photo is stored (as rejected) and then refused.
         if (!isAccepted)
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
                 { "volScore", [$"Ảnh bị mờ (độ nét {volScore:F1}, cần tối thiểu {_rules.Vol.Threshold:F1}). Vui lòng chụp lại ảnh rõ hơn."] }
             });
-        }
-
-        // The first accepted BEFORE photo is the start of the work (leader decision 2026-10-16, D18): CHECKED_IN -> IN_PROGRESS.
-        // CHECKED_IN already means the check-in was verified (GPS, or the plate photo / customer confirmation fallback).
-        if (phase == "BEFORE" && assignment.AssignmentStatus == JobAssignmentStatus.CheckedIn)
-        {
-            assignment.TransitionTo(JobAssignmentStatus.InProgress);
-            assignment.UpdatedAt = DateTime.UtcNow;
-            await workerRepository.SaveChangesAsync(ct);
         }
 
         var response = new JobPhotoResponse(
