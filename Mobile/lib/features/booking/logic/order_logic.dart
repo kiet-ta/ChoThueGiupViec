@@ -155,6 +155,29 @@ List<ProgressAssignment> extendableAssignments(OrderProgress progress) => [
       a,
 ];
 
+/// What the customer can do about one worker of the order once the job is over. The server decides the final eligibility
+/// (the 48 h rating window of ratings.md 2.1, the one-dispute-per-order rule of disputes.md 2.1), so this only hides what can never apply.
+enum AssignmentAction { reviewAndAccept, rate }
+
+List<AssignmentAction> assignmentActions(String assignmentStatus) =>
+    switch (assignmentStatus) {
+      AssignmentStatus.awaitingAcceptance => const [
+        AssignmentAction.reviewAndAccept,
+      ],
+      AssignmentStatus.completed => const [AssignmentAction.rate],
+      _ => const [],
+    };
+
+/// A dispute is about the order and needs a job that reached the end or an absence (disputes.md 2.1: `COMPLETED`, `AWAITING_ACCEPTANCE`
+/// or `ABSENT`); the 24 h window and the one ticket per order are the server's.
+bool canDispute(OrderProgress progress) => progress.assignments.any(
+  (a) => const {
+    AssignmentStatus.awaitingAcceptance,
+    AssignmentStatus.completed,
+    AssignmentStatus.absent,
+  }.contains(a.assignmentStatus),
+);
+
 /// "Làm lần 2" is offered only for an ASSIGNED order without an extension whose worker is on site (booking.md 3.8).
 bool canExtend(OrderProgress progress) =>
     progress.orderStatus == OrderStatus.assigned &&

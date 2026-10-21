@@ -1,43 +1,119 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/core/widgets/nordic_text_input.dart';
+import 'package:mobile/core/auth/token_storage.dart';
+import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/network/api_response.dart';
+import 'package:mobile/core/widgets/nordic_text_input.dart';
 import 'package:mobile/features/workers/models/customer_acceptance_models.dart';
+import 'package:mobile/features/workers/models/job_photo_models.dart';
+import 'package:mobile/features/workers/routes.dart';
 import 'package:mobile/features/workers/screens/customer_acceptance_screen.dart';
 import 'package:mobile/features/workers/services/customer_acceptance_service.dart';
+import 'package:mobile/features/workers/services/workers_photos_service.dart';
 
 import 'design_frame.dart';
 
-/// Accepts every redo request, so the redo test does not depend on a live backend (the test HTTP client answers 400).
-class AcceptingRedoService extends CustomerAcceptanceService {
+JobPhotoDto photo(String phase, int angle, int id) => JobPhotoDto(
+  photoId: id,
+  assignmentId: 55,
+  photoPhase: phase,
+  angleNo: angle,
+  photoUrl: '/api/workers/assignments/55/photos/$id/file',
+  volScore: 142.5,
+  isAccepted: true,
+  uploadedAt: DateTime(2026, 10, 21, 9),
+);
+
+/// Gives the photos the test chose, or fails like the server / the network.
+class FakePhotosService extends WorkersPhotosService {
+  List<JobPhotoDto> photos = [];
+  ApiException? failure;
+  int reads = 0;
+
+  FakePhotosService() : super(apiClient: ApiClient(baseUrl: 'http://api.test'));
+
+  @override
+  Future<ApiResponse<List<JobPhotoDto>>> getPhotos(int assignmentId) async {
+    reads++;
+    if (failure != null) throw failure!;
+    return ApiResponse<List<JobPhotoDto>>(
+      success: true,
+      message: 'OK',
+      data: photos,
+    );
+  }
+}
+
+/// Answers accept / redo like the server would, or fails.
+class FakeAcceptanceService extends CustomerAcceptanceService {
+  AssignmentCompletionDto? completion;
+  AssignmentStatusDto? redone;
+  ApiException? failure;
+  bool emptyAnswer = false;
+  final accepted = <({int id, String feedback})>[];
+  final redos = <({int id, String reason})>[];
+
+  FakeAcceptanceService()
+    : super(apiClient: ApiClient(baseUrl: 'http://api.test'));
+
+  @override
+  Future<ApiResponse<AssignmentCompletionDto>> acceptCompletion({
+    required int assignmentId,
+    String? feedback,
+  }) async {
+    accepted.add((id: assignmentId, feedback: feedback ?? ''));
+    if (failure != null) throw failure!;
+    return ApiResponse<AssignmentCompletionDto>(
+      success: true,
+      message: 'OK',
+      data: emptyAnswer ? null : completion,
+    );
+  }
+
   @override
   Future<ApiResponse<AssignmentStatusDto>> requestRedo({
     required int assignmentId,
     required RequestRedoRequest request,
   }) async {
+    redos.add((id: assignmentId, reason: request.reason));
+    if (failure != null) throw failure!;
     return ApiResponse<AssignmentStatusDto>(
       success: true,
       message: 'OK',
-      data: AssignmentStatusDto(
-        assignmentId: assignmentId,
-        status: 'IN_PROGRESS',
-      ),
+      data: emptyAnswer ? null : redone,
     );
   }
 }
 
-void main() {
-  group('CustomerAcceptanceScreen Tests', () {
-    testWidgets(
-      'Renders title, status chip, angle selector, photo boxes, and action buttons',
-      (tester) async {
-        useDesignFrame(tester);
-        await tester.pumpWidget(
-          const MaterialApp(home: CustomerAcceptanceScreen(assignmentId: 2001)),
-        );
-        await tester.pumpAndSettle();
+Future<void> pumpScreen(
+  WidgetTester tester, {
+  FakePhotosService? photos,
+  FakeAcceptanceService? acceptance,
+}) async {
+  useDesignFrame(tester);
+  await tester.pumpWidget(
+    MaterialApp(
+      home: CustomerAcceptanceScreen(
+        assignmentId: 55,
+        photosService: photos ?? FakePhotosService(),
+        acceptanceService: acceptance ?? FakeAcceptanceService(),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
-        expect(find.text('Nghiệm Thu Ca #2001'), findsOneWidget);
+/// MOB-CUSTOMER-03 (#386): the acceptance shows the real photos and the real answers of the server, never a sample or a made-up success.
+void main() {
+  setUp(() => TokenStorage().clear());
+
+  group('CustomerAcceptanceScreen', () {
+    testWidgets(
+      'renders the title with the assignment id, the status chip, the photo boxes and the two actions',
+      (tester) async {
+        await pumpScreen(tester);
+
+        expect(find.text('Nghiệm Thu Ca #55'), findsOneWidget);
         expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
         expect(find.text('Đối Chiếu Ảnh Before / After'), findsOneWidget);
         expect(find.text('Góc 1: Toàn cảnh phòng'), findsOneWidget);
@@ -48,74 +124,205 @@ void main() {
       },
     );
 
-    testWidgets('Switching angles updates title in comparison card', (
+    testWidgets('a job without photos shows empty boxes, not sample photos', (
       tester,
     ) async {
-      useDesignFrame(tester);
-      await tester.pumpWidget(
-        const MaterialApp(home: CustomerAcceptanceScreen(assignmentId: 2001)),
-      );
-      await tester.pumpAndSettle();
+      await pumpScreen(tester);
 
-      expect(find.text('Góc 1: Toàn cảnh phòng'), findsOneWidget);
-
-      await tapVisible(tester, find.text('Góc 2'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Góc 2: Bàn ghế & tủ kệ'), findsOneWidget);
+      expect(find.text('Chưa có ảnh'), findsNWidgets(2));
+      expect(find.byType(Image), findsNothing);
+      expect(find.textContaining('storage.giupviec.local'), findsNothing);
     });
 
     testWidgets(
-      'Confirming acceptance updates status to COMPLETED and renders payout breakdown',
+      'the real photos of the chosen angle are loaded with the Bearer token',
       (tester) async {
-        useDesignFrame(tester);
-        await tester.pumpWidget(
-          const MaterialApp(home: CustomerAcceptanceScreen(assignmentId: 2001)),
+        TokenStorage().saveTokens(accessToken: 'tok', refreshToken: 'ref');
+        final photos = FakePhotosService()
+          ..photos = [
+            photo('BEFORE', 1, 11),
+            photo('AFTER', 1, 12),
+            photo('BEFORE', 2, 13),
+          ];
+        await pumpScreen(tester, photos: photos);
+
+        final images = tester
+            .widgetList<Image>(find.byType(Image))
+            .map((i) => i.image as NetworkImage)
+            .toList();
+        expect(images.map((i) => i.url), [
+          'http://api.test/api/workers/assignments/55/photos/11/file',
+          'http://api.test/api/workers/assignments/55/photos/12/file',
+        ]);
+        expect(
+          images.every((i) => i.headers?['Authorization'] == 'Bearer tok'),
+          isTrue,
         );
-        await tester.pumpAndSettle();
 
-        await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('ĐÃ NGHIỆM THU'), findsOneWidget);
-        expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsOneWidget);
-        expect(find.text('Thu Nhập Thợ (80%):'), findsOneWidget);
-        expect(find.text('208000 đ'), findsOneWidget);
+        await tapVisible(tester, find.text('Góc 2'));
+        expect(find.text('Góc 2: Bàn ghế & tủ kệ'), findsOneWidget);
+        expect(
+          tester
+              .widgetList<Image>(find.byType(Image))
+              .map((i) => (i.image as NetworkImage).url),
+          ['http://api.test/api/workers/assignments/55/photos/13/file'],
+        );
+        expect(
+          find.text('Chưa có ảnh'),
+          findsOneWidget,
+        ); // no AFTER photo for angle 2
       },
     );
 
     testWidgets(
-      'Requesting redo toggles form, validates reason, and updates status to IN_PROGRESS',
+      'a failed photo load shows the reason with a retry, and the retry loads again',
       (tester) async {
-        useDesignFrame(tester);
-        await tester.pumpWidget(
-          MaterialApp(
-            home: CustomerAcceptanceScreen(
-              assignmentId: 2001,
-              acceptanceService: AcceptingRedoService(),
-            ),
+        final photos = FakePhotosService()
+          ..failure = const ApiException(
+            0,
+            'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.',
+          );
+        await pumpScreen(tester, photos: photos);
+
+        expect(find.byKey(const Key('photos-error')), findsOneWidget);
+        expect(
+          find.text(
+            'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.',
           ),
+          findsOneWidget,
         );
-        await tester.pumpAndSettle();
+        expect(
+          find.byType(Image),
+          findsNothing,
+          reason: 'no sample photos instead',
+        );
+
+        photos
+          ..failure = null
+          ..photos = [photo('BEFORE', 1, 11)];
+        await tapVisible(tester, find.byKey(const Key('photos-retry')));
+
+        expect(photos.reads, 2);
+        expect(find.byKey(const Key('photos-error')), findsNothing);
+        expect(find.byType(Image), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'accepting shows the amounts the server answered, with its commission rate',
+      (tester) async {
+        final acceptance = FakeAcceptanceService()
+          ..completion = AssignmentCompletionDto(
+            assignmentId: 55,
+            status: 'COMPLETED',
+            grossAmount: 300000,
+            commissionRate: 0.0,
+            payoutAmount: 300000,
+            completedAt: DateTime(2026, 10, 21, 16),
+          );
+        await pumpScreen(tester, acceptance: acceptance);
+
+        await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
+
+        expect(acceptance.accepted.single.id, 55);
+        expect(find.text('ĐÃ NGHIỆM THU'), findsOneWidget);
+        expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsOneWidget);
+        expect(find.text('Chi Phí Nền Tảng (0%):'), findsOneWidget);
+        expect(find.text('Thu Nhập Thợ (100%):'), findsOneWidget);
+        expect(find.text('300000 đ'), findsNWidgets(2));
+      },
+    );
+
+    testWidgets('a 409 is explained and nothing is shown as accepted', (
+      tester,
+    ) async {
+      final acceptance = FakeAcceptanceService()
+        ..failure = const ApiException(409, 'Invalid state');
+      await pumpScreen(tester, acceptance: acceptance);
+
+      await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
+      await scrollTo(tester, find.textContaining('không còn chờ nghiệm thu'));
+
+      expect(
+        find.textContaining('Ca này không còn chờ nghiệm thu'),
+        findsOneWidget,
+      );
+      await scrollTo(tester, find.text('CHỜ NGHIỆM THU'));
+      expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
+      expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
+      expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsNothing);
+      expect(find.textContaining('Nghiệm thu thành công'), findsNothing);
+    });
+
+    testWidgets(
+      'a network failure while accepting is an error, not a made-up payout',
+      (tester) async {
+        final acceptance = FakeAcceptanceService()
+          ..failure = const ApiException(
+            0,
+            'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.',
+          );
+        await pumpScreen(tester, acceptance: acceptance);
+
+        await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
+        await scrollTo(
+          tester,
+          find.textContaining('Không kết nối được máy chủ'),
+        );
+
+        expect(
+          find.textContaining('Không kết nối được máy chủ'),
+          findsOneWidget,
+        );
+        expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
+        expect(find.textContaining('208000'), findsNothing);
+        expect(find.textContaining('260000'), findsNothing);
+        expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsNothing);
+      },
+    );
+
+    testWidgets('an answer without data is an error, not a success', (
+      tester,
+    ) async {
+      final acceptance = FakeAcceptanceService()..emptyAnswer = true;
+      await pumpScreen(tester, acceptance: acceptance);
+
+      await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
+      await scrollTo(
+        tester,
+        find.textContaining('không trả kết quả nghiệm thu'),
+      );
+
+      expect(
+        find.textContaining('Máy chủ không trả kết quả nghiệm thu'),
+        findsOneWidget,
+      );
+      expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
+    });
+
+    testWidgets(
+      'requesting a redo validates the reason, then shows the status the server answered',
+      (tester) async {
+        final acceptance = FakeAcceptanceService()
+          ..redone = const AssignmentStatusDto(
+            assignmentId: 55,
+            status: 'IN_PROGRESS',
+          );
+        await pumpScreen(tester, acceptance: acceptance);
 
         await tapVisible(tester, find.text('Dọn Lại (15–30ph)'));
-        await tester.pumpAndSettle();
-
         expect(find.text('Yêu Cầu Dọn Lại (15–30 phút)'), findsOneWidget);
 
-        // Try submit empty reason
         await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
-        await tester.pumpAndSettle();
-
         await scrollTo(
           tester,
           find.text('Vui lòng nhập lý do yêu cầu dọn lại.'),
         );
-
         expect(
           find.text('Vui lòng nhập lý do yêu cầu dọn lại.'),
           findsOneWidget,
         );
+        expect(acceptance.redos, isEmpty);
 
         // NordicTextInput draws its label above the TextField, so find the field inside the labelled input.
         final reasonField = find.descendant(
@@ -125,19 +332,93 @@ void main() {
           ),
           matching: find.byType(TextField),
         );
-        // Enter reason
-        await scrollTo(tester, reasonField);
-        await tester.enterText(reasonField, 'Chưa lau bụi dưới gầm bàn');
-        await tester.pumpAndSettle();
-
+        await tester.enterText(reasonField, 'Chưa lau kính');
         await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
-        await tester.pumpAndSettle();
 
+        expect(acceptance.redos.single, (id: 55, reason: 'Chưa lau kính'));
         await scrollTo(tester, find.text('ĐANG DỌN LẠI'));
-
         expect(find.text('ĐANG DỌN LẠI'), findsOneWidget);
-        expect(find.textContaining('Đã gửi yêu cầu dọn lại'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'a failed redo request shows the error and leaves the status as it was',
+      (tester) async {
+        final acceptance = FakeAcceptanceService()
+          ..failure = const ApiException(409, 'Invalid state');
+        await pumpScreen(tester, acceptance: acceptance);
+
+        await tapVisible(tester, find.text('Dọn Lại (15–30ph)'));
+        final reasonField = find.descendant(
+          of: find.widgetWithText(
+            NordicTextInput,
+            'Nội dung / Lý do yêu cầu dọn lại',
+          ),
+          matching: find.byType(TextField),
+        );
+        await tester.enterText(reasonField, 'Chưa lau kính');
+        await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
+        await scrollTo(tester, find.textContaining('không còn chờ nghiệm thu'));
+
+        expect(
+          find.textContaining('Ca này không còn chờ nghiệm thu'),
+          findsOneWidget,
+        );
+        await scrollTo(tester, find.text('CHỜ NGHIỆM THU'));
+        expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
+        expect(find.text('ĐANG DỌN LẠI'), findsNothing);
+        expect(
+          find.textContaining('Đã ghi nhận yêu cầu dọn lại'),
+          findsNothing,
+        );
+      },
+    );
+  });
+
+  group('the acceptance route', () {
+    testWidgets(
+      'without an assignment it does not guess one (no default 2001)',
+      (tester) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          MaterialApp(
+            routes: WorkersFeatureModule().routes,
+            initialRoute: WorkerRoutes.customerAcceptance,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.textContaining('Hãy mở màn nghiệm thu từ chi tiết của một đơn'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('2001'), findsNothing);
+        expect(find.text('Xác Nhận Nghiệm Thu'), findsNothing);
+      },
+    );
+
+    testWidgets('with the arguments of an order it opens that assignment', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          routes: WorkersFeatureModule().routes,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.of(context).pushNamed(
+                WorkerRoutes.customerAcceptance,
+                arguments: const CustomerAcceptanceArgs(assignmentId: 77),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nghiệm Thu Ca #77'), findsOneWidget);
+    });
   });
 }
