@@ -28,4 +28,4 @@ Start the backend in Development (`cd Backend && dotnet run --no-launch-profile`
 | Real phone, USB cable, **no network needed** | enable USB debugging, plug the phone in, `adb reverse tcp:5004 tcp:5004`, then `flutter run --dart-define=API_BASE_URL=http://localhost:5004`. Run `adb reverse` again after every re-plug. |
 | Real phone, same Wi-Fi | start the backend with `ASPNETCORE_URLS=http://0.0.0.0:5004`, allow port 5004 in the firewall, then `flutter run --dart-define=API_BASE_URL=http://<computer IP>:5004` |
 
-Use a debug build (`flutter run`): the backend speaks plain HTTP, and Android blocks plain HTTP by default in a release build.
+The backend speaks plain HTTP. A debug build (`flutter run`) and a release build (`flutter run --release`, with the `INTERNET` permission of this manifest) both reached it on an Android 17 emulator on 2026-10-21 (an OTP request over `http://10.0.2.2:5004`). Plain HTTP is not encrypted: use it only for a local demo, and use HTTPS for a real deployment.
