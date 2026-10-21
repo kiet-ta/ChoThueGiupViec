@@ -14,17 +14,36 @@ public sealed class JobCompletionService(
     IPublisher publisher,
     ICurrentUser currentUser) : IJobCompletionService
 {
+    private const string WorkerNotAssigned = "Worker is not assigned to this job assignment.";
+    private const string CustomerNotAuthorized = "Customer is not authorized for this assignment.";
+
+    /// <summary>
+    /// Fails closed: the caller must be authenticated, have the expected role and a positive integer id, otherwise the action is refused
+    /// before the assignment is read. Ownership of the assignment is checked by the caller of this method.
+    /// </summary>
+    private int RequireCaller(UserRole role, string message)
+    {
+        if (!currentUser.IsAuthenticated || currentUser.Role != role || currentUser.UserId is not int id || id <= 0)
+        {
+            throw new ForbiddenAccessException(message);
+        }
+
+        return id;
+    }
+
     public async Task<ApiResponse<AssignmentStatusResponse>> SubmitAsync(long assignmentId, string? notes, CancellationToken ct = default)
     {
+        var workerId = RequireCaller(UserRole.Worker, WorkerNotAssigned);
+
         var assignment = await workerRepository.GetAssignmentByIdAsync(assignmentId, ct);
         if (assignment == null)
         {
             throw new NotFoundException($"Job assignment with ID {assignmentId} not found.");
         }
 
-        if (currentUser.IsAuthenticated && currentUser.Role == UserRole.Worker && currentUser.UserId is int workerId && workerId != 0 && assignment.WorkerId != workerId)
+        if (assignment.WorkerId != workerId)
         {
-            throw new ForbiddenAccessException("Worker is not assigned to this job assignment.");
+            throw new ForbiddenAccessException(WorkerNotAssigned);
         }
 
         if (assignment.AssignmentStatus != JobAssignmentStatus.InProgress)
@@ -67,15 +86,17 @@ public sealed class JobCompletionService(
 
     public async Task<ApiResponse<AssignmentCompletionResponse>> AcceptAsync(long assignmentId, AcceptAssignmentRequest? request, CancellationToken ct = default)
     {
+        var customerId = RequireCaller(UserRole.Customer, CustomerNotAuthorized);
+
         var assignment = await workerRepository.GetAssignmentByIdAsync(assignmentId, ct);
         if (assignment == null)
         {
             throw new NotFoundException($"Job assignment with ID {assignmentId} not found.");
         }
 
-        if (currentUser.IsAuthenticated && currentUser.Role == UserRole.Customer && currentUser.UserId is int customerId && customerId != 0 && assignment.CustomerId != customerId)
+        if (assignment.CustomerId != customerId)
         {
-            throw new ForbiddenAccessException("Customer is not authorized for this assignment.");
+            throw new ForbiddenAccessException(CustomerNotAuthorized);
         }
 
         if (assignment.AssignmentStatus != JobAssignmentStatus.AwaitingAcceptance)
@@ -140,6 +161,8 @@ public sealed class JobCompletionService(
 
     public async Task<ApiResponse<AssignmentStatusResponse>> RequestRedoAsync(long assignmentId, RequestRedoRequest request, CancellationToken ct = default)
     {
+        var customerId = RequireCaller(UserRole.Customer, CustomerNotAuthorized);
+
         if (request == null || string.IsNullOrWhiteSpace(request.Reason))
         {
             throw new ValidationException("reason", "Redo reason is required.");
@@ -151,9 +174,9 @@ public sealed class JobCompletionService(
             throw new NotFoundException($"Job assignment with ID {assignmentId} not found.");
         }
 
-        if (currentUser.IsAuthenticated && currentUser.Role == UserRole.Customer && currentUser.UserId is int customerId && customerId != 0 && assignment.CustomerId != customerId)
+        if (assignment.CustomerId != customerId)
         {
-            throw new ForbiddenAccessException("Customer is not authorized for this assignment.");
+            throw new ForbiddenAccessException(CustomerNotAuthorized);
         }
 
         if (assignment.AssignmentStatus != JobAssignmentStatus.AwaitingAcceptance)
