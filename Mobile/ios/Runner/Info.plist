@@ -66,5 +66,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ứng dụng dùng vị trí hiện tại của bạn để điền toạ độ cho địa chỉ.</string>
 </dict>
 </plist>
