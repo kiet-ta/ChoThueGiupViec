@@ -20,14 +20,17 @@ class AssignmentCompletionDto {
     return AssignmentCompletionDto(
       assignmentId: json['assignmentId'] as int? ?? 0,
       status: json['status'] as String? ?? 'COMPLETED',
-      grossAmount: json['grossAmount'] as int? ?? 0,
+      grossAmount: _vnd(json['grossAmount']),
       commissionRate: (json['commissionRate'] as num?)?.toDouble() ?? 0.20,
-      payoutAmount: json['payoutAmount'] as int? ?? 0,
+      payoutAmount: _vnd(json['payoutAmount']),
       completedAt: json['completedAt'] != null
           ? DateTime.tryParse(json['completedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
   }
+
+  /// The server's amounts are decimals, so a whole number can arrive as `260000` or as `260000.0`; both are whole VND here.
+  static int _vnd(Object? value) => value is num ? value.round() : 0;
 }
 
 /// Request payload for customer requesting a touch-up/redo (contract workers.md §2.5.3).
