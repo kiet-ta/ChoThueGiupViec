@@ -4,6 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace CommonService.Infrastructure.Modules.Workers;
 
@@ -28,6 +29,9 @@ public sealed class WorkersModule : IModule
         services.AddScoped<IWorkerBookingSlotService, WorkerBookingSlotService>();
         services.AddScoped<IJobCompletionService, JobCompletionService>();
         services.AddScoped<IJobPhotoService, JobPhotoService>();
+
+        // The legacy JSON photo upload (a URL judged by the Development stand-in) only exists in Development; elsewhere a file is required.
+        services.AddSingleton(sp => new JobPhotoUploadPolicy(sp.GetRequiredService<IHostEnvironment>().IsDevelopment()));
     }
 }
 

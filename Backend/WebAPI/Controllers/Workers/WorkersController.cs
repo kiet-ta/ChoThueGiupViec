@@ -150,8 +150,36 @@ public class WorkersController(
         return Ok(result);
     }
 
-    /// <summary>Uploads and verifies a work photo using Variance of Laplacian (contract §2.4.1).</summary>
+    /// <summary>
+    /// Legacy upload of a work photo by URL. Only accepted in the Development environment; elsewhere the answer is a 400 that asks for a
+    /// file (see <see cref="UploadPhoto"/>). Not part of the OpenAPI document: it shares the route of the file upload, which is the
+    /// contract (§2.4.1), and Swagger cannot describe two bodies for one method and path.
+    /// </summary>
     [HttpPost("assignments/{assignmentId:long}/photos")]
+    [Consumes("application/json")]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<JobPhotoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UploadPhotoByUrl(
+        long assignmentId,
+        [FromBody] UploadJobPhotoRequest request,
+        CancellationToken ct)
+    {
+        var result = await photos.UploadAsync(assignmentId, request, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Uploads a work photo as a file (<c>multipart/form-data</c>: <c>file</c>, <c>photoPhase</c>, <c>angleNo</c>); the sharpness is measured on the
+    /// real pixels with the Variance of Laplacian (contract §2.4.1). At most 5 MB, JPEG, PNG or WebP.
+    /// </summary>
+    [HttpPost("assignments/{assignmentId:long}/photos")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(JobPhotoFileRules.MaxBytes + 1024 * 1024)] // the file plus the form fields; the service checks the file itself
     [Authorize(Policy = "WorkerOnly")]
     [ProducesResponseType(typeof(ApiResponse<JobPhotoResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -160,11 +188,35 @@ public class WorkersController(
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UploadPhoto(
         long assignmentId,
-        [FromBody] UploadJobPhotoRequest request,
+        [FromForm] UploadJobPhotoFileForm form,
         CancellationToken ct)
     {
-        var result = await photos.UploadAsync(assignmentId, request, ct);
-        return Ok(result);
+        if (form.File is null)
+        {
+            return Ok(await photos.UploadFileAsync(assignmentId, form.PhotoPhase, form.AngleNo, null, ct));
+        }
+
+        await using var content = form.File.OpenReadStream();
+        var file = new UploadedPhotoFile(form.File.FileName, form.File.ContentType, content, form.File.Length);
+        return Ok(await photos.UploadFileAsync(assignmentId, form.PhotoPhase, form.AngleNo, file, ct));
+    }
+
+    /// <summary>
+    /// The stored file of one photo, for the assignment's worker, its customer or an Admin. Not anonymous: the photos show the inside of a
+    /// customer's home, so the same role and ownership rule as the list applies (contract §2.4.3).
+    /// </summary>
+    [HttpGet("assignments/{assignmentId:long}/photos/{photoId:long}/file")]
+    [Authorize(Roles = nameof(UserRole.Worker) + "," + nameof(UserRole.Customer) + "," + nameof(UserRole.Admin))]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, "image/jpeg", "image/png", "image/webp")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPhotoFile(long assignmentId, long photoId, CancellationToken ct)
+    {
+        var file = await photos.GetPhotoFileAsync(assignmentId, photoId, ct);
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        Response.Headers.CacheControl = "private, max-age=3600";
+        return File(file.Content, file.ContentType);
     }
 
     /// <summary>Returns all uploaded photos for a job assignment to its worker, its customer or an Admin (contract §2.4.2).</summary>

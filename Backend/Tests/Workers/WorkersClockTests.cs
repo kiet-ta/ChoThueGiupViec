@@ -273,7 +273,7 @@ public class WorkersClockTests
         var repository = new ClockRepository(assignment);
         var service = new JobPhotoService(
             repository, new FixedQuality(), new User(WorkerId, UserRole.Worker),
-            Microsoft.Extensions.Options.Options.Create(new BusinessRules()), PinnedClock());
+            Microsoft.Extensions.Options.Options.Create(new BusinessRules()), PinnedClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
         // The first accepted BEFORE photo also starts the work, so both timestamps of the upload are checked.
         await service.UploadAsync(AssignmentId, new UploadJobPhotoRequest("BEFORE", 4, "https://storage.local/jobs/photo.jpg"));

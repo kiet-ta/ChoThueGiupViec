@@ -76,7 +76,7 @@ public class JobPhotoAccessTests
     }
 
     private static JobPhotoService Service(AssignmentRepository repository, ICurrentUser user) =>
-        new(repository, null!, user, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new FakeClock());
+        new(repository, null!, user, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
     [Fact]
     public async Task GetPhotosAsync_TheAssignedWorker_GetsThePhotos()

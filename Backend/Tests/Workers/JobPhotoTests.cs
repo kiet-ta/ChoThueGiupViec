@@ -146,7 +146,7 @@ public class JobPhotoTests
         var imageQuality = new ImageQualityService(rules);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock());
+        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
         var req = new UploadJobPhotoRequest(PhotoPhase: "BEFORE", AngleNo: 1, PhotoUrl: "https://storage.local/jobs/angle1_sharp.jpg");
 
         // Act
@@ -176,7 +176,7 @@ public class JobPhotoTests
         var (worker, assignment) = await SeedWorkerAndAssignmentAsync(db);
         var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
         var handler = new JobPhotoService(
-            new EfWorkerRepository(db), new ImageQualityService(rules), new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, rules, new FakeClock());
+            new EfWorkerRepository(db), new ImageQualityService(rules), new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
         // A blurry BEFORE photo is refused and does not start anything.
         await Assert.ThrowsAsync<ValidationException>(() => handler.UploadAsync(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/a1_blur.jpg"), CancellationToken.None));
@@ -203,7 +203,7 @@ public class JobPhotoTests
         var (worker, assignment) = await SeedWorkerAndAssignmentAsync(db, checkedIn: false);
         var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
         var handler = new JobPhotoService(
-            new EfWorkerRepository(db), new ImageQualityService(rules), new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, rules, new FakeClock());
+            new EfWorkerRepository(db), new ImageQualityService(rules), new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() => handler.UploadAsync(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/a1.jpg"), CancellationToken.None));
         Assert.Equal(0, await db.JobPhotos.CountAsync(p => p.AssignmentId == assignment.AssignmentId));
@@ -226,7 +226,7 @@ public class JobPhotoTests
         var imageQuality = new ImageQualityService(rules);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock());
+        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
         var req = new UploadJobPhotoRequest(PhotoPhase: "BEFORE", AngleNo: 1, PhotoUrl: "https://storage.local/jobs/angle1_blur.jpg");
 
         // Act & Assert
@@ -257,7 +257,7 @@ public class JobPhotoTests
         var imageQuality = new ImageQualityService(rules);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock());
+        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
         // Upload BEFORE angle 1
         await handler.UploadAsync(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/angle1.jpg"), CancellationToken.None);
@@ -287,7 +287,7 @@ public class JobPhotoTests
         var imageQuality = new ImageQualityService(rules);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock());
+        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
         // Upload BEFORE angle 1
         await handler.UploadAsync(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/angle1.jpg"), CancellationToken.None);
@@ -321,7 +321,7 @@ public class JobPhotoTests
         var imageQuality = new ImageQualityService(rules);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock());
+        var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
         // Upload 5 accepted BEFORE photos
         for (byte angle = 1; angle <= 5; angle++)
@@ -354,8 +354,8 @@ public class JobPhotoTests
         var imageQuality = new ImageQualityService(rules);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var uploadHandler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock());
-        var queryHandler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock());
+        var uploadHandler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
+        var queryHandler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
         await uploadHandler.UploadAsync(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/before1.jpg"), CancellationToken.None);
         await uploadHandler.UploadAsync(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", 2, "https://storage.local/jobs/before2.jpg"), CancellationToken.None);
