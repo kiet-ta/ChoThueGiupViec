@@ -1,7 +1,9 @@
 using CommonService.Application.Features.Workers;
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CommonService.Infrastructure.Modules.Workers;
 
@@ -122,6 +124,67 @@ public sealed class EfWorkerRepository(AppDbContext dbContext) : IWorkerReposito
     public async Task AddJobPhotoAsync(JobPhoto photo, CancellationToken cancellationToken = default)
     {
         await dbContext.JobPhotos.AddAsync(photo, cancellationToken);
+    }
+
+    public async Task<bool> TryCompleteAssignmentAsync(
+        long assignmentId, int workerId, decimal commissionRate, decimal payoutAmount, DateTime completedAtUtc, CancellationToken cancellationToken = default)
+    {
+        // A caller (a test) may already hold a transaction; then it is theirs to commit or roll back.
+        IDbContextTransaction? transaction = dbContext.Database.CurrentTransaction == null
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        try
+        {
+            var completed = await dbContext.JobAssignments
+                .Where(a => a.AssignmentId == assignmentId && a.AssignmentStatus == JobAssignmentStatus.AwaitingAcceptance)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(a => a.AssignmentStatus, JobAssignmentStatus.Completed)
+                    .SetProperty(a => a.CompletedAt, (DateTime?)completedAtUtc)
+                    .SetProperty(a => a.CustomerConfirmedAt, (DateTime?)completedAtUtc)
+                    .SetProperty(a => a.CommissionRate, commissionRate)
+                    .SetProperty(a => a.PayoutAmount, payoutAmount)
+                    .SetProperty(a => a.UpdatedAt, completedAtUtc), cancellationToken);
+
+            if (completed == 1)
+            {
+                await dbContext.Workers
+                    .Where(w => w.WorkerId == workerId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(w => w.WorkStatus, w => w.WorkStatus == WorkStatus.Busy ? WorkStatus.Idle : w.WorkStatus)
+                        .SetProperty(w => w.CompletedJobs, w => w.CompletedJobs + 1)
+                        .SetProperty(w => w.UpdatedAt, completedAtUtc), cancellationToken);
+            }
+
+            if (transaction != null)
+            {
+                if (completed == 1)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                }
+                else
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                }
+            }
+
+            return completed == 1;
+        }
+        finally
+        {
+            // The tracked copies are stale after a conditional update (and after losing the race); read them again from the database.
+            foreach (var entry in dbContext.ChangeTracker.Entries().ToList())
+            {
+                if ((entry.Entity is JobAssignment a && a.AssignmentId == assignmentId) || (entry.Entity is Worker w && w.WorkerId == workerId))
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
+
+            if (transaction != null)
+            {
+                await transaction.DisposeAsync();
+            }
+        }
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

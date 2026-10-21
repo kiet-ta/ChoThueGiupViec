@@ -106,32 +106,20 @@ public sealed class JobCompletionService(
 
         var nowUtc = DateTime.UtcNow;
 
-        // Move assignment to COMPLETED state
-        assignment.TransitionTo(JobAssignmentStatus.Completed);
-        assignment.CompletedAt = nowUtc;
-        assignment.CustomerConfirmedAt = nowUtc;
-
         // Payout computation (Freelancer commission 20% -> 80% payout; Agency per package commission rate)
         decimal commissionRate = assignment.AgencyId == null ? 0.20m : assignment.CommissionRate;
-        assignment.CommissionRate = commissionRate;
         decimal payoutAmount = Vnd.Net(assignment.GrossAmount, commissionRate);
-        assignment.PayoutAmount = payoutAmount;
-        assignment.UpdatedAt = nowUtc;
 
-        // If worker is Freelancer / busy staff, transition WorkStatus back to IDLE & increment completed jobs count
-        var worker = await workerRepository.GetByIdAsync(assignment.WorkerId, ct);
-        if (worker != null)
+        // AWAITING_ACCEPTANCE -> COMPLETED, the payout, and for the worker BUSY -> IDLE and CompletedJobs + 1, as one conditional write:
+        // of two accepts running at the same time only one completes the assignment (and publishes the event).
+        var completed = await workerRepository.TryCompleteAssignmentAsync(
+            assignment.AssignmentId, assignment.WorkerId, commissionRate, payoutAmount, nowUtc, ct);
+        if (!completed)
         {
-            if (worker.WorkStatus == WorkStatus.Busy)
-            {
-                worker.TransitionTo(WorkStatus.Idle);
-            }
-            worker.CompletedJobs += 1;
-            worker.UpdatedAt = nowUtc;
-            workerRepository.Update(worker);
+            var current = await workerRepository.GetAssignmentByIdAsync(assignmentId, ct)
+                ?? throw new NotFoundException($"Job assignment with ID {assignmentId} not found.");
+            throw new BusinessRuleViolationException($"Cannot accept assignment in status {current.AssignmentStatus}.");
         }
-
-        await workerRepository.SaveChangesAsync(ct);
 
         // Emit JobCompleted domain event (M6 rating window opens, payout batch accumulator receives item)
         await publisher.Publish(
