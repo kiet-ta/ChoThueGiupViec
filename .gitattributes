@@ -1,3 +1,6 @@
 *.sh text eol=lf
 .husky/* text eol=lf
 **/.husky/* text eol=lf
+# Flutter regenerates these on every pub get, always with LF; with core.autocrlf=true a CRLF checkout made them show as modified.
+Mobile/**/generated_plugin* text eol=lf
+Mobile/**/GeneratedPluginRegistrant.* text eol=lf
