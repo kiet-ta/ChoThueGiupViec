@@ -1,27 +1,33 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/device/camera_wrapper.dart';
+import '../../../core/device/device_camera_wrapper.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
-import '../../../core/widgets/nordic_text_input.dart';
 import '../models/job_photo_models.dart';
 import '../services/workers_photos_service.dart';
+import '../widgets/job_photo_image.dart';
 import '../widgets/tinted_card.dart';
 
 /// Screen for Before/After photo capture & VoL verification (contract workers.md §2.4).
-/// Implements MOB-M4-04: angle guides, VoL blur check (threshold >= 100.0 per Q03), and retake prompt.
+/// Implements MOB-M4-04 / MOB-PHOTO-01: angle guides, a real photo from the camera or the library, uploaded as a file;
+/// the server measures its sharpness (threshold >= 100.0 per Q03) and the worker is told to retake a blurry one.
 class WorkerPhotosScreen extends StatefulWidget {
   final int assignmentId;
   final WorkersPhotosService? photosService;
-  final double volThreshold; // Default 100.0 per Q03
+
+  /// The real camera and library by default; a test passes a fake.
+  final ICameraWrapper? camera;
 
   const WorkerPhotosScreen({
     super.key,
     required this.assignmentId,
     this.photosService,
-    this.volThreshold = 100.0,
+    this.camera,
   });
 
   @override
@@ -30,13 +36,14 @@ class WorkerPhotosScreen extends StatefulWidget {
 
 class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   late final WorkersPhotosService _service;
+  late final ICameraWrapper _camera;
 
   String _selectedPhase = 'BEFORE'; // BEFORE | AFTER
   int _selectedAngle = 1;
 
-  final _photoUrlController = TextEditingController(
-    text: 'https://storage.giupviec.local/jobs/angle1_sharp.jpg',
-  );
+  /// The photo taken or picked, not sent yet, and its content type (from its first bytes).
+  CapturedImage? _picked;
+  String? _pickedType;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -76,13 +83,8 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   void initState() {
     super.initState();
     _service = widget.photosService ?? WorkersPhotosService();
+    _camera = widget.camera ?? DeviceCameraWrapper();
     _loadPhotos();
-  }
-
-  @override
-  void dispose() {
-    _photoUrlController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadPhotos() async {
@@ -99,33 +101,73 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     }
   }
 
-  double _estimateVolScore(String url) {
-    if (url.contains('blur') ||
-        url.contains('low_quality') ||
-        url.contains('vol_45')) {
-      return 45.2; // Below threshold 100.0
+  void _fail(String message) {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _errorMessage = message;
+      _successMessage = null;
+    });
+  }
+
+  Future<void> _pick({required bool fromCamera}) async {
+    final CapturedImage? photo;
+    try {
+      photo = fromCamera
+          ? await _camera.capturePhoto()
+          : await _camera.pickFromGallery();
+    } catch (_) {
+      _fail(
+        'Không mở được camera hoặc thư viện ảnh. Hãy cấp quyền cho ứng dụng trong Cài đặt rồi thử lại.',
+      );
+      return;
     }
-    return 142.5; // Above threshold 100.0
+    if (photo == null || !mounted) return; // the worker cancelled
+
+    final bytes = photo.bytes;
+    if (bytes == null || bytes.isEmpty) {
+      _fail('Không đọc được ảnh vừa chọn. Vui lòng chụp lại.');
+      return;
+    }
+    final type = imageContentTypeOf(bytes);
+    if (type == null) {
+      _fail('Chỉ nhận ảnh JPEG, PNG hoặc WebP.');
+      return;
+    }
+    if (bytes.length > UploadJobPhotoRequest.maxBytes) {
+      _fail('Ảnh lớn hơn 5 MB. Vui lòng chụp lại hoặc chọn ảnh nhỏ hơn.');
+      return;
+    }
+    setState(() {
+      _picked = photo;
+      _pickedType = type;
+      _errorMessage = null;
+      _successMessage = null;
+    });
+  }
+
+  /// The words a failed upload is shown in, by the field the server named (contract workers.md §2.4.1).
+  String _uploadError(ApiException e) {
+    final fields = e.fieldErrors;
+    if (fields != null) {
+      final blur = fields['volScore'];
+      if (blur != null && blur.isNotEmpty) return blur.first;
+      if (fields.containsKey('contentType')) {
+        return 'Chỉ nhận ảnh JPEG, PNG hoặc WebP.';
+      }
+      if (fields.containsKey('file')) {
+        return 'Ảnh không hợp lệ hoặc lớn hơn 5 MB. Vui lòng chụp lại.';
+      }
+    }
+    return e.message;
   }
 
   Future<void> _uploadPhoto() async {
-    final photoUrl = _photoUrlController.text.trim();
-    if (photoUrl.isEmpty) {
-      setState(() {
-        _errorMessage = 'Vui lòng nhập đường dẫn ảnh chụp.';
-        _successMessage = null;
-      });
-      return;
-    }
-
-    // Pre-flight VoL check
-    final volScore = _estimateVolScore(photoUrl);
-    if (volScore < widget.volThreshold) {
-      setState(() {
-        _errorMessage =
-            'Ảnh bị mờ (Độ nét VoL: ${volScore.toStringAsFixed(1)} < ${widget.volThreshold.toStringAsFixed(1)}). Vui lòng chụp lại ảnh nét hơn tại chỗ!';
-        _successMessage = null;
-      });
+    final picked = _picked;
+    final bytes = picked?.bytes;
+    final type = _pickedType;
+    if (picked == null || bytes == null || type == null) {
+      _fail('Vui lòng chụp hoặc chọn ảnh trước khi gửi.');
       return;
     }
 
@@ -138,11 +180,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             p.isAccepted,
       );
       if (!hasBeforeAngle && _uploadedPhotos.isNotEmpty) {
-        setState(() {
-          _errorMessage =
-              'Góc $_selectedAngle chưa có ảnh BEFORE được chấp nhận. Vui lòng chọn đúng góc tương ứng!';
-          _successMessage = null;
-        });
+        _fail(
+          'Góc $_selectedAngle chưa có ảnh BEFORE được chấp nhận. Vui lòng chọn đúng góc tương ứng!',
+        );
         return;
       }
     }
@@ -159,56 +199,38 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
         request: UploadJobPhotoRequest(
           photoPhase: _selectedPhase,
           angleNo: _selectedAngle,
-          photoUrl: photoUrl,
+          bytes: bytes,
+          contentType: type,
         ),
       );
-
+      final saved = response.data;
+      if (saved == null) {
+        _fail('Máy chủ không trả kết quả của ảnh. Vui lòng thử lại.');
+        return;
+      }
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        if (response.data != null) {
-          _uploadedPhotos.add(response.data!);
-        } else {
-          _uploadedPhotos.add(
-            JobPhotoDto(
-              photoId: DateTime.now().millisecondsSinceEpoch,
-              assignmentId: widget.assignmentId,
-              photoPhase: _selectedPhase,
-              angleNo: _selectedAngle,
-              photoUrl: photoUrl,
-              volScore: volScore,
-              isAccepted: true,
-              uploadedAt: DateTime.now(),
-            ),
-          );
-        }
+        _uploadedPhotos.add(saved);
+        _picked = null;
+        _pickedType = null;
         _successMessage =
-            'Tải ảnh thành công! Độ nét VoL: ${volScore.toStringAsFixed(1)} (ĐẠT CHUẨN)';
+            'Tải ảnh thành công! Độ nét VoL: ${saved.volScore.toStringAsFixed(1)} (ĐẠT CHUẨN)';
       });
-    } catch (e) {
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      final blurry = e.fieldErrors?.containsKey('volScore') ?? false;
       setState(() {
-        _isLoading = false;
-        // Fallback for UI demonstration when backend throws or offline
-        if (e.toString().contains('400') || e.toString().contains('blur')) {
-          _errorMessage =
-              'Ảnh bị mờ (VoL < 100.0). Vui lòng giữ vững máy và chụp lại!';
-        } else {
-          // Add local accepted preview for test flow
-          _uploadedPhotos.add(
-            JobPhotoDto(
-              photoId: DateTime.now().millisecondsSinceEpoch,
-              assignmentId: widget.assignmentId,
-              photoPhase: _selectedPhase,
-              angleNo: _selectedAngle,
-              photoUrl: photoUrl,
-              volScore: volScore,
-              isAccepted: true,
-              uploadedAt: DateTime.now(),
-            ),
-          );
-          _successMessage =
-              'Đã tải ảnh lên! VoL: ${volScore.toStringAsFixed(1)} (ĐẠT)';
+        if (blurry) {
+          _picked =
+              null; // a blurry photo is not sent again: the worker retakes it
+          _pickedType = null;
         }
       });
+      _fail(_uploadError(e));
+    } catch (_) {
+      if (!mounted) return;
+      _fail('Không tải được ảnh lên. Vui lòng thử lại.');
     }
   }
 
@@ -319,36 +341,54 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                 const SizedBox(height: 16.0),
               ],
 
+              // The photo about to be sent
+              if (_picked?.bytes != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12.0),
+                  child: Image.memory(
+                    _picked!.bytes!,
+                    height: 180.0,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox(
+                      height: 180.0,
+                      child: Center(child: Text('Không xem trước được ảnh')),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12.0),
+              ],
+
               // Photo Input & Action
-              NordicTextInput(
-                label: 'Đường dẫn ảnh chụp góc $_selectedAngle',
-                controller: _photoUrlController,
-              ),
-              const SizedBox(height: 12.0),
               Row(
                 children: [
                   Expanded(
                     child: NordicButton(
-                      label: 'Tải Ảnh Mờ (Test retake)',
+                      label: 'Chụp ảnh',
                       variant: NordicButtonVariant.secondary,
-                      onPressed: () {
-                        setState(() {
-                          _photoUrlController.text =
-                              'https://storage.local/jobs/blur_vol_45.jpg';
-                        });
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : () => _pick(fromCamera: true),
                     ),
                   ),
                   const SizedBox(width: 8.0),
                   Expanded(
                     child: NordicButton(
-                      label: 'Gửi Ảnh Chụp',
-                      variant: NordicButtonVariant.primary,
-                      isLoading: _isLoading,
-                      onPressed: _uploadPhoto,
+                      label: 'Chọn từ thư viện',
+                      variant: NordicButtonVariant.secondary,
+                      onPressed: _isLoading
+                          ? null
+                          : () => _pick(fromCamera: false),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12.0),
+              NordicButton(
+                label: 'Gửi Ảnh Chụp',
+                variant: NordicButtonVariant.primary,
+                isLoading: _isLoading,
+                onPressed: _uploadPhoto,
               ),
 
               const SizedBox(height: 20.0),
@@ -441,11 +481,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                 ),
                 onSelected: (selected) {
                   if (selected) {
-                    setState(() {
-                      _selectedAngle = i;
-                      _photoUrlController.text =
-                          'https://storage.local/jobs/${_selectedPhase.toLowerCase()}_angle$i.jpg';
-                    });
+                    setState(() => _selectedAngle = i);
                   }
                 },
               ),
@@ -570,6 +606,17 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                   children: [
                     Row(
                       children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6.0),
+                          child: JobPhotoImage(
+                            service: _service,
+                            photo: p,
+                            height: 40.0,
+                            width: 40.0,
+                            compact: true,
+                          ),
+                        ),
+                        const SizedBox(width: 8.0),
                         const Icon(
                           Icons.check_circle,
                           color: Color(0xFF16A34A),

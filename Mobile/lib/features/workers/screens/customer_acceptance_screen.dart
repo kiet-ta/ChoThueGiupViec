@@ -10,6 +10,7 @@ import '../models/customer_acceptance_models.dart';
 import '../models/job_photo_models.dart';
 import '../services/customer_acceptance_service.dart';
 import '../services/workers_photos_service.dart';
+import '../widgets/job_photo_image.dart';
 import '../widgets/tinted_card.dart';
 
 /// Screen for Customer to view Before/After photos and confirm acceptance or request redo (MOB-M4-05, contract workers.md §2.5).
@@ -457,7 +458,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                 Expanded(
                   child: _buildPhotoBox(
                     label: 'TRƯỚC (Before)',
-                    photoUrl: beforePhoto?.photoUrl ?? 'Chưa có ảnh',
+                    photo: beforePhoto,
                     volScore: beforePhoto?.volScore,
                     headerBg: const Color(0xFFF1F5F9),
                     headerTextColor: NordicColors.textTitle,
@@ -467,7 +468,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                 Expanded(
                   child: _buildPhotoBox(
                     label: 'SAU (After)',
-                    photoUrl: afterPhoto?.photoUrl ?? 'Chưa có ảnh',
+                    photo: afterPhoto,
                     volScore: afterPhoto?.volScore,
                     headerBg: const Color(0xFFDCFCE7),
                     headerTextColor: const Color(0xFF15803D),
@@ -483,7 +484,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
 
   Widget _buildPhotoBox({
     required String label,
-    required String photoUrl,
+    required JobPhotoDto? photo,
     double? volScore,
     required Color headerBg,
     required Color headerTextColor,
@@ -518,30 +519,11 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
           Container(
             height: 110.0,
             color: const Color(0xFF0F172A),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.image,
-                      size: 36.0,
-                      color: Color(0xFF94A3B8),
-                    ),
-                    const SizedBox(height: 4.0),
-                    Text(
-                      photoUrl.split('/').last,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10.0,
-                        color: Color(0xFFCBD5E1),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            child: JobPhotoImage(
+              service: _photosService,
+              photo: photo,
+              height: 110.0,
+              width: double.infinity,
             ),
           ),
           if (volScore != null)
