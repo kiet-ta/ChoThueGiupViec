@@ -5,6 +5,7 @@ using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Workers;
 using CommonService.Infrastructure.Persistence;
 using MediatR;
@@ -110,7 +111,7 @@ public class JobAcceptanceTests
 
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser);
+        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser, new FakeClock());
 
         // Act
         var response = await handler.SubmitAsync(assignment.AssignmentId, "Done clean", CancellationToken.None);
@@ -161,7 +162,7 @@ public class JobAcceptanceTests
 
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser);
+        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser, new FakeClock());
 
         // Act & Assert
         await Assert.ThrowsAsync<ValidationException>(() =>
@@ -207,7 +208,7 @@ public class JobAcceptanceTests
 
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
-        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser);
+        var handler = new JobCompletionService(repository, new TestPublisher(), currentUser, new FakeClock());
 
         // Act
         var response = await handler.RequestRedoAsync(assignment.AssignmentId, new RequestRedoRequest("Chua sach dust"), CancellationToken.None);
@@ -265,7 +266,7 @@ public class JobAcceptanceTests
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
         var publisher = new TestPublisher();
-        var handler = new JobCompletionService(repository, publisher, currentUser);
+        var handler = new JobCompletionService(repository, publisher, currentUser, new FakeClock());
 
         // Act
         var response = await handler.AcceptAsync(assignment.AssignmentId, null, CancellationToken.None);
@@ -336,7 +337,7 @@ public class JobAcceptanceTests
         var repository = new EfWorkerRepository(db);
         var currentUser = new TestCurrentUser { UserId = seed.CustomerId, Role = UserRole.Customer };
         var publisher = new TestPublisher();
-        var handler = new JobCompletionService(repository, publisher, currentUser);
+        var handler = new JobCompletionService(repository, publisher, currentUser, new FakeClock());
 
         // Act
         var response = await handler.AcceptAsync(assignment.AssignmentId, null, CancellationToken.None);

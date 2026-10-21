@@ -6,6 +6,7 @@ using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using Xunit;
 
 namespace CommonService.Tests.Workers;
@@ -94,7 +95,7 @@ public class JobPhotoAtomicSaveTests
     }
 
     private static JobPhotoService Service(PhotoRepository repository, bool sharp = true) =>
-        new(repository, new FixedQuality(sharp), new WorkerUser(), Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        new(repository, new FixedQuality(sharp), new WorkerUser(), Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new FakeClock());
 
     private static UploadJobPhotoRequest Request(string phase, byte angle) =>
         new(phase, angle, "https://storage.local/jobs/photo.jpg");

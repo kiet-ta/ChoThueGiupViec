@@ -5,6 +5,7 @@ using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Workers;
 using CommonService.Infrastructure.Persistence;
 using CommonService.Tests.Persistence;
@@ -148,7 +149,7 @@ public class JobCompletionConcurrencyTests
     {
         var repository = new StubRepository(completeSucceeds: false);
         var publisher = new RecordingPublisher();
-        var service = new JobCompletionService(repository, publisher, new Customer_(StubCustomerId));
+        var service = new JobCompletionService(repository, publisher, new Customer_(StubCustomerId), new FakeClock());
 
         var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => service.AcceptAsync(StubAssignmentId, null));
 
@@ -162,7 +163,7 @@ public class JobCompletionConcurrencyTests
     {
         var repository = new StubRepository(completeSucceeds: true);
         var publisher = new RecordingPublisher();
-        var service = new JobCompletionService(repository, publisher, new Customer_(StubCustomerId));
+        var service = new JobCompletionService(repository, publisher, new Customer_(StubCustomerId), new FakeClock());
 
         var response = await service.AcceptAsync(StubAssignmentId, null);
 
@@ -239,11 +240,11 @@ public class JobCompletionConcurrencyTests
 
             var publisherA = new RecordingPublisher();
             using var dbA = CreateContext();
-            await new JobCompletionService(new EfWorkerRepository(dbA), publisherA, user).AcceptAsync(seeded.AssignmentId, null);
+            await new JobCompletionService(new EfWorkerRepository(dbA), publisherA, user, new FakeClock()).AcceptAsync(seeded.AssignmentId, null);
 
             var publisherB = new RecordingPublisher();
             var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-                new JobCompletionService(repositoryB, publisherB, user).AcceptAsync(seeded.AssignmentId, null));
+                new JobCompletionService(repositoryB, publisherB, user, new FakeClock()).AcceptAsync(seeded.AssignmentId, null));
 
             Assert.Equal("Cannot accept assignment in status Completed.", ex.Message);
             Assert.Equal(1, publisherA.Published);
@@ -280,7 +281,7 @@ public class JobCompletionConcurrencyTests
             async Task<bool> Request()
             {
                 using var db = CreateContext();
-                var service = new JobCompletionService(new EfWorkerRepository(db), publisher, user);
+                var service = new JobCompletionService(new EfWorkerRepository(db), publisher, user, new FakeClock());
                 await start.Task;
                 try
                 {

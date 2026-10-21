@@ -4,6 +4,7 @@ using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Workers;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -57,7 +58,7 @@ public class BookingSlotTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var toggleHandler = new WorkerBookingSlotService(repository, currentUser);
+        var toggleHandler = new WorkerBookingSlotService(repository, currentUser, new FakeClock());
 
         var slotDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
 
@@ -101,8 +102,8 @@ public class BookingSlotTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var toggleHandler = new WorkerBookingSlotService(repository, currentUser);
-        var queryHandler = new WorkerBookingSlotService(repository, currentUser);
+        var toggleHandler = new WorkerBookingSlotService(repository, currentUser, new FakeClock());
+        var queryHandler = new WorkerBookingSlotService(repository, currentUser, new FakeClock());
 
         var date1 = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
         var date2 = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2));
@@ -142,7 +143,7 @@ public class BookingSlotTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var toggleHandler = new WorkerBookingSlotService(repository, currentUser);
+        var toggleHandler = new WorkerBookingSlotService(repository, currentUser, new FakeClock());
 
         var slotDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
         var req = new ToggleBookingSlotRequest(slotDate, "INVALID_SHIFT", IsActive: true);
@@ -172,7 +173,7 @@ public class BookingSlotTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var toggleHandler = new WorkerBookingSlotService(repository, currentUser);
+        var toggleHandler = new WorkerBookingSlotService(repository, currentUser, new FakeClock());
 
         var pastDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
         var req = new ToggleBookingSlotRequest(pastDate, "SHIFT_MORNING", IsActive: true);
@@ -210,7 +211,7 @@ public class BookingSlotTests
             {
                 using var db1 = CreateContext();
                 var repo1 = new EfWorkerRepository(db1);
-                var handler1 = new WorkerBookingSlotService(repo1, currentUser);
+                var handler1 = new WorkerBookingSlotService(repo1, currentUser, new FakeClock());
                 return await handler1.ToggleAsync(req, CancellationToken.None);
             });
 
@@ -218,7 +219,7 @@ public class BookingSlotTests
             {
                 using var db2 = CreateContext();
                 var repo2 = new EfWorkerRepository(db2);
-                var handler2 = new WorkerBookingSlotService(repo2, currentUser);
+                var handler2 = new WorkerBookingSlotService(repo2, currentUser, new FakeClock());
                 return await handler2.ToggleAsync(req, CancellationToken.None);
             });
 
