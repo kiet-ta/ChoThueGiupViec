@@ -1,12 +1,12 @@
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Identity.Services;
-using CommonService.Application.Features.Workers.Commands;
 using CommonService.Application.Features.Workers.Dtos;
-using CommonService.Application.Features.Workers.Queries;
+using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Workers;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -74,7 +74,7 @@ public class WorkerProfileTests
         string nationalId = $"012{Random.Shared.Next(100000000, 999999999)}";
         var (regToken, _) = _tokenService.GenerateWorkerRegistrationToken(phone);
 
-        var handler = new RegisterWorkerCommandHandler(repository, _config);
+        var handler = new WorkerProfileService(repository, new TestCurrentUser(), new FakeClock(), _config);
         var request = new RegisterWorkerRequest(
             RegistrationToken: regToken,
             FullName: "Nguyen Van A",
@@ -82,7 +82,7 @@ public class WorkerProfileTests
         );
 
         // Act
-        var response = await handler.Handle(new RegisterWorkerCommand(request), CancellationToken.None);
+        var response = await handler.RegisterAsync(request, CancellationToken.None);
 
         // Assert
         Assert.True(response.Success);
@@ -108,7 +108,7 @@ public class WorkerProfileTests
         using var db = CreateContext();
         var repository = new EfWorkerRepository(db);
 
-        var handler = new RegisterWorkerCommandHandler(repository, _config);
+        var handler = new WorkerProfileService(repository, new TestCurrentUser(), new FakeClock(), _config);
         var request = new RegisterWorkerRequest(
             RegistrationToken: "invalid-token-string",
             FullName: "Nguyen Van B",
@@ -117,7 +117,7 @@ public class WorkerProfileTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ValidationException>(() =>
-            handler.Handle(new RegisterWorkerCommand(request), CancellationToken.None));
+            handler.RegisterAsync(request, CancellationToken.None));
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class WorkerProfileTests
 
         var (regToken, _) = _tokenService.GenerateWorkerRegistrationToken(phone2);
 
-        var handler = new RegisterWorkerCommandHandler(repository, _config);
+        var handler = new WorkerProfileService(repository, new TestCurrentUser(), new FakeClock(), _config);
         var request = new RegisterWorkerRequest(
             RegistrationToken: regToken,
             FullName: "Nguyen Van C",
@@ -149,7 +149,7 @@ public class WorkerProfileTests
 
         // Act & Assert
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            handler.Handle(new RegisterWorkerCommand(request), CancellationToken.None));
+            handler.RegisterAsync(request, CancellationToken.None));
 
         await transaction.RollbackAsync();
     }
@@ -172,10 +172,10 @@ public class WorkerProfileTests
         await db.SaveChangesAsync();
 
         var fakeCurrentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var handler = new GetWorkerProfileQueryHandler(repository, fakeCurrentUser);
+        var handler = new WorkerProfileService(repository, fakeCurrentUser, new FakeClock(), _config);
 
         // Act
-        var result = await handler.Handle(new GetWorkerProfileQuery(), CancellationToken.None);
+        var result = await handler.GetProfileAsync(CancellationToken.None);
 
         // Assert
         Assert.True(result.Success);
@@ -204,11 +204,11 @@ public class WorkerProfileTests
         await db.SaveChangesAsync();
 
         var fakeCurrentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var handler = new UpdateWorkerProfileCommandHandler(repository, fakeCurrentUser);
+        var handler = new WorkerProfileService(repository, fakeCurrentUser, new FakeClock(), _config);
         var updateReq = new UpdateWorkerProfileRequest(FullName: "New Updated Name");
 
         // Act
-        var result = await handler.Handle(new UpdateWorkerProfileCommand(updateReq), CancellationToken.None);
+        var result = await handler.UpdateProfileAsync(updateReq, CancellationToken.None);
 
         // Assert
         Assert.True(result.Success);

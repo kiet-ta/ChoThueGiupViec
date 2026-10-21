@@ -4,7 +4,7 @@
 
 ## 1. Overview
 - ASP.NET Core Web API, **.NET 10** (`net10.0`), Nullable + ImplicitUsings enabled.
-- Single project (`CommonService.csproj`), layered by **folders/namespaces** following **Clean Architecture + CQRS (MediatR)**.
+- Single project (`CommonService.csproj`), layered by **folders/namespaces** following **Clean Architecture**. Use cases are **application services** (`I<Name>Service` + `<Name>Service`) called from thin controllers; MediatR is kept for domain-event notifications.
 - Purpose: a reusable "common service" template (users, orders, payment via Stripe, caching, email, standard response/error middleware).
 - Packages: `MediatR 13`, `Stripe.net 48`, `Swashbuckle.AspNetCore 9`, `Microsoft.AspNetCore.OpenApi`.
 - Root namespace: `CommonService`. Port (dev): http `5004`, https `7204`. Swagger is enabled in Development only.
@@ -19,8 +19,8 @@ Domain/                    Pure business model. NO dependency on other layers
   Events/                  Domain events (OrderPaid, JobAssigned, etc.)
   Services/                Domain services - logic spanning multiple entities
 Application/               Use cases. Depends on Domain only
-  Features/<Feature>/      Commands/, Queries/, Handlers/ (MediatR) e.g. Features/<Module>/
-  Behaviors/               MediatR pipeline: Validation, Logging, Performance
+  Features/<Feature>/      Services/ (I<Name>Service + implementation), Dtos/, <Entity>Repository interface, e.g. Features/<Module>/
+  Behaviors/               MediatR pipeline: Validation, Logging, Performance (only the Validation behavior is registered)
   Interfaces/              IRepositories/ (IRepository, IUnitOfWork), IServices/ (ICacheService, IEmailService), Ports/
   Services/                Application services (EmailService)
   Common/                  Models (ApiResponse<T>), Helpers (PaginatedList), Constants
@@ -42,7 +42,7 @@ Each module owns exactly these four folders (exclusive: nobody else edits them):
 
 | Layer | Path |
 |---|---|
-| Application (commands/queries/handlers/validators) | `Application/Features/<Module>/` |
+| Application (services, DTOs, repository interfaces, event handlers) | `Application/Features/<Module>/` |
 | Controllers (thin) | `WebAPI/Controllers/<Module>/` |
 | Infrastructure (EF config, repos, adapters) | `Infrastructure/Modules/<Module>/` |
 | Tests | `Tests/<Module>/` |
@@ -58,7 +58,7 @@ Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInje
 - `ConfigureServices(services, configuration)`: register the module's services, options, hosted/startup tasks (for example the dev admin seeder) and, later, its EF configurations. `MapEndpoints(endpoints)` (optional): map non-controller endpoints such as a SignalR hub.
 - `Infrastructure/DependencyInjection.cs` calls `AddModules(configuration, <this assembly>)` once, **last**; `Program.cs` calls `MapModuleEndpoints()` once after `MapControllers()`. Both calls are written once in BASE-02 and are frozen.
 - The scan finds public, concrete `IModule` types only. Modules are applied in ordinal name order (deterministic); a duplicate `Name` or a missing public parameterless constructor fails at startup with a clear message.
-- Already automatic, nothing to register: **controllers** (MVC scans the application assembly), **MediatR handlers** (`AddMediatR` scans the assembly in `Application/DependencyInjection.cs`), **validators** (`ValidationBehavior` validates the DataAnnotations on each request; there is no validator class to register).
+- Already automatic, nothing to register: **controllers** (MVC scans the application assembly), **MediatR notification handlers** (`AddMediatR` scans the assembly in `Application/DependencyInjection.cs`), **validators** (`ValidationBehavior` validates the DataAnnotations of the remaining MediatR requests; a service validates its own input and throws `ValidationException`). A module's own services are registered in its `IModule.ConfigureServices`.
 - Tests: `Backend/Tests/Modularity/ModuleLoaderTests.cs` (a fake module in the test assembly resolves its service without touching `Program.cs`).
 
 ### 2.4 Domain model (BASE-06): 27 entities, 3 state machines
@@ -153,8 +153,8 @@ Dependencies point **inward**. Domain knows nothing about Application/Infrastruc
 ## 4. Request flow
 ```
 HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → ResponseWrapperMiddleware
-     → Controller → IMediator.Send(Command/Query)
-     → Pipeline behaviors (Validation → ...) → Handler → IRepository / IService (Infrastructure)
+     → Controller → I<Name>Service (Application)
+     → IRepository / port (Infrastructure)
      → Domain entities/value objects → result → ApiResponse<T> → JSON
 ```
 - Responses are wrapped as `ApiResponse<T> { Success, Message, Data }`.
@@ -164,15 +164,15 @@ HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → Respon
 ## 5. Conventions for adding code
 **New feature (e.g. Orders):**
 1. Domain: entity/value object/event in `Domain/`.
-2. Application: `Features/Orders/Commands|Queries/*.cs` (`IRequest<T>`) + `Handlers/*Handler.cs`; add repo interface to `Interfaces/IRepositories`.
-3. Infrastructure: implement repo in `Infrastructure/Persistances`, register in `Infrastructure/DependencyInjection.cs` (`AddScoped`).
-4. WebAPI: thin controller that only calls `IMediator`; no business logic in controllers.
-5. Validation: FluentValidation-style validators picked up by `ValidationBehavior` (add package if missing).
+2. Application: `Features/Orders/Services/IOrderService.cs` + `OrderService.cs`, request/response records in `Features/Orders/Dtos/`; add the repo interface in `Features/Orders/` (or `Interfaces/IRepositories`).
+3. Infrastructure: implement repo in `Infrastructure/Modules/Orders/`, register repo and service in `OrdersModule.ConfigureServices` (`AddScoped`).
+4. WebAPI: thin controller that only calls the service; no business logic in controllers.
+5. Validation: the service checks its input and throws `ValidationException` (field errors) before touching the repository.
 
 **Rules**
 - Don't reference Infrastructure from Application/Domain.
 - Use value objects (e.g. `Email`, `Vnd`) instead of primitives for domain concepts.
-- Throw Application exceptions (`NotFoundException`, ...) rather than returning status codes from handlers.
+- Throw Application exceptions (`NotFoundException`, ...) rather than returning status codes from services.
 - Cache via `ICacheService` (swap InMemory ↔ Redis in Infrastructure DI; Redis needs `ConnectionStrings:Redis`).
 - Tests: follow `Tests/GoldenRule.md` — use cases are tested with mocks/stubs, never real DB/external APIs; don't test across domains.
 - Namespaces mirror folders (`CommonService.Application.Features...`). Keep new code consistent with existing style; preserve existing comments/docs.

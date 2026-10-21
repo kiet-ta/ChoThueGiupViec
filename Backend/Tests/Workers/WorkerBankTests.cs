@@ -1,6 +1,7 @@
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Workers;
-using CommonService.Application.Features.Workers.Commands;
+using CommonService.Application.Features.Workers.Dtos;
+using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -68,12 +69,12 @@ public class WorkerBankTests
     [Fact]
     public async Task A_missing_body_and_an_anonymous_caller_are_refused()
     {
-        var update = new UpdateWorkerBankCommandHandler(null!, new User(7), new FakeClock());
-        await Assert.ThrowsAsync<ValidationException>(() => update.Handle(new UpdateWorkerBankCommand(null), default));
+        var update = new WorkerProfileService(null!, new User(7), new FakeClock(), null!);
+        await Assert.ThrowsAsync<ValidationException>(() => update.UpdateBankAsync(null, default));
 
-        var anonymous = new UpdateWorkerBankCommandHandler(null!, new User(null), new FakeClock());
-        await Assert.ThrowsAsync<ForbiddenAccessException>(() => anonymous.Handle(new UpdateWorkerBankCommand(new UpdateWorkerBankRequest("VCB", "0011001234")), default));
-        await Assert.ThrowsAsync<ForbiddenAccessException>(() => new GetWorkerBankQueryHandler(null!, new User(null)).Handle(new GetWorkerBankQuery(), default));
+        var anonymous = new WorkerProfileService(null!, new User(null), new FakeClock(), null!);
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => anonymous.UpdateBankAsync(new UpdateWorkerBankRequest("VCB", "0011001234"), default));
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => new WorkerProfileService(null!, new User(null), new FakeClock(), null!).GetBankAsync(default));
     }
 
     [Fact]
@@ -89,12 +90,12 @@ public class WorkerBankTests
         IWorkerRepository repository = new EfWorkerRepository(db);
         var user = new User(worker.WorkerId);
 
-        Assert.False((await new GetWorkerBankQueryHandler(repository, user).Handle(new GetWorkerBankQuery(), default)).Data!.IsSet);
+        Assert.False((await new WorkerProfileService(repository, user, new FakeClock(), null!).GetBankAsync(default)).Data!.IsSet);
 
-        await new UpdateWorkerBankCommandHandler(repository, user, new FakeClock())
-            .Handle(new UpdateWorkerBankCommand(new UpdateWorkerBankRequest("Vietcombank", "0011 0012 3456")), default);
+        await new WorkerProfileService(repository, user, new FakeClock(), null!)
+            .UpdateBankAsync(new UpdateWorkerBankRequest("Vietcombank", "0011 0012 3456"), default);
 
-        var read = (await new GetWorkerBankQueryHandler(repository, user).Handle(new GetWorkerBankQuery(), default)).Data!;
+        var read = (await new WorkerProfileService(repository, user, new FakeClock(), null!).GetBankAsync(default)).Data!;
         Assert.Equal(("Vietcombank", "001100123456", true), (read.BankName, read.BankAccountNo, read.IsSet));
 
         await transaction.RollbackAsync();

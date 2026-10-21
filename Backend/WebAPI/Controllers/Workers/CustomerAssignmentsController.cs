@@ -1,7 +1,6 @@
 using CommonService.Application.Common.Models;
-using CommonService.Application.Features.Workers.Commands;
 using CommonService.Application.Features.Workers.Dtos;
-using MediatR;
+using CommonService.Application.Features.Workers.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +12,7 @@ namespace CommonService.WebAPI.Controllers.Workers;
 /// </summary>
 [ApiController]
 [Route("api/customers/assignments")]
-public class CustomerAssignmentsController(ISender sender) : ControllerBase
+public class CustomerAssignmentsController(IJobCompletionService completions) : ControllerBase
 {
     /// <summary>Customer confirms job completion (contract §2.5.2).</summary>
     [HttpPost("{assignmentId:long}/accept")]
@@ -28,7 +27,7 @@ public class CustomerAssignmentsController(ISender sender) : ControllerBase
         [FromBody] AcceptAssignmentRequest? request,
         CancellationToken ct)
     {
-        var result = await sender.Send(new AcceptJobCompletionCommand(assignmentId, request), ct);
+        var result = await completions.AcceptAsync(assignmentId, request, ct);
         return Ok(result);
     }
 
@@ -45,7 +44,7 @@ public class CustomerAssignmentsController(ISender sender) : ControllerBase
         [FromBody] RequestRedoRequest request,
         CancellationToken ct)
     {
-        var result = await sender.Send(new RequestJobRedoCommand(assignmentId, request), ct);
+        var result = await completions.RequestRedoAsync(assignmentId, request, ct);
         return Ok(result);
     }
 }
