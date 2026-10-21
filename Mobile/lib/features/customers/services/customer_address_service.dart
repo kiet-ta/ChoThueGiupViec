@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_address.dart';
+import '../../../core/network/api_config.dart';
 
 /// Service managing customer address book matching .spec/contracts/customers.md §2.2.
 ///
@@ -24,7 +25,7 @@ class CustomerAddressService {
     HttpClient? httpClient,
     TokenStorage? tokenStorage,
     this.isMock = false,
-  }) : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
+  }) : baseUrl = baseUrl ?? apiBaseUrl,
        _httpClient = httpClient ?? HttpClient(),
        _tokenStorage = tokenStorage ?? TokenStorage() {
     if (isMock) _seedDefaultMockData();

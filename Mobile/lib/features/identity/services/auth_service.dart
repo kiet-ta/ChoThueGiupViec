@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../../core/models/user_role.dart';
+import '../../../core/network/api_config.dart';
 import '../models/auth_models.dart';
 import 'api_error.dart';
 import 'token_storage.dart';
@@ -16,8 +17,7 @@ class AuthService {
   bool useMockFallback;
 
   AuthService({
-    this.baseUrl =
-        'http://10.0.2.2:5004', // Android emulator default to localhost
+    this.baseUrl = apiBaseUrl,
     TokenStorage? tokenStorage,
     HttpClient? client,
     this.useMockFallback = false,

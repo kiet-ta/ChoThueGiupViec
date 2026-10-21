@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_profile.dart';
+import '../../../core/network/api_config.dart';
 
 /// Service managing customer profile matching .spec/contracts/customers.md §2.1.
 ///
@@ -21,7 +22,7 @@ class CustomerProfileService {
     HttpClient? httpClient,
     TokenStorage? tokenStorage,
     this.isMock = false,
-  }) : baseUrl = baseUrl ?? 'http://10.0.2.2:5004',
+  }) : baseUrl = baseUrl ?? apiBaseUrl,
        _httpClient = httpClient ?? HttpClient(),
        _tokenStorage = tokenStorage ?? TokenStorage(),
        _mockProfile = CustomerProfile(
