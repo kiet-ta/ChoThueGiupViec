@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/device/device_location.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
@@ -17,10 +18,16 @@ class LocationPreset {
 }
 
 /// GPS coordinates selector and quick preset picker.
-class GpsCoordinatePicker extends StatelessWidget {
+///
+/// "Lấy GPS Hiện Tại" reads the real position of the phone (foreground only, [IDeviceLocationProvider]); when it cannot, the
+/// coordinates stay as they were, the reason is shown, and the presets and the manual entry still work.
+class GpsCoordinatePicker extends StatefulWidget {
   final double latitude;
   final double longitude;
   final void Function(double lat, double lng) onCoordinatesChanged;
+
+  /// Where the position comes from; the real device by default, a fake in tests.
+  final IDeviceLocationProvider locationProvider;
 
   static const List<LocationPreset> presets = [
     LocationPreset(title: 'Q.1, TP.HCM', lat: 10.7769, lng: 106.7009),
@@ -34,7 +41,61 @@ class GpsCoordinatePicker extends StatelessWidget {
     required this.latitude,
     required this.longitude,
     required this.onCoordinatesChanged,
+    this.locationProvider = const GeolocatorLocationProvider(),
   });
+
+  @override
+  State<GpsCoordinatePicker> createState() => _GpsCoordinatePickerState();
+}
+
+class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
+  bool _locating = false;
+
+  double get latitude => widget.latitude;
+  double get longitude => widget.longitude;
+  void Function(double lat, double lng) get onCoordinatesChanged =>
+      widget.onCoordinatesChanged;
+
+  /// Reads the real position once. Success fills the coordinates and says how accurate the fix is; every failure leaves them unchanged.
+  Future<void> _useCurrentLocation() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    final messenger = ScaffoldMessenger.of(context);
+    String message;
+    var ok = false;
+    try {
+      final point = await widget.locationProvider.currentPosition();
+      if (!mounted) return;
+      onCoordinatesChanged(point.latitude, point.longitude);
+      ok = true;
+      message =
+          'Đã lấy vị trí hiện tại (${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}), sai số khoảng ${point.accuracyMeters.round()} m';
+    } on DeviceLocationException catch (e) {
+      message = _failureMessage(e.failure);
+    } catch (_) {
+      message = _failureMessage(DeviceLocationFailure.failed);
+    }
+    if (!mounted) return;
+    setState(() => _locating = false);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+        backgroundColor: ok ? NordicColors.primary : const Color(0xFF991B1B),
+      ),
+    );
+  }
+
+  static String _failureMessage(
+    DeviceLocationFailure failure,
+  ) => switch (failure) {
+    DeviceLocationFailure.serviceDisabled => 'Định vị (GPS) của máy đang tắt. Hãy bật định vị, hoặc chọn vị trí mẫu / nhập toạ độ.',
+    DeviceLocationFailure.permissionDenied => 'Ứng dụng chưa được phép dùng vị trí. Hãy cho phép khi được hỏi, hoặc chọn vị trí mẫu / nhập toạ độ.',
+    DeviceLocationFailure.permissionDeniedForever => 'Quyền vị trí đã bị từ chối. Hãy bật lại trong Cài đặt của máy, hoặc chọn vị trí mẫu / nhập toạ độ.',
+    DeviceLocationFailure.timeout => 'Chưa xác định được vị trí (hết thời gian chờ). Hãy ra nơi thoáng hơn rồi thử lại, hoặc chọn vị trí mẫu / nhập toạ độ.',
+    DeviceLocationFailure.failed =>
+      'Không lấy được vị trí hiện tại. Hãy chọn vị trí mẫu hoặc nhập toạ độ.',
+  };
 
   void _showCoordinateInputDialog(BuildContext context) {
     final latController = TextEditingController(text: latitude.toString());
@@ -195,7 +256,7 @@ class GpsCoordinatePicker extends StatelessWidget {
         Wrap(
           spacing: 6.0,
           runSpacing: 6.0,
-          children: presets.map((preset) {
+          children: GpsCoordinatePicker.presets.map((preset) {
             final isSelected =
                 (latitude - preset.lat).abs() < 0.001 &&
                 (longitude - preset.lng).abs() < 0.001;
@@ -231,19 +292,8 @@ class GpsCoordinatePicker extends StatelessWidget {
             color: NordicColors.primary,
           ),
           width: double.infinity,
-          onPressed: () {
-            // Simulated GPS acquisition
-            onCoordinatesChanged(10.7769, 106.7009);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Đã cập nhật toạ độ GPS hiện tại (10.7769, 106.7009)',
-                ),
-                duration: Duration(seconds: 2),
-                backgroundColor: NordicColors.primary,
-              ),
-            );
-          },
+          isLoading: _locating,
+          onPressed: _useCurrentLocation,
         ),
       ],
     );
