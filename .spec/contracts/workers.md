@@ -298,16 +298,15 @@ The account the platform transfers the worker's monthly payout to (`WORKER.bank_
 ### 2.4 Image Quality & VoL Before/After Verification
 
 #### 2.4.1 `POST /api/workers/assignments/{assignmentId}/photos` (WorkerOnly)
-Uploads and verifies a work photo using Variance of Laplacian (`IImageQualityService`, BR-06, Q03).
+Uploads a work photo as a file and verifies it using Variance of Laplacian (`IImageQualityService`, BR-06, Q03). Decision D21 (WORKERS-PHOTO-01): the sharpness is measured on the real pixels of the uploaded file.
 
-**Request Body:**
-```json
-{
-  "photoPhase": "BEFORE | AFTER",
-  "angleNo": 1,
-  "photoUrl": "https://storage.giupviec.local/jobs/2001_before_angle1.jpg"
-}
-```
+**Request:** `multipart/form-data` with the parts
+
+| Part | Type | Rule |
+|---|---|---|
+| `file` | file | Required. JPEG, PNG or WebP (`image/jpeg`, `image/png`, `image/webp`), at most 5 MB (5 242 880 bytes), at most 50 megapixels. The first bytes must be the signature of the declared content type. |
+| `photoPhase` | string | `BEFORE` or `AFTER` (case and surrounding spaces ignored). |
+| `angleNo` | integer | 1..5. |
 
 **Response 200 `data` (`JobPhotoResponse`):**
 ```json
@@ -316,24 +315,33 @@ Uploads and verifies a work photo using Variance of Laplacian (`IImageQualitySer
   "assignmentId": 2001,
   "photoPhase": "BEFORE",
   "angleNo": 1,
-  "photoUrl": "https://storage.giupviec.local/jobs/2001_before_angle1.jpg",
+  "photoUrl": "/api/workers/assignments/2001/photos/801/file",
   "volScore": 142.50,
   "isAccepted": true,
   "uploadedAt": "2026-10-08T14:02:00Z"
 }
 ```
+`photoUrl` is the address of the authenticated file endpoint (section 2.4.3), built by the server. It is never an address the client chose.
 
 | Status | Condition |
 |---|---|
-| 400 | Photo blur score `volScore < 100.0` (`Vol.Threshold` default 100.0). Message: `"Photo blur score (45.2) is below threshold (100.0). Please retake a sharper photo."` |
+| 400 | Photo blur score `volScore < 100.0` (`Vol.Threshold` default 100.0). Error on `volScore`: `"Ảnh bị mờ (độ nét 45.2, cần tối thiểu 100.0). Vui lòng chụp lại ảnh rõ hơn."` The photo is still stored, with `isAccepted = false`, for audit. |
+| 400 | No `file` part, or an empty file (field `file`) |
+| 400 | The file is larger than 5 MB, or claims more than 50 megapixels, or has the signature of an image but cannot be decoded (field `file`) |
+| 400 | The content type is not `image/jpeg`, `image/png` or `image/webp`, or the bytes are not that type (field `contentType`) |
 | 400 | `angleNo` out of range (must be 1..5), or phase invalid |
 | 400 | `AFTER` photo `angleNo` does not match an accepted `BEFORE` photo `angleNo` |
+| 403 | The caller is a Worker who is not assigned to this assignment |
+| 404 | Unknown assignment |
+| 409 | The assignment is not `CHECKED_IN` or `IN_PROGRESS` |
 | 409 | Phase already reached maximum `Photos.MaxPerPhase` (5 accepted photos) |
 
 **Rules:**
-- Photos are resized to 640px width (`Vol.ResizeWidthPx`) for VoL computation.
-- Rejected photo (`volScore < 100.0`) is stored with `isAccepted = false` for audit, but returns HTTP 400 prompting retake.
+- The file is decoded with SkiaSharp and scaled to 640px width (`Vol.ResizeWidthPx`) for the VoL computation; a photo narrower than that is measured as it is.
+- Rejected photo (`volScore < 100.0`) is stored (file and row) with `isAccepted = false` for audit, but returns HTTP 400 prompting retake. A file whose row could not be saved is removed again.
+- The first accepted `BEFORE` photo of a `CHECKED_IN` assignment moves it to `IN_PROGRESS`, in the same save as the photo (D18).
 - Min 3 (`Photos.MinPerPhase`), Max 5 (`Photos.MaxPerPhase`) accepted photos per phase required before submitting job completion.
+- **Development environment only:** the body `application/json` `{ "photoPhase": "BEFORE | AFTER", "angleNo": 1, "photoUrl": "https://..." }` is still accepted, and its sharpness is judged by the stand-in of D18 (a URL containing `blur`, `low_quality` or `vol_45` is blurry, any other is sharp); the response `photoUrl` is the URL that was sent. In every other environment this body is refused with 400 (field `photoUrl`: the photo must be sent as a file). This body is not part of the OpenAPI document.
 
 ---
 
@@ -341,6 +349,20 @@ Uploads and verifies a work photo using Variance of Laplacian (`IImageQualitySer
 Returns all uploaded photos for a job assignment.
 
 **Response 200 `data` (`List<JobPhotoResponse>`)**
+For a photo that was uploaded as a file, `photoUrl` is the address of the file endpoint (section 2.4.3); for a photo that has only a client URL (the Development JSON body, or a photo from before the upload existed) it is that URL.
+
+| Status | Condition |
+|---|---|
+| 403 | Not the assignment's worker, not its customer, not an Admin, or any other role |
+| 404 | Unknown assignment |
+
+#### 2.4.3 `GET /api/workers/assignments/{assignmentId}/photos/{photoId}/file` (WorkerOnly / CustomerOnly / AdminOnly)
+Returns the stored file of one photo (decision D21). **Not anonymous:** the photos show the inside of a customer's home, so the rule of 2.4.2 applies (the assignment's worker, its customer, an Admin) and the request needs the bearer token. The response is the file itself (`image/jpeg`, `image/png` or `image/webp`, from the stored name) with `X-Content-Type-Options: nosniff` and `Cache-Control: private, max-age=3600`.
+
+| Status | Condition |
+|---|---|
+| 403 | Not the assignment's worker, not its customer, not an Admin, or any other role |
+| 404 | Unknown assignment, or a photo that is not of this assignment, or a photo without a stored file, or a stored file that is gone |
 
 ---
 

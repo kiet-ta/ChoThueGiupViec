@@ -95,7 +95,7 @@ public class JobPhotoAtomicSaveTests
     }
 
     private static JobPhotoService Service(PhotoRepository repository, bool sharp = true) =>
-        new(repository, new FixedQuality(sharp), new WorkerUser(), Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new FakeClock());
+        new(repository, new FixedQuality(sharp), new WorkerUser(), Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
     private static UploadJobPhotoRequest Request(string phase, byte angle) =>
         new(phase, angle, "https://storage.local/jobs/photo.jpg");

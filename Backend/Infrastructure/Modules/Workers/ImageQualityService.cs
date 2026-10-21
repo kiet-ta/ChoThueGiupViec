@@ -1,16 +1,26 @@
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using Microsoft.Extensions.Options;
+using SkiaSharp;
 
 namespace CommonService.Infrastructure.Modules.Workers;
 
 /// <summary>
 /// Service implementation of <see cref="IImageQualityService"/> for image sharpness assessment (BR-06, decisions Q03).
 /// Uses <see cref="LaplacianVarianceCalculator"/> to evaluate Variance of Laplacian against configured threshold.
+/// A JPEG, PNG or WebP photo (WORKERS-PHOTO-01) is decoded with SkiaSharp and measured on its real pixels; a 24-bit BMP and the raw bytes of
+/// the Development stand-in (<see cref="JobPhotoStandIn"/>) keep the parsers they always had.
 /// </summary>
 public sealed class ImageQualityService : IImageQualityService
 {
+    /// <summary>
+    /// A decoded photo takes 4 bytes per pixel, and a small file can claim a huge size (a decompression bomb): above this many pixels the
+    /// image is refused before it is decoded. 50 megapixels covers the full resolution of today's phone cameras.
+    /// </summary>
+    internal const long MaxPixels = 50_000_000;
+
     private readonly BusinessRules _businessRules;
 
     public ImageQualityService(IOptions<BusinessRules> businessRulesOptions)
@@ -36,8 +46,15 @@ public sealed class ImageQualityService : IImageQualityService
 
         double volScore;
 
+        if (IsEncodedPhoto(bytes))
+        {
+            // A real photo: measured on the decoded pixels, scaled to the width the contract names (Vol.ResizeWidthPx).
+            volScore = LaplacianVarianceCalculator.CalculateFromGrayscaleMatrix(
+                DecodeToGrayscale(bytes, _businessRules.Vol.ResizeWidthPx),
+                _businessRules.Vol.ResizeWidthPx);
+        }
         // Attempt parsing standard 24-bit uncompressed BMP stream
-        if (TryDecodeBmp(bytes, out double[,] grayscaleMatrix))
+        else if (TryDecodeBmp(bytes, out double[,] grayscaleMatrix))
         {
             volScore = LaplacianVarianceCalculator.CalculateFromGrayscaleMatrix(
                 grayscaleMatrix,
@@ -54,6 +71,62 @@ public sealed class ImageQualityService : IImageQualityService
 
         bool isAccepted = volScore >= _businessRules.Vol.Threshold;
         return new ImageQualityResult(volScore, isAccepted);
+    }
+
+    private static bool IsEncodedPhoto(byte[] bytes) =>
+        JobPhotoFileRules.SignatureMatches("image/jpeg", bytes)
+        || JobPhotoFileRules.SignatureMatches("image/png", bytes)
+        || JobPhotoFileRules.SignatureMatches("image/webp", bytes);
+
+    /// <summary>
+    /// Decodes a JPEG, PNG or WebP photo with SkiaSharp, scales it down to <paramref name="maxWidth"/> pixels wide (a smaller photo is kept as
+    /// it is) and returns its luminance. Bytes that carry the signature of an image but cannot be decoded, or that claim too many pixels, are a
+    /// 400 on the field <c>file</c>.
+    /// </summary>
+    private static double[,] DecodeToGrayscale(byte[] bytes, int maxWidth)
+    {
+        using var data = SKData.CreateCopy(bytes);
+        using var codec = SKCodec.Create(data) ?? throw new ValidationException("file", "The photo could not be decoded as an image.");
+
+        long pixels = (long)codec.Info.Width * codec.Info.Height;
+        if (codec.Info.Width <= 0 || codec.Info.Height <= 0 || pixels > MaxPixels)
+        {
+            throw new ValidationException("file", "The photo dimensions are too large.");
+        }
+
+        using var original = SKBitmap.Decode(codec, new SKImageInfo(codec.Info.Width, codec.Info.Height, SKColorType.Rgba8888, SKAlphaType.Premul))
+            ?? throw new ValidationException("file", "The photo could not be decoded as an image.");
+
+        int width = Math.Min(original.Width, Math.Max(1, maxWidth));
+        int height = Math.Max(1, (int)Math.Round((double)original.Height * width / original.Width));
+
+        SKBitmap? scaled = null;
+        try
+        {
+            var bitmap = original;
+            if (width != original.Width)
+            {
+                scaled = original.Resize(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+                bitmap = scaled ?? throw new ValidationException("file", "The photo could not be decoded as an image.");
+            }
+
+            var pixelsArray = bitmap.Pixels;
+            var grayscale = new double[bitmap.Height, bitmap.Width];
+            for (int y = 0; y < bitmap.Height; y++)
+            {
+                for (int x = 0; x < bitmap.Width; x++)
+                {
+                    var c = pixelsArray[y * bitmap.Width + x];
+                    grayscale[y, x] = 0.299 * c.Red + 0.587 * c.Green + 0.114 * c.Blue;
+                }
+            }
+
+            return grayscale;
+        }
+        finally
+        {
+            scaled?.Dispose();
+        }
     }
 
     /// <summary>
