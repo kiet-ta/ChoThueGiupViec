@@ -29,6 +29,15 @@ public interface IWorkerRepository : IRepository<Worker, int>
     Task<IReadOnlyList<JobPhoto>> GetAcceptedJobPhotosByPhaseAsync(long assignmentId, string photoPhase, CancellationToken cancellationToken = default);
     Task AddJobPhotoAsync(JobPhoto photo, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Completes the assignment only if it is still AWAITING_ACCEPTANCE: one conditional update of the assignment (status, completion times,
+    /// commission, payout) and, in the same transaction, <c>CompletedJobs + 1</c> and BUSY -&gt; IDLE of the worker. Returns false, with nothing
+    /// changed, when another request completed or changed the assignment first, so two concurrent accepts complete it once. The tracked copies of
+    /// the two rows are detached, so the next read sees the stored values.
+    /// </summary>
+    Task<bool> TryCompleteAssignmentAsync(
+        long assignmentId, int workerId, decimal commissionRate, decimal payoutAmount, DateTime completedAtUtc, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

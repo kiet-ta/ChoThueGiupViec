@@ -41,6 +41,7 @@ public class BookingSlotToggleGuardTests
         {
         }
 
+        public Task<bool> TryCompleteAssignmentAsync(long assignmentId, int workerId, decimal commissionRate, decimal payoutAmount, DateTime completedAtUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             Saves++;
