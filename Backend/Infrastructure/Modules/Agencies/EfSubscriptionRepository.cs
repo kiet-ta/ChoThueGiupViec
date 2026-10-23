@@ -57,7 +57,10 @@ public sealed class EfSubscriptionRepository(AppDbContext db) : ISubscriptionRep
     public async Task<IReadOnlyList<(int WorkerId, DateTime CreatedAt)>> ListCountedWorkersAsync(int agencyId, CancellationToken cancellationToken = default)
     {
         var rows = await db.Workers.AsNoTracking()
-            .Where(w => w.AgencyId == agencyId && w.WorkStatus != WorkStatus.Locked)
+            .Where(w => w.AgencyId == agencyId
+                && w.WorkStatus != WorkStatus.Locked
+                && w.WorkStatus != WorkStatus.Retiring
+                && w.WorkStatus != WorkStatus.Retired) // retiring/retired workers do not count toward quota (AGENCY-UAT-02)
             .Select(w => new { w.WorkerId, w.CreatedAt })
             .ToListAsync(cancellationToken);
         return rows.Select(r => (r.WorkerId, r.CreatedAt)).ToList();
@@ -65,7 +68,10 @@ public sealed class EfSubscriptionRepository(AppDbContext db) : ISubscriptionRep
 
     public async Task<IReadOnlyList<int>> ListAgenciesWithWorkersAsync(CancellationToken cancellationToken = default) =>
         await db.Workers.AsNoTracking()
-            .Where(w => w.AgencyId != null && w.WorkStatus != WorkStatus.Locked)
+            .Where(w => w.AgencyId != null
+                && w.WorkStatus != WorkStatus.Locked
+                && w.WorkStatus != WorkStatus.Retiring
+                && w.WorkStatus != WorkStatus.Retired) // retiring/retired workers do not count (AGENCY-UAT-02)
             .Select(w => w.AgencyId!.Value)
             .Distinct()
             .ToListAsync(cancellationToken);
@@ -73,7 +79,11 @@ public sealed class EfSubscriptionRepository(AppDbContext db) : ISubscriptionRep
     public async Task<int> LockWorkersAsync(IReadOnlyCollection<int> workerIds, DateTime nowUtc, CancellationToken cancellationToken = default)
     {
         var workers = await db.Workers
-            .Where(w => workerIds.Contains(w.WorkerId) && w.WorkStatus != WorkStatus.Locked && w.WorkStatus != WorkStatus.Busy)
+            .Where(w => workerIds.Contains(w.WorkerId)
+                && w.WorkStatus != WorkStatus.Locked
+                && w.WorkStatus != WorkStatus.Busy
+                && w.WorkStatus != WorkStatus.Retiring
+                && w.WorkStatus != WorkStatus.Retired) // retiring/retired workers must never be locked (AGENCY-UAT-02)
             .ToListAsync(cancellationToken);
         foreach (var worker in workers)
         {

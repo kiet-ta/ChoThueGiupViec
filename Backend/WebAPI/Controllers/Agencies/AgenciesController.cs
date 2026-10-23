@@ -28,4 +28,42 @@ public class AgenciesController(ISender sender) : ControllerBase
         var result = await sender.Send(new RegisterAgencyCommand(request), ct);
         return StatusCode(StatusCodes.Status201Created, result);
     }
+
+    /// <summary>
+    /// Gets the list of workers for the authenticated agency (AGENCY-UAT-02).
+    /// </summary>
+    [HttpGet("workers")]
+    [Authorize(Policy = "PartnerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<AgencyWorkerListResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetWorkers(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? status = null,
+        CancellationToken ct = default)
+    {
+        var result = await sender.Send(new GetAgencyWorkersQuery(page, pageSize, status), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Retires an agency worker, optionally with a replacement (AGENCY-UAT-02).
+    /// </summary>
+    [HttpPost("workers/{workerId:int}/retire")]
+    [Authorize(Policy = "PartnerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<RetireWorkerResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RetireWorker(
+        int workerId,
+        [FromBody] RetireWorkerRequest? request,
+        CancellationToken ct = default)
+    {
+        var result = await sender.Send(new RetireWorkerCommand(workerId, request ?? new RetireWorkerRequest()), ct);
+        return Ok(result);
+    }
 }

@@ -211,6 +211,35 @@ The leader's instruction was "if not affected, just implement", so these are the
 - **D20 Agency guarantee form (AGENCY-UAT-01, #388; 2026-10-20).** One signed guarantee is Agency-wide and covers current and future Agency Staff imports; it does not list individual workers or need to match Excel rows. It remains in effect until replaced; changes to the Agency's legal identity or guarantee terms require a new signed copy. The printable form asks the Partner to enter the registered legal name, tax code and representative; the UI does not verify those entries against the database. A scanned handwritten signature or digitally signed PDF may be uploaded. The platform records receipt of the PDF and does not verify its contents, signer identity or digital signature. No OCR, signature-validation service or per-worker guarantee is in MVP scope. Per D10, any authenticated Partner of the Agency can upload it.
 - **D21 Job photos are measured on the real file (WORKERS-PHOTO-01, #414; owner 2026-10-21).** (1) The photo reaches the server as an uploaded file (`multipart/form-data`: `file`, `photoPhase`, `angleNo`), not as a URL: the server never fetches a client URL (no SSRF). (2) The Variance of Laplacian is measured on the decoded pixels (SkiaSharp, JPEG, PNG and WebP), scaled to `Vol.ResizeWidthPx`; the file is stored with `IFileStorage` in the folder `job-photos`, a rejected photo too (audit). (3) The limits are the ones of the dispute evidence photos: at most 5 MB, `image/jpeg`, `image/png` or `image/webp`, the signature checked; plus at most 50 megapixels, because a small file can claim a huge size. (4) The stored file is served by `GET /api/workers/assignments/{assignmentId}/photos/{photoId}/file` only to the assignment's worker, its customer or an Admin, never anonymously (the photos show the inside of a home; #405). (5) The JSON body with `photoUrl` and its stand-in (D18) stay for the Development environment only, so the UAT stack keeps working; elsewhere it is a 400. (6) The Mobile app change is MOB-PHOTO-01 (#420, needs a camera plugin decision); until it lands the worker app cannot upload photos outside Development. Contract: `workers.md` sections 2.4.1 to 2.4.3.
 
+### D22 Worker retirement (AGENCY-UAT-02, ticket #444; leader 2026-10-23)
+
+**Owner rulings (confirmed):**
+1. A retired worker is **never restored** and the phone/national ID stay reserved (import keeps answering `ALREADY_EXISTS`).
+2. The Agency accepts replacing a worker in **one atomic operation**; a half-done replacement must never remain.
+3. A worker with work in progress finishes it, then becomes retired. Future booked shifts go to a replacement worker of the same Agency; with no replacement they go to the emergency rescue (ticket #443) and the Agency is penalised there. If the rescue finds nobody the customer is refunded 100% (existing path).
+4. `BUSY` has **no time limit** in the spec or the code (D6; the 4 h in the spec is the shift length). This ticket must not add one.
+5. **Claude defaults — NOT confirmed by the owner** (the PR must repeat this list so the owner can veto):
+   - (a) Two new `WorkStatus` values `Retiring` and `Retired` rather than a column.
+   - (b) A retiring worker does **not** count toward the quota.
+   - (c) The retire call previews and needs an **explicit confirmation** before it hands shifts to rescue.
+   - (d) A new replacement worker takes over the old worker's slot rows (`worker_id` is updated, slot ids stay), instead of new slots being created.
+
+**Implementation notes recorded:**
+- State machine edges added: `Idle|Busy|Locked → Retiring → Retired`. No edge leaves `Retired`.
+- Every place that treats "not Locked" as "can work" must also exclude `Retiring` and `Retired`:
+  - `EfCapacityRepository` (Premium capacity)
+  - `AgencySwapService` / `ShiftRosterService` (swap target, roster entry)
+  - `EfSubscriptionRepository` (quota count, agencies with workers, quota lock candidates — must never transition `Retiring/Retired → Locked`)
+  - `Worker.Workers` (Admin lock/unlock leaves `Retiring/Retired` untouched)
+  - `WorkerAvailabilityQuery` (`Idle` only, expected safe)
+  - `WorkerProfileService` / `CustomerFavoriteWorkerService` (status serialised as text)
+  - Mobile: `FavoriteWorkerService` (switch on workStatus; Mobile out of scope, report only)
+- Endpoints: `GET /api/agencies/workers` (paged; id, name, status, count of future `ASSIGNED` jobs) and `POST /api/agencies/workers/{workerId}/retire` (body: replacement existing id OR new worker fields + `confirmRescue` bool). Policy `PartnerOnly`, own agency only; 404 for other/unknown.
+- "In progress" = `CheckedIn|InProgress|AwaitingAcceptance`; "Future" = `Assigned` (never by `BUSY`). Agency worker can hold `Offered` — retire does nothing with it (remains `Offered` until accepted/expired).
+- Sweep in Agencies module turns `Retiring → Retired` once no active/future `ASSIGNED` jobs; for `Retiring` with future `ASSIGNED` jobs, re-publishes hand-over (`#443` handler is idempotent). Known limit: `AwaitingAcceptance` stuck (no auto-confirm) keeps worker `Retiring` until customer/Admin resolves.
+- Tests: in-memory fakes (style of `AgencySwapTests.cs`) for ownership 404; each branch of criteria; atomic rollback; retired phone/national ID `ALREADY_EXISTS` on import; sweep finishes `Retiring → Retired`; duplicate retire call idempotent. Real SQL behaviour (conditional `ExecuteUpdateAsync`, slot `worker_id` update, unique index) in `M5SqlServerTests.cs` style, reported "not verified locally" if no server.
+- Docs updated: `.spec/contracts/agencies.md` (section 9), `.spec/contracts/workers.md` (statuses + edges), `.spec/decisions.md` (this D22).
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery. Escrow withdrawal by an agency (D16: an Admin settles outside the system).
 

@@ -27,7 +27,9 @@ public sealed class EfCapacityRepository(AppDbContext db, IClock clock, IOptions
             where slot.SlotDate == date
                 && slot.ShiftCode == shiftCode
                 && slot.SlotStatus == DispatchSlotStatuses.Available
-                && worker.WorkStatus != WorkStatus.Locked // a worker locked by the quota (or any lock) takes no new Premium job (D16)
+                && worker.WorkStatus != WorkStatus.Locked
+                && worker.WorkStatus != WorkStatus.Retiring
+                && worker.WorkStatus != WorkStatus.Retired // retired/retiring workers take no new Premium job (AGENCY-UAT-02)
                 && agency.AgencyStatus == AgencyStatuses.Active
                 && agency.SlaScore >= minSlaScore
                 && !db.AgencyCapacityHolds.Any(h => h.SlotId == slot.SlotId)

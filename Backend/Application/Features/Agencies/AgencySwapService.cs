@@ -202,7 +202,7 @@ public sealed class AgencySwapService(
 
         var status = await repository.GetAgencyWorkerStatusAsync(agencyId, newWorkerId, cancellationToken)
             ?? throw new BusinessRuleViolationException("The worker is not a worker of this agency.", SwapErrorCodes.WorkerNotOfAgency);
-        if (status is WorkStatus.Locked or WorkStatus.Pending)
+        if (status is WorkStatus.Locked or WorkStatus.Pending or WorkStatus.Retiring or WorkStatus.Retired)
         {
             throw new BusinessRuleViolationException("The worker cannot take jobs now.", SwapErrorCodes.WorkerNotAvailable);
         }

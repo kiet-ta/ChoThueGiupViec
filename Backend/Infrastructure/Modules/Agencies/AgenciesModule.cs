@@ -46,5 +46,9 @@ public sealed class AgenciesModule : IModule
         services.AddScoped<ICapacityRepository, EfCapacityRepository>();
         // The real port replaces the Fake (FakePortRegistration only adds a Fake when nothing is registered, BASE-03).
         services.AddScoped<IAgencyCapacityService, AgencyCapacityService>();
+
+        // AGENCY-UAT-02: Worker retirement and replacement
+        services.AddScoped<WorkerRetirementService>();
+        services.AddHostedService<WorkerRetirementSweep>();
     }
 }

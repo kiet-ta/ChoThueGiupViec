@@ -168,9 +168,9 @@ public sealed class ShiftRosterService(
                 continue;
             }
 
-            if (worker.Status is WorkStatus.Locked or WorkStatus.Pending)
+            if (worker.Status is WorkStatus.Locked or WorkStatus.Pending or WorkStatus.Retiring or WorkStatus.Retired)
             {
-                errors.Add(new RosterEntryError(index, RosterErrorCodes.WorkerLocked, "A locked worker cannot be rostered."));
+                errors.Add(new RosterEntryError(index, RosterErrorCodes.WorkerLocked, "A locked, retiring or retired worker cannot be rostered."));
                 continue;
             }
 
