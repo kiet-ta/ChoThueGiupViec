@@ -31,6 +31,27 @@
 
 ---
 
+### WorkStatus values (AGENCY-UAT-02, ticket #444)
+
+| Status | Meaning |
+|---|---|
+| `RETIRING` | Worker is being retired; finishes current work, then becomes `RETIRED` |
+| `RETIRED` | Worker permanently retired; never restored; phone/national ID reserved |
+
+### WorkStatus transitions (AGENCY-UAT-02)
+
+| From | To | Condition |
+|---|---|---|
+| `IDLE` | `RETIRING` | Agency retires worker; no active jobs |
+| `BUSY` | `RETIRING` | Agency retires worker; worker finishes current assignment then retires |
+| `LOCKED` | `RETIRING` | Agency retires worker; no active jobs |
+| `RETIRING` | `RETIRED` | No `CheckedIn|InProgress|AwaitingAcceptance` assignments and no future `ASSIGNED` jobs (sweep) |
+
+**No edge leaves `RETIRED`.**
+| 500 | Unexpected error; body contains no sensitive details |
+
+---
+
 ## 2. Endpoints
 
 ### 2.1 Worker Registration & Profile

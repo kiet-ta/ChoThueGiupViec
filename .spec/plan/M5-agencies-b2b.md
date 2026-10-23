@@ -33,3 +33,6 @@
 - [x] **WEB-M5-07** ~~Admin: quản trị danh mục Skill.~~ Bỏ: Skill đã bị bỏ khỏi sản phẩm (leader 2026-10-13, CONTEXT.md).
 - [x] **WEB-M5-08** Admin: sửa gói thuê bao (giá, quota, hoa hồng) bắt buộc nhập lý do + xem lịch sử `ADMIN_AUDIT_LOG` (G-5). — evidence: ticket #327 (`Frontend/tests/agency-admin-view.test.ts`; `npm run build` and `npm test` pass; thêm trang xử lý khiếu nại ký quỹ; PR #329).
 - [x] **MOB-M5-01** Thợ Agency: xem lịch ca được phân (Worker app, dùng chung nền M3). — evidence: ticket #330 (`Mobile/test/features/agencies/agency_schedule_test.dart`; `flutter test` và `flutter analyze` pass; PR of #330).
+
+## AGENCY-UAT-02 (ticket #444) — Retire an agency worker and replace them atomically
+- [x] **BE-UAT-02** Backend: WorkStatus Retiring/Retired, state machine edges, GET /api/agencies/workers, POST /api/agencies/workers/{workerId}/retire (atomic replacement, rescue confirm), sweep, quota exclusions, docs (agencies.md §9, workers.md statuses, decisions.md D22). — evidence: `.harness/evidence/20261023-235242-L3.log` (VERIFY L3 PASSED), PR #____ (to fill after PR created). Known gaps: in-memory fake tests for retirement branches (criteria 5-9) not yet created; M5SqlServerTests for real SQL behavior not yet added; reported "not verified locally" per ticket.

@@ -42,6 +42,7 @@ public class RegisterAgencyCommandTests
     private sealed class StubAgencyRepository : IAgencyRepository
     {
         public List<PartnerAgency> Rows { get; } = [];
+        public List<Worker> WorkerRows { get; } = [];
         public int AddCalls { get; private set; }
         public Exception? FailOnAdd { get; set; }
 
@@ -63,6 +64,54 @@ public class RegisterAgencyCommandTests
             Rows.Add(agency);
             return Task.CompletedTask;
         }
+
+        public Task<(IReadOnlyList<AgencyWorkerItem> Items, int TotalCount)> GetAgencyWorkersAsync(
+            int agencyId, int page, int pageSize, string? statusFilter, CancellationToken cancellationToken = default)
+        {
+            var items = WorkerRows
+                .Where(w => w.AgencyId == agencyId)
+                .Select(w => new AgencyWorkerItem(w.WorkerId, w.FullName, w.WorkStatus.ToString().ToUpperInvariant(), 0))
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            return Task.FromResult(((IReadOnlyList<AgencyWorkerItem>)items, WorkerRows.Count));
+        }
+
+        public Task<Worker?> GetAgencyWorkerAsync(int agencyId, int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(WorkerRows.FirstOrDefault(w => w.WorkerId == workerId && w.AgencyId == agencyId));
+
+        public Task<int> GetFutureAssignedJobCountAsync(int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(0);
+
+        public Task<IReadOnlyList<FutureJobHandover>> GetFutureAssignedJobsAsync(int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<FutureJobHandover>>([]);
+
+        public Task<Worker> CreateAgencyStaffAsync(int agencyId, NewWorkerDetails details, DateTime nowUtc, CancellationToken cancellationToken = default)
+        {
+            var worker = Worker.CreateAgencyStaff(agencyId, details.PhoneNumber!, details.NationalId!, details.FullName!);
+            worker.BankName = details.BankName;
+            worker.BankAccountNo = details.BankAccountNo;
+            worker.CreatedAt = nowUtc;
+            worker.UpdatedAt = nowUtc;
+            worker.WorkerId = WorkerRows.Count + 1;
+            WorkerRows.Add(worker);
+            return Task.FromResult(worker);
+        }
+
+        public Task<bool> WorkerPhoneOrNationalIdExistsAsync(string phoneNumber, string nationalId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(WorkerRows.Any(w => w.PhoneNumber == phoneNumber || w.NationalId == nationalId));
+
+        public Task<int> UpdateWorkerSlotsAsync(int oldWorkerId, int newWorkerId, DateTime nowUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(0);
+
+        public Task<int> UpdateWorkerAssignmentsAsync(int oldWorkerId, int newWorkerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(0);
+
+        public Task<IReadOnlyList<Worker>> GetRetiringWorkersReadyForRetiredAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Worker>>([]);
+
+        public Task<bool> HasActiveOrFutureJobsAsync(int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
     }
 
     private static RegisterAgencyRequest ValidRequest() => new(

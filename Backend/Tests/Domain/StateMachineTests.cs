@@ -51,9 +51,13 @@ public class StateMachineTests
         (WorkStatus.Pending, WorkStatus.Locked),
         (WorkStatus.Idle, WorkStatus.Busy),
         (WorkStatus.Idle, WorkStatus.Locked),
+        (WorkStatus.Idle, WorkStatus.Retiring),
         (WorkStatus.Busy, WorkStatus.Idle),
         (WorkStatus.Busy, WorkStatus.Locked),
+        (WorkStatus.Busy, WorkStatus.Retiring),
         (WorkStatus.Locked, WorkStatus.Idle),
+        (WorkStatus.Locked, WorkStatus.Retiring),
+        (WorkStatus.Retiring, WorkStatus.Retired),
     ];
 
     private static IEnumerable<object[]> Pairs<T>() where T : struct, Enum =>

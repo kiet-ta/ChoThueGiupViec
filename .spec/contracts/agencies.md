@@ -167,6 +167,127 @@ These endpoint-specific status assignments are proposals where not explicitly se
 12. Should M5 lock a slot at order creation as a temporary hold (booking contract proposal) or only when payment succeeds (PRD §2.5)?
 13. PRD §2.3 describes the Verified Partner label as a Pro capability, but Q08 has no package entitlement flag for it and the schema stores it on `PARTNER_AGENCY`. Does subscription activation set `is_verified_partner`, and what verification criteria/actor govern the flag?
 
+---
+
+## 9. Agency Worker Management (AGENCY-UAT-02, ticket #444)
+
+> Status: **approved for implementation** (leader decision 2026-10-23). These endpoints are implemented and verified.
+
+### 9.1 `GET /api/agencies/workers` (PartnerOnly)
+
+Returns a paged list of the authenticated agency's workers.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `page` | integer | 1 | Page number (1-based) |
+| `pageSize` | integer | 20 | Page size (1–100) |
+| `status` | string | optional | Filter by work status (e.g. `IDLE`, `BUSY`, `LOCKED`, `RETIRING`, `RETIRED`) |
+
+**Response 200 `data` (`AgencyWorkerListResponse`):**
+```json
+{
+  "items": [
+    {
+      "workerId": 101,
+      "fullName": "Nguyen Van A",
+      "workStatus": "IDLE",
+      "futureAssignedJobs": 3
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "total": 15
+}
+```
+
+| Status | Condition |
+|---|---|
+| 401 | Not authenticated or invalid token |
+| 403 | Caller is not a Partner (agency) |
+
+---
+
+### 9.2 `POST /api/agencies/workers/{workerId}/retire` (PartnerOnly)
+
+Retires an agency worker, optionally with a replacement worker. The worker must belong to the caller's agency. Returns 404 for another agency's worker or unknown worker.
+
+**Path Parameter:**
+| Parameter | Type | Description |
+|---|---|---|
+| `workerId` | integer | ID of the worker to retire |
+
+**Request Body (`RetireWorkerRequest`):**
+```json
+{
+  "replacement": {
+    "existingWorkerId": 202,
+    "newWorker": {
+      "fullName": "Tran Van B",
+      "phoneNumber": "0901234567",
+      "nationalId": "012345678901",
+      "bankName": "Vietcombank",
+      "bankAccountNo": "0011001234567"
+    }
+  },
+  "confirmRescue": false
+}
+```
+
+- `replacement` (optional): Either `existingWorkerId` (int) **or** `newWorker` (object), not both. When `existingWorkerId` is provided, the worker must belong to the same agency and not be `Pending|Locked|Retiring|Retired`, and must have an `AVAILABLE` roster slot for every future job of the retiring worker. When `newWorker` is provided, it uses the same fields and validation as the import row (required: `fullName`, `phoneNumber`, `nationalId`; optional: `bankName`, `bankAccountNo`).
+- `confirmRescue` (bool, default `false`): Required when the worker has future `ASSIGNED` jobs and no replacement is provided. Setting to `true` confirms that the agency accepts the emergency rescue and SLA penalty.
+
+**Response 200 `data` (`RetireWorkerResponse`):**
+```json
+{
+  "workerId": 101,
+  "workStatus": "RETIRING",
+  "replacementWorkerId": 202,
+  "futureJobs": [
+    { "assignmentId": 5001, "slotDate": "2026-10-25", "shiftCode": "SHIFT_MORNING" }
+  ],
+  "warning": "Worker has future jobs that have been transferred to the replacement worker."
+}
+```
+
+**Error Responses (all 4xx use the shared validation envelope with `success=false`, `data.errors`):**
+
+| Status | `data.code` | Condition |
+|---|---|---|
+| 400 | `NEW_WORKER_VALIDATION` | New worker fields invalid (required, format, length) |
+| 404 | — | Worker not found or not owned by this agency |
+| 409 | `ALREADY_RETIRING_OR_RETIRED` | Worker is already `Retiring` or `Retired` (idempotent: duplicate call returns this) |
+| 409 | `SLOT_HELD` | A future job has a `HELD` slot (customer in checkout) and no replacement |
+| 409 | `QUOTA_EXCEEDED` | Replacement would increase counted workers over quota (e.g. old was `Locked`, new is counted) |
+| 409 | `FUTURE_JOBS_NEED_REPLACEMENT` | Worker has future `ASSIGNED` jobs, no replacement, `confirmRescue=false`. Response `data.futureJobs` lists the jobs. Agency must resend with `confirmRescue=true` or provide a replacement. |
+| 409 | `REPLACEMENT_CONFLICT` | Replacement worker lacks an `AVAILABLE` slot for a future job, or swap failed |
+| 409 | `REPLACEMENT_NOT_OF_AGENCY` | Existing replacement worker does not belong to this agency |
+| 409 | `REPLACEMENT_NOT_AVAILABLE` | Replacement worker is `Pending|Locked|Retiring|Retired` |
+| 409 | `ALREADY_EXISTS` | New worker's phone or national ID already exists in the system (same as import) |
+
+**Behavior:**
+- **No future jobs**: `Idle|Locked → Retiring → Retired` in one transaction; future `AVAILABLE` slots removed.
+- **Future jobs + replacement**: `Retiring` now; future `ASSIGNED` jobs' `worker_id` updated to replacement; roster slots' `worker_id` updated. One transaction. No SLA penalty.
+- **Future jobs + no replacement + `confirmRescue=true`**: Worker → `Retiring`; after commit, publishes `AgencySwapWindowExpired` for each future job (emergency rescue + SLA penalty).
+- **Future jobs + no replacement + `confirmRescue=false`**: Returns `409 FUTURE_JOBS_NEED_REPLACEMENT` with job list; nothing changes.
+- **`HELD` slot + no replacement**: Returns `409 SLOT_HELD`; nothing changes.
+- Retired worker never restored; phone/national ID stay reserved (`ALREADY_EXISTS` on import).
+- Quota: `Retiring`/`Retired` not counted. 1-for-1 replacement keeps count unchanged.
+
+---
+
+### 9.3 Vietnamese status labels for Partner Portal
+
+| Wire value | Vietnamese label |
+|---|---|
+| `IDLE` | "Đang làm việc" |
+| `BUSY` | "Đang làm việc" |
+| `LOCKED` | "Bị khóa" |
+| `RETIRING` | "Đang chờ nghỉ" |
+| `RETIRED` | "Đã nghỉ" |
+
+---
+
 ## 12. Payout account (MAIN-FLOW-FIX, decisions D18)
 
 `GET /api/agencies/me/bank` and `PUT /api/agencies/me/bank` (`PartnerOnly`): the account the platform transfers the agency's payout to (`PARTNER_AGENCY.bank_name`, `bank_account_no`; the payout export reads them).
