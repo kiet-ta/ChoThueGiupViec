@@ -4,7 +4,9 @@ import type {
   AgencyJob,
   EscrowState,
   EscrowTransaction,
+  FutureJobInfo,
   ImportRowError,
+  RetireWorkerResponse,
   RosterEntry,
   SubscriptionPackage,
   SubscriptionState,
@@ -31,6 +33,15 @@ const ERROR_TEXT: Record<string, string> = {
   SAME_WORKER: 'Hãy chọn một thợ khác.',
   SLOT_TAKEN: 'Ca vừa bị thay đổi, hãy thử lại.',
   ASSIGNMENT_STATE_INVALID: 'Ca làm không còn ở trạng thái đã nhận.',
+  // AGENCY-UAT-03 worker retire
+  ALREADY_RETIRING_OR_RETIRED: 'Thợ này đã được ngừng hoặc đã nghỉ.',
+  SLOT_HELD: 'Có ca đang được giữ cho đơn, không thể ngừng thợ khi không có thợ thay.',
+  QUOTA_EXCEEDED: 'Thay thợ sẽ làm vượt quá số thợ tối đa của gói.',
+  FUTURE_JOBS_NEED_REPLACEMENT: 'Thợ này còn ca sắp tới. Hãy chọn thợ thay hoặc xác nhận chuyển cứu hộ (có phạt SLA).',
+  REPLACEMENT_CONFLICT: 'Thợ thay không có ca trống cho một ca sắp tới, hoặc đổi thất bại.',
+  REPLACEMENT_NOT_OF_AGENCY: 'Thợ thay không thuộc doanh nghiệp của bạn.',
+  REPLACEMENT_NOT_AVAILABLE: 'Thợ thay đang bị khoá, đang chờ nghỉ, hoặc đã nghỉ.',
+  ALREADY_EXISTS: 'Số điện thoại hoặc CCCD đã tồn tại trong hệ thống.',
 }
 
 const ROW_ERROR_TEXT: Record<string, string> = {
@@ -49,6 +60,88 @@ const COLUMN_TEXT: Record<string, string> = {
   national_id: 'CCCD',
   bank_name: 'Ngân hàng',
   bank_account_no: 'Số tài khoản',
+}
+
+/** Vietnamese labels for worker workStatus wire values (contract 9.3). */
+export function workStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    IDLE: 'Đang làm việc',
+    BUSY: 'Đang làm việc',
+    LOCKED: 'Bị khóa',
+    RETIRING: 'Đang chờ nghỉ',
+    RETIRED: 'Đã nghỉ',
+  }
+  return map[status] ?? status
+}
+
+/** Whether a worker can be retired (not already retiring/retired). */
+export function canRetire(status: string): boolean {
+  return status !== 'RETIRING' && status !== 'RETIRED'
+}
+
+/** Problems of a new worker form (same rules as import rows, but no identity verification claim). */
+export function newWorkerProblems(form: {
+  fullName: string
+  phoneNumber: string
+  nationalId: string
+  bankName?: string
+  bankAccountNo?: string
+}): string[] {
+  const out: string[] = []
+  if (!form.fullName.trim()) out.push('Họ tên: Bắt buộc')
+  else if (form.fullName.length > 200) out.push('Họ tên: Quá dài')
+  if (!form.phoneNumber.trim()) out.push('Số điện thoại: Bắt buộc')
+  else if (!/^0\d{9}$/.test(form.phoneNumber)) out.push('Số điện thoại: Sai định dạng (10 số, bắt đầu bằng 0)')
+  if (!form.nationalId.trim()) out.push('CCCD: Bắt buộc')
+  else if (!/^\d{12}$/.test(form.nationalId)) out.push('CCCD: Sai định dạng (12 số)')
+  if (form.bankName && form.bankName.length > 100) out.push('Tên ngân hàng: Tối đa 100 ký tự')
+  if (form.bankAccountNo) {
+    const account = form.bankAccountNo.replace(/\s+/g, '')
+    if (!/^[0-9]{6,30}$/.test(account)) out.push('Số tài khoản: 6 đến 30 chữ số')
+  }
+  return out
+}
+
+/** Retire dialog state derived from server response. */
+export interface RetireDialogState {
+  /** The server response (always present when dialog opens). */
+  response: {
+    futureJobs: FutureJobInfo[]
+    warning?: string
+    code?: string
+    message?: string
+  }
+  /** Whether we need confirmation for rescue (FUTURE_JOBS_NEED_REPLACEMENT with confirmRescue=false). */
+  needsRescueConfirm: boolean
+  /** The message to show in the dialog (server message or mapped code). */
+  message: string
+  /** The replacement worker ID if provided (existing or newly created). */
+  replacementWorkerId?: number
+}
+
+/** Builds the dialog state from the server's retire response. */
+export function buildRetireDialogState(response: RetireWorkerResponse): RetireDialogState {
+  const code = (response as { code?: string }).code
+  const needsRescueConfirm = code === 'FUTURE_JOBS_NEED_REPLACEMENT'
+  let message = ''
+  if (needsRescueConfirm) {
+    message = `Thợ này còn ${response.futureJobs.length} ca sắp tới. Nếu tiếp tục mà không chọn thợ thay, các ca sẽ chuyển sang cứu hộ khẩn cấp và doanh nghiệp sẽ bị phạt SLA.`
+  } else if (code) {
+    message = codeMessage(code) ?? (response as { message?: string }).message ?? 'Không thể ngừng thợ.'
+  } else {
+    message = response.warning ?? 'Thợ sẽ được chuyển sang trạng thái "Đang chờ nghỉ". Các ca sắp tới sẽ chuyển cho thợ thay.'
+  }
+  return {
+    response: {
+      futureJobs: response.futureJobs,
+      warning: response.warning,
+      code,
+      message: (response as { message?: string }).message,
+    },
+    needsRescueConfirm,
+    message,
+    replacementWorkerId: response.replacementWorkerId ?? undefined,
+  }
 }
 
 /** The words for a business `data.code` of a 409, or null so the caller falls back to the server's message. */

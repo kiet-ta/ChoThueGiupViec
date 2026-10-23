@@ -190,3 +190,47 @@ export interface SwapWindow {
   shiftStartUtc: string
   newWorkerId: number | null
 }
+
+// ---- AGENCY-UAT-03 Partner Portal: worker list, retire and replace
+
+export interface AgencyWorkerListResponse {
+  items: AgencyWorkerItem[]
+  page: number
+  pageSize: number
+  total: number
+}
+
+export interface AgencyWorkerItem {
+  workerId: number
+  fullName: string
+  workStatus: string
+  futureAssignedJobs: number
+}
+
+export interface RetireWorkerRequest {
+  replacement?: {
+    existingWorkerId?: number
+    newWorker?: {
+      fullName: string
+      phoneNumber: string
+      nationalId: string
+      bankName?: string
+      bankAccountNo?: string
+    }
+  }
+  confirmRescue?: boolean
+}
+
+export interface RetireWorkerResponse {
+  workerId: number
+  workStatus: string
+  replacementWorkerId: number | null
+  futureJobs: { assignmentId: number; slotDate: string; shiftCode: string }[]
+  warning?: string
+}
+
+export interface FutureJobInfo {
+  assignmentId: number
+  slotDate: string
+  shiftCode: string
+}
