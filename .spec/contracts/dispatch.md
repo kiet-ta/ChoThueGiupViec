@@ -360,6 +360,15 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 #### `POST /api/dispatch/admin/emergency-rescue`
 Admin can thiệp điều phối "Cứu hộ khẩn cấp" (Super-Freelancer) khi Agency không có thợ thay thế (Pha 2, §2.5, Q12).
 
+> **Note:** Tự động "Cứu hộ khẩn cấp" (Pha 2 §2.5, Q09/Q12) được kích hoạt bằng event `AgencySwapWindowExpired` từ Agencies (M5) khi:
+> - Cửa sổ 30 phút tự đổi thợ hết hạn (sweep 30s), hoặc
+> - Agency báo bận trước giờ ca <= 2 h
+> Handler `AgencySwapWindowExpiredHandler` (Dispatch M3) gọi `MilestoneFailoverService.TriggerEmergencyRescueAsync`:
+> 1. Thử tìm Agency khác qua `IAgencyCapacityService` → tạo assignment mới cho Agency đó, lock slot, SLA `SHORTAGE` penalty
+> 2. Thử Super-Freelancer đủ điều kiện (Rating ≥ 4.80, CompletedJobs ≥ 50) có slot `AVAILABLE` cùng date/shift → gán việc, SLA `SHORTAGE` penalty
+> 3. Không tìm thấy ai → phát `AssignmentFailed`, hủy đơn, hoàn 100 % `TotalAmount` cho khách (`AssignmentFailedHandler`)
+> Triển khai trong `RESCUE-WIRE-01` (#443).
+
 ---
 
 ## 4. SignalR Realtime Hub (`/hubs/dispatch`)

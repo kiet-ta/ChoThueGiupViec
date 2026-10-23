@@ -9,11 +9,12 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Dispatch;
 
 /// <summary>
-/// EF Core implementation of <see cref="IDispatchRepository"/>. Offers are <c>JOB_ASSIGNMENT</c> rows in <c>OFFERED</c>; every state change
-/// is a conditional update (or an insert guarded by one) inside a transaction, so concurrent requests cannot both win.
+/// EF Core implementation of <see cref="IDispatchRepository"/> and <see cref="IMilestoneFailoverRepository"/>.
+/// Offers are <c>JOB_ASSIGNMENT</c> rows in <c>OFFERED</c>; every state change is a conditional update (or an insert guarded by one)
+/// inside a transaction, so concurrent requests cannot both win.
 /// Not verified against a live SQL Server on the Linux dev host (no server there); covered by the owner's Windows run.
 /// </summary>
-public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
+public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMilestoneFailoverRepository
 {
     public async Task<DispatchOrderContext?> GetOrderContextAsync(long orderId, CancellationToken cancellationToken = default) =>
         await (
@@ -319,4 +320,69 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository
     }
 
     private sealed class SlotNotHeldException : Exception;
+
+    // IMilestoneFailoverRepository implementation
+
+    public async Task<JobAssignment?> GetAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default) =>
+        await db.JobAssignments.AsNoTracking().FirstOrDefaultAsync(a => a.AssignmentId == assignmentId, cancellationToken);
+
+    public async Task<JobOrder?> GetOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
+        await db.JobOrders.AsNoTracking().FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
+
+    public async Task<BookingSlot?> GetSlotAsync(int slotId, CancellationToken cancellationToken = default) =>
+        await db.BookingSlots.AsNoTracking().FirstOrDefaultAsync(s => s.SlotId == slotId, cancellationToken);
+
+    public async Task<Worker?> GetWorkerAsync(int workerId, CancellationToken cancellationToken = default) =>
+        await db.Workers.AsNoTracking().FirstOrDefaultAsync(w => w.WorkerId == workerId, cancellationToken);
+
+    public async Task<IReadOnlyList<Worker>> GetEligibleSuperFreelancersAsync(CancellationToken cancellationToken = default) =>
+        await db.Workers.AsNoTracking()
+            .Where(w => w.IsSuperFreelancer && w.WorkStatus == WorkStatus.Idle)
+            .OrderByDescending(w => w.RatingAvg)
+            .ThenByDescending(w => w.CompletedJobs)
+            .ToListAsync(cancellationToken);
+
+    public Task<JobAssignment> CreateAssignmentAsync(JobAssignment assignment, CancellationToken cancellationToken = default) =>
+        InTransactionAsync(async () =>
+        {
+            assignment.TransitionTo(JobAssignmentStatus.Assigned);
+            db.JobAssignments.Add(assignment);
+            await db.SaveChangesAsync(cancellationToken);
+            db.Entry(assignment).State = EntityState.Detached;
+
+            await db.BookingSlots
+                .Where(s => s.SlotId == assignment.SlotId)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Booked)
+                    .SetProperty(x => x.UpdatedAt, assignment.CreatedAt), cancellationToken);
+            return assignment;
+        }, cancellationToken);
+
+    public async Task<bool> UpdateAssignmentStatusAsync(long assignmentId, JobAssignmentStatus expectedCurrentStatus, JobAssignmentStatus newStatus, CancellationToken cancellationToken = default) =>
+        await db.JobAssignments
+            .Where(a => a.AssignmentId == assignmentId && a.AssignmentStatus == expectedCurrentStatus)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(a => a.AssignmentStatus, newStatus)
+                .SetProperty(a => a.UpdatedAt, DateTime.UtcNow), cancellationToken) == 1;
+
+    public async Task<bool> SwapWorkerInAssignmentAsync(long assignmentId, int newWorkerId, CancellationToken cancellationToken = default) =>
+        await db.JobAssignments
+            .Where(a => a.AssignmentId == assignmentId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(a => a.WorkerId, newWorkerId)
+                .SetProperty(a => a.UpdatedAt, DateTime.UtcNow), cancellationToken) == 1;
+
+    public async Task<bool> ReleaseSlotAsync(int slotId, CancellationToken cancellationToken = default) =>
+        await db.BookingSlots
+            .Where(s => s.SlotId == slotId && (s.SlotStatus == DispatchSlotStatuses.Held || s.SlotStatus == DispatchSlotStatuses.Booked))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Available)
+                .SetProperty(x => x.UpdatedAt, DateTime.UtcNow), cancellationToken) == 1;
+
+    public async Task<bool> LockSlotAsync(int slotId, CancellationToken cancellationToken = default) =>
+        await db.BookingSlots
+            .Where(s => s.SlotId == slotId && s.SlotStatus == DispatchSlotStatuses.Available)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Booked)
+                .SetProperty(x => x.UpdatedAt, DateTime.UtcNow), cancellationToken) == 1;
 }

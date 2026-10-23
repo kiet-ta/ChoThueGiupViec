@@ -1,5 +1,6 @@
 using CommonService.Application.Common.Options;
 using CommonService.Application.Features.Dispatch;
+using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -56,16 +57,21 @@ public class MilestoneFailoverServiceTests
             {
                 assignment.AssignmentId = Assignments.Count + 1000;
             }
+            assignment.TransitionTo(JobAssignmentStatus.Assigned);
             Assignments[assignment.AssignmentId] = assignment;
             return Task.FromResult(assignment);
         }
 
-        public Task<bool> UpdateAssignmentStatusAsync(long assignmentId, JobAssignmentStatus newStatus, CancellationToken cancellationToken = default)
+        public Task<bool> UpdateAssignmentStatusAsync(long assignmentId, JobAssignmentStatus expectedCurrentStatus, JobAssignmentStatus newStatus, CancellationToken cancellationToken = default)
         {
             if (Assignments.TryGetValue(assignmentId, out var assignment))
             {
-                assignment.TransitionTo(newStatus);
-                return Task.FromResult(true);
+                if (assignment.AssignmentStatus == expectedCurrentStatus)
+                {
+                    assignment.TransitionTo(newStatus);
+                    return Task.FromResult(true);
+                }
+                return Task.FromResult(false);
             }
             return Task.FromResult(false);
         }
@@ -98,6 +104,13 @@ public class MilestoneFailoverServiceTests
                 return Task.FromResult(true);
             }
             return Task.FromResult(false);
+        }
+
+        public Task<BookingSlot?> GetAvailableSlotAsync(int workerId, DateOnly date, string shiftCode, CancellationToken cancellationToken = default)
+        {
+            var slot = Slots.Values.FirstOrDefault(s =>
+                s.WorkerId == workerId && s.SlotDate == date && s.ShiftCode == shiftCode && s.SlotStatus == "AVAILABLE");
+            return Task.FromResult(slot);
         }
     }
 
@@ -177,13 +190,23 @@ public class MilestoneFailoverServiceTests
         }
     }
 
-    private static (MilestoneFailoverService, InMemoryMilestoneFailoverRepository, MockClock, MockMediator, MockAgencyCapacityService, MockSlaPenaltyService) CreateTestRig()
+    private sealed class MockUnitOfWork : IUnitOfWork
+    {
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(1);
+        public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task CommitTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RollbackTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
+    }
+
+    private static (MilestoneFailoverService, InMemoryMilestoneFailoverRepository, MockClock, MockMediator, MockAgencyCapacityService, MockSlaPenaltyService, MockUnitOfWork) CreateTestRig()
     {
         var repo = new InMemoryMilestoneFailoverRepository();
         var clock = new MockClock();
         var mediator = new MockMediator();
         var agencyService = new MockAgencyCapacityService();
         var slaService = new MockSlaPenaltyService();
+        var unitOfWork = new MockUnitOfWork();
         var rules = MicrosoftOptions.Create(new BusinessRules());
 
         var service = new MilestoneFailoverService(
@@ -192,17 +215,18 @@ public class MilestoneFailoverServiceTests
             slaService,
             clock,
             mediator,
+            unitOfWork,
             rules,
             NullLogger<MilestoneFailoverService>.Instance
         );
 
-        return (service, repo, clock, mediator, agencyService, slaService);
+        return (service, repo, clock, mediator, agencyService, slaService, unitOfWork);
     }
 
     [Fact]
     public async Task ReportUnavailability_MoreThan2HoursNotice_Opens30MinSelfSwapWindow()
     {
-        var (service, repo, clock, mediator, agencyService, slaService) = CreateTestRig();
+        var (service, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRig();
 
         // Shift is at 10:00 UTC (4 hours from now 06:00 UTC)
         var assignment = new JobAssignment
@@ -241,7 +265,7 @@ public class MilestoneFailoverServiceTests
     [Fact]
     public async Task ExecuteAgencySelfSwap_Within30MinWindow_SwapsWorkerSuccessfully()
     {
-        var (service, repo, clock, mediator, agencyService, slaService) = CreateTestRig();
+        var (service, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRig();
 
         // Setup assignment and open window (>2h)
         var assignment = new JobAssignment
@@ -291,7 +315,7 @@ public class MilestoneFailoverServiceTests
     [Fact]
     public async Task ReportUnavailability_LessThan2HoursNotice_TriggersImmediateEmergencyRescueToAnotherAgency()
     {
-        var (service, repo, clock, mediator, agencyService, slaService) = CreateTestRig();
+        var (service, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRig();
 
         // Shift is at 07:30 UTC (only 1.5 hours notice from 06:00 UTC)
         var assignment = new JobAssignment
@@ -313,10 +337,21 @@ public class MilestoneFailoverServiceTests
             SlotId = 300,
             SlotDate = DateOnly.FromDateTime(clock.UtcNow),
             StartTime = new TimeOnly(7, 30),
+            ShiftCode = "SHIFT_MORNING",
             SlotStatus = "LOCKED"
         };
 
-        // Another Agency (Agency 7) has capacity
+        // Another Agency (Agency 7) has capacity - add the reserved slot with a worker
+        repo.Slots[701] = new BookingSlot
+        {
+            SlotId = 701,
+            WorkerId = 70,
+            SlotDate = DateOnly.FromDateTime(clock.UtcNow),
+            StartTime = new TimeOnly(7, 30),
+            ShiftCode = "SHIFT_MORNING",
+            SlotStatus = "AVAILABLE"
+        };
+
         agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.200m);
 
         var result = await service.ReportUnavailabilityAsync(3, "Thợ không liên lạc được sát giờ");
@@ -341,7 +376,7 @@ public class MilestoneFailoverServiceTests
     [Fact]
     public async Task EmergencyRescue_WhenNoAgencyAvailable_RescuesToSuperFreelancer()
     {
-        var (service, repo, clock, mediator, agencyService, slaService) = CreateTestRig();
+        var (service, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRig();
 
         // Shift is at 07:00 UTC (1 hour notice)
         var assignment = new JobAssignment
@@ -363,13 +398,22 @@ public class MilestoneFailoverServiceTests
             SlotId = 400,
             SlotDate = DateOnly.FromDateTime(clock.UtcNow),
             StartTime = new TimeOnly(7, 0),
+            ShiftCode = "SHIFT_MORNING",
             SlotStatus = "LOCKED"
         };
 
-        // No other agency has capacity
-        agencyService.NextReservation = null;
-
         // Super-Freelancer available (Rating >= 4.80, CompletedJobs >= 50)
+        // Add an available slot for the super freelancer on the same date/shift
+        repo.Slots[401] = new BookingSlot
+        {
+            SlotId = 401,
+            WorkerId = 99,
+            SlotDate = DateOnly.FromDateTime(clock.UtcNow),
+            StartTime = new TimeOnly(7, 0),
+            ShiftCode = "SHIFT_MORNING",
+            SlotStatus = "AVAILABLE"
+        };
+
         repo.SuperFreelancers.Add(new Worker
         {
             WorkerId = 99,
@@ -378,6 +422,9 @@ public class MilestoneFailoverServiceTests
             RatingAvg = 4.95m,
             CompletedJobs = 80
         });
+
+        // No other agency has capacity
+        agencyService.NextReservation = null;
 
         var result = await service.ReportUnavailabilityAsync(4, "Sát giờ báo bận");
 
@@ -400,7 +447,7 @@ public class MilestoneFailoverServiceTests
     [Fact]
     public async Task HandleSelfSwapTimeout_After30MinWindow_TriggersEmergencyRescue()
     {
-        var (service, repo, clock, mediator, agencyService, slaService) = CreateTestRig();
+        var (service, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRig();
 
         var assignment = new JobAssignment
         {
@@ -421,7 +468,19 @@ public class MilestoneFailoverServiceTests
             SlotId = 500,
             SlotDate = DateOnly.FromDateTime(clock.UtcNow),
             StartTime = new TimeOnly(10, 0),
+            ShiftCode = "SHIFT_MORNING",
             SlotStatus = "LOCKED"
+        };
+
+        // Add the rescue slot for Agency 8
+        repo.Slots[801] = new BookingSlot
+        {
+            SlotId = 801,
+            WorkerId = 80,
+            SlotDate = DateOnly.FromDateTime(clock.UtcNow),
+            StartTime = new TimeOnly(10, 0),
+            ShiftCode = "SHIFT_MORNING",
+            SlotStatus = "AVAILABLE"
         };
 
         await service.ReportUnavailabilityAsync(5, "Agency báo tìm thợ");
