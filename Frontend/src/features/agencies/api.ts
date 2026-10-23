@@ -2,6 +2,7 @@ import { ApiError, apiClient } from '@/services/api'
 import type {
   AgencyBank,
   AgencyJob,
+  AgencyWorkerListResponse,
   DepositPurchase,
   EscrowAppeal,
   EscrowState,
@@ -9,6 +10,8 @@ import type {
   ImportResult,
   Page,
   PerformanceReport,
+  RetireWorkerRequest,
+  RetireWorkerResponse,
   RosterEntry,
   RosterEntryError,
   RosterResult,
@@ -91,4 +94,19 @@ export const agenciesApi = {
     apiClient.post<SwapWindow>(`/agencies/assignments/${assignmentId}/unavailable`, { reason }),
   swap: (assignmentId: number, newWorkerId: number) =>
     apiClient.post<SwapWindow>(`/agencies/assignments/${assignmentId}/swap`, { newWorkerId }),
+
+  // WEB-M5-07 worker list and retire (AGENCY-UAT-03)
+  workers: (page: number, pageSize: number, status?: string) =>
+    apiClient.get<AgencyWorkerListResponse>('/agencies/workers', { query: { page, pageSize, status } }),
+  /** Returns the response directly for 409 codes that carry data (FUTURE_JOBS_NEED_REPLACEMENT, SLOT_HELD, QUOTA_EXCEEDED, etc.). */
+  async retireWorker(workerId: number, body: RetireWorkerRequest): Promise<RetireWorkerResponse> {
+    try {
+      return await apiClient.post<RetireWorkerResponse>(`/agencies/workers/${workerId}/retire`, body)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409 && e.data && typeof e.data === 'object') {
+        return e.data as RetireWorkerResponse
+      }
+      throw e
+    }
+  },
 }

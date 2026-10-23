@@ -6,6 +6,7 @@ import { JobsPage } from './JobsPage'
 import { RosterPage } from './RosterPage'
 import { SubscriptionPage } from './SubscriptionPage'
 import { SwapPage } from './SwapPage'
+import { WorkerListPage } from './WorkerListPage'
 
 // Owner (M5) adds routes and nav items here; nobody edits src/app. Partner Portal, decisions D9-D14.
 const feature: FeatureModule = {
@@ -13,6 +14,7 @@ const feature: FeatureModule = {
   routes: [
     { path: 'subscription', element: <SubscriptionPage /> },
     { path: 'workers', element: <ImportPage /> },
+    { path: 'worker-list', element: <WorkerListPage /> },
     { path: 'roster', element: <RosterPage /> },
     { path: 'escrow', element: <EscrowPage /> },
     { path: 'bank', element: <BankPage /> },
@@ -24,6 +26,7 @@ const feature: FeatureModule = {
     { label: 'Ký quỹ & SLA', to: 'escrow', section: 'TÀI KHOẢN' },
     { label: 'Tài khoản nhận tiền', to: 'bank', section: 'TÀI KHOẢN' },
     { label: 'Thêm thợ', to: 'workers', section: 'NHÂN SỰ' },
+    { label: 'Danh sách thợ', to: 'worker-list', section: 'NHÂN SỰ' },
     { label: 'Lịch ca tuần', to: 'roster', section: 'NHÂN SỰ' },
     { label: 'Đơn & hiệu suất', to: 'jobs', section: 'VẬN HÀNH' },
     { label: 'Đổi thợ 30 phút', to: 'swap', section: 'VẬN HÀNH' },
