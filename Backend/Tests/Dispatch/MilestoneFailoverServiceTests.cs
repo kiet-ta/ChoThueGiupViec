@@ -5,6 +5,7 @@ using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
+using CommonService.Domain.StateMachines;
 using MediatR;
 using Microsoft.Extensions.Logging.Abstractions;
 using MicrosoftOptions = Microsoft.Extensions.Options.Options;
@@ -21,6 +22,11 @@ public class MilestoneFailoverServiceTests
         public Dictionary<int, BookingSlot> Slots { get; } = new();
         public Dictionary<int, Worker> Workers { get; } = new();
         public List<Worker> SuperFreelancers { get; } = new();
+
+        /// <summary>RESCUE-TEST-01: set by CreateTestRig; the repository records whether each write ran inside the unit of work.</summary>
+        public MockUnitOfWork? Uow { get; set; }
+        public List<(string Call, bool InTransaction)> WriteLog { get; } = new();
+        public List<(JobAssignmentStatus From, JobAssignmentStatus To)> StatusUpdates { get; } = new();
 
         public Task<JobAssignment?> GetAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default)
         {
@@ -59,11 +65,14 @@ public class MilestoneFailoverServiceTests
             }
             assignment.TransitionTo(JobAssignmentStatus.Assigned);
             Assignments[assignment.AssignmentId] = assignment;
+            WriteLog.Add(("CreateAssignment", Uow?.InTransaction ?? false));
             return Task.FromResult(assignment);
         }
 
         public Task<bool> UpdateAssignmentStatusAsync(long assignmentId, JobAssignmentStatus expectedCurrentStatus, JobAssignmentStatus newStatus, CancellationToken cancellationToken = default)
         {
+            WriteLog.Add(("UpdateAssignmentStatus", Uow?.InTransaction ?? false));
+            StatusUpdates.Add((expectedCurrentStatus, newStatus));
             if (Assignments.TryGetValue(assignmentId, out var assignment))
             {
                 if (assignment.AssignmentStatus == expectedCurrentStatus)
@@ -88,6 +97,7 @@ public class MilestoneFailoverServiceTests
 
         public Task<bool> ReleaseSlotAsync(int slotId, CancellationToken cancellationToken = default)
         {
+            WriteLog.Add(("ReleaseSlot", Uow?.InTransaction ?? false));
             if (Slots.TryGetValue(slotId, out var slot))
             {
                 slot.SlotStatus = "AVAILABLE";
@@ -98,6 +108,7 @@ public class MilestoneFailoverServiceTests
 
         public Task<bool> LockSlotAsync(int slotId, CancellationToken cancellationToken = default)
         {
+            WriteLog.Add(("LockSlot", Uow?.InTransaction ?? false));
             if (Slots.TryGetValue(slotId, out var slot))
             {
                 slot.SlotStatus = "LOCKED";
@@ -126,12 +137,15 @@ public class MilestoneFailoverServiceTests
     private sealed class MockMediator : IMediator
     {
         public List<INotification> PublishedEvents { get; } = new();
+        public MockUnitOfWork? Uow { get; set; }
+        public List<bool> PublishedInTransaction { get; } = new();
 
         public Task Publish(object notification, CancellationToken cancellationToken = default)
         {
             if (notification is INotification n)
             {
                 PublishedEvents.Add(n);
+                PublishedInTransaction.Add(Uow?.InTransaction ?? false);
             }
             return Task.CompletedTask;
         }
@@ -139,6 +153,7 @@ public class MilestoneFailoverServiceTests
         public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
         {
             PublishedEvents.Add(notification);
+            PublishedInTransaction.Add(Uow?.InTransaction ?? false);
             return Task.CompletedTask;
         }
 
@@ -153,18 +168,28 @@ public class MilestoneFailoverServiceTests
     {
         public bool HasCap { get; set; } = true;
         public CapacityReservation? NextReservation { get; set; }
+        public int TryReserveCalls { get; private set; }
+        public List<CapacityRequest> Requests { get; } = new();
+        public List<Guid> Released { get; } = new();
 
         public Task<bool> HasCapacityAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(HasCap);
 
-        public Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default) =>
-            Task.FromResult(NextReservation);
+        public Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default)
+        {
+            TryReserveCalls++;
+            Requests.Add(request);
+            return Task.FromResult(NextReservation);
+        }
 
         public Task<CapacityReservation?> GetReservationByOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult<CapacityReservation?>(null);
 
-        public Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+        public Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default)
+        {
+            Released.Add(reservationId);
+            return Task.CompletedTask;
+        }
 
         public Task ReleaseByOrderAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
@@ -173,11 +198,14 @@ public class MilestoneFailoverServiceTests
     private sealed class MockSlaPenaltyService : ISlaPenaltyService
     {
         public List<SlaPenaltyRequest> AppliedRequests { get; } = new();
+        public MockUnitOfWork? Uow { get; set; }
+        public List<bool> AppliedInTransaction { get; } = new();
         public decimal Score { get; set; } = 100.00m;
 
         public Task<SlaPenaltyResult> ApplyAsync(SlaPenaltyRequest request, CancellationToken cancellationToken = default)
         {
             AppliedRequests.Add(request);
+            AppliedInTransaction.Add(Uow?.InTransaction ?? false);
             decimal delta = request.Violation == SlaViolation.Shortage ? -10m : -20m;
             Score += delta;
             return Task.FromResult(new SlaPenaltyResult(
@@ -196,7 +224,22 @@ public class MilestoneFailoverServiceTests
         public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task CommitTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task RollbackTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
+        public bool InTransaction { get; private set; }
+        public int Executions { get; private set; }
+
+        public async Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default)
+        {
+            Executions++;
+            InTransaction = true;
+            try
+            {
+                return await action();
+            }
+            finally
+            {
+                InTransaction = false;
+            }
+        }
     }
 
     private static (MilestoneFailoverService, InMemoryMilestoneFailoverRepository, MockClock, MockMediator, MockAgencyCapacityService, MockSlaPenaltyService, MockUnitOfWork) CreateTestRig()
@@ -208,6 +251,9 @@ public class MilestoneFailoverServiceTests
         var slaService = new MockSlaPenaltyService();
         var unitOfWork = new MockUnitOfWork();
         var rules = MicrosoftOptions.Create(new BusinessRules());
+        repo.Uow = unitOfWork;
+        mediator.Uow = unitOfWork;
+        slaService.Uow = unitOfWork;
 
         var service = new MilestoneFailoverService(
             repo,
@@ -497,5 +543,321 @@ public class MilestoneFailoverServiceTests
         Assert.Equal(FailoverStatus.EmergencyRescuedToAgency, result.Status);
         Assert.Equal(8, result.NewAgencyId);
         Assert.Single(slaService.AppliedRequests);
+    }
+
+    // ---- RESCUE-TEST-01: the named tests for the criteria of #443 (production code unchanged) ---------------------------------
+
+    private const string Morning = "SHIFT_MORNING";
+
+    private static JobAssignment SeedAssigned(
+        InMemoryMilestoneFailoverRepository repo, MockClock clock, long id = 3, long orderId = 30, int slotId = 300, int agencyId = 5, string shift = Morning)
+    {
+        var assignment = new JobAssignment
+        {
+            AssignmentId = id,
+            OrderId = orderId,
+            CustomerId = 1,
+            AgencyId = agencyId,
+            WorkerId = 50,
+            SlotId = slotId,
+            ServiceTier = ServiceTier.Premium,
+            AssignmentSeq = 1,
+            GrossAmount = 400000m,
+            PayoutAmount = 320000m
+        };
+        assignment.TransitionTo(JobAssignmentStatus.Assigned);
+        repo.Assignments[id] = assignment;
+        repo.Slots[slotId] = new BookingSlot
+        {
+            SlotId = slotId,
+            WorkerId = 50,
+            SlotDate = DateOnly.FromDateTime(clock.UtcNow),
+            StartTime = new TimeOnly(7, 30),
+            ShiftCode = shift,
+            SlotStatus = "LOCKED"
+        };
+        return assignment;
+    }
+
+    private static BookingSlot AddSlot(InMemoryMilestoneFailoverRepository repo, MockClock clock, int slotId, int workerId, string status = "AVAILABLE", string shift = Morning) =>
+        repo.Slots[slotId] = new BookingSlot
+        {
+            SlotId = slotId,
+            WorkerId = workerId,
+            SlotDate = DateOnly.FromDateTime(clock.UtcNow),
+            StartTime = new TimeOnly(7, 30),
+            ShiftCode = shift,
+            SlotStatus = status
+        };
+
+    private static Worker AddSuperFreelancer(InMemoryMilestoneFailoverRepository repo, int workerId = 99)
+    {
+        var worker = new Worker { WorkerId = workerId, FullName = "Super", IsSuperFreelancer = true, RatingAvg = 4.95m, CompletedJobs = 80 };
+        repo.SuperFreelancers.Add(worker);
+        return worker;
+    }
+
+    // 3a ------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task EmergencyRescue_ToAnotherAgency_CreatesTheNewAssignmentWithTheWorkerOfTheReservedSlot()
+    {
+        var (service, repo, clock, mediator, agencyService, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSlot(repo, clock, 701, workerId: 70);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.200m);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(FailoverStatus.EmergencyRescuedToAgency, result.Status);
+        var created = repo.Assignments[result.NewAssignmentId!.Value];
+        Assert.Equal((70, 7, 701), (created.WorkerId, created.AgencyId, created.SlotId));
+        Assert.DoesNotContain(mediator.PublishedEvents, e => e is AssignmentFailed);
+    }
+
+    [Fact]
+    public async Task EmergencyRescue_WhenTheReservedSlotHasNoWorker_FailsTheStepNotTheProcess_AndContinuesToSuperFreelancer()
+    {
+        var (service, repo, clock, _, agencyService, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSlot(repo, clock, 701, workerId: 0); // reserved slot of the other Agency has no worker
+        var reservationId = Guid.NewGuid();
+        agencyService.NextReservation = new CapacityReservation(reservationId, 7, [701], 0.200m);
+        AddSuperFreelancer(repo);
+        AddSlot(repo, clock, 401, workerId: 99);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(FailoverStatus.EmergencyRescuedToSuperFreelancer, result.Status);
+        Assert.Contains(reservationId, agencyService.Released);
+        Assert.DoesNotContain(repo.Assignments.Values, a => a.WorkerId == 0);
+    }
+
+    // 3b ------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task EmergencyRescue_SuperFreelancerAssignment_UsesTheirOwnAvailableSlot_NotTheSlotOfTheOldAgencyWorker()
+    {
+        var (service, repo, clock, _, _, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSuperFreelancer(repo);
+        AddSlot(repo, clock, 401, workerId: 99);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        var created = repo.Assignments[result.NewAssignmentId!.Value];
+        Assert.Equal((99, 401), (created.WorkerId, created.SlotId));
+        Assert.NotEqual(original.SlotId, created.SlotId);
+        Assert.Null(created.AgencyId);
+        Assert.Equal("LOCKED", repo.Slots[401].SlotStatus);
+        Assert.Equal("AVAILABLE", repo.Slots[300].SlotStatus); // the old worker's slot is released
+    }
+
+    [Fact]
+    public async Task EmergencyRescue_SuperFreelancerWithoutAnAvailableSlot_IsNotEligible_AndTheRescueFails()
+    {
+        var (service, repo, clock, mediator, _, slaService, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSuperFreelancer(repo);
+        AddSlot(repo, clock, 401, workerId: 99, status: "BOOKED"); // not AVAILABLE
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(FailoverStatus.RescueFailed, result.Status);
+        Assert.DoesNotContain(repo.Assignments.Values, a => a.WorkerId == 99);
+        Assert.Equal(SlaViolation.NoShow, Assert.Single(slaService.AppliedRequests).Violation);
+        Assert.Single(mediator.PublishedEvents.OfType<AssignmentFailed>());
+    }
+
+    // 3c ------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task EmergencyRescue_TakesTheShiftCodeFromTheSlot_ThenFromTheOrder_NeverAnInventedValue()
+    {
+        var (service, repo, clock, _, agencyService, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock, shift: "SHIFT_AFTERNOON");
+        var order = new JobOrder { OrderId = 30, ShiftCode = "SHIFT_EVENING", ScheduledDate = DateOnly.FromDateTime(clock.UtcNow) };
+        agencyService.NextReservation = null;
+
+        await service.TriggerEmergencyRescueAsync(original, order, repo.Slots[300], "no-show");
+        await service.TriggerEmergencyRescueAsync(original, order, null, "no-show");
+
+        Assert.Equal(["SHIFT_AFTERNOON", "SHIFT_EVENING"], agencyService.Requests.Select(r => r.ShiftCode).ToArray());
+        Assert.DoesNotContain(agencyService.Requests, r => r.ShiftCode == "SANG");
+    }
+
+    [Fact(Skip = "Production defect in MilestoneFailoverService.cs:350-353 (criterion 3c of #443); fix needs Scope exception #455. Remove Skip with that fix.")]
+    public async Task EmergencyRescue_WithoutAShiftCodeOnSlotOrOrder_DoesNotReserveCapacityForAnInventedShift()
+    {
+        var (service, repo, clock, mediator, agencyService, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSlot(repo, clock, 701, workerId: 70);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.200m);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, null, "no-show");
+
+        // Criterion 3c of #443: "if neither slot nor order has the code, the rescue fails with a logged reason".
+        Assert.NotEqual(FailoverStatus.EmergencyRescuedToAgency, result.Status);
+        Assert.DoesNotContain(agencyService.Requests, r => string.IsNullOrEmpty(r.ShiftCode));
+        _ = mediator;
+    }
+
+    // 3d ------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task EmergencyRescue_ReservationOfTheSameAgency_IsReleased_AndTheRescueContinuesToSuperFreelancer()
+    {
+        var (service, repo, clock, _, agencyService, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock, agencyId: 5);
+        AddSlot(repo, clock, 501, workerId: 51);
+        var reservationId = Guid.NewGuid();
+        agencyService.NextReservation = new CapacityReservation(reservationId, 5, [501], 0.200m); // the SAME agency
+        AddSuperFreelancer(repo);
+        AddSlot(repo, clock, 401, workerId: 99);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(FailoverStatus.EmergencyRescuedToSuperFreelancer, result.Status);
+        Assert.Equal([reservationId], agencyService.Released);
+        Assert.DoesNotContain(repo.Assignments.Values, a => a.AgencyId == 5 && a.AssignmentId != original.AssignmentId);
+    }
+
+    // 3e ------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task EmergencyRescue_CommissionRate_AgencyBranchUsesTheReservation_SuperFreelancerBranchUsesBusinessRules()
+    {
+        var (service, repo, clock, _, agencyService, _, _) = CreateTestRig();
+        var toAgency = SeedAssigned(repo, clock, id: 3, orderId: 30, slotId: 300);
+        AddSlot(repo, clock, 701, workerId: 70);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.150m); // not the 0.20 literal
+        var agencyResult = await service.TriggerEmergencyRescueAsync(toAgency, null, repo.Slots[300], "no-show");
+
+        var toFreelancer = SeedAssigned(repo, clock, id: 4, orderId: 40, slotId: 400);
+        agencyService.NextReservation = null;
+        AddSuperFreelancer(repo);
+        AddSlot(repo, clock, 401, workerId: 99);
+        var freelancerResult = await service.TriggerEmergencyRescueAsync(toFreelancer, null, repo.Slots[400], "no-show");
+
+        Assert.Equal(0.150m, repo.Assignments[agencyResult.NewAssignmentId!.Value].CommissionRate);
+        Assert.Equal(new BusinessRules().Commission.Freelancer, repo.Assignments[freelancerResult.NewAssignmentId!.Value].CommissionRate);
+    }
+
+    // 3f ------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task EmergencyRescue_RunsEveryDatabaseStepInOneUnitOfWork_AndPublishesAndPenalisesAfterItReturns()
+    {
+        var (service, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSlot(repo, clock, 701, workerId: 70);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.200m);
+
+        await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(1, unitOfWork.Executions);
+        Assert.Equal(["UpdateAssignmentStatus", "ReleaseSlot", "CreateAssignment", "LockSlot"], repo.WriteLog.Select(w => w.Call).ToArray());
+        Assert.All(repo.WriteLog, w => Assert.True(w.InTransaction, w.Call));
+        Assert.Equal([false], mediator.PublishedInTransaction); // JobAssigned
+        Assert.Equal([false], slaService.AppliedInTransaction);  // penalty
+    }
+
+    // 3g ------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task EmergencyRescue_MovesTheOriginalOnlyThroughTheStateMachineEdgeAssignedToReassigned()
+    {
+        var (service, repo, clock, _, agencyService, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSlot(repo, clock, 701, workerId: 70);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.200m);
+
+        await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.True(JobAssignmentStateMachine.Instance.CanTransition(JobAssignmentStatus.Assigned, JobAssignmentStatus.Reassigned));
+        Assert.Equal([(JobAssignmentStatus.Assigned, JobAssignmentStatus.Reassigned)], repo.StatusUpdates);
+        Assert.Equal(JobAssignmentStatus.Reassigned, original.AssignmentStatus);
+    }
+
+    // idempotency (criterion 4) ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Handler_SameEventTwice_ReassignsOnce_AndPenalisesOnce()
+    {
+        var (service, repo, clock, mediator, agencyService, slaService, _) = CreateTestRig();
+        SeedAssigned(repo, clock);
+        AddSlot(repo, clock, 701, workerId: 70);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.200m);
+        var handler = new AgencySwapWindowExpiredHandler(service, repo);
+        var evt = new AgencySwapWindowExpired(3, 30, 5, "worker retired by agency", clock.UtcNow);
+
+        await handler.Handle(evt, CancellationToken.None);
+        await handler.Handle(evt, CancellationToken.None);
+
+        Assert.Single(repo.StatusUpdates);
+        Assert.Single(slaService.AppliedRequests);
+        Assert.Single(mediator.PublishedEvents.OfType<JobAssigned>());
+        Assert.Equal(2, repo.Assignments.Count); // the original and one replacement
+        Assert.Equal(1, agencyService.TryReserveCalls);
+    }
+
+    [Theory]
+    [InlineData(JobAssignmentStatus.Reassigned)]
+    [InlineData(JobAssignmentStatus.CheckedIn)]
+    [InlineData(JobAssignmentStatus.Cancelled)]
+    public async Task Handler_OriginalNoLongerAssigned_DoesNothing(JobAssignmentStatus status)
+    {
+        var (service, repo, clock, mediator, agencyService, slaService, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        typeof(JobAssignment).GetProperty(nameof(JobAssignment.AssignmentStatus))!.SetValue(original, status);
+        var handler = new AgencySwapWindowExpiredHandler(service, repo);
+
+        await handler.Handle(new AgencySwapWindowExpired(3, 30, 5, "worker retired by agency", clock.UtcNow), CancellationToken.None);
+
+        Assert.Equal(0, agencyService.TryReserveCalls);
+        Assert.Empty(slaService.AppliedRequests);
+        Assert.Empty(mediator.PublishedEvents);
+        Assert.Empty(repo.WriteLog);
+    }
+
+    // refund path (criterion 5) --------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task EmergencyRescue_WithNobodyToTakeIt_PublishesAssignmentFailedOnce_WithTheOrder_AndPenalisesNoShowWithAFullRefund()
+    {
+        var (service, repo, clock, mediator, agencyService, slaService, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        agencyService.NextReservation = null;
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(FailoverStatus.RescueFailed, result.Status);
+        var failed = Assert.Single(mediator.PublishedEvents.OfType<AssignmentFailed>());
+        Assert.Equal(30, failed.OrderId);
+        Assert.DoesNotContain(mediator.PublishedEvents, e => e is JobAssigned);
+        var penalty = Assert.Single(slaService.AppliedRequests);
+        Assert.Equal((SlaViolation.NoShow, 400000m, 0m), (penalty.Violation, penalty.CustomerRefundAmount, penalty.RescueCost));
+        Assert.Empty(repo.WriteLog); // nothing was reassigned
+    }
+
+    // event input (criterion 10) ---------------------------------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(999L)]
+    public async Task Handler_TakesTheOrderFromTheAssignment_NotFromTheOrderIdOfTheEvent(long orderIdOfTheEvent)
+    {
+        // Current behaviour, recorded: retire sent OrderId = 0 until AGENCY-FIX-01; the rescue still uses the assignment's order.
+        var (service, repo, clock, mediator, agencyService, _, _) = CreateTestRig();
+        SeedAssigned(repo, clock, orderId: 30);
+        AddSlot(repo, clock, 701, workerId: 70);
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 7, [701], 0.200m);
+        var handler = new AgencySwapWindowExpiredHandler(service, repo);
+
+        await handler.Handle(new AgencySwapWindowExpired(3, orderIdOfTheEvent, 5, "worker retired by agency", clock.UtcNow), CancellationToken.None);
+
+        var assigned = Assert.Single(mediator.PublishedEvents.OfType<JobAssigned>());
+        Assert.Equal(30, assigned.OrderId);
+        Assert.Equal(30, agencyService.Requests.Single().OrderId);
     }
 }
