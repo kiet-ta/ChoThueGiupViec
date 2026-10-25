@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Yêu cầu làm thêm</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /workers/extension · POST /api/workers/assignments/{id}/extension/respond. The worker answers BEFORE any payment
+     (owner decision C); decline = no money, no refund. Shows only the server's answer (MOB-EXT-01). -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="execution.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Làm thêm</span><span class="icon-btn"></span></div>
+
+    <div class="center mt">
+      <div class="muted small">Khách muốn thêm</div>
+      <div class="num xl mt-sm">1,5 <span style="font-size:22px">giờ</span></div>
+    </div>
+
+    <!-- Shift extension bar: 4 h shift + 1.5 h -->
+    <div class="card mt-lg">
+      <div class="row" style="gap:2px">
+        <i style="flex:4;height:12px;border-radius:6px 0 0 6px;background:var(--surface-dim)"></i>
+        <i style="flex:1.5;height:12px;border-radius:0 6px 6px 0;background:var(--primary)"></i>
+      </div>
+      <div class="row between mt-sm xs muted tnum"><span>13:00</span><span>17:00</span><span style="color:var(--text);font-weight:700">18:30</span></div>
+      <div class="legend mt"><span><i style="background:var(--surface-dim)"></i>Ca gốc 4 h</span><span><i style="background:var(--primary)"></i>Thêm 1,5 h</span></div>
+    </div>
+
+    <div class="card flat mt">
+      <div class="steps">
+        <div class="st done"><span class="d"><span class="ms">check</span></span>Khách gửi</div>
+        <div class="st now"><span class="d">2</span>Bạn đồng ý</div>
+        <div class="st"><span class="d">3</span>Khách trả</div>
+      </div>
+    </div>
+  </main>
+  <div class="btn-bar">
+    <a href="execution.html" class="btn ghost" style="flex:1">Từ chối</a>
+    <a href="execution.html" class="btn" style="flex:2">Đồng ý</a>
+  </div>
+</div>
+</body>
+</html>

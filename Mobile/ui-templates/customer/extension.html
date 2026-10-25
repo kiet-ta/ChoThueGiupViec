@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Làm lần 2</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .hours { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .hours div { height: 56px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--surface); display: grid; place-items: center; font-weight: 700; font-size: 16px; }
+  .hours div.on { border: 2px solid var(--primary); color: var(--primary); }
+</style>
+</head>
+<body>
+<!-- "Làm lần 2" (BR-08, owner decision C): the worker on site accepts FIRST, only then the QR exists.
+     POST /api/booking/orders/{id}/extensions → extraAmount from the server (round(unit_price / 4 × hours)). -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="order-detail.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Làm lần 2</span><span class="icon-btn"></span></div>
+
+    <div class="card row">
+      <span class="avatar">HT</span>
+      <div class="grow"><div class="h3">Hà Trần</div><div class="small muted">Đang làm · 10:40</div></div>
+      <span class="ms fill" style="color:var(--primary)">check_circle</span>
+    </div>
+
+    <div class="caps mt-lg">Thêm bao lâu</div>
+    <div class="hours mt-sm tnum">
+      <div>0,5 h</div><div>1 h</div><div class="on">1,5 h</div><div>2 h</div>
+      <div>2,5 h</div><div>3 h</div><div>3,5 h</div><div>4 h</div>
+    </div>
+
+    <!-- 3-step flow diagram -->
+    <div class="card flat mt-lg">
+      <div class="steps">
+        <div class="st now"><span class="d">1</span>Gửi yêu cầu</div>
+        <div class="st"><span class="d">2</span>Thợ đồng ý</div>
+        <div class="st"><span class="d">3</span>Thanh toán</div>
+      </div>
+    </div>
+
+    <div class="card mt">
+      <div class="kv"><span class="k">Kết thúc mới</span><span class="tnum" style="font-weight:600">12:00 → 13:30</span></div>
+      <div class="kv"><span class="k">Phí thêm</span><span class="tnum muted">Báo sau khi gửi</span></div>
+    </div>
+  </main>
+  <div class="btn-bar"><a href="extension-wait.html" class="btn block">Gửi yêu cầu</a></div>
+</div>
+</body>
+</html>

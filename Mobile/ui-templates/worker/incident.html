@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Báo sự cố</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .kind { border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-lg); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .kind.on { border: 2px solid var(--primary); padding: 13px; }
+  .kind .ms { color: var(--primary); }
+</style>
+</head>
+<body>
+<!-- /dispatch/incident-report · POST /api/dispatch/assignments/{id}/incidents. incidentType ACCIDENT | HEALTH | SEVERE_WEATHER | OTHER, description, photo.
+     Result: reDispatchStatus (SEARCHING …) while Dispatch finds a replacement. -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="job.html" class="icon-btn"><span class="ms">close</span></a><span class="title">Báo sự cố</span><span class="icon-btn"></span></div>
+
+    <div class="grid2">
+      <div class="kind on"><span class="ms">car_crash</span><span class="h3">Tai nạn / hỏng xe</span></div>
+      <div class="kind"><span class="ms">medical_services</span><span class="h3">Sức khỏe</span></div>
+      <div class="kind"><span class="ms">thunderstorm</span><span class="h3">Thời tiết</span></div>
+      <div class="kind"><span class="ms">more_horiz</span><span class="h3">Khác</span></div>
+    </div>
+
+    <div class="caps mt-lg">Mô tả</div>
+    <div class="input area mt-sm"><span class="ph">Xe thủng lốp ở Cầu Kiệu…</span></div>
+
+    <div class="caps mt-lg">Ảnh</div>
+    <div class="grid3 mt-sm">
+      <div class="ph-img" style="aspect-ratio:1;background:var(--surface);border:1.5px dashed var(--outline-variant)"><span class="ms">add_a_photo</span></div>
+    </div>
+
+    <!-- What happens next -->
+    <div class="card flat mt-lg">
+      <div class="steps">
+        <div class="st now"><span class="d">1</span>Báo</div>
+        <div class="st"><span class="d"><span class="ms">search</span></span>Tìm thợ thay</div>
+        <div class="st"><span class="d"><span class="ms">person</span></span>Thợ mới</div>
+      </div>
+    </div>
+  </main>
+  <div class="btn-bar"><a href="today.html" class="btn block">Gửi báo cáo</a></div>
+</div>
+</body>
+</html>

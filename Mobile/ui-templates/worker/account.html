@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Tài khoản</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body data-role="worker" data-tab="account">
+<!-- /workers/profile (Hồ sơ & chất lượng) · GET /api/workers/me + links. Criteria averages need API (a worker's ratings are internal only today). -->
+<div class="phone">
+  <main class="screen">
+    <div class="appbar large"><span class="title">Tài khoản</span></div>
+
+    <div class="card row">
+      <span class="avatar lg">HT</span>
+      <div class="grow">
+        <div class="h2">Hà Trần</div>
+        <div class="mt-xs"><span class="pill ok"><span class="ms sm">verified_user</span>Đã xác minh</span></div>
+      </div>
+    </div>
+
+    <div class="grid2 mt">
+      <div class="stat center"><div class="num m">4.9</div><div class="xs muted mt-sm">Điểm trung bình</div></div>
+      <div class="stat center"><div class="num m">126</div><div class="xs muted mt-sm">Ca hoàn tất</div></div>
+    </div>
+
+    <!-- Criteria bars (customer rates: punctuality, cleaningQuality, attitude), out of 5 -->
+    <div class="card mt">
+      <div class="row between"><span class="small">Đúng giờ</span><b class="small tnum">5.0</b></div>
+      <div class="bar mt-xs"><i style="width:100%"></i></div>
+      <div class="row between mt"><span class="small">Sạch sẽ</span><b class="small tnum">4.8</b></div>
+      <div class="bar mt-xs"><i style="width:96%"></i></div>
+      <div class="row between mt"><span class="small">Thái độ</span><b class="small tnum">4.9</b></div>
+      <div class="bar mt-xs"><i style="width:98%"></i></div>
+    </div>
+
+    <div class="list mt-lg">
+      <a href="ekyc.html" class="item"><span class="ms">badge</span><span class="grow">Xác minh danh tính</span><span class="trail">Đã duyệt</span><span class="ms chev">chevron_right</span></a>
+      <a href="agency-roster.html" class="item"><span class="ms">groups</span><span class="grow">Lịch ca công ty</span><span class="ms chev">chevron_right</span></a>
+      <a href="rating.html" class="item"><span class="ms">star</span><span class="grow">Đánh giá khách</span><span class="trail">1</span><span class="ms chev">chevron_right</span></a>
+      <a href="disputes.html" class="item"><span class="ms">flag</span><span class="grow">Khiếu nại</span><span class="ms chev">chevron_right</span></a>
+    </div>
+    <div class="list mt">
+      <a href="../shared/welcome.html" class="item"><span class="ms" style="color:var(--error)">logout</span><span class="grow err-text">Đăng xuất</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

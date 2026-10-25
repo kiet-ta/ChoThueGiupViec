@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Khách vắng mặt</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /dispatch/customer-absent · POST /api/dispatch/assignments/{id}/calls/log and .../absent. BusinessRules.Absence: wait ≥ 15 min, ≥ 2 call attempts, fee 40 % of the shift price,
+     customer may dispute within 24 h. The fee amount shown is the server's. -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="job.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Khách vắng mặt</span><span class="icon-btn"></span></div>
+
+    <div class="grid2">
+      <div class="card center">
+        <div style="position:relative;width:120px;height:120px;margin:0 auto">
+          <svg viewBox="0 0 120 120" width="120" height="120" style="transform:rotate(-90deg)">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-container)" stroke-width="10"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--primary)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="62.83"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:grid;place-items:center"><div><div class="num m">12</div><div class="xs muted">/ 15 phút</div></div></div>
+        </div>
+        <div class="small mt-sm" style="font-weight:600">Đã chờ</div>
+      </div>
+      <div class="card center">
+        <div style="position:relative;width:120px;height:120px;margin:0 auto">
+          <svg viewBox="0 0 120 120" width="120" height="120" style="transform:rotate(-90deg)">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-container)" stroke-width="10"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--primary)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="0"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:grid;place-items:center"><div><div class="num m">2</div><div class="xs muted">/ 2 lần</div></div></div>
+        </div>
+        <div class="small mt-sm" style="font-weight:600">Đã gọi</div>
+      </div>
+    </div>
+
+    <!-- workerFeeRate 0.40 / customerRefundRate 0.60, amounts from the server -->
+    <div class="card mt">
+      <div class="muted small">Ca 260.000 đ được chia</div>
+      <div class="row mt" style="gap:2px">
+        <i style="flex:40;height:10px;border-radius:5px 0 0 5px;background:var(--primary)"></i>
+        <i style="flex:60;height:10px;border-radius:0 5px 5px 0;background:var(--amber)"></i>
+      </div>
+      <div class="grid2 mt">
+        <div><div class="legend"><span><i style="background:var(--primary)"></i>Bạn nhận 40%</span></div><div class="num s mt-xs">104.000 đ</div></div>
+        <div><div class="legend"><span><i style="background:var(--amber)"></i>Hoàn khách 60%</span></div><div class="num s mt-xs">156.000 đ</div></div>
+      </div>
+      <div class="xs muted mt">Chờ duyệt · khách có 24 giờ để khiếu nại</div>
+    </div>
+  </main>
+  <div class="btn-bar"><span class="btn block disabled">Báo vắng mặt · còn 3 phút</span></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Khiếu nại</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /disputes · DisputeScreenArgs(customer, orderId?). GET /api/customers/me/disputes.
+     Status OPEN → IN_REVIEW → RESOLVED | DISMISSED; slaDueAt; fault party and compensation once RESOLVED. -->
+<div class="phone">
+  <main class="screen">
+    <div class="appbar"><a href="account.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Khiếu nại</span><span class="icon-btn"></span></div>
+
+    <div class="card">
+      <div class="row between">
+        <span class="h3">Chất lượng kém</span>
+        <span class="pill warn"><span class="dot"></span>Đang xử lý</span>
+      </div>
+      <div class="muted small mt-xs tnum">GV261017A3PQ9Z · 17/10</div>
+      <div class="steps mt">
+        <div class="st done"><span class="d"><span class="ms">check</span></span>Đã gửi</div>
+        <div class="st now"><span class="d"><span class="ms">search</span></span>Xem xét</div>
+        <div class="st"><span class="d"><span class="ms">gavel</span></span>Kết luận</div>
+      </div>
+      <div class="row between mt">
+        <span class="muted small">Hạn xử lý</span>
+        <span class="small tnum" style="font-weight:600">27/10 · 17:00</span>
+      </div>
+      <div class="bar mt-sm"><i style="width:60%"></i></div>
+    </div>
+
+    <div class="card mt">
+      <div class="row between">
+        <span class="h3">Hư hỏng tài sản</span>
+        <span class="pill ok">Đã có phán quyết</span>
+      </div>
+      <div class="muted small mt-xs tnum">GV260926M2LX8C · 26/09</div>
+      <div class="grid2 mt">
+        <div><div class="muted xs">Bồi thường</div><div class="num s mt-xs">150.000 đ</div></div>
+        <div><div class="muted xs">Lỗi thuộc</div><div class="h3 mt-xs">Thợ</div></div>
+      </div>
+    </div>
+
+    <div class="card mt">
+      <div class="row between">
+        <span class="h3">Thái độ</span>
+        <span class="pill">Đã bác bỏ</span>
+      </div>
+      <div class="muted small mt-xs tnum">GV260803Q8RT1B · 03/08</div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Trang chủ</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body data-role="customer" data-tab="home">
+<div class="phone">
+  <main class="screen">
+    <div class="row between mt-sm">
+      <div>
+        <div class="muted small">Chủ Nhật, 25/10</div>
+        <div class="greet mt-xs">Chào chị Lan</div>
+      </div>
+      <a class="icon-btn outlined" href="#"><span class="ms">notifications</span></a>
+    </div>
+
+    <!-- Upcoming order: GET /api/booking/orders (first non-final) + .../progress -->
+    <a href="order-detail.html" class="card brand mt-lg" style="display:block">
+      <div class="row between">
+        <span class="caps" style="color:rgba(255,255,255,.75)">Ca sắp tới</span>
+        <span class="pill" style="background:rgba(255,255,255,.16);color:#fff">ECONOMY</span>
+      </div>
+      <div class="row mt" style="align-items:flex-end;gap:10px">
+        <span class="num l">08:00</span><span class="muted" style="padding-bottom:4px">→ 12:00</span>
+      </div>
+      <div class="muted small mt-xs">Thứ Hai 26/10 · 12 Lê Lợi, Sài Gòn</div>
+      <!-- 4-step timeline (order_logic.dart) -->
+      <div class="row mt" style="gap:6px">
+        <i style="flex:1;height:4px;border-radius:2px;background:#fff"></i>
+        <i style="flex:1;height:4px;border-radius:2px;background:#fff"></i>
+        <i style="flex:1;height:4px;border-radius:2px;background:#fff"></i>
+        <i style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.3)"></i>
+      </div>
+      <div class="row between mt">
+        <div class="row" style="gap:8px">
+          <span class="avatar sm" style="background:rgba(255,255,255,.18);color:#fff">HT</span>
+          <span class="small" style="font-weight:600">Hà Trần</span>
+          <span class="small"><span class="ms sm fill" style="color:var(--amber);vertical-align:-4px">star</span> 4.9</span>
+        </div>
+        <span class="small" style="font-weight:600">còn 22 giờ</span>
+      </div>
+    </a>
+
+    <!-- Quick book: GET /api/booking/price-quote for the default address -->
+    <div class="section-title"><span class="h3">Đặt nhanh</span><span class="muted small">58 m² · 1 thợ · 4 giờ</span></div>
+    <div class="grid2">
+      <a href="booking.html" class="card tight">
+        <div class="caps">Economy</div>
+        <div class="num s mt-sm">260.000 <span style="font-size:14px">đ</span></div>
+        <div class="muted xs mt-xs">/ thợ / ca</div>
+      </a>
+      <a href="booking.html" class="card tight">
+        <div class="caps">Premium</div>
+        <div class="num s mt-sm">390.000 <span style="font-size:14px">đ</span></div>
+        <div class="muted xs mt-xs">/ thợ / ca</div>
+      </a>
+    </div>
+
+    <!-- Monthly spend: needs API (no customer spending endpoint) -->
+    <div class="section-title"><span class="h3">Chi tiêu</span><a href="orders.html">6 tháng</a></div>
+    <div class="card">
+      <div class="row between">
+        <div><div class="num m">780.000 <span style="font-size:15px">đ</span></div><div class="muted small mt-xs">Tháng 10 · 3 ca</div></div>
+        <span class="delta">▲ 1 ca</span>
+      </div>
+      <div class="chart mt">
+        <svg viewBox="0 0 310 92" aria-label="Chi tiêu 6 tháng">
+          <line class="grid" x1="0" y1="72" x2="310" y2="72"/>
+          <rect data-tip="T5 · 260.000 đ" x="8"   y="52" width="34" height="20" rx="4" fill="var(--surface-dim)"/>
+          <rect data-tip="T6 · 520.000 đ" x="60"  y="32" width="34" height="40" rx="4" fill="var(--surface-dim)"/>
+          <rect data-tip="T7 · 520.000 đ" x="112" y="32" width="34" height="40" rx="4" fill="var(--surface-dim)"/>
+          <rect data-tip="T8 · 260.000 đ" x="164" y="52" width="34" height="20" rx="4" fill="var(--surface-dim)"/>
+          <rect data-tip="T9 · 520.000 đ" x="216" y="32" width="34" height="40" rx="4" fill="var(--surface-dim)"/>
+          <rect data-tip="T10 · 780.000 đ" x="268" y="12" width="34" height="60" rx="4" fill="var(--primary)"/>
+          <text class="axis" x="25"  y="88" text-anchor="middle">T5</text>
+          <text class="axis" x="77"  y="88" text-anchor="middle">T6</text>
+          <text class="axis" x="129" y="88" text-anchor="middle">T7</text>
+          <text class="axis" x="181" y="88" text-anchor="middle">T8</text>
+          <text class="axis" x="233" y="88" text-anchor="middle">T9</text>
+          <text class="axis" x="285" y="88" text-anchor="middle" style="fill:var(--text);font-weight:600">T10</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Favourite workers: GET /api/customers/me/favorite-workers -->
+    <div class="section-title"><span class="h3">Thợ yêu thích</span><a href="favorites.html">Tất cả</a></div>
+    <div class="row" style="gap:16px">
+      <div class="col center" style="align-items:center"><span class="avatar">HT</span><span class="xs">Hà</span></div>
+      <div class="col center" style="align-items:center"><span class="avatar">MN</span><span class="xs">Mai</span></div>
+      <div class="col center" style="align-items:center"><span class="avatar">TL</span><span class="xs">Thu</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

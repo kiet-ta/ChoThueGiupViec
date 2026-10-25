@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Chi tiết đơn</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /booking/detail · GET /api/booking/orders/{id} + .../progress every 5 s (no realtime client yet).
+     Actions shown per order_logic.dart: pay, cancel (reason 1-255), "Làm lần 2", acceptance, rating, dispute. -->
+<div class="phone">
+  <main class="screen">
+    <div class="appbar"><a href="orders.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title tnum">GV261025K7Q2MX</span><a href="#cancel" class="icon-btn"><span class="ms">more_horiz</span></a></div>
+
+    <div class="card">
+      <div class="row between">
+        <div><div class="num l">08:00</div><div class="muted small mt-xs">T2 26/10 · → 12:00</div></div>
+        <div style="text-align:right"><div class="num s">260.000 đ</div><div class="mt-xs"><span class="pill ok">Đã thanh toán</span></div></div>
+      </div>
+      <div class="divider"></div>
+      <!-- 4-step timeline: PAID is shown as "finding a worker" -->
+      <div class="steps">
+        <div class="st done"><span class="d"><span class="ms">check</span></span>Thanh toán</div>
+        <div class="st done"><span class="d"><span class="ms">check</span></span>Tìm thợ</div>
+        <div class="st now"><span class="d"><span class="ms">person</span></span>Có thợ</div>
+        <div class="st"><span class="d"><span class="ms">done_all</span></span>Hoàn tất</div>
+      </div>
+    </div>
+
+    <div class="section-title"><span class="h3">Thợ</span><span class="muted small">1/1</span></div>
+    <div class="card row">
+      <span class="avatar">HT</span>
+      <div class="grow">
+        <div class="h3">Hà Trần</div>
+        <div class="small muted"><span class="ms sm fill" style="color:var(--amber);vertical-align:-4px">star</span> 4.9</div>
+      </div>
+      <span class="pill ok"><span class="dot"></span>Đã nhận</span>
+    </div>
+
+    <div class="section-title"><span class="h3">Địa điểm</span></div>
+    <div class="map" style="height:120px">
+      <svg viewBox="0 0 350 120" width="100%" height="120" preserveAspectRatio="xMidYMid slice">
+        <path d="M0 80 L350 50 M120 0 L160 120 M240 0 L220 120" stroke="#fff" stroke-width="10"/>
+        <circle cx="190" cy="62" r="7" fill="var(--primary)" stroke="#fff" stroke-width="3"/>
+      </svg>
+    </div>
+    <div class="row mt-sm small muted"><span class="ms sm">location_on</span>12 Lê Lợi · Phường Sài Gòn · 58 m²</div>
+
+    <!-- Later states of the same screen (shown here for the prototype) -->
+    <div class="section-title"><span class="h3">Khi thợ đang làm</span></div>
+    <div class="list">
+      <a href="extension.html" class="item"><span class="ms">more_time</span><span class="grow">Làm lần 2</span><span class="ms chev">chevron_right</span></a>
+      <a href="acceptance.html" class="item"><span class="ms">photo_library</span><span class="grow">Xem ảnh &amp; nghiệm thu</span><span class="ms chev">chevron_right</span></a>
+      <a href="rating.html" class="item"><span class="ms">star</span><span class="grow">Đánh giá thợ</span><span class="trail tnum">48 giờ</span><span class="ms chev">chevron_right</span></a>
+      <a href="dispute-create.html" class="item"><span class="ms">flag</span><span class="grow">Khiếu nại</span><span class="trail tnum">24 giờ</span><span class="ms chev">chevron_right</span></a>
+    </div>
+
+    <a id="cancel" href="#" class="btn danger block mt-lg">Hủy đơn</a>
+  </main>
+</div>
+</body>
+</html>

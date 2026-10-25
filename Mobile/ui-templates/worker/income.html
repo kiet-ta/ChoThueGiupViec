@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Thu nhập</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body data-role="worker" data-tab="income">
+<!-- /payouts · GET /api/workers/me/earnings?month=YYYY-MM (jobCount, grossAmount, commissionAmount, penaltyAmount,
+     netAmount, payoutStatus NOT_BUILT | PENDING | TRANSFERRED, jobs). No wallet / available balance (P6).
+     6-month chart = 6 calls of the same endpoint. Next button stops at the current month. -->
+<div class="phone">
+  <main class="screen">
+    <div class="appbar large"><span class="title">Thu nhập</span><a href="payout-history.html" class="btn ghost sm">Chuyển khoản</a></div>
+
+    <div class="row between">
+      <span class="icon-btn outlined"><span class="ms">chevron_left</span></span>
+      <span class="h3 tnum">Tháng 10 / 2026</span>
+      <span class="icon-btn outlined" style="opacity:.35"><span class="ms">chevron_right</span></span>
+    </div>
+
+    <div class="center mt-lg">
+      <div class="muted small">Thực nhận</div>
+      <div class="num xl mt-sm">4.160.000 <span style="font-size:20px">đ</span></div>
+      <div class="mt-sm"><span class="pill"><span class="dot"></span>Chưa chốt đợt</span></div>
+    </div>
+
+    <!-- Gross split: net + commission (+ penalty when > 0). Direct labels carry the values. -->
+    <div class="card mt-lg">
+      <div class="row" style="gap:2px">
+        <i style="flex:80;height:12px;border-radius:6px 0 0 6px;background:var(--primary)"></i>
+        <i style="flex:20;height:12px;border-radius:0 6px 6px 0;background:var(--amber)"></i>
+      </div>
+      <div class="kv mt"><span class="k"><i class="sw" style="background:var(--primary)"></i>Thực nhận</span><b class="tnum">4.160.000 đ</b></div>
+      <div class="kv"><span class="k"><i class="sw" style="background:var(--amber)"></i>Phí nền tảng 20%</span><b class="tnum">1.040.000 đ</b></div>
+      <div class="kv"><span class="k"><i class="sw" style="background:var(--error)"></i>Phạt</span><b class="tnum">0 đ</b></div>
+      <div class="divider" style="margin:8px 0"></div>
+      <div class="kv"><span class="k">Tổng · 18 ca</span><b class="tnum">5.200.000 đ</b></div>
+    </div>
+
+    <div class="section-title"><span class="h3">6 tháng</span><span class="muted small">triệu đ</span></div>
+    <div class="card chart">
+      <svg viewBox="0 0 310 130" aria-label="Thực nhận 6 tháng">
+        <line class="grid" x1="0" y1="110" x2="310" y2="110"/>
+        <rect data-tip="T5 · 3.120.000 đ" x="10"  y="35.2" width="32" height="74.8" rx="4" fill="var(--surface-dim)"/>
+        <rect data-tip="T6 · 3.640.000 đ" x="62"  y="22.7" width="32" height="87.3" rx="4" fill="var(--surface-dim)"/>
+        <rect data-tip="T7 · 2.910.000 đ" x="114" y="40.2" width="32" height="69.8" rx="4" fill="var(--surface-dim)"/>
+        <rect data-tip="T8 · 4.370.000 đ" x="166" y="5.2"  width="32" height="104.8" rx="4" fill="var(--surface-dim)"/>
+        <rect data-tip="T9 · 3.950.000 đ" x="218" y="15.3" width="32" height="94.7" rx="4" fill="var(--surface-dim)"/>
+        <rect data-tip="T10 · 4.160.000 đ" x="270" y="10.2" width="32" height="99.8" rx="4" fill="var(--primary)"/>
+        <text class="axis" x="286" y="4" text-anchor="middle" style="fill:var(--text);font-weight:700">4,16</text>
+        <text class="axis" x="26"  y="125" text-anchor="middle">T5</text>
+        <text class="axis" x="78"  y="125" text-anchor="middle">T6</text>
+        <text class="axis" x="130" y="125" text-anchor="middle">T7</text>
+        <text class="axis" x="182" y="125" text-anchor="middle">T8</text>
+        <text class="axis" x="234" y="125" text-anchor="middle">T9</text>
+        <text class="axis" x="286" y="125" text-anchor="middle" style="fill:var(--text);font-weight:600">T10</text>
+      </svg>
+    </div>
+
+    <div class="section-title"><span class="h3">Ca trong tháng</span><span class="muted small">18</span></div>
+    <div class="list">
+      <div class="item"><div class="grow"><div class="h3 tnum">25/10 · 13:00</div><div class="small muted tnum">260.000 − 52.000</div></div><b class="tnum">208.000 đ</b></div>
+      <div class="item"><div class="grow"><div class="h3 tnum">24/10 · 08:00</div><div class="small muted tnum">390.000 − 78.000</div></div><b class="tnum">312.000 đ</b></div>
+      <div class="item"><div class="grow"><div class="h3 tnum">21/10 · 13:00</div><div class="small muted tnum">260.000 − 52.000</div></div><b class="tnum">208.000 đ</b></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

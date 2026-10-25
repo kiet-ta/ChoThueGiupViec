@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TỔ ẤM Mobile UI</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-body); background: var(--surface-container); color: var(--text); padding: 32px 24px 64px; }
+  header { max-width: 1400px; margin: 0 auto 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 24px; }
+  h1 { font-family: var(--font-display); font-size: 34px; font-weight: 600; }
+  header p { color: var(--text-2); font-size: 14px; }
+  nav { max-width: 1400px; margin: 16px auto 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  nav a { height: 34px; padding: 0 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); display: inline-flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--text); text-decoration: none; }
+  section { max-width: 1400px; margin: 40px auto 0; }
+  h2 { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(246px, 1fr)); gap: 28px 20px; }
+  figure { display: flex; flex-direction: column; gap: 10px; }
+  .frame { width: 234px; height: 506px; border-radius: 28px; overflow: hidden; background: var(--canvas); box-shadow: 0 0 0 6px #1b1c19, 0 10px 30px rgba(0,0,0,.18); position: relative; }
+  .frame iframe { width: 390px; height: 844px; border: 0; transform: scale(.6); transform-origin: 0 0; pointer-events: none; }
+  figcaption { font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; width: 234px; }
+  figcaption a { color: var(--primary); text-decoration: none; }
+  figcaption code { font-size: 11px; color: var(--text-2); font-weight: 500; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TỔ ẤM · Mobile UI</h1>
+  <p>Prototype HTML · 390×844 · ticket #449 · dữ liệu mẫu</p>
+</header>
+<nav><a href="#shared">Chung</a><a href="#customer">Customer</a><a href="#worker">Worker</a><a href="shared/welcome.html">Bắt đầu bấm thử →</a></nav>
+
+<section id="shared"><h2>Chung</h2><div class="grid" data-dir="shared"></div></section>
+<section id="customer"><h2>Customer</h2><div class="grid" data-dir="customer"></div></section>
+<section id="worker"><h2>Worker</h2><div class="grid" data-dir="worker"></div></section>
+
+<script>
+  // Each entry: file, caption, Flutter route (README.md has the full mapping).
+  const SCREENS = {
+    shared: [
+      ["welcome", "Chào mừng", "/ (Home, chưa đăng nhập)"],
+      ["phone", "Số điện thoại", "/auth/phone-input"],
+      ["otp", "Mã OTP", "/auth/otp-verify"],
+      ["register", "Hồ sơ thợ mới", "WorkerRegistrationScreen"],
+    ],
+    customer: [
+      ["home", "Trang chủ", "/ (Home)"],
+      ["booking", "Đặt ca", "/booking"],
+      ["payment", "Thanh toán", "/payments"],
+      ["order-detail", "Chi tiết đơn", "/booking/detail"],
+      ["orders", "Đơn", "/booking/orders"],
+      ["extension", "Làm lần 2", "/booking/detail"],
+      ["extension-wait", "Làm lần 2 · thợ đồng ý", "/booking/detail"],
+      ["acceptance", "Nghiệm thu", "/customers/assignments/acceptance"],
+      ["rating", "Đánh giá thợ", "/ratings"],
+      ["disputes", "Khiếu nại", "/disputes"],
+      ["dispute-create", "Tạo khiếu nại", "/disputes/create"],
+      ["addresses", "Sổ địa chỉ", "/addresses"],
+      ["address-form", "Địa chỉ", "/addresses/form"],
+      ["favorites", "Yêu thích", "/customer/favorites"],
+      ["account", "Tài khoản", "mới"],
+      ["profile", "Hồ sơ", "/customer/profile"],
+    ],
+    worker: [
+      ["today", "Hôm nay", "/ (Home)"],
+      ["offer", "Lời mời 30 giây", "/dispatch/offers"],
+      ["job", "Việc hiện tại", "mới"],
+      ["check-in", "Check-in", "/dispatch/check-in"],
+      ["execution", "Đang làm", "/workers/execution"],
+      ["photos", "Ảnh trước / sau", "/workers/photos"],
+      ["extension", "Yêu cầu làm thêm", "/workers/extension"],
+      ["customer-absent", "Khách vắng mặt", "/dispatch/customer-absent"],
+      ["incident", "Báo sự cố", "/dispatch/incident-report"],
+      ["schedule", "Lịch rảnh", "/workers/slots"],
+      ["income", "Thu nhập", "/payouts"],
+      ["payout-history", "Chuyển khoản", "/payouts/history"],
+      ["account", "Tài khoản", "/workers/profile"],
+      ["ekyc", "Xác minh", "/workers/ekyc"],
+      ["agency-roster", "Lịch công ty", "/agencies/roster"],
+      ["rating", "Đánh giá khách", "/ratings"],
+      ["disputes", "Khiếu nại", "/disputes"],
+    ],
+  };
+  document.querySelectorAll(".grid").forEach((grid) => {
+    const dir = grid.dataset.dir;
+    SCREENS[dir].forEach(([file, caption, route]) => {
+      const src = `${dir}/${file}.html${file === "offer" ? "?static" : ""}`;
+      const fig = document.createElement("figure");
+      fig.innerHTML =
+        `<a class="frame" href="${dir}/${file}.html"><iframe src="${src}" loading="lazy" title="${caption}"></iframe></a>` +
+        `<figcaption><a href="${dir}/${file}.html">${caption}</a><code>${route}</code></figcaption>`;
+      grid.append(fig);
+    });
+  });
+</script>
+</body>
+</html>
