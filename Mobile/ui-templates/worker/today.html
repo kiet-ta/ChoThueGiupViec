@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Hôm nay</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body data-role="worker" data-tab="today">
+<div class="phone">
+  <main class="screen">
+    <div class="row between mt-sm">
+      <div class="row">
+        <span class="avatar">HT</span>
+        <div><div class="h3">Hà Trần</div><div class="muted small"><span class="ms sm fill" style="color:var(--amber);vertical-align:-4px">star</span> 4.9 · 126 ca</div></div>
+      </div>
+      <a class="icon-btn outlined" href="offer.html"><span class="ms">notifications</span></a>
+    </div>
+
+    <!-- Next job: needs API ("my assignments" does not exist; today only reachable from the accept result) -->
+    <div class="card mt-lg">
+      <div class="row between">
+        <span class="caps">Ca tiếp theo</span>
+        <span class="pill ok"><span class="dot"></span>Đã nhận</span>
+      </div>
+      <div class="row mt" style="align-items:flex-end;gap:10px">
+        <span class="num xl">13:00</span><span class="muted" style="padding-bottom:6px">→ 17:00</span>
+      </div>
+      <div class="grid3 mt">
+        <div><div class="muted xs">Khoảng cách</div><div class="h3 tnum">2,4 km</div></div>
+        <div><div class="muted xs">Diện tích</div><div class="h3 tnum">58 m²</div></div>
+        <div><div class="muted xs">Thực nhận</div><div class="h3 tnum">208.000 đ</div></div>
+      </div>
+      <div class="row mt muted small"><span class="ms sm">location_on</span>Phường Sài Gòn · Economy</div>
+      <a href="check-in.html" class="btn block mt"><span class="ms">near_me</span>Đến nơi &amp; Check-in</a>
+    </div>
+
+    <!-- Month KPIs: GET /api/workers/me/earnings?month=2026-10 -->
+    <div class="section-title"><span class="h3">Tháng 10</span><a href="income.html">Chi tiết</a></div>
+    <div class="grid2">
+      <div class="stat">
+        <div class="label"><span class="ms">payments</span>Thực nhận</div>
+        <div class="num m">4,16<span style="font-size:15px"> tr</span></div>
+        <div class="delta mt-sm">▲ 5% so với T9</div>
+      </div>
+      <div class="stat">
+        <div class="label"><span class="ms">task_alt</span>Ca hoàn tất</div>
+        <div class="num m">18</div>
+        <div class="delta mt-sm">▲ 2 ca so với T9</div>
+      </div>
+    </div>
+
+    <!-- Week strip: GET /api/workers/me/slots (isActive) + assignments (needs API for BOOKED) -->
+    <div class="section-title"><span class="h3">7 ngày tới</span><a href="schedule.html">Lịch</a></div>
+    <div class="card tight">
+      <div style="display:grid;grid-template-columns:28px repeat(7,1fr);gap:6px;align-items:center;font-size:11px">
+        <span></span>
+        <span class="center" style="font-weight:700">CN</span><span class="center muted">T2</span><span class="center muted">T3</span><span class="center muted">T4</span><span class="center muted">T5</span><span class="center muted">T6</span><span class="center muted">T7</span>
+        <span class="muted">S</span>
+        <i class="cell"></i><i class="cell b"></i><i class="cell b"></i><i class="cell"></i><i class="cell"></i><i class="cell b"></i><i class="cell"></i>
+        <span class="muted">C</span>
+        <i class="cell b"></i><i class="cell o"></i><i class="cell"></i><i class="cell b"></i><i class="cell b"></i><i class="cell b"></i><i class="cell"></i>
+        <span class="muted">T</span>
+        <i class="cell"></i><i class="cell"></i><i class="cell o"></i><i class="cell"></i><i class="cell o"></i><i class="cell"></i><i class="cell"></i>
+      </div>
+      <div class="legend mt">
+        <span><i style="background:var(--primary)"></i>Có việc</span>
+        <span><i style="background:var(--primary-fixed)"></i>Đang rảnh</span>
+        <span><i style="background:var(--surface-container)"></i>Tắt</span>
+      </div>
+    </div>
+    <style>
+      .cell { display:block; height: 22px; border-radius: 6px; background: var(--surface-container); }
+      .cell.o { background: var(--primary-fixed); }
+      .cell.b { background: var(--primary); }
+    </style>
+  </main>
+</div>
+</body>
+</html>

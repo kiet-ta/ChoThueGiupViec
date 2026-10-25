@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Đánh giá thợ</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .bigstars { display: flex; justify-content: center; gap: 6px; color: var(--amber); }
+  .bigstars .ms { font-size: 42px; }
+  .crit { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
+  .crit + .crit { border-top: 1px solid var(--border); }
+  .crit .stars .ms { font-size: 22px; }
+  .stars .off { color: var(--surface-dim); }
+</style>
+</head>
+<body>
+<!-- /ratings · RatingScreenArgs(customer, assignmentId, workerName). GET /api/customers/me/assignments/{id}/rating-window (48 h), then the rating POST.
+     Customer criteria: punctuality, cleaningQuality, attitude. Comment ≤ 500. Cannot be edited after sending. -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="order-detail.html" class="icon-btn"><span class="ms">close</span></a><span class="title">Đánh giá</span><span class="icon-btn"></span></div>
+
+    <div class="center">
+      <span class="avatar lg" style="margin:0 auto">HT</span>
+      <div class="h2 mt-sm">Hà Trần</div>
+      <div class="row mt-sm" style="justify-content:center;gap:6px"><span class="ms sm muted">timer</span><span class="small muted tnum">Còn 46:12:05</span></div>
+    </div>
+
+    <div class="bigstars mt-lg">
+      <span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms" style="color:var(--surface-dim)">star</span>
+    </div>
+
+    <div class="card mt-lg" style="padding:4px 16px">
+      <div class="crit"><span class="h3">Đúng giờ</span><span class="stars"><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span></span></div>
+      <div class="crit"><span class="h3">Sạch sẽ</span><span class="stars"><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms off">star</span></span></div>
+      <div class="crit"><span class="h3">Thái độ</span><span class="stars"><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span><span class="ms fill">star</span></span></div>
+    </div>
+
+    <div class="input area mt"><span class="ph">Nhận xét (không bắt buộc)</span></div>
+    <div class="hint mt-xs" style="text-align:right">0/500</div>
+  </main>
+  <div class="btn-bar"><a href="order-detail.html" class="btn block">Gửi đánh giá</a></div>
+</div>
+</body>
+</html>

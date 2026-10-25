@@ -1,0 +1,44 @@
+/* TỔ ẤM — Nordic Care tokens for the Mobile prototype.
+   Source of truth: .agents/skills/project-team-design-template/DESIGN.md (YAML tokens).
+   Same values as Mobile/lib/core/theme/nordic_colors.dart. A value marked "no DESIGN.md token"
+   is the existing nordic_colors.dart constant that still awaits a leader decision (issue #61). */
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block");
+
+:root {
+  /* Surfaces */
+  --canvas: #FAF8F3;            /* canvas-background */
+  --surface: #FFFFFF;           /* card-surface */
+  --surface-low: #F5F3EE;       /* surface-container-low */
+  --surface-container: #F0EEE9; /* surface-container */
+  --surface-dim: #DBDAD5;       /* surface-dim */
+
+  /* Brand */
+  --primary: #416448;           /* primary */
+  --primary-hover: #56705B;     /* primary-hover */
+  --primary-container: #597D60; /* primary-container */
+  --primary-fixed: #C5ECC9;     /* primary-fixed (tint for selected states) */
+  --amber: #D9A441;             /* Warm Amber (DESIGN.md prose): stars, second chart series */
+  --amber-soft: #FFDEAA;        /* secondary-fixed */
+
+  /* Text */
+  --text: #2F3A34;              /* text-primary */
+  --text-2: #6B7280;            /* text-secondary */
+  --on-primary: #FFFFFF;        /* on-primary */
+
+  /* Lines and states */
+  --border: #E5E7EB;            /* no DESIGN.md token (nordic_colors.border) */
+  --outline-variant: #C2C8BF;   /* outline-variant */
+  --error: #BA1A1A;             /* error */
+  --error-container: #FFDAD6;   /* error-container */
+
+  /* Type */
+  --font-display: "Newsreader", Georgia, serif;          /* greeting + large numbers only */
+  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
+
+  /* Radius (DESIGN.md rounded) */
+  --r-sm: 4px; --r: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 24px; --r-full: 9999px;
+
+  /* Spacing (DESIGN.md space-xs/sm/md, gutter) */
+  --s-xs: 4px; --s-sm: 8px; --s-md: 16px; --s-lg: 24px;
+}

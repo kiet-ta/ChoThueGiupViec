@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Nghiệm thu</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .pair .ph-img { height: 96px; font-size: 11px; font-weight: 600; align-content: end; justify-items: start; padding: 8px; }
+</style>
+</head>
+<body>
+<!-- /customers/assignments/acceptance · GET /api/workers/assignments/{id}/photos, then POST /api/customers/assignments/{id}/accept
+     or .../request-redo.
+     5 angles, each with a BEFORE and an AFTER photo (worker_photos_screen.dart). -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="order-detail.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Nghiệm thu</span><span class="icon-btn"></span></div>
+
+    <div class="row between">
+      <div><div class="num m">5/5</div><div class="muted small mt-xs">Góc có ảnh trước &amp; sau</div></div>
+      <div class="legend"><span><i style="background:var(--surface-dim)"></i>Trước</span><span><i style="background:var(--primary-fixed)"></i>Sau</span></div>
+    </div>
+
+    <div class="col mt" style="gap:14px">
+      <div><div class="small" style="font-weight:600;margin-bottom:6px">1 · Toàn cảnh</div>
+        <div class="pair"><div class="ph-img">Trước</div><div class="ph-img" style="background:var(--primary-fixed)">Sau</div></div></div>
+      <div><div class="small" style="font-weight:600;margin-bottom:6px">2 · Bàn ghế &amp; tủ</div>
+        <div class="pair"><div class="ph-img">Trước</div><div class="ph-img" style="background:var(--primary-fixed)">Sau</div></div></div>
+      <div><div class="small" style="font-weight:600;margin-bottom:6px">3 · Cửa kính</div>
+        <div class="pair"><div class="ph-img">Trước</div><div class="ph-img" style="background:var(--primary-fixed)">Sau</div></div></div>
+      <div class="row small muted"><span class="ms sm">expand_more</span>+2 góc</div>
+    </div>
+  </main>
+  <div class="btn-bar">
+    <a href="order-detail.html" class="btn ghost" style="flex:1">Dọn lại</a>
+    <a href="rating.html" class="btn" style="flex:2">Nghiệm thu</a>
+  </div>
+</div>
+</body>
+</html>

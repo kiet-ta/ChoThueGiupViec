@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Lời mời 30 giây</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body data-role="worker" data-tab="today">
+<div class="phone">
+  <!-- Background: Today (dimmed) -->
+  <main class="screen">
+    <div class="row between mt-sm"><div class="row"><span class="avatar">HT</span><div class="h3">Hà Trần</div></div></div>
+    <div class="card mt-lg" style="height:240px"></div>
+    <div class="grid2 mt"><div class="stat" style="height:110px"></div><div class="stat" style="height:110px"></div></div>
+  </main>
+
+  <div class="scrim"></div>
+  <!-- GET /api/dispatch/offers/current, then POST /api/dispatch/offers/{id}/accept | decline. JobOffer (assignmentId, serviceTier, bookingDate, shiftTime, district,
+       approximateDistanceKm, estimatedDurationHours, grossAmount, commissionRate, netEarnings, remainingSeconds) -->
+  <section class="sheet">
+    <div class="grab"></div>
+    <div class="row between">
+      <div>
+        <div class="caps">Việc mới</div>
+        <div class="h2 mt-xs">Thứ Hai 26/10</div>
+      </div>
+      <!-- 30 s countdown ring (core/widgets/countdown_timer_widget.dart) -->
+      <div style="position:relative;width:72px;height:72px">
+        <svg viewBox="0 0 72 72" width="72" height="72" style="transform:rotate(-90deg)">
+          <circle cx="36" cy="36" r="32" fill="none" stroke="var(--surface-container)" stroke-width="6"/>
+          <circle data-ring data-len="201.06" cx="36" cy="36" r="32" fill="none" stroke="var(--primary)" stroke-width="6" stroke-linecap="round" stroke-dasharray="201.06" stroke-dashoffset="0" style="transition:stroke-dashoffset 1s linear"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:grid;place-items:center">
+          <div class="center"><div class="num s" data-countdown="30">30</div><div class="xs muted">giây</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card flat mt" style="padding:20px">
+      <div class="muted small">Thực nhận</div>
+      <div class="num xl mt-sm">208.000 <span style="font-size:20px">đ</span></div>
+      <!-- gross split: net (primary) + commission (amber); direct labels, no color-only meaning -->
+      <div class="row mt" style="gap:2px;height:8px">
+        <i style="flex:80;height:8px;border-radius:4px 0 0 4px;background:var(--primary)"></i>
+        <i style="flex:20;height:8px;border-radius:0 4px 4px 0;background:var(--amber)"></i>
+      </div>
+      <div class="row between mt-sm small">
+        <span class="muted">Giá ca <b class="tnum" style="color:var(--text)">260.000 đ</b></span>
+        <span class="muted">Phí 20% <b class="tnum" style="color:var(--text)">52.000 đ</b></span>
+      </div>
+    </div>
+
+    <div class="grid3 mt">
+      <div class="card tight center"><span class="ms">schedule</span><div class="h3 tnum mt-xs">13:00</div><div class="xs muted">4 giờ</div></div>
+      <div class="card tight center"><span class="ms">near_me</span><div class="h3 tnum mt-xs">2,4 km</div><div class="xs muted">Sài Gòn</div></div>
+      <div class="card tight center"><span class="ms">cleaning_services</span><div class="h3 mt-xs">Economy</div><div class="xs muted">1 thợ</div></div>
+    </div>
+
+    <div class="row mt-lg" style="gap:10px">
+      <a href="today.html" class="btn ghost" style="flex:1">Bỏ qua</a>
+      <a href="job.html" class="btn" style="flex:2">Nhận việc</a>
+    </div>
+  </section>
+</div>
+</body>
+</html>

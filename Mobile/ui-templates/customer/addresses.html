@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Sổ địa chỉ</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /addresses · GET /api/customers/me/addresses. Area bracket drives the price (UP_TO_30, FROM_31_TO_80, OVER_80). -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="account.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Sổ địa chỉ</span><span class="icon-btn"></span></div>
+
+    <div class="list">
+      <a href="address-form.html" class="item">
+        <span class="lead-icon"><span class="ms">home</span></span>
+        <div class="grow"><div class="row" style="gap:6px"><span class="h3">Nhà</span><span class="pill ok">Mặc định</span></div><div class="small muted ellipsis">12 Lê Lợi · Phường Sài Gòn</div></div>
+        <div style="text-align:right"><div class="h3 tnum">58</div><div class="xs muted">m²</div></div>
+      </a>
+      <a href="address-form.html" class="item">
+        <span class="lead-icon"><span class="ms">apartment</span></span>
+        <div class="grow"><div class="h3">Căn hộ mẹ</div><div class="small muted ellipsis">Vinhomes Central Park · Phường Thạnh Mỹ Tây</div></div>
+        <div style="text-align:right"><div class="h3 tnum">96</div><div class="xs muted">m²</div></div>
+      </a>
+      <a href="address-form.html" class="item">
+        <span class="lead-icon"><span class="ms">business</span></span>
+        <div class="grow"><div class="h3">Văn phòng</div><div class="small muted ellipsis">45 Hai Bà Trưng · Phường Tân Định</div></div>
+        <div style="text-align:right"><div class="h3 tnum">28</div><div class="xs muted">m²</div></div>
+      </a>
+    </div>
+  </main>
+  <div class="btn-bar"><a href="address-form.html" class="btn ghost block"><span class="ms">add</span>Thêm địa chỉ</a></div>
+</div>
+</body>
+</html>

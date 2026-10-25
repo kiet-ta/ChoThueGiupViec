@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Ảnh trước / sau</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .angle { display: grid; grid-template-columns: 1fr 64px 64px; gap: 8px; align-items: center; padding: 10px 0; }
+  .angle + .angle { border-top: 1px solid var(--border); }
+  .slot { height: 64px; border-radius: var(--r-md); display: grid; place-items: center; }
+  .slot.ok { background: var(--primary-fixed); color: var(--primary); }
+  .slot.empty { border: 1.5px dashed var(--outline-variant); color: var(--text-2); }
+</style>
+</head>
+<body>
+<!-- /workers/photos · POST /api/workers/assignments/{id}/photos. 5 angles, BEFORE then AFTER of the same angle (AFTER refused without an accepted BEFORE).
+     Then POST /api/workers/assignments/{id}/submit-completion. VoL decision is the server's (Q03). -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="execution.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Ảnh</span><span class="icon-btn"></span></div>
+
+    <div class="grid2">
+      <div class="stat"><div class="label">Trước</div><div class="num m">5<span class="muted" style="font-size:16px">/5</span></div><div class="bar mt-sm"><i style="width:100%"></i></div></div>
+      <div class="stat"><div class="label">Sau</div><div class="num m">3<span class="muted" style="font-size:16px">/5</span></div><div class="bar mt-sm"><i style="width:60%"></i></div></div>
+    </div>
+
+    <div class="card mt" style="padding:4px 16px">
+      <div class="row between xs muted" style="padding:10px 0 0"><span></span><span style="display:grid;grid-template-columns:64px 64px;gap:8px;text-align:center"><span>Trước</span><span>Sau</span></span></div>
+      <div class="angle"><span class="h3">1 · Toàn cảnh</span><span class="slot ok"><span class="ms">check</span></span><span class="slot ok"><span class="ms">check</span></span></div>
+      <div class="angle"><span class="h3">2 · Bàn ghế &amp; tủ</span><span class="slot ok"><span class="ms">check</span></span><span class="slot ok"><span class="ms">check</span></span></div>
+      <div class="angle"><span class="h3">3 · Cửa kính</span><span class="slot ok"><span class="ms">check</span></span><span class="slot ok"><span class="ms">check</span></span></div>
+      <div class="angle"><span class="h3">4 · Sàn nhà</span><span class="slot ok"><span class="ms">check</span></span><a href="photos.html?full" class="slot empty"><span class="ms">add_a_photo</span></a></div>
+      <div class="angle"><span class="h3">5 · Khu vực bếp</span><span class="slot ok"><span class="ms">check</span></span><a href="photos.html?full" class="slot empty"><span class="ms">add_a_photo</span></a></div>
+    </div>
+  </main>
+  <div class="btn-bar"><a id="submit" href="today.html" class="btn block disabled">Gửi nghiệm thu · còn 2 ảnh</a></div>
+</div>
+<script>
+  // Prototype only: tapping an empty slot shows the "all photos taken" state.
+  if (location.search.includes("full")) {
+    document.querySelectorAll(".slot.empty").forEach((n) => { n.className = "slot ok"; n.innerHTML = '<span class="ms">check</span>'; });
+    document.querySelectorAll(".num.m")[1].innerHTML = '5<span class="muted" style="font-size:16px">/5</span>';
+    document.querySelectorAll(".bar > i")[1].style.width = "100%";
+    const b = document.getElementById("submit"); b.classList.remove("disabled"); b.textContent = "Gửi nghiệm thu";
+  }
+</script>
+</body>
+</html>

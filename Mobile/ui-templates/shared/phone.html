@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Số điện thoại</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /auth/phone-input · POST /api/auth/otp/request -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="welcome.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title"></span><span class="icon-btn"></span></div>
+    <div class="h2 mt" style="font-size:26px">Số điện thoại</div>
+    <div class="muted mt-xs">Mã 6 số sẽ gửi qua SMS.</div>
+    <div class="row mt-lg" style="gap:10px">
+      <div class="input" style="width:92px;justify-content:center;font-weight:600">+84</div>
+      <div class="input focus grow tnum" style="font-size:20px;font-weight:600;letter-spacing:.04em">912 345 678</div>
+    </div>
+  </main>
+  <div class="btn-bar"><a id="next" href="otp.html" class="btn block">Nhận mã</a></div>
+</div>
+<script>
+  // Keep the chosen role through the login prototype.
+  if (location.search.includes("worker")) document.getElementById("next").href = "otp.html" + location.search;
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · eKYC</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .shot { border-radius: var(--r-lg); border: 1.5px dashed var(--outline-variant); background: var(--surface); height: 92px; display: flex; align-items: center; gap: 14px; padding: 0 16px; }
+  .shot.ok { border: 1px solid var(--border); }
+  .shot .frame { width: 84px; height: 56px; border-radius: var(--r); flex: none; }
+</style>
+</head>
+<body>
+<!-- /workers/ekyc · POST /api/workers/me/ekyc. CCCD front, CCCD back, selfie → submit. eKYC is Fake in phase 1 (Q05); Admin reviews a Freelancer. -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="account.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Xác minh</span><span class="icon-btn"></span></div>
+
+    <div class="steps">
+      <div class="st done"><span class="d"><span class="ms">check</span></span>Mặt trước</div>
+      <div class="st done"><span class="d"><span class="ms">check</span></span>Mặt sau</div>
+      <div class="st now"><span class="d"><span class="ms">face</span></span>Chân dung</div>
+      <div class="st"><span class="d"><span class="ms">send</span></span>Gửi</div>
+    </div>
+
+    <div class="col mt-lg" style="gap:12px">
+      <div class="shot ok"><span class="frame ph-img"><span class="ms">badge</span></span><div class="grow"><div class="h3">Mặt trước CCCD</div><div class="small muted">Đã chụp</div></div><span class="ms" style="color:var(--primary)">check_circle</span></div>
+      <div class="shot ok"><span class="frame ph-img"><span class="ms">badge</span></span><div class="grow"><div class="h3">Mặt sau CCCD</div><div class="small muted">Đã chụp</div></div><span class="ms" style="color:var(--primary)">check_circle</span></div>
+      <div class="shot"><span class="frame" style="display:grid;place-items:center;background:var(--surface-low)"><span class="ms lg muted">photo_camera_front</span></span><div class="grow"><div class="h3">Ảnh chân dung</div><div class="small muted">Nhìn thẳng, đủ sáng</div></div></div>
+    </div>
+  </main>
+  <div class="btn-bar"><a href="account.html" class="btn block"><span class="ms">photo_camera</span>Chụp chân dung</a></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Lịch ca công ty</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .grid7 { display: grid; grid-template-columns: 34px repeat(7, 1fr); gap: 5px; align-items: center; font-size: 11px; }
+  .c { height: 34px; border-radius: 8px; background: var(--surface-container); }
+  .c.r { background: var(--primary); }
+</style>
+</head>
+<body>
+<!-- /agencies/roster · the next 14 days of shifts the agency put the worker on, read with GET /api/workers/me/slots.
+     Empty for a freelancer. The agency edits the roster on the Partner Portal. -->
+<div class="phone">
+  <main class="screen">
+    <div class="appbar"><a href="schedule.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Lịch công ty</span><span class="icon-btn"></span></div>
+
+    <div class="grid2">
+      <div class="stat center"><div class="num m">5</div><div class="xs muted mt-sm">Ca tuần này</div></div>
+      <div class="stat center"><div class="num m">9</div><div class="xs muted mt-sm">Ca 14 ngày</div></div>
+    </div>
+
+    <div class="row between mt-lg"><span class="caps">26/10 – 01/11</span><span class="small muted tnum">5 ca</span></div>
+    <div class="card mt-sm">
+      <div class="grid7 tnum">
+        <span></span><span class="center muted">T2</span><span class="center muted">T3</span><span class="center muted">T4</span><span class="center muted">T5</span><span class="center muted">T6</span><span class="center muted">T7</span><span class="center muted">CN</span>
+        <span class="muted">Sáng</span><i class="c r"></i><i class="c"></i><i class="c r"></i><i class="c"></i><i class="c r"></i><i class="c"></i><i class="c"></i>
+        <span class="muted">Chiều</span><i class="c"></i><i class="c r"></i><i class="c"></i><i class="c"></i><i class="c"></i><i class="c r"></i><i class="c"></i>
+        <span class="muted">Tối</span><i class="c"></i><i class="c"></i><i class="c"></i><i class="c"></i><i class="c"></i><i class="c"></i><i class="c"></i>
+      </div>
+      <div class="legend mt"><span><i style="background:var(--primary)"></i>Được xếp</span><span><i style="background:var(--surface-container)"></i>Trống</span></div>
+    </div>
+
+    <div class="section-title"><span class="h3">Ca kế tiếp</span></div>
+    <div class="list">
+      <div class="item"><div class="center" style="width:40px"><div class="num s">26</div><div class="xs muted">T2</div></div><div class="grow"><div class="h3 tnum">08:00 – 12:00</div><div class="small muted">Sáng</div></div></div>
+      <div class="item"><div class="center" style="width:40px"><div class="num s">27</div><div class="xs muted">T3</div></div><div class="grow"><div class="h3 tnum">13:00 – 17:00</div><div class="small muted">Chiều</div></div></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

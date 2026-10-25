@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Đang làm</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /workers/execution · assignment id. No checklist: the API has no checklist (issue #442).
+     Elapsed time is computed from the check-in time against the shift (≤ 4 h). -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="job.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Đang làm</span><span class="icon-btn"></span></div>
+
+    <div class="card flat">
+      <div class="steps">
+        <div class="st done"><span class="d"><span class="ms">check</span></span>Check-in</div>
+        <div class="st now"><span class="d"><span class="ms">cleaning_services</span></span>Làm</div>
+        <div class="st"><span class="d"><span class="ms">photo_camera</span></span>Ảnh</div>
+        <div class="st"><span class="d"><span class="ms">done_all</span></span>Nghiệm thu</div>
+      </div>
+    </div>
+
+    <!-- Elapsed ring: 1 h 24 of 4 h -->
+    <div class="center mt-lg" style="position:relative;width:220px;height:220px;margin-left:auto;margin-right:auto">
+      <svg viewBox="0 0 220 220" width="220" height="220" style="transform:rotate(-90deg)">
+        <circle cx="110" cy="110" r="96" fill="none" stroke="var(--surface-container)" stroke-width="14"/>
+        <circle cx="110" cy="110" r="96" fill="none" stroke="var(--primary)" stroke-width="14" stroke-linecap="round" stroke-dasharray="603.19" stroke-dashoffset="392.07"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:grid;place-items:center">
+        <div><div class="num xl">1:24</div><div class="muted small mt-sm tnum">/ 4:00 giờ</div></div>
+      </div>
+    </div>
+
+    <div class="grid2 mt-lg">
+      <div class="stat center"><div class="label" style="justify-content:center">Bắt đầu</div><div class="num s">13:02</div></div>
+      <div class="stat center"><div class="label" style="justify-content:center">Kết thúc</div><div class="num s">17:00</div></div>
+    </div>
+
+    <div class="list mt">
+      <a href="extension.html" class="item"><span class="ms">more_time</span><span class="grow">Yêu cầu làm thêm</span><span class="pill warn">1 mới</span><span class="ms chev">chevron_right</span></a>
+      <a href="incident.html" class="item"><span class="ms">report</span><span class="grow">Báo sự cố</span><span class="ms chev">chevron_right</span></a>
+    </div>
+  </main>
+  <div class="btn-bar"><a href="photos.html" class="btn block"><span class="ms">photo_camera</span>Chụp ảnh trước / sau</a></div>
+</div>
+</body>
+</html>

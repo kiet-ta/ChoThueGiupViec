@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Tài khoản</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body data-role="customer" data-tab="account">
+<!-- Account hub (new): GET /api/customers/me (fullName, phoneNumber, trustScore, createdAt) + links. -->
+<div class="phone">
+  <main class="screen">
+    <div class="appbar large"><span class="title">Tài khoản</span></div>
+
+    <a href="profile.html" class="card row">
+      <span class="avatar lg">NL</span>
+      <div class="grow"><div class="h2">Nguyễn Lan</div><div class="muted small tnum mt-xs">0912 345 678</div></div>
+      <span class="ms chev" style="color:var(--outline-variant)">chevron_right</span>
+    </a>
+
+    <div class="grid3 mt">
+      <div class="stat center"><div class="num m">15</div><div class="xs muted mt-sm">Ca đã đặt</div></div>
+      <div class="stat center"><div class="num m">3</div><div class="xs muted mt-sm">Địa chỉ</div></div>
+      <div class="stat center"><div class="num m">2024</div><div class="xs muted mt-sm">Tham gia</div></div>
+    </div>
+
+    <div class="list mt-lg">
+      <a href="addresses.html" class="item"><span class="ms">location_on</span><span class="grow">Sổ địa chỉ</span><span class="ms chev">chevron_right</span></a>
+      <a href="orders.html" class="item"><span class="ms">receipt_long</span><span class="grow">Lịch sử đơn</span><span class="ms chev">chevron_right</span></a>
+      <a href="disputes.html" class="item"><span class="ms">flag</span><span class="grow">Khiếu nại</span><span class="trail">1</span><span class="ms chev">chevron_right</span></a>
+    </div>
+
+    <div class="list mt">
+      <a href="../shared/welcome.html" class="item"><span class="ms" style="color:var(--error)">logout</span><span class="grow err-text">Đăng xuất</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

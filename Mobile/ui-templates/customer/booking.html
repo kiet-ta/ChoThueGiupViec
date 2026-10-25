@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Đặt ca</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .days { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
+  .day { flex: none; width: 54px; height: 68px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .day b { font-size: 18px; } .day span { font-size: 11px; color: var(--text-2); }
+  .day.on { background: var(--primary); border-color: var(--primary); color: #fff; } .day.on span { color: rgba(255,255,255,.75); }
+  .tier { border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-lg); padding: 14px; }
+  .tier.on { border: 2px solid var(--primary); padding: 13px; }
+  .shift { border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-md); padding: 12px 8px; text-align: center; }
+  .shift.on { border: 2px solid var(--primary); padding: 11px 7px; }
+  .shift.off { opacity: .45; }
+</style>
+</head>
+<body>
+<!-- /booking · GET /api/booking/options, GET /api/booking/price-quote, POST /api/booking/orders. No required skill (D8). -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="home.html" class="icon-btn"><span class="ms">close</span></a><span class="title">Đặt ca</span><span class="icon-btn"></span></div>
+
+    <div class="caps mt-sm">Gói</div>
+    <div class="grid2 mt-sm">
+      <div class="tier on">
+        <div class="row between"><span class="h3">Economy</span><span class="ms fill" style="color:var(--primary)">radio_button_checked</span></div>
+        <div class="num s mt">260.000 đ</div>
+      </div>
+      <div class="tier">
+        <div class="row between"><span class="h3">Premium</span><span class="ms" style="color:var(--outline-variant)">radio_button_unchecked</span></div>
+        <div class="num s mt">390.000 đ</div>
+        <div class="xs muted mt-xs">Đặt trước ≥ 4 giờ</div>
+      </div>
+    </div>
+
+    <div class="caps mt-lg">Địa chỉ</div>
+    <a href="addresses.html" class="card tight row mt-sm">
+      <span class="lead-icon"><span class="ms">home</span></span>
+      <div class="grow"><div class="h3">Nhà</div><div class="muted small ellipsis">12 Lê Lợi · Phường Sài Gòn</div></div>
+      <span class="pill">58 m²</span>
+    </a>
+
+    <div class="row between mt-lg"><span class="caps">Ngày</span><span class="small muted">Tháng 10</span></div>
+    <div class="days mt-sm tnum">
+      <div class="day"><span>CN</span><b>25</b></div>
+      <div class="day on"><span>T2</span><b>26</b></div>
+      <div class="day"><span>T3</span><b>27</b></div>
+      <div class="day"><span>T4</span><b>28</b></div>
+      <div class="day"><span>T5</span><b>29</b></div>
+      <div class="day"><span>T6</span><b>30</b></div>
+      <div class="day"><span>T7</span><b>31</b></div>
+    </div>
+
+    <div class="caps mt-lg">Ca</div>
+    <div class="grid3 mt-sm tnum">
+      <div class="shift on"><span class="ms">wb_sunny</span><div class="h3 mt-xs">08:00</div><div class="xs muted">→ 12:00</div></div>
+      <div class="shift"><span class="ms">light_mode</span><div class="h3 mt-xs">13:00</div><div class="xs muted">→ 17:00</div></div>
+      <div class="shift off"><span class="ms">bedtime</span><div class="h3 mt-xs">17:30</div><div class="xs muted">Hết chỗ</div></div>
+    </div>
+
+    <div class="caps mt-lg">Ghi chú</div>
+    <div class="input area mt-sm"><span class="ph">Có mèo, chìa khóa ở bảo vệ…</span></div>
+    <div class="hint mt-xs" style="text-align:right">0/500</div>
+  </main>
+  <div class="btn-bar" style="align-items:center">
+    <div style="flex:1"><div class="muted xs">1 thợ × 260.000 đ</div><div class="num s">260.000 đ</div></div>
+    <a href="payment.html" class="btn" style="flex:1.3">Đặt &amp; thanh toán</a>
+  </div>
+</div>
+</body>
+</html>

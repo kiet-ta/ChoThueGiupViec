@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Tạo khiếu nại</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+<style>
+  .photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .photos > div { aspect-ratio: 1; }
+  .add { border: 1.5px dashed var(--outline-variant); border-radius: var(--r-md); display: grid; place-items: center; color: var(--text-2); }
+</style>
+</head>
+<body>
+<!-- /disputes/create · POST /api/customers/me/disputes: category (D1), description 1-1000, 1-10 evidence photos
+     (POST /api/customers/me/disputes/evidence). 24 h window, one ticket per order. -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="order-detail.html" class="icon-btn"><span class="ms">close</span></a><span class="title">Khiếu nại</span><span class="icon-btn"></span></div>
+
+    <div class="row between card flat tight">
+      <span class="small muted tnum">Đơn GV261025K7Q2MX</span>
+      <span class="small tnum" style="font-weight:600"><span class="ms sm" style="vertical-align:-4px">timer</span> còn 21 giờ</span>
+    </div>
+
+    <div class="caps mt-lg">Vấn đề</div>
+    <div class="chips mt-sm">
+      <span class="chip on">Chất lượng kém</span>
+      <span class="chip">Thái độ</span>
+      <span class="chip">Hư hỏng tài sản</span>
+      <span class="chip">Phí vắng mặt</span>
+      <span class="chip">Khác</span>
+    </div>
+
+    <div class="caps mt-lg">Mô tả</div>
+    <div class="input area mt-sm" style="height:110px">Kính phòng khách còn vệt.</div>
+    <div class="hint mt-xs" style="text-align:right">24/1000</div>
+
+    <div class="row between mt-lg"><span class="caps">Ảnh bằng chứng</span><span class="small muted tnum">2/10</span></div>
+    <div class="photos mt-sm">
+      <div class="ph-img"><span class="ms">image</span></div>
+      <div class="ph-img"><span class="ms">image</span></div>
+      <div class="add"><span class="ms">add_a_photo</span></div>
+    </div>
+  </main>
+  <div class="btn-bar"><a href="disputes.html" class="btn block">Gửi khiếu nại</a></div>
+</div>
+</body>
+</html>

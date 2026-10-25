@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Thanh toán</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /payments · POST /api/payments/orders/{id}/qr, GET /api/payments/{paymentId} every 3 s.
+     QR expiry 15 min (BusinessRules.QrExpiryMinutes). SANDBOX banner always on (Q04).
+     The QR image needs a QR package in pubspec.yaml (today the content is shown as text). -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="booking.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Thanh toán</span><span class="icon-btn"></span></div>
+    <div class="sandbox"><span class="ms sm">science</span>SANDBOX – không dùng tiền thật</div>
+
+    <div class="center mt-lg">
+      <div class="muted small">Đơn GV261025K7Q2MX</div>
+      <div class="num xl mt-sm">260.000 <span style="font-size:22px">đ</span></div>
+    </div>
+
+    <div class="card mt-lg" style="display:grid;place-items:center;padding:24px">
+      <svg width="200" height="200" viewBox="0 0 29 29" shape-rendering="crispEdges" aria-label="Mã QR MoMo">
+        <rect width="29" height="29" fill="#fff"/>
+        <g fill="var(--text)">
+          <path d="M0 0h7v7H0zM22 0h7v7h-7zM0 22h7v7H0z"/>
+        </g>
+        <g fill="#fff"><path d="M1 1h5v5H1zM23 1h5v5h-5zM1 23h5v5H1z"/></g>
+        <g fill="var(--text)"><path d="M2 2h3v3H2zM24 2h3v3h-3zM2 24h3v3H2z"/>
+          <path d="M9 1h1v2H9zM11 0h2v1h-2zM14 2h1v3h-1zM17 1h2v1h-2zM9 5h3v1H9zM16 4h2v2h-2zM19 6h1v2h-1zM8 8h2v1H8zM12 8h3v1h-3zM1 9h2v1H1zM5 9h1v3H5zM10 10h2v2h-2zM14 10h1v1h-1zM17 9h3v1h-3zM22 9h1v2h-1zM25 9h3v1h-3zM2 12h2v1H2zM8 12h1v3H8zM13 12h3v1h-3zM19 12h1v2h-1zM23 12h2v1h-2zM27 12h1v3h-1zM0 15h3v1H0zM6 15h1v1H6zM10 14h2v2h-2zM15 15h3v1h-3zM21 15h2v2h-2zM24 16h2v1h-2zM3 18h2v1H3zM9 17h1v3H9zM12 18h3v1h-3zM17 18h1v2h-1zM20 19h3v1h-3zM26 18h2v2h-2zM11 21h1v2h-1zM14 22h3v1h-3zM19 22h1v1h-1zM22 22h2v2h-2zM9 24h2v1H9zM13 25h1v3h-1zM16 25h2v1h-2zM20 25h1v2h-1zM24 25h3v1h-3zM10 27h2v1h-2zM17 27h2v2h-2zM26 27h2v2h-2z"/></g>
+      </svg>
+      <div class="row mt muted small"><span class="ms sm">qr_code_scanner</span>Quét bằng MoMo</div>
+    </div>
+
+    <div class="grid2 mt">
+      <div class="stat center"><div class="label" style="justify-content:center"><span class="ms">timer</span>Hết hạn sau</div><div class="num m">14:21</div></div>
+      <div class="stat center"><div class="label" style="justify-content:center"><span class="ms">sync</span>Trạng thái</div><div class="mt-sm"><span class="pill warn"><span class="dot"></span>Đang chờ</span></div></div>
+    </div>
+    <div class="bar mt"><i style="width:95%"></i></div>
+  </main>
+  <div class="btn-bar"><a href="order-detail.html" class="btn block">Mở đơn</a></div>
+</div>
+</body>
+</html>

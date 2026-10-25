@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đăng ký thợ</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- WorkerRegistrationScreen: full name, 12-digit national id, address, optional bio. Then a new OTP login. -->
+<div class="phone has-btnbar">
+  <main class="screen">
+    <div class="appbar"><a href="otp.html?r=worker" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Hồ sơ thợ</span><span class="icon-btn"></span></div>
+    <div class="steps mt">
+      <div class="st done"><span class="d"><span class="ms">check</span></span>SĐT</div>
+      <div class="st now"><span class="d">2</span>Hồ sơ</div>
+      <div class="st"><span class="d">3</span>eKYC</div>
+    </div>
+    <div class="col mt-lg" style="gap:16px">
+      <div class="field"><label>Họ và tên</label><div class="input">Trần Thị Hà</div></div>
+      <div class="field"><label>Số CCCD</label><div class="input focus tnum">0792 0500 1234<span class="grow"></span><span class="small muted">12/12</span></div></div>
+      <div class="field"><label>Địa chỉ</label><div class="input">45 Nguyễn Trãi, Phường Bến Thành</div></div>
+      <div class="field"><label>Giới thiệu <span style="font-weight:400">(không bắt buộc)</span></label><div class="input area"><span class="ph">3 năm kinh nghiệm…</span></div></div>
+    </div>
+  </main>
+  <div class="btn-bar"><a href="phone.html?r=worker-again" class="btn block">Tạo hồ sơ &amp; đăng nhập lại</a></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer · Đơn</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body data-role="customer" data-tab="orders">
+<!-- /booking/orders · GET /api/booking/orders?page=&pageSize=20, "Xem thêm" for the next page. -->
+<div class="phone">
+  <main class="screen">
+    <div class="appbar large"><span class="title">Đơn</span></div>
+
+    <!-- Counts: needs API (the list has no status totals; computing them needs every page) -->
+    <div class="grid3">
+      <div class="stat center"><div class="num m">1</div><div class="xs muted mt-sm">Sắp tới</div></div>
+      <div class="stat center"><div class="num m">14</div><div class="xs muted mt-sm">Hoàn tất</div></div>
+      <div class="stat center"><div class="num m">1</div><div class="xs muted mt-sm">Đã hủy</div></div>
+    </div>
+
+    <div class="seg mt-lg"><span class="on">Tất cả</span><span>Sắp tới</span><span>Đã xong</span></div>
+
+    <div class="caps mt-lg">Tháng 10</div>
+    <div class="list mt-sm">
+      <a href="order-detail.html" class="item">
+        <div class="center" style="width:40px"><div class="num s">26</div><div class="xs muted">T2</div></div>
+        <div class="grow"><div class="h3">Economy · 08:00</div><div class="small muted">Hà Trần</div></div>
+        <span class="pill ok">Có thợ</span>
+      </a>
+      <a href="order-detail.html" class="item">
+        <div class="center" style="width:40px"><div class="num s">17</div><div class="xs muted">T7</div></div>
+        <div class="grow"><div class="h3">Economy · 13:00</div><div class="small muted">Hà Trần</div></div>
+        <span class="pill">Hoàn tất</span>
+      </a>
+      <a href="order-detail.html" class="item">
+        <div class="center" style="width:40px"><div class="num s">03</div><div class="xs muted">T7</div></div>
+        <div class="grow"><div class="h3">Premium · 08:00</div><div class="small muted">Mai Nguyễn</div></div>
+        <span class="pill">Hoàn tất</span>
+      </a>
+    </div>
+
+    <div class="caps mt-lg">Tháng 9</div>
+    <div class="list mt-sm">
+      <a href="order-detail.html" class="item">
+        <div class="center" style="width:40px"><div class="num s">26</div><div class="xs muted">T7</div></div>
+        <div class="grow"><div class="h3">Economy · 08:00</div><div class="small muted">Hà Trần</div></div>
+        <span class="pill">Hoàn tất</span>
+      </a>
+      <a href="order-detail.html" class="item">
+        <div class="center" style="width:40px"><div class="num s">13</div><div class="xs muted">CN</div></div>
+        <div class="grow"><div class="h3">Economy · 17:30</div><div class="small muted">—</div></div>
+        <span class="pill bad">Đã hủy</span>
+      </a>
+    </div>
+    <a href="#" class="btn ghost block mt">Xem thêm</a>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Khiếu nại</title>
+<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<!-- /disputes · DisputeScreenArgs(worker, orderId?). GET /api/workers/me/disputes. ABSENT_FEE is a customer-only category. -->
+<div class="phone">
+  <main class="screen">
+    <div class="appbar"><a href="account.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Khiếu nại</span><span class="icon-btn"></span></div>
+
+    <div class="grid3">
+      <div class="stat center"><div class="num m">1</div><div class="xs muted mt-sm">Đang mở</div></div>
+      <div class="stat center"><div class="num m">2</div><div class="xs muted mt-sm">Đã xong</div></div>
+      <div class="stat center"><div class="num m">24<span style="font-size:13px">h</span></div><div class="xs muted mt-sm">Hạn gửi</div></div>
+    </div>
+
+    <div class="card mt-lg">
+      <div class="row between"><span class="h3">Thái độ</span><span class="pill warn"><span class="dot"></span>Chờ tiếp nhận</span></div>
+      <div class="muted small mt-xs tnum">GV261024T5WD2K · 24/10</div>
+      <div class="steps mt">
+        <div class="st now"><span class="d"><span class="ms">send</span></span>Đã gửi</div>
+        <div class="st"><span class="d"><span class="ms">search</span></span>Xem xét</div>
+        <div class="st"><span class="d"><span class="ms">gavel</span></span>Kết luận</div>
+      </div>
+    </div>
+
+    <div class="list mt">
+      <div class="item"><div class="grow"><div class="h3">Khác</div><div class="small muted tnum">GV260912H7NM4E · 12/09</div></div><span class="pill ok">Đã có phán quyết</span></div>
+      <div class="item"><div class="grow"><div class="h3">Chất lượng kém</div><div class="small muted tnum">GV260820B9KC3R · 20/08</div></div><span class="pill">Đã bác bỏ</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
