@@ -83,8 +83,23 @@ public class RegisterAgencyCommandTests
         public Task<int> GetFutureAssignedJobCountAsync(int workerId, CancellationToken cancellationToken = default) =>
             Task.FromResult(0);
 
-        public Task<IReadOnlyList<FutureJobHandover>> GetFutureAssignedJobsAsync(int workerId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<FutureJobHandover>>([]);
+        public Task<Worker?> GetAgencyWorkerForUpdateAsync(int agencyId, int workerId, CancellationToken cancellationToken = default) =>
+            GetAgencyWorkerAsync(agencyId, workerId, cancellationToken);
+
+        public Task<IReadOnlyList<(int WorkerId, int AgencyId)>> ListRetiringWorkersAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<(int WorkerId, int AgencyId)>>([]);
+
+        public Task<IReadOnlyList<FutureJob>> GetFutureAssignedJobsAsync(int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<FutureJob>>([]);
+
+        public Task<bool> HasActiveJobAsync(int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+
+        public Task<int> CountFutureHeldSlotsAsync(int workerId, DateOnly fromDate, CancellationToken cancellationToken = default) =>
+            Task.FromResult(0);
+
+        public Task<int> RemoveFutureAvailableSlotsAsync(int workerId, DateOnly fromDate, CancellationToken cancellationToken = default) =>
+            Task.FromResult(0);
 
         public Task<Worker> CreateAgencyStaffAsync(int agencyId, NewWorkerDetails details, DateTime nowUtc, CancellationToken cancellationToken = default)
         {
@@ -101,17 +116,11 @@ public class RegisterAgencyCommandTests
         public Task<bool> WorkerPhoneOrNationalIdExistsAsync(string phoneNumber, string nationalId, CancellationToken cancellationToken = default) =>
             Task.FromResult(WorkerRows.Any(w => w.PhoneNumber == phoneNumber || w.NationalId == nationalId));
 
-        public Task<int> UpdateWorkerSlotsAsync(int oldWorkerId, int newWorkerId, DateTime nowUtc, CancellationToken cancellationToken = default) =>
+        public Task<int> UpdateWorkerSlotsAsync(int oldWorkerId, int newWorkerId, DateOnly fromDate, DateTime nowUtc, CancellationToken cancellationToken = default) =>
             Task.FromResult(0);
 
         public Task<int> UpdateWorkerAssignmentsAsync(int oldWorkerId, int newWorkerId, CancellationToken cancellationToken = default) =>
             Task.FromResult(0);
-
-        public Task<IReadOnlyList<Worker>> GetRetiringWorkersReadyForRetiredAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<Worker>>([]);
-
-        public Task<bool> HasActiveOrFutureJobsAsync(int workerId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(false);
     }
 
     private static RegisterAgencyRequest ValidRequest() => new(

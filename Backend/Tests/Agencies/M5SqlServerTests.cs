@@ -821,6 +821,30 @@ public class M5SqlServerTests
     public async Task Fallback_status_move_stores_awaiting_fallback_and_the_waiting_orders_are_found()
     {
         if (!Available()) return;
+        // GetAwaitingFallbackOrdersAsync returns the first 50 orders (MissingSeatBatchSize). Every earlier run of this test left one
+        // AWAITING_FALLBACK order in the shared database, so after 50 runs the new order was never in the page and the test failed.
+        await CancelLeftoverFallbackOrdersAsync();
+        try
+        {
+            await FallbackStatusMoveAsync();
+        }
+        finally
+        {
+            await CancelLeftoverFallbackOrdersAsync();
+        }
+    }
+
+    /// <summary>Only the orders these tests create (code 'T' + 12 digits) are touched.</summary>
+    private static async Task CancelLeftoverFallbackOrdersAsync()
+    {
+        await using var db = NewDb();
+        await db.JobOrders
+            .Where(o => o.OrderStatus == JobOrderStatus.AwaitingFallback && o.OrderCode.StartsWith("T") && o.OrderCode.Length == 13)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.OrderStatus, JobOrderStatus.Cancelled));
+    }
+
+    private async Task FallbackStatusMoveAsync()
+    {
         var w = await SeedAsync(1, day: new DateOnly(2026, 10, 25));
         var orderId = await NewOrderAsync(w, ServiceTier.Economy, workers: 2, day: new DateOnly(2026, 10, 25));
         await using (var db = NewDb())
