@@ -14866,6 +14866,10 @@
             "type": "integer",
             "format": "int64"
           },
+          "orderId": {
+            "type": "integer",
+            "format": "int64"
+          },
           "slotDate": {
             "type": "string",
             "format": "date"
@@ -16571,6 +16575,9 @@
           "workerId": {
             "type": "integer",
             "format": "int32"
+          },
+          "requiresConfirmation": {
+            "type": "boolean"
           },
           "workStatus": {
             "type": "string",

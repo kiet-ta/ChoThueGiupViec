@@ -235,44 +235,49 @@ Retires an agency worker, optionally with a replacement worker. The worker must 
 ```
 
 - `replacement` (optional): Either `existingWorkerId` (int) **or** `newWorker` (object), not both. When `existingWorkerId` is provided, the worker must belong to the same agency and not be `Pending|Locked|Retiring|Retired`, and must have an `AVAILABLE` roster slot for every future job of the retiring worker. When `newWorker` is provided, it uses the same fields and validation as the import row (required: `fullName`, `phoneNumber`, `nationalId`; optional: `bankName`, `bankAccountNo`).
-- `confirmRescue` (bool, default `false`): Required when the worker has future `ASSIGNED` jobs and no replacement is provided. Setting to `true` confirms that the agency accepts the emergency rescue and SLA penalty.
+- `confirmRescue` (bool, default `false`): without it a worker with future `ASSIGNED` jobs and no replacement only gets the preview (`requiresConfirmation`). Setting it to `true` confirms that the agency accepts the emergency rescue and SLA penalty.
 
-**Response 200 `data` (`RetireWorkerResponse`):**
+**Response 200 `data` (`RetireWorkerResponse`)** (AGENCY-FIX-01):
 ```json
 {
   "workerId": 101,
-  "workStatus": "RETIRING",
+  "requiresConfirmation": false,
+  "workStatus": "RETIRED",
   "replacementWorkerId": 202,
   "futureJobs": [
-    { "assignmentId": 5001, "slotDate": "2026-10-25", "shiftCode": "SHIFT_MORNING" }
+    { "assignmentId": 5001, "orderId": 7001, "slotDate": "2026-10-25", "shiftCode": "SHIFT_MORNING" }
   ],
   "warning": "Worker has future jobs that have been transferred to the replacement worker."
 }
 ```
 
-**Error Responses (all 4xx use the shared validation envelope with `success=false`, `data.errors`):**
+- `requiresConfirmation` is `true` only for the **preview**: the worker has future `ASSIGNED` jobs, `replacement` is absent and `confirmRescue` is `false`. Nothing changed (`workStatus` is the unchanged status); `futureJobs` lists the shifts the agency must decide about. The client then calls again with a `replacement`, or with `confirmRescue = true` after an explicit confirmation that continuing starts the emergency rescue and an SLA penalty for the agency.
+- A repeated call on a worker that is already `Retiring` or `Retired` answers `200` with its status and changes nothing (idempotent, no event).
+- `futureJobs` is `null` when the worker had no future jobs.
+
+**Error Responses (all 4xx use the shared validation envelope with `success=false`; business 409s carry `data.code`):**
 
 | Status | `data.code` | Condition |
 |---|---|---|
-| 400 | `NEW_WORKER_VALIDATION` | New worker fields invalid (required, format, length) |
+| 400 | — (`data.errors`) | `replacement` has both or neither of `existingWorkerId` / `newWorker`; or new worker fields invalid (keys `newWorker.fullName`, `newWorker.phoneNumber`, `newWorker.nationalId`, `newWorker.bankName`, `newWorker.bankAccountNo`; each message starts with the import row code: `REQUIRED`, `TOO_LONG`, `INVALID_FORMAT`) |
 | 404 | — | Worker not found or not owned by this agency |
-| 409 | `ALREADY_RETIRING_OR_RETIRED` | Worker is already `Retiring` or `Retired` (idempotent: duplicate call returns this) |
-| 409 | `SLOT_HELD` | A future job has a `HELD` slot (customer in checkout) and no replacement |
-| 409 | `QUOTA_EXCEEDED` | Replacement would increase counted workers over quota (e.g. old was `Locked`, new is counted) |
-| 409 | `FUTURE_JOBS_NEED_REPLACEMENT` | Worker has future `ASSIGNED` jobs, no replacement, `confirmRescue=false`. Response `data.futureJobs` lists the jobs. Agency must resend with `confirmRescue=true` or provide a replacement. |
-| 409 | `REPLACEMENT_CONFLICT` | Replacement worker lacks an `AVAILABLE` slot for a future job, or swap failed |
-| 409 | `REPLACEMENT_NOT_OF_AGENCY` | Existing replacement worker does not belong to this agency |
+| 409 | `WORKER_NOT_RETIRABLE` | Worker is `Pending` (no state-machine edge to `Retiring`) |
+| 409 | `SLOT_HELD` | The worker has a `HELD` future slot (customer in checkout) and the replacement is not a new worker; nothing changes |
+| 409 | `QUOTA_EXCEEDED` | The retiring worker was `Locked` (not counted) and the new replacement worker (counted) would exceed the quota |
+| 409 | `REPLACEMENT_CONFLICT` | Existing replacement has no `AVAILABLE` slot for a future job (the message lists date and shift of every conflict), or a job could not be moved; nothing changes |
+| 409 | `REPLACEMENT_NOT_OF_AGENCY` | Existing replacement does not belong to this agency |
 | 409 | `REPLACEMENT_NOT_AVAILABLE` | Replacement worker is `Pending|Locked|Retiring|Retired` |
-| 409 | `ALREADY_EXISTS` | New worker's phone or national ID already exists in the system (same as import) |
+| 409 | `ALREADY_EXISTS` | New worker's phone or national ID already exists in the system (a retired worker keeps both reserved) |
 
-**Behavior:**
-- **No future jobs**: `Idle|Locked → Retiring → Retired` in one transaction; future `AVAILABLE` slots removed.
-- **Future jobs + replacement**: `Retiring` now; future `ASSIGNED` jobs' `worker_id` updated to replacement; roster slots' `worker_id` updated. One transaction. No SLA penalty.
-- **Future jobs + no replacement + `confirmRescue=true`**: Worker → `Retiring`; after commit, publishes `AgencySwapWindowExpired` for each future job (emergency rescue + SLA penalty).
-- **Future jobs + no replacement + `confirmRescue=false`**: Returns `409 FUTURE_JOBS_NEED_REPLACEMENT` with job list; nothing changes.
-- **`HELD` slot + no replacement**: Returns `409 SLOT_HELD`; nothing changes.
+**Behavior (one transaction per call; nothing is published or charged inside it):**
+- **No future jobs, no job in progress**: `Idle|Busy|Locked → Retiring → Retired` in the same call; future `AVAILABLE` slots are removed (a slot an assignment still points to stays).
+- **Job in progress** (`CheckedIn|InProgress|AwaitingAcceptance`): the worker becomes `Retiring`; the sweep makes it `Retired` when the job ends.
+- **Future jobs + existing worker as replacement**: every future job moves to the replacement's `AVAILABLE` slot of the same date and shift (conditional swap); one job that cannot move rejects the whole call. No SLA penalty. When no job is in progress the worker is `Retired` in the same call.
+- **Future jobs + new worker as replacement**: the new worker is created exactly like an import row (`AGENCY_STAFF`, `IDLE`, same validation), takes over the old worker's `HELD` future slots and the `BOOKED` slots of its future `ASSIGNED` jobs, and those jobs. The slot of a job in progress stays.
+- **Future jobs + no replacement + `confirmRescue = true`**: the worker becomes `Retiring`; AFTER the commit `AgencySwapWindowExpired` (`Reason` = `worker retired by agency`, real `orderId`) is published for each future job (emergency rescue + SLA penalty, Dispatch). A failed publish does not undo the retirement.
+- **Sweep** (every 5 minutes): a `Retiring` worker that still has future `ASSIGNED` jobs gets the hand-over published again (the rescue is idempotent); a `Retiring` worker without any job becomes `Retired`.
 - Retired worker never restored; phone/national ID stay reserved (`ALREADY_EXISTS` on import).
-- Quota: `Retiring`/`Retired` not counted. 1-for-1 replacement keeps count unchanged.
+- Quota: `Retiring`/`Retired` are not counted. A 1-for-1 replacement of a counted worker runs no quota check.
 
 ---
 

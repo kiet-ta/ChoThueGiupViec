@@ -87,21 +87,56 @@ public sealed class EfAgencyRepository(AppDbContext dbContext) : IAgencyReposito
             .Where(w => w.WorkerId == workerId && w.AgencyId == agencyId)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<Worker?> GetAgencyWorkerForUpdateAsync(int agencyId, int workerId, CancellationToken cancellationToken = default) =>
+        dbContext.Workers
+            .Where(w => w.WorkerId == workerId && w.AgencyId == agencyId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<(int WorkerId, int AgencyId)>> ListRetiringWorkersAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.Workers.AsNoTracking()
+            .Where(w => w.WorkStatus == WorkStatus.Retiring && w.AgencyId != null)
+            .OrderBy(w => w.WorkerId)
+            .Select(w => new { w.WorkerId, AgencyId = w.AgencyId!.Value })
+            .ToListAsync(cancellationToken);
+        return rows.Select(r => (r.WorkerId, r.AgencyId)).ToList();
+    }
+
     public Task<int> GetFutureAssignedJobCountAsync(int workerId, CancellationToken cancellationToken = default) =>
         dbContext.JobAssignments.AsNoTracking()
             .Where(a => a.WorkerId == workerId && a.AssignmentStatus == JobAssignmentStatus.Assigned)
             .CountAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<FutureJobHandover>> GetFutureAssignedJobsAsync(int workerId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<FutureJob>> GetFutureAssignedJobsAsync(int workerId, CancellationToken cancellationToken = default)
     {
         return await (
             from a in dbContext.JobAssignments.AsNoTracking()
             join s in dbContext.BookingSlots.AsNoTracking() on a.SlotId equals s.SlotId
             where a.WorkerId == workerId && a.AssignmentStatus == JobAssignmentStatus.Assigned
             orderby s.SlotDate, s.ShiftCode
-            select new FutureJobHandover(a.AssignmentId, s.SlotDate, s.ShiftCode)
+            select new FutureJob(a.AssignmentId, a.OrderId, a.SlotId, s.SlotDate, s.ShiftCode)
         ).ToListAsync(cancellationToken);
     }
+
+    public Task<bool> HasActiveJobAsync(int workerId, CancellationToken cancellationToken = default) =>
+        dbContext.JobAssignments.AsNoTracking()
+            .AnyAsync(a => a.WorkerId == workerId
+                && (a.AssignmentStatus == JobAssignmentStatus.CheckedIn
+                    || a.AssignmentStatus == JobAssignmentStatus.InProgress
+                    || a.AssignmentStatus == JobAssignmentStatus.AwaitingAcceptance), cancellationToken);
+
+    public Task<int> CountFutureHeldSlotsAsync(int workerId, DateOnly fromDate, CancellationToken cancellationToken = default) =>
+        dbContext.BookingSlots.AsNoTracking()
+            .CountAsync(s => s.WorkerId == workerId && s.SlotStatus == DispatchSlotStatuses.Held && s.SlotDate >= fromDate, cancellationToken);
+
+    public Task<int> RemoveFutureAvailableSlotsAsync(int workerId, DateOnly fromDate, CancellationToken cancellationToken = default) =>
+        // A slot that an assignment (even a finished or reassigned one) points to stays: deleting it would break the foreign key.
+        dbContext.BookingSlots
+            .Where(s => s.WorkerId == workerId
+                && s.SlotStatus == DispatchSlotStatuses.Available
+                && s.SlotDate >= fromDate
+                && !dbContext.JobAssignments.Any(a => a.SlotId == s.SlotId))
+            .ExecuteDeleteAsync(cancellationToken);
 
     public async Task<Worker> CreateAgencyStaffAsync(int agencyId, NewWorkerDetails details, DateTime nowUtc, CancellationToken cancellationToken = default)
     {
@@ -112,6 +147,7 @@ public sealed class EfAgencyRepository(AppDbContext dbContext) : IAgencyReposito
         worker.UpdatedAt = nowUtc;
 
         dbContext.Workers.Add(worker);
+        // Saved here so the id is known; the caller's unit of work (one transaction) rolls it back with everything else.
         await dbContext.SaveChangesAsync(cancellationToken);
         return worker;
     }
@@ -120,88 +156,24 @@ public sealed class EfAgencyRepository(AppDbContext dbContext) : IAgencyReposito
         dbContext.Workers.AsNoTracking()
             .AnyAsync(w => w.PhoneNumber == phoneNumber || w.NationalId == nationalId, cancellationToken);
 
-    public async Task<int> UpdateWorkerSlotsAsync(int oldWorkerId, int newWorkerId, DateTime nowUtc, CancellationToken cancellationToken = default)
+    public Task<int> UpdateWorkerSlotsAsync(int oldWorkerId, int newWorkerId, DateOnly fromDate, DateTime nowUtc, CancellationToken cancellationToken = default)
     {
-        // Update slots that are HELD or BOOKED (future jobs) and belong to the old worker
-        // Only update slots where the new worker doesn't already have a slot for the same date/shift
-        var slotsToUpdate = await dbContext.BookingSlots
-            .Where(s => s.WorkerId == oldWorkerId
-                && (s.SlotStatus == DispatchSlotStatuses.Held || s.SlotStatus == DispatchSlotStatuses.Booked)
-                && !dbContext.BookingSlots.Any(s2 => s2.WorkerId == newWorkerId && s2.SlotDate == s.SlotDate && s2.ShiftCode == s.ShiftCode))
-            .ToListAsync(cancellationToken);
-
-        int updated = 0;
-        foreach (var slot in slotsToUpdate)
-        {
-            slot.WorkerId = newWorkerId;
-            slot.UpdatedAt = nowUtc;
-            updated++;
-        }
-
-        if (updated > 0)
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        return updated;
-    }
-
-    public async Task<int> UpdateWorkerAssignmentsAsync(int oldWorkerId, int newWorkerId, CancellationToken cancellationToken = default)
-    {
-        var assignmentsToUpdate = await dbContext.JobAssignments
+        // BOOKED slots move only with a future ASSIGNED job: the slot of a job in progress stays with the worker who does it.
+        var assignedSlotIds = dbContext.JobAssignments
             .Where(a => a.WorkerId == oldWorkerId && a.AssignmentStatus == JobAssignmentStatus.Assigned)
-            .ToListAsync(cancellationToken);
+            .Select(a => a.SlotId);
 
-        int updated = 0;
-        foreach (var assignment in assignmentsToUpdate)
-        {
-            assignment.WorkerId = newWorkerId;
-            updated++;
-        }
-
-        if (updated > 0)
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        return updated;
+        return dbContext.BookingSlots
+            .Where(s => s.WorkerId == oldWorkerId
+                && ((s.SlotStatus == DispatchSlotStatuses.Held && s.SlotDate >= fromDate)
+                    || (s.SlotStatus == DispatchSlotStatuses.Booked && assignedSlotIds.Contains(s.SlotId))))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.WorkerId, newWorkerId)
+                .SetProperty(x => x.UpdatedAt, nowUtc), cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Worker>> GetRetiringWorkersReadyForRetiredAsync(CancellationToken cancellationToken = default)
-    {
-        // Find workers with Retiring status that have no active or future jobs
-        var retiringWorkers = await dbContext.Workers
-            .Where(w => w.WorkStatus == WorkStatus.Retiring)
-            .ToListAsync(cancellationToken);
-
-        var result = new List<Worker>();
-        foreach (var worker in retiringWorkers)
-        {
-            var hasActiveOrFuture = await HasActiveOrFutureJobsAsync(worker.WorkerId, cancellationToken);
-            if (!hasActiveOrFuture)
-            {
-                result.Add(worker);
-            }
-        }
-
-        return result;
-    }
-
-    public async Task<bool> HasActiveOrFutureJobsAsync(int workerId, CancellationToken cancellationToken = default)
-    {
-        // Check for active jobs: CheckedIn, InProgress, AwaitingAcceptance
-        var hasActive = await dbContext.JobAssignments.AsNoTracking()
-            .AnyAsync(a => a.WorkerId == workerId
-                && (a.AssignmentStatus == JobAssignmentStatus.CheckedIn
-                    || a.AssignmentStatus == JobAssignmentStatus.InProgress
-                    || a.AssignmentStatus == JobAssignmentStatus.AwaitingAcceptance), cancellationToken);
-
-        if (hasActive) return true;
-
-        // Check for future ASSIGNED jobs
-        var hasFuture = await dbContext.JobAssignments.AsNoTracking()
-            .AnyAsync(a => a.WorkerId == workerId && a.AssignmentStatus == JobAssignmentStatus.Assigned, cancellationToken);
-
-        return hasFuture;
-    }
+    public Task<int> UpdateWorkerAssignmentsAsync(int oldWorkerId, int newWorkerId, CancellationToken cancellationToken = default) =>
+        dbContext.JobAssignments
+            .Where(a => a.WorkerId == oldWorkerId && a.AssignmentStatus == JobAssignmentStatus.Assigned)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.WorkerId, newWorkerId), cancellationToken);
 }
