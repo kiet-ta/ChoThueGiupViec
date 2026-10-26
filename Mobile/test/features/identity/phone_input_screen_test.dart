@@ -29,7 +29,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Đăng nhập bằng số điện thoại'), findsOneWidget);
+      expect(find.text('Số điện thoại'), findsOneWidget);
       expect(find.text('Gửi Mã Xác Thực'), findsOneWidget);
 
       // Tap submit with empty phone -> shows error

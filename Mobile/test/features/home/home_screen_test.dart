@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/home/customer_shell.dart';
 import 'package:mobile/features/home/home_screen.dart';
 import 'package:mobile/features/identity/models/auth_models.dart';
 import 'package:mobile/features/identity/services/token_storage.dart';
@@ -30,51 +31,76 @@ void main() {
   setUp(() => TokenStorage().clear());
   tearDown(() => TokenStorage().clear());
 
-  testWidgets('signed out: no session panel, Dat Ca Ngay asks to sign in', (
+  testWidgets('signed out: the minimal welcome, no landing page', (
+    tester,
+  ) async {
+    useDesignFrame(tester);
+    await tester.pumpWidget(_app(<String>[]));
+
+    expect(find.text('TỔ ẤM'), findsOneWidget);
+    expect(find.text('Tôi cần giúp việc'), findsOneWidget);
+    expect(find.text('Tôi là người giúp việc'), findsOneWidget);
+    expect(find.text('Bảo hiểm an tâm 50 triệu'), findsNothing);
+    expect(find.text('240.000 đ'), findsNothing);
+    expect(find.byType(CustomerShell), findsNothing);
+  });
+
+  testWidgets('signed out: the customer button opens the phone login', (
     tester,
   ) async {
     useDesignFrame(tester);
     final opened = <String>[];
     await tester.pumpWidget(_app(opened));
 
-    expect(find.byKey(const Key('home-sign-out')), findsNothing);
+    await tapVisible(tester, find.byKey(const Key('welcome-customer')));
 
-    await tapVisible(tester, find.text('Đặt Ca Ngay'));
-
-    expect(find.text('Đăng nhập bằng số điện thoại'), findsOneWidget);
+    expect(find.byKey(const Key('phone-input-title')), findsOneWidget);
     expect(opened, isEmpty);
   });
 
-  testWidgets(
-    'a signed-in customer sees the actions and Dat Ca Ngay opens booking',
-    (tester) async {
-      TokenStorage().saveAuth(_session('Customer'));
-      useDesignFrame(tester);
-      final opened = <String>[];
-      await tester.pumpWidget(_app(opened));
+  testWidgets('a signed-in customer lands on the shell with the bottom bar', (
+    tester,
+  ) async {
+    TokenStorage().saveAuth(_session('Customer'));
+    useDesignFrame(tester);
+    await tester.pumpWidget(_app(<String>[]));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Khách hàng #12'), findsOneWidget);
-      expect(find.text('Đặt ca'), findsOneWidget);
-      expect(find.text('Đơn của tôi'), findsOneWidget);
+    expect(find.byType(CustomerShell), findsOneWidget);
+    for (final label in ['Trang chủ', 'Đơn', 'Đặt ca', 'Yêu thích']) {
+      expect(find.text(label), findsWidgets);
+    }
+  });
 
-      await tapVisible(tester, find.text('Đặt Ca Ngay'));
-
-      expect(opened, ['/booking']);
-    },
-  );
-
-  testWidgets('a customer action opens its route', (tester) async {
+  testWidgets('the centre button of the customer shell opens booking', (
+    tester,
+  ) async {
     TokenStorage().saveAuth(_session('Customer'));
     useDesignFrame(tester);
     final opened = <String>[];
     await tester.pumpWidget(_app(opened));
+    await tester.pumpAndSettle();
 
-    await tapVisible(
-      tester,
-      find.byKey(const Key('home-action-/booking/orders')),
-    );
+    await tester.tap(find.byKey(const Key('customer-shell-book')));
+    await tester.pumpAndSettle();
 
-    expect(opened, ['/booking/orders']);
+    expect(opened, ['/booking']);
+  });
+
+  testWidgets('signing out from the account tab shows the welcome again', (
+    tester,
+  ) async {
+    TokenStorage().saveAuth(_session('Customer'));
+    useDesignFrame(tester);
+    await tester.pumpWidget(_app(<String>[]));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('customer-tab-3')));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.byKey(const Key('home-sign-out')));
+
+    expect(TokenStorage().isAuthenticated, isFalse);
+    expect(find.text('Tôi cần giúp việc'), findsOneWidget);
   });
 
   testWidgets(
@@ -95,14 +121,14 @@ void main() {
     },
   );
 
-  testWidgets('signing out clears the session and the panel', (tester) async {
-    TokenStorage().saveAuth(_session('Customer'));
+  testWidgets('a worker signs out from the panel', (tester) async {
+    TokenStorage().saveAuth(_session('Worker'));
     useDesignFrame(tester);
     await tester.pumpWidget(_app(<String>[]));
 
     await tapVisible(tester, find.byKey(const Key('home-sign-out')));
 
     expect(TokenStorage().isAuthenticated, isFalse);
-    expect(find.byKey(const Key('home-sign-out')), findsNothing);
+    expect(find.text('Tôi cần giúp việc'), findsOneWidget);
   });
 }
