@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
-import '../../../core/widgets/nordic_button.dart';
+import '../../../core/widgets/status_state_widget.dart';
 import '../models/favorite_worker.dart';
 import '../services/favorite_worker_service.dart';
 import '../widgets/favorite_worker_card.dart';
@@ -101,120 +100,76 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ui-templates `customer/favorites.html`: a tab of the customer shell (large title) or a pushed screen.
+    final pushed = ModalRoute.of(context)?.canPop ?? false;
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text('Thợ Quen Yêu Thích', style: NordicTypography.h3),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: RefreshIndicator(
-            onRefresh: _loadFavorites,
-            color: NordicColors.primary,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
+      appBar: pushed ? AppBar(title: const Text('Yêu thích')) : null,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 390.0),
+            child: RefreshIndicator(
+              onRefresh: _loadFavorites,
+              color: NordicColors.primary,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 32.0),
+                children: [
+                  if (!pushed)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Yêu thích',
+                              style: NordicTypography.screenTitle,
+                            ),
+                          ),
+                          if (!_isLoading && _errorMessage == null)
+                            Text(
+                              '${_workers.length} thợ',
+                              key: const Key('favorites-count'),
+                              style: NordicTypography.bodySmall,
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40.0),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            NordicColors.primary,
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (_errorMessage != null)
+                    ErrorStateWidget(
+                      message: _errorMessage!,
+                      onRetry: _loadFavorites,
+                    )
+                  else if (_workers.isEmpty)
+                    const EmptyStateWidget(
+                      title: 'Chưa Có Thợ Quen Nào',
+                      subtitle: 'Lưu thợ sau một ca ưng ý để đặt lại nhanh.',
+                      icon: Icons.favorite_outline,
+                    )
+                  else
+                    ..._workers.map(
+                      (worker) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: FavoriteWorkerCard(
+                          worker: worker,
+                          onBookJob: () => _onBookWithWorker(worker),
+                          onRemove: () => _removeWorker(worker),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              children: [
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: EyebrowBadge(text: 'DANH SÁCH TIN CẬY'),
-                ),
-                const SizedBox(height: 8.0),
-                Text('Thợ quen của bạn', style: NordicTypography.h1),
-                const SizedBox(height: 4.0),
-                Text(
-                  'Những chuyên viên giúp việc bạn đã lưu để ưu tiên chỉ định phục vụ cho các ca dọn dẹp tiếp theo.',
-                  style: NordicTypography.bodyRegular,
-                ),
-                const SizedBox(height: 16.0),
-
-                if (_isLoading)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40.0),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          NordicColors.primary,
-                        ),
-                      ),
-                    ),
-                  )
-                else if (_errorMessage != null)
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: NordicColors.errorContainer,
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _errorMessage!,
-                          style: NordicTypography.bodyRegular.copyWith(
-                            color: NordicColors.error,
-                          ),
-                        ),
-                        const SizedBox(height: 8.0),
-                        NordicButton(
-                          label: 'Thử lại',
-                          variant: NordicButtonVariant.secondary,
-                          onPressed: _loadFavorites,
-                        ),
-                      ],
-                    ),
-                  )
-                else if (_workers.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 48.0,
-                      horizontal: 20.0,
-                    ),
-                    alignment: Alignment.center,
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 64.0,
-                          height: 64.0,
-                          decoration: const BoxDecoration(
-                            color: NordicColors.surfaceSubtle,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.favorite_border_rounded,
-                            color: NordicColors.secondaryAccent,
-                            size: 32.0,
-                          ),
-                        ),
-                        const SizedBox(height: 16.0),
-                        Text(
-                          'Chưa Có Thợ Quen Nào',
-                          style: NordicTypography.h3,
-                        ),
-                        const SizedBox(height: 8.0),
-                        Text(
-                          'Sau mỗi ca hoàn thành ưng ý, bạn có thể lưu chuyên viên vào danh sách này để đặt lại nhanh chóng.',
-                          textAlign: TextAlign.center,
-                          style: NordicTypography.bodyRegular,
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  ..._workers.map(
-                    (worker) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: FavoriteWorkerCard(
-                        worker: worker,
-                        onBookJob: () => _onBookWithWorker(worker),
-                        onRemove: () => _removeWorker(worker),
-                      ),
-                    ),
-                  ),
-              ],
             ),
           ),
         ),

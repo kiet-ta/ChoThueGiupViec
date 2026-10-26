@@ -26,31 +26,26 @@ class PhoneInputField extends StatelessWidget {
       children: [
         Row(
           children: [
+            // ui-templates `shared/phone.html`: a fixed +84 box beside the number.
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12.0,
-                vertical: 14.0,
-              ),
+              width: 92.0,
+              height: 52.0,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: NordicColors.surfaceSubtle,
+                color: NordicColors.surface,
                 borderRadius: BorderRadius.circular(12.0),
                 border: Border.all(color: NordicColors.border),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('🇻🇳', style: TextStyle(fontSize: 16.0)),
-                  const SizedBox(width: 6.0),
-                  Text(
-                    '+84',
-                    style: NordicTypography.labelMedium.copyWith(
-                      color: NordicColors.textTitle,
-                    ),
-                  ),
-                ],
+              child: const Text(
+                '+84',
+                style: TextStyle(
+                  fontSize: 15.0,
+                  fontWeight: FontWeight.w600,
+                  color: NordicColors.textTitle,
+                ),
               ),
             ),
-            const SizedBox(width: 8.0),
+            const SizedBox(width: 10.0),
             Expanded(
               child: TextField(
                 controller: controller,
@@ -61,15 +56,19 @@ class PhoneInputField extends StatelessWidget {
                   LengthLimitingTextInputFormatter(11),
                 ],
                 onChanged: onChanged,
-                style: NordicTypography.bodyLarge.copyWith(
+                style: const TextStyle(
+                  fontSize: 20.0,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.8,
+                  color: NordicColors.textTitle,
+                  fontFeatures: [FontFeature.tabularFigures()],
                 ),
                 decoration: InputDecoration(
                   hintText: '0912 345 678',
-                  hintStyle: NordicTypography.bodyLarge.copyWith(
-                    color: NordicColors.textSecondary.withValues(alpha: 0.6),
+                  hintStyle: TextStyle(
+                    fontSize: 20.0,
                     fontWeight: FontWeight.w400,
+                    color: NordicColors.textSecondary.withValues(alpha: 0.6),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16.0,
@@ -77,7 +76,7 @@ class PhoneInputField extends StatelessWidget {
                   ),
                   suffixIcon: controller.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18.0),
+                          icon: const Icon(Icons.close, size: 18.0),
                           onPressed: () {
                             controller.clear();
                             onChanged?.call('');

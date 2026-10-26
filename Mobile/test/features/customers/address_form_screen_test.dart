@@ -32,13 +32,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Thêm Địa Chỉ Mới'), findsOneWidget);
-      expect(find.textContaining('CÔNG THỨC S_TOTAL'), findsOneWidget);
+      expect(find.byKey(const Key('area-total')), findsOneWidget);
       expect(find.text('Nhà riêng / Nhà phố'), findsOneWidget);
       expect(find.text('Căn hộ chung cư'), findsOneWidget);
       expect(find.text('Phòng trọ'), findsOneWidget);
 
       // Scroll slightly so chips and fields are comfortably visible above bottom bar
-      await tester.drag(find.byType(ListView), const Offset(0, -200));
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(0, -200),
+      );
       await tester.pumpAndSettle();
 
       // Switch to Apartment -> floors locked to 1

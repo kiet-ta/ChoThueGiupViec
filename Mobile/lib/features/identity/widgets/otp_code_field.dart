@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/nordic_colors.dart';
-import '../../../core/theme/nordic_typography.dart';
 
 /// 6-digit OTP code entry widget with individual display cells.
 class OtpCodeField extends StatefulWidget {
@@ -77,43 +76,36 @@ class _OtpCodeFieldState extends State<OtpCodeField> {
               _focusNode.requestFocus();
             }
           },
+          // ui-templates `shared/otp.html`: 6 equal cells, the next one outlined in primary.
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(6, (index) {
               final isFilled = index < code.length;
               final isCurrent = index == code.length;
               final digit = isFilled ? code[index] : '';
 
-              return Container(
-                width: 48.0,
-                height: 56.0,
-                decoration: BoxDecoration(
-                  color: NordicColors.surface,
-                  borderRadius: BorderRadius.circular(12.0),
-                  border: Border.all(
-                    color: isCurrent
-                        ? NordicColors.primary
-                        : (isFilled
-                              ? NordicColors.secondaryAccent
-                              : NordicColors.border),
-                    width: isCurrent ? 2.0 : 1.0,
+              return Expanded(
+                child: Container(
+                  height: 60.0,
+                  margin: EdgeInsets.only(left: index == 0 ? 0 : 8.0),
+                  decoration: BoxDecoration(
+                    color: NordicColors.surface,
+                    borderRadius: BorderRadius.circular(12.0),
+                    border: Border.all(
+                      color: isCurrent
+                          ? NordicColors.primary
+                          : NordicColors.border,
+                      width: isCurrent ? 2.0 : 1.0,
+                    ),
                   ),
-                  boxShadow: isCurrent
-                      ? [
-                          BoxShadow(
-                            color: NordicColors.primary.withValues(alpha: 0.12),
-                            blurRadius: 8.0,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  digit,
-                  style: NordicTypography.h2.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: NordicColors.textTitle,
+                  alignment: Alignment.center,
+                  child: Text(
+                    digit,
+                    style: const TextStyle(
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.w700,
+                      color: NordicColors.textTitle,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
               );

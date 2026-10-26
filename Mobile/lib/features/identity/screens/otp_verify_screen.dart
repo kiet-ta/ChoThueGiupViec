@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
-import '../../../core/widgets/nordic_card.dart';
 import '../services/auth_service.dart';
 import 'worker_registration_screen.dart';
 import '../widgets/otp_code_field.dart';
@@ -130,115 +129,88 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ui-templates `shared/otp.html`: title, where the code went, 6 cells, resend; the button at the bottom.
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text('Xác Thực OTP', style: NordicTypography.h3),
-        centerTitle: true,
-      ),
+      appBar: AppBar(),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20.0,
-              vertical: 16.0,
-            ),
+            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
             children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: EyebrowBadge(text: 'MÃ XÁC THỰC SMS'),
+              const Text(
+                'Nhập mã xác thực',
+                style: NordicTypography.screenTitle,
               ),
-              const SizedBox(height: 12.0),
-              Text('Nhập mã xác thực', style: NordicTypography.h1),
-              const SizedBox(height: 8.0),
-              Text.rich(
-                TextSpan(
-                  style: NordicTypography.bodyRegular,
-                  children: [
-                    const TextSpan(
-                      text: 'Mã xác thực gồm 6 chữ số đã được gửi đến số điện thoại ',
-                    ),
-                    TextSpan(
-                      text: widget.phoneNumber,
-                      style: NordicTypography.bodyRegular.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: NordicColors.textTitle,
-                      ),
-                    ),
-                    const TextSpan(text: '.'),
-                  ],
+              const SizedBox(height: 4.0),
+              Text(
+                'Đã gửi tới ${widget.phoneNumber}',
+                style: const TextStyle(
+                  fontSize: 14.0,
+                  color: NordicColors.textSecondary,
+                  fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),
               const SizedBox(height: 24.0),
-
-              NordicCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    OtpCodeField(
-                      controller: _otpController,
-                      enabled: !_isLoading,
-                      onCompleted: (code) => _handleVerify(code),
-                      onChanged: (_) {
-                        if (_errorMessage != null) {
-                          setState(() => _errorMessage = null);
-                        }
-                      },
-                    ),
-
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 14.0),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12.0,
-                          vertical: 8.0,
-                        ),
-                        decoration: BoxDecoration(
-                          color: NordicColors.errorContainer,
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.error_outline_rounded,
-                              size: 16.0,
-                              color: NordicColors.error,
-                            ),
-                            const SizedBox(width: 8.0),
-                            Expanded(
-                              child: Text(
-                                _errorMessage!,
-                                style: NordicTypography.bodySmall.copyWith(
-                                  color: NordicColors.error,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
+              OtpCodeField(
+                controller: _otpController,
+                enabled: !_isLoading,
+                onCompleted: (code) => _handleVerify(code),
+                onChanged: (_) {
+                  if (_errorMessage != null) {
+                    setState(() => _errorMessage = null);
+                  }
+                },
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 14.0),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12.0,
+                    vertical: 8.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: NordicColors.errorContainer,
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 16.0,
+                        color: NordicColors.error,
+                      ),
+                      const SizedBox(width: 8.0),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: NordicTypography.bodySmall.copyWith(
+                            color: NordicColors.error,
+                          ),
                         ),
                       ),
                     ],
-
-                    const SizedBox(height: 20.0),
-                    ResendTimer(
-                      initialSeconds: widget.resendCooldownSeconds,
-                      onResend: _handleResend,
-                    ),
-
-                    const SizedBox(height: 20.0),
-                    NordicButton(
-                      label: 'Xác Nhận Đăng Nhập',
-                      width: double.infinity,
-                      isLoading: _isLoading,
-                      onPressed: () => _handleVerify(),
-                    ),
-                  ],
+                  ),
                 ),
+              ],
+              const SizedBox(height: 16.0),
+              ResendTimer(
+                initialSeconds: widget.resendCooldownSeconds,
+                onResend: _handleResend,
               ),
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomActionBar(
+        children: [
+          NordicButton(
+            label: 'Xác Nhận Đăng Nhập',
+            width: double.infinity,
+            isLoading: _isLoading,
+            onPressed: () => _handleVerify(),
+          ),
+        ],
       ),
     );
   }

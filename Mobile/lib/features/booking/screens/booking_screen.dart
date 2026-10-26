@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
@@ -250,15 +250,48 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final quote = _quote;
+    final ready = _options != null && _loadError == null;
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(title: const Text('Đặt ca làm việc')),
+      appBar: AppBar(leading: const CloseButton(), title: const Text('Đặt ca')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: _content(),
         ),
       ),
+      // ui-templates `customer/booking.html`: the server's total and the order button stay at the bottom.
+      bottomNavigationBar: ready
+          ? BottomActionBar(
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      quote == null
+                          ? 'Chưa có giá'
+                          : '${quote.requiredWorkers} thợ × ${formatVnd(quote.unitPrice)}',
+                      style: const TextStyle(
+                        fontSize: 11.0,
+                        color: NordicColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      quote == null ? '–' : formatVnd(quote.totalAmount),
+                      style: NordicTypography.numberSmall,
+                    ),
+                  ],
+                ),
+                NordicButton(
+                  key: const Key('submit-order'),
+                  label: 'Đặt đơn',
+                  isLoading: _submitting,
+                  onPressed: _submitting ? null : _submit,
+                ),
+              ],
+            )
+          : null,
     );
   }
 
@@ -275,30 +308,32 @@ class _BookingScreenState extends State<BookingScreen> {
     }
     final options = _options!;
     final addresses = _addresses ?? const <BookingAddress>[];
+    final monthOfFirstDay = _days.isEmpty ? '' : 'Tháng ${_days.first.month}';
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
       children: [
-        const EyebrowBadge(text: 'Dọn dẹp theo ca'),
-        const SizedBox(height: 12.0),
-        const Text('Đặt ca giúp việc', style: NordicTypography.h2),
-        const SizedBox(height: 20.0),
-
-        _heading('1. Phân khúc dịch vụ'),
-        for (final tier in options.serviceTiers) ...[
-          _ChoiceCard(
-            key: Key('tier-$tier'),
-            selected: _tier == tier,
-            title: tierLabel(tier),
-            subtitle: tierDescription(tier, options),
-            onTap: () => _chooseTier(tier),
-          ),
-          const SizedBox(height: 8.0),
-        ],
+        _heading('GÓI'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < options.serviceTiers.length; i++) ...[
+              if (i > 0) const SizedBox(width: 12.0),
+              Expanded(
+                child: _TierTile(
+                  key: Key('tier-${options.serviceTiers[i]}'),
+                  selected: _tier == options.serviceTiers[i],
+                  title: tierLabel(options.serviceTiers[i]),
+                  subtitle: tierDescription(options.serviceTiers[i], options),
+                  onTap: () => _chooseTier(options.serviceTiers[i]),
+                ),
+              ),
+            ],
+          ],
+        ),
         _fieldError('serviceTier'),
-        const SizedBox(height: 12.0),
 
-        _heading('2. Địa chỉ làm việc'),
+        _heading('ĐỊA CHỈ', top: 24.0),
         if (addresses.isEmpty)
           EmptyStateWidget(
             title: 'Bạn chưa có địa chỉ nào',
@@ -323,31 +358,30 @@ class _BookingScreenState extends State<BookingScreen> {
           ],
           Align(
             alignment: Alignment.centerLeft,
-            child: NordicButton(
-              label: 'Sổ địa chỉ',
-              variant: NordicButtonVariant.ghost,
+            child: TextButton.icon(
               onPressed: _manageAddresses,
+              icon: const Icon(Icons.location_on_outlined, size: 18.0),
+              label: const Text('Sổ địa chỉ'),
             ),
           ),
         ],
         _fieldError('addressId'),
-        const SizedBox(height: 12.0),
 
-        _heading('3. Ngày và ca'),
+        _heading('NGÀY', top: 16.0, trailing: monthOfFirstDay),
         SizedBox(
           key: const Key('day-list'),
-          height: 44.0,
+          height: 64.0,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: _days.length,
             separatorBuilder: (_, _) => const SizedBox(width: 8.0),
             itemBuilder: (_, i) {
               final day = _days[i];
-              return ChoiceChip(
+              return _DayTile(
                 key: Key('day-${dateKey(day)}'),
-                label: Text(dayLabel(day)),
+                day: day,
                 selected: _day == day,
-                onSelected: (_) => setState(() {
+                onTap: () => setState(() {
                   _day = day;
                   _failure = null;
                   _hint = null;
@@ -357,34 +391,40 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         ),
         _fieldError('scheduledDate'),
-        const SizedBox(height: 8.0),
-        for (final shift in options.shifts) ...[
-          _ChoiceCard(
-            key: Key('shift-${shift.shiftCode}'),
-            selected: _shiftCode == shift.shiftCode,
-            title: shiftText(shift),
-            onTap: () => setState(() {
-              _shiftCode = shift.shiftCode;
-              _failure = null;
-              _hint = null;
-            }),
-          ),
-          const SizedBox(height: 8.0),
-        ],
-        _fieldError('shiftCode'),
-        const SizedBox(height: 12.0),
 
-        _heading('4. Ghi chú cho thợ'),
+        _heading('CA', top: 24.0),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < options.shifts.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8.0),
+              Expanded(
+                child: _ShiftTile(
+                  key: Key('shift-${options.shifts[i].shiftCode}'),
+                  shift: options.shifts[i],
+                  selected: _shiftCode == options.shifts[i].shiftCode,
+                  onTap: () => setState(() {
+                    _shiftCode = options.shifts[i].shiftCode;
+                    _failure = null;
+                    _hint = null;
+                  }),
+                ),
+              ),
+            ],
+          ],
+        ),
+        _fieldError('shiftCode'),
+
+        _heading('GHI CHÚ', top: 24.0),
         NordicTextInput(
           key: const Key('note-input'),
           controller: _noteController,
-          hintText: 'Ví dụ: nhà có thú cưng, cần lau kính ban công',
+          hintText: 'Có thú cưng, chìa khoá ở bảo vệ…',
           maxLines: 3,
         ),
         _fieldError('customerNote'),
-        const SizedBox(height: 16.0),
 
-        _heading('5. Giá cố định'),
+        _heading('GIÁ CỐ ĐỊNH', top: 24.0),
         _quoteCard(options),
         const SizedBox(height: 16.0),
 
@@ -395,18 +435,10 @@ class _BookingScreenState extends State<BookingScreen> {
             key: const Key('booking-error'),
             isError: true,
           ),
-        NordicButton(
-          key: const Key('submit-order'),
-          label: 'Đặt đơn',
-          isLoading: _submitting,
-          onPressed: _submitting ? null : _submit,
-        ),
-        const SizedBox(height: 8.0),
         const Text(
-          'Bạn thanh toán sau khi đặt đơn. Giá trên là giá cuối cùng, không có phụ phí.',
+          'Thanh toán sau khi đặt. Không phụ phí.',
           style: NordicTypography.bodySmall,
         ),
-        const SizedBox(height: 24.0),
       ],
     );
   }
@@ -445,9 +477,9 @@ class _BookingScreenState extends State<BookingScreen> {
     if (quote == null) {
       return const NordicCard(
         child: Text(
-          'Chọn phân khúc và địa chỉ để xem giá.',
+          'Chọn gói và địa chỉ để xem giá.',
           key: Key('quote-empty'),
-          style: NordicTypography.bodyRegular,
+          style: NordicTypography.bodySmall,
         ),
       );
     }
@@ -459,15 +491,17 @@ class _BookingScreenState extends State<BookingScreen> {
           Text(
             formatVnd(quote.totalAmount),
             key: const Key('quote-total'),
-            style: NordicTypography.priceHighlight,
+            style: NordicTypography.numberMedium.copyWith(
+              color: NordicColors.primary,
+            ),
           ),
-          const SizedBox(height: 4.0),
+          const SizedBox(height: 8.0),
           Text(
             '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} thợ · ${tierLabel(quote.serviceTier)}',
             key: const Key('quote-breakdown'),
             style: NordicTypography.bodyRegular,
           ),
-          const SizedBox(height: 4.0),
+          const SizedBox(height: 2.0),
           Text(
             workersNote(quote, options),
             key: const Key('quote-workers-note'),
@@ -478,9 +512,15 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Widget _heading(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8.0),
-    child: Text(text, style: NordicTypography.h3),
+  /// ui-templates `.caps` label above each group, with an optional note on the right.
+  Widget _heading(String text, {double top = 0.0, String? trailing}) => Padding(
+    padding: EdgeInsets.only(top: top, bottom: 8.0),
+    child: Row(
+      children: [
+        Expanded(child: Text(text, style: NordicTypography.caps)),
+        if (trailing != null) Text(trailing, style: NordicTypography.bodySmall),
+      ],
+    ),
   );
 
   Widget _fieldError(String field) {
@@ -505,21 +545,211 @@ class _BookingScreenState extends State<BookingScreen> {
           decoration: BoxDecoration(
             color: isError
                 ? NordicColors.errorContainer
-                : NordicColors.surfaceSubtle,
+                : NordicColors.amberSoft,
             borderRadius: BorderRadius.circular(12.0),
           ),
           child: Text(
             text,
             key: key,
             style: NordicTypography.bodyRegular.copyWith(
-              color: isError ? NordicColors.error : NordicColors.textTitle,
+              color: isError ? NordicColors.error : NordicColors.onAmberSoft,
             ),
           ),
         ),
       );
 }
 
-/// A selectable card: one of several choices (segment, address, shift).
+/// Outline of a selectable tile: primary border when chosen (ui-templates `.tier.on`, `.shift.on`).
+BoxDecoration _tileDecoration(bool selected) => BoxDecoration(
+  color: NordicColors.surface,
+  borderRadius: BorderRadius.circular(16.0),
+  border: Border.all(
+    color: selected ? NordicColors.primary : NordicColors.border,
+    width: selected ? 2.0 : 1.0,
+  ),
+);
+
+/// ui-templates `.tier`: one segment, its radio and its one-line explanation.
+class _TierTile extends StatelessWidget {
+  final bool selected;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _TierTile({
+    super.key,
+    required this.selected,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.0),
+        child: Container(
+          padding: const EdgeInsets.all(14.0),
+          decoration: _tileDecoration(selected),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(title, style: NordicTypography.titleSmall),
+                  ),
+                  Icon(
+                    selected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: selected
+                        ? NordicColors.primary
+                        : NordicColors.borderVariant,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8.0),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 11.0,
+                  height: 1.35,
+                  color: NordicColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ui-templates `.day`: weekday above the day number.
+class _DayTile extends StatelessWidget {
+  final DateTime day;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DayTile({
+    super.key,
+    required this.day,
+    required this.selected,
+    required this.onTap,
+  });
+
+  static const _weekdays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? Colors.white : NordicColors.textTitle;
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: dayLabel(day),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.0),
+        child: Container(
+          width: 48.0,
+          decoration: BoxDecoration(
+            color: selected ? NordicColors.primary : NordicColors.surface,
+            borderRadius: BorderRadius.circular(16.0),
+            border: Border.all(
+              color: selected ? NordicColors.primary : NordicColors.border,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _weekdays[day.weekday - 1],
+                style: TextStyle(
+                  fontSize: 11.0,
+                  color: selected ? Colors.white70 : NordicColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 2.0),
+              Text(
+                day.day.toString().padLeft(2, '0'),
+                style: TextStyle(
+                  fontSize: 17.0,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ui-templates `.shift`: an icon for the time of day, the start and the end.
+class _ShiftTile extends StatelessWidget {
+  final ShiftOption shift;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ShiftTile({
+    super.key,
+    required this.shift,
+    required this.selected,
+    required this.onTap,
+  });
+
+  IconData get _icon => switch (shift.shiftCode) {
+    'SHIFT_MORNING' => Icons.wb_sunny_outlined,
+    'SHIFT_AFTERNOON' => Icons.light_mode_outlined,
+    'SHIFT_EVENING' => Icons.bedtime_outlined,
+    _ => Icons.schedule_outlined,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: shiftText(shift),
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+          decoration: _tileDecoration(selected),
+          child: Column(
+            children: [
+              Icon(
+                _icon,
+                color: selected
+                    ? NordicColors.primary
+                    : NordicColors.textSecondary,
+              ),
+              const SizedBox(height: 4.0),
+              Text(shift.startLocal, style: NordicTypography.titleSmall),
+              Text(
+                '→ ${shift.endLocal}',
+                style: const TextStyle(
+                  fontSize: 11.0,
+                  color: NordicColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A selectable card: one of the customer's addresses.
 class _ChoiceCard extends StatelessWidget {
   final bool selected;
   final String title;
@@ -539,33 +769,54 @@ class _ChoiceCard extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
-      child: NordicCard(
-        isHighlighted: selected,
+      child: InkWell(
         onTap: onTap,
-        child: Row(
-          children: [
-            Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: selected
-                  ? NordicColors.primary
-                  : NordicColors.textSecondary,
-            ),
-            const SizedBox(width: 12.0),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: NordicTypography.labelMedium),
-                  if (subtitle != null && subtitle!.isNotEmpty) ...[
-                    const SizedBox(height: 2.0),
-                    Text(subtitle!, style: NordicTypography.bodySmall),
-                  ],
-                ],
+        borderRadius: BorderRadius.circular(16.0),
+        child: Container(
+          padding: const EdgeInsets.all(12.0),
+          decoration: _tileDecoration(selected),
+          child: Row(
+            children: [
+              Container(
+                width: 40.0,
+                height: 40.0,
+                decoration: BoxDecoration(
+                  color: NordicColors.surfaceLow,
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                child: const Icon(
+                  Icons.home_outlined,
+                  color: NordicColors.primary,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12.0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: NordicTypography.titleSmall),
+                    if (subtitle != null && subtitle!.isNotEmpty) ...[
+                      const SizedBox(height: 2.0),
+                      Text(
+                        subtitle!,
+                        style: NordicTypography.bodySmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: selected
+                    ? NordicColors.primary
+                    : NordicColors.borderVariant,
+              ),
+            ],
+          ),
         ),
       ),
     );

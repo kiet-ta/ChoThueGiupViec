@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
-import '../../../core/widgets/nordic_card.dart';
-import '../../../core/widgets/trust_badge.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../services/auth_service.dart';
 import '../widgets/phone_input_field.dart';
 import 'otp_verify_screen.dart';
@@ -98,115 +97,57 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
         ? 'Chuyên Viên / Thợ'
         : 'Khách Hàng';
 
+    // ui-templates `shared/phone.html`: big title, one line, the number; the button sits at the bottom.
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text('Đăng Nhập', style: NordicTypography.h3),
-        centerTitle: true,
-      ),
+      appBar: AppBar(),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20.0,
-              vertical: 16.0,
-            ),
+            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
             children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: EyebrowBadge(text: 'XÁC THỰC BẢO MẬT'),
+              const Text(
+                'Số điện thoại',
+                key: Key('phone-input-title'),
+                style: NordicTypography.screenTitle,
               ),
-              const SizedBox(height: 12.0),
-              Text('Đăng nhập bằng số điện thoại', style: NordicTypography.h1),
-              const SizedBox(height: 8.0),
-              Text(
-                'Nhập số điện thoại để nhận mã xác thực OTP 6 chữ số qua tin nhắn SMS.',
-                style: NordicTypography.bodyRegular,
+              const SizedBox(height: 4.0),
+              const Text(
+                'Mã 6 số sẽ gửi qua SMS.',
+                style: TextStyle(
+                  fontSize: 14.0,
+                  color: NordicColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 12.0),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0,
-                    vertical: 6.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: NordicColors.surfaceSubtle,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        widget.role == AppRole.worker
-                            ? Icons.handyman_outlined
-                            : Icons.person_outline,
-                        size: 16.0,
-                        color: NordicColors.primary,
-                      ),
-                      const SizedBox(width: 6.0),
-                      Flexible(
-                        child: Text(
-                          'Vai trò: $roleLabel',
-                          overflow: TextOverflow.ellipsis,
-                          style: NordicTypography.bodySmall.copyWith(
-                            color: NordicColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                child: StatusPill('Vai trò: $roleLabel', tone: PillTone.ok),
               ),
               const SizedBox(height: 24.0),
-
-              NordicCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Số điện thoại', style: NordicTypography.labelMedium),
-                    const SizedBox(height: 8.0),
-                    PhoneInputField(
-                      controller: _phoneController,
-                      enabled: !_isLoading,
-                      errorText: _errorMessage,
-                      onChanged: (_) {
-                        if (_errorMessage != null) {
-                          setState(() => _errorMessage = null);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 20.0),
-                    NordicButton(
-                      label: 'Gửi Mã Xác Thực',
-                      width: double.infinity,
-                      isLoading: _isLoading,
-                      onPressed: _handleRequestOtp,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32.0),
-
-              // Reassurance badges
-              const Center(
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  children: [
-                    TrustBadge(text: 'Bảo mật thông tin'),
-                    TrustBadge(text: 'Xác thực nhanh chóng'),
-                  ],
-                ),
+              PhoneInputField(
+                controller: _phoneController,
+                enabled: !_isLoading,
+                errorText: _errorMessage,
+                onChanged: (_) {
+                  if (_errorMessage != null) {
+                    setState(() => _errorMessage = null);
+                  }
+                },
               ),
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomActionBar(
+        children: [
+          NordicButton(
+            label: 'Gửi Mã Xác Thực',
+            width: double.infinity,
+            isLoading: _isLoading,
+            onPressed: _handleRequestOtp,
+          ),
+        ],
       ),
     );
   }

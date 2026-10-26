@@ -12,13 +12,18 @@ class NordicColors {
   static const Color surfaceSubtle = Color(0xFFF4F2EB); // no DESIGN.md token
   static const Color surfaceContainer = Color(0xFFF0EEE9); // surface-container
   static const Color surfaceDim = Color(0xFFDBDAD5); // surface-dim
+  static const Color surfaceLow = Color(0xFFF5F3EE); // surface-container-low
 
   // Brand Palette
   static const Color primary = Color(0xFF416448); // primary
   static const Color primaryHover = Color(0xFF56705B); // primary-hover
   static const Color primaryContainer = Color(0xFF597D60); // primary-container
   static const Color secondaryAccent = Color(0xFF6B8F71); // no DESIGN.md token
+  static const Color primaryFixed = Color(0xFFC5ECC9); // primary-fixed
   static const Color accentAmber = Color(0xFFD9A441); // Warm Amber (prose)
+  static const Color amberSoft = Color(0xFFFFDEAA); // secondary-fixed
+  // on-secondary-fixed-variant: text on amberSoft.
+  static const Color onAmberSoft = Color(0xFF5F4100);
   static const Color contrastDark = Color(0xFF1A2F25); // no DESIGN.md token
   static const Color contrastCard = Color(0xFF223B2F); // no DESIGN.md token
 

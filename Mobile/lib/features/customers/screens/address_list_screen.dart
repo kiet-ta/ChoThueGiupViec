@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
+import '../../../core/widgets/status_state_widget.dart';
 import '../models/customer_address.dart';
 import '../services/customer_address_service.dart';
 import '../widgets/address_card.dart';
@@ -143,151 +144,64 @@ class _AddressListScreenState extends State<AddressListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text('Sổ Địa Chỉ', style: NordicTypography.h3),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Sổ địa chỉ')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _loadAddresses,
-                  color: NordicColors.primary,
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 12.0,
+          child: RefreshIndicator(
+            onRefresh: _loadAddresses,
+            color: NordicColors.primary,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
+              children: [
+                if (_isLoading)
+                  const LoadingStateWidget()
+                else if (_errorMessage != null)
+                  ErrorStateWidget(
+                    message: _errorMessage!,
+                    onRetry: _loadAddresses,
+                  )
+                else if (_addresses.isEmpty)
+                  const EmptyStateWidget(
+                    title: 'Chưa Có Địa Chỉ Nào',
+                    subtitle: 'Thêm địa chỉ để đặt ca và nhận báo giá.',
+                    icon: Icons.location_on_outlined,
+                  )
+                else
+                  Material(
+                    color: NordicColors.surface,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      side: const BorderSide(color: NordicColors.border),
                     ),
-                    children: [
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: EyebrowBadge(text: 'QUẢN LÝ ĐỊA ĐIỂM DỊCH VỤ'),
-                      ),
-                      const SizedBox(height: 8.0),
-                      Text('Địa chỉ của bạn', style: NordicTypography.h1),
-                      const SizedBox(height: 4.0),
-                      Text(
-                        'Lưu địa chỉ để việc đặt dịch vụ giúp việc diễn ra chính xác và nhanh chóng.',
-                        style: NordicTypography.bodyRegular,
-                      ),
-                      const SizedBox(height: 16.0),
-
-                      if (_isLoading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 40.0),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                NordicColors.primary,
-                              ),
-                            ),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < _addresses.length; i++) ...[
+                          if (i > 0) const Divider(height: 1, thickness: 1),
+                          AddressCard(
+                            address: _addresses[i],
+                            onEdit: () => _navigateToEdit(_addresses[i]),
+                            onDelete: () => _confirmDelete(_addresses[i]),
                           ),
-                        )
-                      else if (_errorMessage != null)
-                        Container(
-                          padding: const EdgeInsets.all(16.0),
-                          decoration: BoxDecoration(
-                            color: NordicColors.errorContainer,
-                            borderRadius: BorderRadius.circular(12.0),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                _errorMessage!,
-                                style: NordicTypography.bodyRegular.copyWith(
-                                  color: NordicColors.error,
-                                ),
-                              ),
-                              const SizedBox(height: 8.0),
-                              NordicButton(
-                                label: 'Thử lại',
-                                variant: NordicButtonVariant.secondary,
-                                onPressed: _loadAddresses,
-                              ),
-                            ],
-                          ),
-                        )
-                      else if (_addresses.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 48.0,
-                            horizontal: 20.0,
-                          ),
-                          alignment: Alignment.center,
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 64.0,
-                                height: 64.0,
-                                decoration: BoxDecoration(
-                                  color: NordicColors.surfaceSubtle,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.location_off_outlined,
-                                  color: NordicColors.secondaryAccent,
-                                  size: 32.0,
-                                ),
-                              ),
-                              const SizedBox(height: 16.0),
-                              Text(
-                                'Chưa Có Địa Chỉ Nào',
-                                style: NordicTypography.h3,
-                              ),
-                              const SizedBox(height: 8.0),
-                              Text(
-                                'Bạn chưa lưu địa chỉ nào. Hãy bấm "Thêm Địa Chỉ Mới" bên dưới để bắt đầu!',
-                                textAlign: TextAlign.center,
-                                style: NordicTypography.bodyRegular,
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        ..._addresses.map(
-                          (addr) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12.0),
-                            child: AddressCard(
-                              address: addr,
-                              onEdit: () => _navigateToEdit(addr),
-                              onDelete: () => _confirmDelete(addr),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Bottom sticky CTA button
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: NordicColors.surface,
-                  border: const Border(
-                    top: BorderSide(color: NordicColors.border),
-                  ),
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: NordicButton(
-                    label: 'Thêm Địa Chỉ Mới',
-                    icon: const Icon(
-                      Icons.add_location_alt_outlined,
-                      size: 18.0,
+                        ],
+                      ],
                     ),
-                    width: double.infinity,
-                    onPressed: _navigateToAdd,
                   ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+      bottomNavigationBar: BottomActionBar(
+        children: [
+          NordicButton(
+            label: 'Thêm Địa Chỉ Mới',
+            icon: const Icon(Icons.add, size: 18.0),
+            variant: NordicButtonVariant.secondary,
+            onPressed: _navigateToAdd,
+          ),
+        ],
       ),
     );
   }

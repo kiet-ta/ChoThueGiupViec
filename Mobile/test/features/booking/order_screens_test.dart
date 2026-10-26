@@ -263,7 +263,7 @@ void main() {
       (tester) async {
         await pumpDetail(tester, FakeOrderService());
 
-        expect(find.text('Đơn GV261014ABC123'), findsOneWidget);
+        expect(find.text('GV261014ABC123'), findsOneWidget);
         expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
         expect(textOf(tester, 'order-schedule'), '15/10/2026 · Ca sáng');
         expect(textOf(tester, 'order-amount'), '260.000 đ');
@@ -284,8 +284,8 @@ void main() {
         ];
       await pumpDetail(tester, service);
 
-      expect(find.text('Nguyễn Thị Lan · ★ 4,8'), findsOneWidget);
-      expect(find.text('Thợ · ★ 4,8'), findsOneWidget);
+      expect(find.text('Nguyễn Thị Lan'), findsOneWidget);
+      expect(find.text('4,8'), findsNWidgets(2));
       expect(textOf(tester, 'assignment-status-7'), 'Đã đến nơi');
       expect(textOf(tester, 'assignment-status-8'), 'Đã nhận ca');
     });
@@ -303,6 +303,26 @@ void main() {
         expect(find.text('Đang tìm thợ'), findsNothing);
       },
     );
+
+    Finder timelineTicks() => find.descendant(
+      of: find.byKey(const Key('order-timeline')),
+      matching: find.byIcon(Icons.check),
+    );
+
+    testWidgets('an assigned order ticks "Có thợ"', (tester) async {
+      final assigned = FakeOrderService()
+        ..status = OrderStatus.assigned
+        ..workers = [_worker(7, AssignmentStatus.assigned)];
+      await pumpDetail(tester, assigned);
+
+      expect(timelineTicks(), findsNWidgets(3)); // Thanh toán, Tìm thợ, Có thợ
+    });
+
+    testWidgets('a dispatching order leaves "Tìm thợ" open', (tester) async {
+      await pumpDetail(tester, FakeOrderService());
+
+      expect(timelineTicks(), findsNWidgets(1)); // only Thanh toán
+    });
 
     testWidgets('an unpaid order offers the payment of that order', (
       tester,
@@ -658,8 +678,9 @@ void main() {
       expect(find.text('GV1'), findsOneWidget);
       expect(textOf(tester, 'order-status-1'), 'Đã có thợ');
       expect(textOf(tester, 'order-status-2'), 'Đã huỷ');
-      expect(find.text('15/10/2026 · Ca sáng'), findsNWidgets(2));
-      expect(find.text('Economy · 1 thợ · 260.000 đ'), findsNWidgets(2));
+      expect(find.text('Economy · Ca sáng'), findsNWidgets(2));
+      expect(find.text('1 thợ · 260.000 đ'), findsNWidgets(2));
+      expect(find.text('THÁNG 10/2026'), findsOneWidget);
       expect(textOf(tester, 'history-count'), '2 / 2 đơn');
       expect(find.byKey(const Key('history-more')), findsNothing);
     });

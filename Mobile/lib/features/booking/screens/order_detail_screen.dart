@@ -5,10 +5,16 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../../../core/widgets/avatar_initials.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
+import '../../../core/widgets/grouped_list_card.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
+import '../../../core/widgets/section_title.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../../core/widgets/step_dots.dart';
 import '../../disputes/models/dispute_models.dart';
 import '../../disputes/routes.dart';
 import '../../disputes/screens/dispute_screen.dart';
@@ -25,6 +31,7 @@ import '../models/booking_models.dart';
 import '../services/fallback_service.dart';
 import '../services/order_service.dart';
 import 'fallback_prompt_card.dart';
+import 'order_status_pill.dart';
 
 /// One order of the customer: its timeline and workers (MOB-M2-04), cancel, and "Làm lần 2" (MOB-M2-05).
 /// Contract booking.md 3.5 to 3.8.
@@ -309,22 +316,33 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget build(BuildContext context) {
     final order = _order;
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
       appBar: AppBar(
-        title: Text(order == null ? 'Đơn của bạn' : 'Đơn ${order.orderCode}'),
+        title: Text(
+          order == null ? 'Đơn của bạn' : order.orderCode,
+          key: const Key('order-title'),
+        ),
       ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 16.0,
-            ),
+            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 32.0),
             children: _body(),
           ),
         ),
       ),
+      // ui-templates `.btn-bar`: paying is the one main action of an unpaid order.
+      bottomNavigationBar: order != null && canPay(order.orderStatus)
+          ? BottomActionBar(
+              children: [
+                NordicButton(
+                  key: const Key('pay-order'),
+                  label: 'Thanh toán ${formatVnd(order.totalAmount)}',
+                  onPressed: _pay,
+                ),
+              ],
+            )
+          : null,
     );
   }
 
@@ -362,10 +380,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       progress.assignments,
     );
     final extension = progress.extension;
+    final actions = _actions(order, progress);
     return [
       _summary(order, displayStatus),
-      const SizedBox(height: 16.0),
-      _timeline(displayStatus),
       if (_notice != null) ...[
         const SizedBox(height: 12.0),
         Text(
@@ -392,39 +409,23 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           onAnswered: _refresh,
         ),
       ],
-      if (canPay(order.orderStatus)) ...[
-        const SizedBox(height: 16.0),
-        NordicButton(
-          key: const Key('pay-order'),
-          label: 'Thanh toán ${formatVnd(order.totalAmount)}',
-          onPressed: _pay,
-        ),
-      ],
-      const SizedBox(height: 24.0),
-      const Text('Thợ của đơn', style: NordicTypography.h3),
-      const SizedBox(height: 8.0),
+      SectionTitle(
+        'Thợ',
+        trailing: '${progress.assignments.length}/${progress.requiredWorkers}',
+      ),
       ..._assignments(order, progress),
-      if (canDispute(progress)) ...[
-        const SizedBox(height: 8.0),
-        NordicButton(
-          key: const Key('dispute-order'),
-          label: 'Khiếu nại về đơn này',
-          variant: NordicButtonVariant.secondary,
-          onPressed: () => _open(
-            DisputeRoutes.disputes,
-            DisputeScreenArgs(
-              role: DisputeRole.customer,
-              orderId: order.orderId,
-            ),
-          ),
-        ),
-      ],
       if (extension != null) ...[
-        const SizedBox(height: 24.0),
+        const SizedBox(height: 16.0),
         _extensionCard(extension),
       ],
-      if (canExtend(progress) && order.orderStatus == OrderStatus.assigned) ...[
-        const SizedBox(height: 24.0),
+      if (actions.isNotEmpty) ...[
+        const SectionTitle('Việc tiếp theo'),
+        GroupedListCard(items: actions),
+      ],
+      if (_extOpen &&
+          canExtend(progress) &&
+          order.orderStatus == OrderStatus.assigned) ...[
+        const SizedBox(height: 16.0),
         _extensionForm(workers),
       ],
       if (canCancel(order.orderStatus)) ...[
@@ -434,77 +435,89 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     ];
   }
 
-  Widget _summary(BookingOrder order, String displayStatus) => NordicCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          orderStatusLabel(displayStatus),
-          key: const Key('order-status'),
-          style: NordicTypography.h2,
-        ),
-        const SizedBox(height: 8.0),
-        Text(
-          scheduleText(order.scheduledDate, order.shiftCode),
-          key: const Key('order-schedule'),
-          style: NordicTypography.bodyRegular,
-        ),
-        const SizedBox(height: 4.0),
-        Text(
-          '${tierLabel(order.serviceTier)} · ${formatArea(order.areaSnapshotM2)} · ${order.requiredWorkers} thợ',
-          style: NordicTypography.bodySmall,
-        ),
-        const SizedBox(height: 8.0),
-        Text(
-          formatVnd(order.totalAmount),
-          key: const Key('order-amount'),
-          style: NordicTypography.priceHighlight,
-        ),
-        if ((order.customerNote ?? '').isNotEmpty) ...[
+  /// `08:00` in Asia/Ho_Chi_Minh from the server's shift start, or null when the server sent none.
+  static String? _localTime(DateTime? instant) {
+    if (instant == null) return null;
+    final t = instant.toUtc().add(const Duration(hours: 7));
+    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _summary(BookingOrder order, String displayStatus) {
+    final start = _localTime(order.shiftStartAt);
+    final end = _localTime(order.shiftEndAt);
+    return NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      start ?? shiftLabel(order.shiftCode),
+                      style: NordicTypography.numberLarge,
+                    ),
+                    const SizedBox(height: 4.0),
+                    Text(
+                      scheduleText(order.scheduledDate, order.shiftCode),
+                      key: const Key('order-schedule'),
+                      style: NordicTypography.bodySmall,
+                    ),
+                    if (end != null)
+                      Text('→ $end', style: NordicTypography.bodySmall),
+                  ],
+                ),
+              ),
+              Text(
+                formatVnd(order.totalAmount),
+                key: const Key('order-amount'),
+                style: NordicTypography.numberSmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12.0),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OrderStatusPill(
+              displayStatus,
+              textKey: const Key('order-status'),
+            ),
+          ),
           const SizedBox(height: 8.0),
           Text(
-            'Ghi chú: ${order.customerNote}',
+            '${tierLabel(order.serviceTier)} · ${formatArea(order.areaSnapshotM2)} · ${order.requiredWorkers} thợ',
             style: NordicTypography.bodySmall,
           ),
+          if ((order.customerNote ?? '').isNotEmpty) ...[
+            const SizedBox(height: 4.0),
+            Text(
+              'Ghi chú: ${order.customerNote}',
+              style: NordicTypography.bodySmall,
+            ),
+          ],
+          const Divider(height: 32.0),
+          _timeline(displayStatus),
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 
   Widget _timeline(String status) {
     final steps = orderTimeline(status);
-    return Row(
+    return StepDots(
       key: const Key('order-timeline'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final step in steps)
-          Expanded(
-            child: Column(
-              children: [
-                Icon(
-                  step.done
-                      ? Icons.check_circle_rounded
-                      : (step.current
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked),
-                  color: step.done || step.current
-                      ? NordicColors.primary
-                      : NordicColors.border,
-                  size: 22.0,
-                ),
-                const SizedBox(height: 4.0),
-                Text(
-                  step.label,
-                  textAlign: TextAlign.center,
-                  style: NordicTypography.labelSmall.copyWith(
-                    color: step.done || step.current
-                        ? NordicColors.textTitle
-                        : NordicColors.textSecondary,
-                    fontWeight: step.current ? FontWeight.w700 : null,
-                  ),
-                ),
-              ],
-            ),
+      steps: [
+        for (var i = 0; i < steps.length; i++)
+          StepItem(
+            steps[i].label,
+            // "Có thợ" (and after) is a milestone already reached when it is the current step: show it ticked.
+            // The waiting steps (pay, find a worker) stay an open ring while the order sits on them.
+            steps[i].done || (steps[i].current && i >= 2)
+                ? DotState.done
+                : (steps[i].current ? DotState.current : DotState.todo),
           ),
       ],
     );
@@ -521,7 +534,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             _ => 'Đang tìm thợ cho đơn của bạn. Màn hình tự cập nhật.',
           },
           key: const Key('no-assignments'),
-          style: NordicTypography.bodyRegular,
+          style: NordicTypography.bodySmall,
         ),
       ];
     }
@@ -529,63 +542,50 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       for (final a in progress.assignments) ...[
         NordicCard(
           key: Key('assignment-${a.assignmentId}'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.person_outline_rounded,
-                    color: NordicColors.primary,
-                  ),
-                  const SizedBox(width: 12.0),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ratingText(a.workerRatingAvg).isEmpty
-                              ? workerName(a)
-                              : '${workerName(a)} · ★ ${ratingText(a.workerRatingAvg)}',
-                          style: NordicTypography.labelMedium,
-                        ),
-                        const SizedBox(height: 2.0),
-                        Text(
-                          assignmentStatusLabel(a.assignmentStatus),
-                          key: Key('assignment-status-${a.assignmentId}'),
-                          style: NordicTypography.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              for (final action in assignmentActions(a.assignmentStatus)) ...[
-                const SizedBox(height: 8.0),
-                switch (action) {
-                  AssignmentAction.reviewAndAccept => NordicButton(
-                    key: Key('accept-${a.assignmentId}'),
-                    label: 'Xem ảnh & nghiệm thu',
-                    onPressed: () => _open(
-                      WorkerRoutes.customerAcceptance,
-                      CustomerAcceptanceArgs(assignmentId: a.assignmentId),
-                    ),
-                  ),
-                  AssignmentAction.rate => NordicButton(
-                    key: Key('rate-${a.assignmentId}'),
-                    label: 'Đánh giá thợ',
-                    variant: NordicButtonVariant.secondary,
-                    onPressed: () => _open(
-                      RatingRoutes.ratings,
-                      RatingScreenArgs(
-                        role: RatingRole.customer,
-                        assignmentId: a.assignmentId,
-                        ratedName: workerName(a),
+              AvatarInitials(workerName(a)),
+              const SizedBox(width: 12.0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(workerName(a), style: NordicTypography.titleSmall),
+                    if (ratingText(a.workerRatingAvg).isNotEmpty)
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            size: 16.0,
+                            color: NordicColors.accentAmber,
+                          ),
+                          const SizedBox(width: 2.0),
+                          Text(
+                            ratingText(a.workerRatingAvg),
+                            style: NordicTypography.bodySmall,
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                },
-              ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              // Full label width ("Chờ bạn nghiệm thu"); the name column gives way first.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180.0),
+                child: StatusPill(
+                  assignmentStatusLabel(a.assignmentStatus),
+                  textKey: Key('assignment-status-${a.assignmentId}'),
+                  dot: true,
+                  tone: switch (a.assignmentStatus) {
+                    AssignmentStatus.awaitingAcceptance => PillTone.warn,
+                    AssignmentStatus.cancelledByWorker ||
+                    AssignmentStatus.absent ||
+                    AssignmentStatus.incident => PillTone.bad,
+                    _ => PillTone.ok,
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -594,29 +594,102 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     ];
   }
 
+  /// The rows of ui-templates "Khi thợ đang làm": what the customer can do now, each opening its screen.
+  List<GroupedListItem> _actions(BookingOrder order, OrderProgress progress) {
+    final named = progress.assignments.length > 1;
+    return [
+      if (canExtend(progress) &&
+          order.orderStatus == OrderStatus.assigned &&
+          !_extOpen)
+        GroupedListItem(
+          key: const Key('open-extension'),
+          icon: Icons.more_time_outlined,
+          title: 'Làm lần 2 (thêm giờ)',
+          onTap: _openExtension,
+        ),
+      for (final a in progress.assignments)
+        for (final action in assignmentActions(a.assignmentStatus))
+          switch (action) {
+            AssignmentAction.reviewAndAccept => GroupedListItem(
+              key: Key('accept-${a.assignmentId}'),
+              icon: Icons.photo_library_outlined,
+              title: 'Xem ảnh & nghiệm thu',
+              subtitle: named ? workerName(a) : null,
+              onTap: () => _open(
+                WorkerRoutes.customerAcceptance,
+                CustomerAcceptanceArgs(assignmentId: a.assignmentId),
+              ),
+            ),
+            AssignmentAction.rate => GroupedListItem(
+              key: Key('rate-${a.assignmentId}'),
+              icon: Icons.star_outline,
+              title: 'Đánh giá thợ',
+              subtitle: named ? workerName(a) : null,
+              onTap: () => _open(
+                RatingRoutes.ratings,
+                RatingScreenArgs(
+                  role: RatingRole.customer,
+                  assignmentId: a.assignmentId,
+                  ratedName: workerName(a),
+                ),
+              ),
+            ),
+          },
+      if (canDispute(progress))
+        GroupedListItem(
+          key: const Key('dispute-order'),
+          icon: Icons.flag_outlined,
+          title: 'Khiếu nại về đơn này',
+          onTap: () => _open(
+            DisputeRoutes.disputes,
+            DisputeScreenArgs(
+              role: DisputeRole.customer,
+              orderId: order.orderId,
+            ),
+          ),
+        ),
+    ];
+  }
+
   Widget _extensionCard(OrderExtension extension) => NordicCard(
     key: const Key('extension-card'),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Làm lần 2', style: NordicTypography.h3),
-        const SizedBox(height: 4.0),
+        Row(
+          children: [
+            const Icon(Icons.more_time_outlined, color: NordicColors.primary),
+            const SizedBox(width: 8.0),
+            const Expanded(
+              child: Text('Làm lần 2', style: NordicTypography.titleSmall),
+            ),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180.0),
+              child: StatusPill(
+                extensionStatusLabel(extension.extStatus),
+                textKey: const Key('extension-status'),
+                tone: switch (extension.extStatus) {
+                  ExtensionStatus.accepted => PillTone.ok,
+                  ExtensionStatus.pendingPayment ||
+                  ExtensionStatus.paid => PillTone.warn,
+                  _ => PillTone.bad,
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8.0),
         Text(
           'Thêm ${hoursText(extension.extraHours)} · ${formatVnd(extension.extraAmount)}',
           key: const Key('extension-summary'),
-          style: NordicTypography.bodyRegular,
-        ),
-        const SizedBox(height: 4.0),
-        Text(
-          extensionStatusLabel(extension.extStatus),
-          key: const Key('extension-status'),
-          style: NordicTypography.bodySmall,
+          style: NordicTypography.titleSmall,
         ),
         if (extension.extStatus == ExtensionStatus.pendingPayment) ...[
           const SizedBox(height: 12.0),
           NordicButton(
             key: const Key('pay-extension'),
             label: 'Thanh toán ${formatVnd(extension.extraAmount)}',
+            width: double.infinity,
             onPressed: () => _pay(extensionId: extension.extensionId),
           ),
         ],
@@ -625,14 +698,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   );
 
   Widget _extensionForm(List<ProgressAssignment> workers) {
-    if (!_extOpen) {
-      return NordicButton(
-        key: const Key('open-extension'),
-        label: 'Làm lần 2 (thêm giờ)',
-        variant: NordicButtonVariant.secondary,
-        onPressed: _openExtension,
-      );
-    }
     final options = _options;
     final selected = workers.any((a) => a.assignmentId == _extAssignmentId)
         ? _extAssignmentId
@@ -642,17 +707,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Làm lần 2', style: NordicTypography.h3),
+          const Text('Làm lần 2', style: NordicTypography.titleSmall),
           const SizedBox(height: 4.0),
           const Text(
-            'Nhờ thợ ở lại làm thêm. Giá do hệ thống tính và hiện ra sau khi gửi yêu cầu; thợ chỉ được hỏi sau khi bạn thanh toán.',
+            'Giá hiện sau khi gửi. Thợ được hỏi sau khi bạn thanh toán.',
             style: NordicTypography.bodySmall,
           ),
           if (workers.length > 1) ...[
             const SizedBox(height: 12.0),
-            const Text('Thợ', style: NordicTypography.labelMedium),
+            const Text('THỢ', style: NordicTypography.caps),
+            const SizedBox(height: 6.0),
             Wrap(
               spacing: 8.0,
+              runSpacing: 8.0,
               children: [
                 for (final a in workers)
                   ChoiceChip(
@@ -666,11 +733,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
           ],
           const SizedBox(height: 12.0),
-          const Text('Số giờ làm thêm', style: NordicTypography.labelMedium),
+          const Text('SỐ GIỜ THÊM', style: NordicTypography.caps),
+          const SizedBox(height: 6.0),
           if (_extLoading) const LoadingStateWidget(message: 'Đang tải…'),
           if (options != null)
             Wrap(
               spacing: 8.0,
+              runSpacing: 8.0,
               children: [
                 for (final h in extraHourOptions(options.shiftMaxHours))
                   ChoiceChip(
@@ -696,12 +765,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             NordicButton(
               key: const Key('submit-extension'),
               label: 'Gửi yêu cầu',
+              width: double.infinity,
               isLoading: _extSubmitting,
               onPressed: () => _requestExtension(workers),
             )
           else if (!_extLoading)
             NordicButton(
               label: 'Thử lại',
+              width: double.infinity,
               variant: NordicButtonVariant.secondary,
               onPressed: _openExtension,
             ),
@@ -712,14 +783,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _cancelSection() {
     if (!_cancelOpen) {
-      return NordicButton(
-        key: const Key('open-cancel'),
-        label: 'Huỷ đơn',
-        variant: NordicButtonVariant.ghost,
-        onPressed: () => setState(() {
-          _cancelOpen = true;
-          _cancelError = null;
-        }),
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          key: const Key('open-cancel'),
+          style: OutlinedButton.styleFrom(foregroundColor: NordicColors.error),
+          onPressed: () => setState(() {
+            _cancelOpen = true;
+            _cancelError = null;
+          }),
+          child: const Text('Huỷ đơn'),
+        ),
       );
     }
     return NordicCard(
@@ -727,7 +801,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Huỷ đơn', style: NordicTypography.h3),
+          const Text('Huỷ đơn', style: NordicTypography.titleSmall),
           const SizedBox(height: 8.0),
           NordicTextInput(
             key: const Key('cancel-reason-input'),
@@ -749,11 +823,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           NordicButton(
             key: const Key('submit-cancel'),
             label: 'Xác nhận huỷ',
+            width: double.infinity,
             isLoading: _cancelling,
             onPressed: _cancel,
           ),
+          const SizedBox(height: 4.0),
           NordicButton(
             label: 'Không huỷ nữa',
+            width: double.infinity,
             variant: NordicButtonVariant.ghost,
             onPressed: () => setState(() => _cancelOpen = false),
           ),

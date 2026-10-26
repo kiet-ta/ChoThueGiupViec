@@ -31,12 +31,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sổ Địa Chỉ'), findsOneWidget);
-      expect(find.text('Địa chỉ của bạn'), findsOneWidget);
+      expect(find.text('Sổ địa chỉ'), findsOneWidget);
       expect(find.text('Nhà riêng'), findsOneWidget);
-      expect(find.text('MẶC ĐỊNH'), findsOneWidget);
+      expect(find.text('Mặc định'), findsOneWidget);
       expect(find.text('Thêm Địa Chỉ Mới'), findsOneWidget);
-      expect(find.textContaining('S_total'), findsWidgets);
+      expect(find.text('m²'), findsWidgets);
     });
 
     testWidgets('navigates to AddressFormScreen when tap Thêm Địa Chỉ Mới', (
@@ -105,7 +104,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find first delete icon button
-      final deleteButtons = find.byIcon(Icons.delete_outline_rounded);
+      final deleteButtons = find.byIcon(Icons.delete_outline);
       expect(deleteButtons, findsWidgets);
 
       await tester.tap(deleteButtons.first);

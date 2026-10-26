@@ -30,8 +30,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Thợ Quen Yêu Thích'), findsOneWidget);
-      expect(find.text('Thợ quen của bạn'), findsOneWidget);
+      expect(find.text('Yêu thích'), findsOneWidget);
       expect(find.text('Lê Thị Cúc'), findsOneWidget);
       expect(find.text('Đặt Ca Với Thợ'), findsWidgets);
       expect(find.textContaining('ca hoàn thành'), findsWidgets);

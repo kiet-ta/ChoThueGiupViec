@@ -36,7 +36,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Hồ Sơ Cá Nhân'), findsOneWidget);
+      expect(find.text('Hồ sơ'), findsOneWidget);
       expect(find.text('Nguyễn Văn An'), findsWidgets);
       expect(find.text('0901234567'), findsWidgets);
       expect(find.text('Hoạt động'), findsOneWidget);
