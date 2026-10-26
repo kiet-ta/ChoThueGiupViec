@@ -6,35 +6,7 @@ import 'design_frame.dart';
 
 void main() {
   group('WorkerExecutionScreen Tests', () {
-    testWidgets(
-      'WorkerExecutionScreen renders header, timer, and checklist items',
-      (tester) async {
-        useDesignFrame(tester);
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: WorkerExecutionScreen(
-              assignmentId: 2001,
-              workZone: 'Phòng khách & Bếp',
-              initialElapsedSeconds: 3600, // 01:00:00
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('Màn Thi Công #2001'), findsOneWidget);
-        expect(find.text('Phòng khách & Bếp'), findsOneWidget);
-        expect(find.text('Thời Gian Thi Công'), findsOneWidget);
-        expect(find.text('01:00:00'), findsOneWidget);
-
-        // Verify checklist items
-        expect(find.text('Checklist Công Việc'), findsOneWidget);
-        expect(find.text('2/5'), findsOneWidget);
-        expect(find.text('Dọn dẹp & sắp xếp phòng khách'), findsOneWidget);
-        expect(find.text('Lau chùi cửa kính & bề mặt'), findsOneWidget);
-      },
-    );
-
-    testWidgets('Tapping checklist item updates completion state and counter', (
+    testWidgets('WorkerExecutionScreen renders header, work zone and timer', (
       tester,
     ) async {
       useDesignFrame(tester);
@@ -42,20 +14,20 @@ void main() {
         const MaterialApp(
           home: WorkerExecutionScreen(
             assignmentId: 2001,
-            initialElapsedSeconds: 0,
+            workZone: 'Phòng khách & Bếp',
+            initialElapsedSeconds: 3600, // 01:00:00
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('2/5'), findsOneWidget);
+      expect(find.text('Màn Thi Công #2001'), findsOneWidget);
+      expect(find.text('Phòng khách & Bếp'), findsOneWidget);
+      expect(find.text('Thời Gian Thi Công'), findsOneWidget);
+      expect(find.text('01:00:00'), findsOneWidget);
 
-      // Tap 3rd item (Hút bụi & lau sàn nhà)
-      await tapVisible(tester, find.text('Hút bụi & lau sàn nhà'));
-      await tester.pumpAndSettle();
-
-      // Counter increases to 3/5
-      expect(find.text('3/5'), findsOneWidget);
+      // The made-up checklist is gone: the API has none (issue #442).
+      expect(find.text('Checklist Công Việc'), findsNothing);
     });
 
     testWidgets('Toggling timer button updates icon', (tester) async {

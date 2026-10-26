@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_state_widget.dart';
@@ -165,9 +165,8 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
       appBar: AppBar(
-        title: const Text('Bàn Điều Phối Ca'),
+        title: const Text('Việc mới'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -276,10 +275,15 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          EyebrowBadge(
-            text: _currentOffer!.isConsecutiveShift
-                ? 'XÁC NHẬN CA THỨ HAI (120S)'
-                : 'ĐỀ NGHỊ CA MỚI (30S)',
+          Align(
+            alignment: Alignment.centerLeft,
+            child: StatusPill(
+              _currentOffer!.isConsecutiveShift
+                  ? 'Xác nhận ca thứ hai (120s)'
+                  : 'Đề nghị ca mới (30s)',
+              tone: PillTone.warn,
+              dot: true,
+            ),
           ),
           const SizedBox(height: 8.0),
           const Text('Có khách cần giúp việc!', style: NordicTypography.h2),

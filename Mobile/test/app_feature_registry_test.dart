@@ -140,7 +140,7 @@ void main() {
       navigatorState.pushNamed(DispatchRoutes.offers);
       await tester.pumpAndSettle();
 
-      expect(find.text('Bàn Điều Phối Ca'), findsOneWidget);
+      expect(find.text('Việc mới'), findsOneWidget);
     });
   });
 }

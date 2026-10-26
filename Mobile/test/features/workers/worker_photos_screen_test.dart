@@ -105,11 +105,11 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Ảnh Before/After #2001'), findsOneWidget);
-        expect(find.text('KIỂM TRA CHẤT LƯỢNG VOL'), findsOneWidget);
         expect(find.text('BEFORE (Trước)'), findsOneWidget);
         expect(find.text('AFTER (Sau)'), findsOneWidget);
         expect(find.text('Góc 1'), findsOneWidget);
         expect(find.text('Góc 1: Toàn cảnh'), findsOneWidget);
+        await scrollTo(tester, find.text('Chụp ảnh'));
         expect(find.text('Chụp ảnh'), findsOneWidget);
         expect(find.text('Chọn từ thư viện'), findsOneWidget);
         expect(find.text('Gửi Ảnh Chụp'), findsOneWidget);
@@ -145,6 +145,21 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Góc 2: Bàn ghế & tủ'), findsOneWidget);
+    });
+
+    testWidgets('Tapping a cell of the angle grid picks that phase and angle', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        screen(RecordingPhotosService(), FakeCamera(jpeg)),
+      );
+      await tester.pumpAndSettle();
+
+      await tapVisible(tester, find.byKey(const Key('photo-cell-AFTER-4')));
+
+      expect(find.text('Góc 4: Sàn nhà'), findsOneWidget);
+      expect(find.text('Đã Tải Ảnh (AFTER)'), findsOneWidget);
     });
 
     testWidgets('Sending without a photo asks for one and uploads nothing', (

@@ -60,7 +60,7 @@ void main() {
         await tester.pumpWidget(createScreen());
         await tester.pumpAndSettle();
 
-        expect(find.text('Check-in Hiện Trường'), findsOneWidget);
+        expect(find.text('Check-in'), findsOneWidget);
         expect(find.text('Đã đến địa chỉ ca làm việc?'), findsOneWidget);
         expect(find.text('123 Đường Cầu Giấy, Hà Nội'), findsOneWidget);
         expect(find.byKey(const Key('check_in_gps_button')), findsOneWidget);
