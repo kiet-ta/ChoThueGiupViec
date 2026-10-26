@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../models/customer_acceptance_models.dart';
 import '../models/job_photo_models.dart';
 import '../services/customer_acceptance_service.dart';
 import '../services/workers_photos_service.dart';
 import '../widgets/job_photo_image.dart';
-import '../widgets/tinted_card.dart';
 
 /// Arguments of the acceptance route: the assignment whose finished job the customer looks at. The order screen passes it.
 class CustomerAcceptanceArgs {
@@ -222,77 +222,69 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     }
   }
 
+  /// Angles that have both a BEFORE and an AFTER photo, out of 5 (ui-templates `customer/acceptance.html`).
+  int get _pairedAngles => [
+    for (var a = 1; a <= 5; a++)
+      if (_getPhoto('BEFORE', a) != null && _getPhoto('AFTER', a) != null) a,
+  ].length;
+
   @override
   Widget build(BuildContext context) {
+    final awaiting = _status != 'COMPLETED' && !_showRedoForm;
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text('Nghiệm Thu Ca #${widget.assignmentId}'),
-        backgroundColor: Colors.white,
-        foregroundColor: NordicColors.textTitle,
-        elevation: 0.5,
-      ),
+      appBar: AppBar(title: Text('Nghiệm Thu Ca #${widget.assignmentId}')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
             children: [
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8.0,
-                runSpacing: 8.0,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const EyebrowBadge(text: 'Khách Hàng Nghiệm Thu'),
-                  _buildStatusChip(),
-                ],
-              ),
-              const SizedBox(height: 8.0),
-              const Text(
-                'Đối Chiếu Ảnh Before / After',
-                style: NordicTypography.h2,
-              ),
-              const SizedBox(height: 6.0),
-              const Text(
-                'Vui lòng kiểm tra kỹ chất lượng vệ sinh theo từng góc chụp trước khi xác nhận nghiệm thu.',
-                style: NordicTypography.bodySmall,
-              ),
-              const SizedBox(height: 16.0),
-
-              // Angle selector
-              _buildAngleSelector(),
-              const SizedBox(height: 16.0),
-
-              // Side-by-side Photo Comparison Card
-              if (_photosError != null) ...[
-                TintedCard(
-                  key: const Key('photos-error'),
-                  backgroundColor: const Color(0xFFFEE2E2),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _photosError!,
-                          style: const TextStyle(
-                            color: Color(0xFF991B1B),
-                            fontSize: 13.0,
-                          ),
+                          _loadingPhotos ? '–/5' : '$_pairedAngles/5',
+                          key: const Key('acceptance-paired'),
+                          style: NordicTypography.numberMedium,
                         ),
-                        const SizedBox(height: 8.0),
-                        NordicButton(
-                          key: const Key('photos-retry'),
-                          label: 'Thử lại',
-                          variant: NordicButtonVariant.secondary,
-                          onPressed: _loadPhotos,
+                        const SizedBox(height: 4.0),
+                        const Text(
+                          'Góc có ảnh trước & sau',
+                          style: NordicTypography.bodySmall,
                         ),
                       ],
                     ),
                   ),
+                  _buildStatusChip(),
+                ],
+              ),
+              const SizedBox(height: 20.0),
+              const Text(
+                'Đối Chiếu Ảnh Before / After',
+                style: NordicTypography.titleSmall,
+              ),
+              const SizedBox(height: 12.0),
+
+              _buildAngleSelector(),
+              const SizedBox(height: 12.0),
+
+              if (_photosError != null) ...[
+                _notice(
+                  key: const Key('photos-error'),
+                  message: _photosError!,
+                  isError: true,
+                  action: NordicButton(
+                    key: const Key('photos-retry'),
+                    label: 'Thử lại',
+                    variant: NordicButtonVariant.secondary,
+                    onPressed: _loadPhotos,
+                  ),
                 ),
-                const SizedBox(height: 16.0),
+                const SizedBox(height: 12.0),
               ] else if (_loadingPhotos) ...[
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12.0),
@@ -302,143 +294,111 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               _buildPhotoComparisonCard(),
               const SizedBox(height: 16.0),
 
-              // Error or Success Alerts
               if (_errorMessage != null) ...[
-                TintedCard(
-                  backgroundColor: const Color(0xFFFEE2E2),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Color(0xFFDC2626),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFF991B1B),
-                              fontSize: 13.0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _notice(message: _errorMessage!, isError: true),
                 const SizedBox(height: 16.0),
               ],
               if (_successMessage != null) ...[
-                TintedCard(
-                  backgroundColor: const Color(0xFFDCFCE7),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle_outline,
-                          color: Color(0xFF16A34A),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: Text(
-                            _successMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFF15803D),
-                              fontSize: 13.0,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _notice(message: _successMessage!, isError: false),
                 const SizedBox(height: 16.0),
               ],
 
-              // Completed Payout Breakdown
               if (_completionResult != null) ...[
                 _buildCompletionSummaryCard(),
                 const SizedBox(height: 16.0),
               ],
 
-              // Acceptance Actions / Redo Form
               if (_status != 'COMPLETED') ...[
-                if (_showRedoForm) ...[
-                  _buildRedoFormCard(),
-                ] else ...[
+                if (_showRedoForm)
+                  _buildRedoFormCard()
+                else
                   NordicTextInput(
-                    label: 'Đánh giá / Phản hồi (Không bắt buộc)',
+                    label: 'Phản hồi (không bắt buộc)',
                     controller: _feedbackController,
                   ),
-                  const SizedBox(height: 12.0),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: NordicButton(
-                          label: 'Dọn Lại (15–30ph)',
-                          variant: NordicButtonVariant.secondary,
-                          onPressed: () {
-                            setState(() {
-                              _showRedoForm = true;
-                              _errorMessage = null;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10.0),
-                      Expanded(
-                        child: NordicButton(
-                          label: 'Xác Nhận Nghiệm Thu',
-                          variant: NordicButtonVariant.primary,
-                          isLoading: _isLoading,
-                          onPressed: _handleAcceptCompletion,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ],
             ],
           ),
         ),
       ),
+      // ui-templates `.btn-bar`: "Dọn lại" beside the main "Nghiệm thu".
+      bottomNavigationBar: awaiting
+          ? BottomActionBar(
+              children: [
+                NordicButton(
+                  label: 'Dọn Lại (15–30ph)',
+                  variant: NordicButtonVariant.secondary,
+                  onPressed: () {
+                    setState(() {
+                      _showRedoForm = true;
+                      _errorMessage = null;
+                    });
+                  },
+                ),
+                NordicButton(
+                  label: 'Xác Nhận Nghiệm Thu',
+                  variant: NordicButtonVariant.primary,
+                  isLoading: _isLoading,
+                  onPressed: _handleAcceptCompletion,
+                ),
+              ],
+            )
+          : null,
+    );
+  }
+
+  /// An error (or success) line in the tokens' error / primary-fixed tints.
+  Widget _notice({
+    Key? key,
+    required String message,
+    required bool isError,
+    Widget? action,
+  }) {
+    final foreground = isError ? NordicColors.error : NordicColors.primary;
+    return Container(
+      key: key,
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: isError
+            ? NordicColors.errorContainer
+            : NordicColors.primaryFixed,
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isError ? Icons.error_outline : Icons.check_circle_outline,
+                color: foreground,
+              ),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 13.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (action != null) ...[const SizedBox(height: 8.0), action],
+        ],
+      ),
     );
   }
 
   Widget _buildStatusChip() {
-    Color bg = const Color(0xFFFEF3C7);
-    Color textClr = const Color(0xFFD97706);
-    String label = 'CHỜ NGHIỆM THU';
-
-    if (_status == 'COMPLETED') {
-      bg = const Color(0xFFDCFCE7);
-      textClr = const Color(0xFF16A34A);
-      label = 'ĐÃ NGHIỆM THU';
-    } else if (_status == 'IN_PROGRESS') {
-      bg = const Color(0xFFE0F2FE);
-      textClr = const Color(0xFF0284C7);
-      label = 'ĐANG DỌN LẠI';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12.0),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: textClr,
-          fontWeight: FontWeight.bold,
-          fontSize: 11.0,
-        ),
-      ),
-    );
+    final (label, tone) = switch (_status) {
+      'COMPLETED' => ('ĐÃ NGHIỆM THU', PillTone.ok),
+      'IN_PROGRESS' => ('ĐANG DỌN LẠI', PillTone.neutral),
+      _ => ('CHỜ NGHIỆM THU', PillTone.warn),
+    };
+    return StatusPill(label, tone: tone, dot: true);
   }
 
   Widget _buildAngleSelector() {
@@ -452,13 +412,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               child: ChoiceChip(
                 label: Text('Góc $i'),
                 selected: _selectedAngle == i,
-                selectedColor: NordicColors.primary,
-                labelStyle: TextStyle(
-                  color: _selectedAngle == i
-                      ? Colors.white
-                      : NordicColors.textTitle,
-                  fontWeight: FontWeight.bold,
-                ),
+                showCheckmark: false,
                 onSelected: (selected) {
                   if (selected) {
                     setState(() => _selectedAngle = i);
@@ -479,40 +433,36 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       orElse: () => {'name': 'Góc $_selectedAngle'},
     )['name'];
 
-    return NordicCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title!,
+          style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6.0),
+        Row(
           children: [
-            Text(title!, style: NordicTypography.h3),
-            const SizedBox(height: 12.0),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildPhotoBox(
-                    label: 'TRƯỚC (Before)',
-                    photo: beforePhoto,
-                    volScore: beforePhoto?.volScore,
-                    headerBg: const Color(0xFFF1F5F9),
-                    headerTextColor: NordicColors.textTitle,
-                  ),
-                ),
-                const SizedBox(width: 8.0),
-                Expanded(
-                  child: _buildPhotoBox(
-                    label: 'SAU (After)',
-                    photo: afterPhoto,
-                    volScore: afterPhoto?.volScore,
-                    headerBg: const Color(0xFFDCFCE7),
-                    headerTextColor: const Color(0xFF15803D),
-                  ),
-                ),
-              ],
+            Expanded(
+              child: _buildPhotoBox(
+                label: 'TRƯỚC (Before)',
+                photo: beforePhoto,
+                volScore: beforePhoto?.volScore,
+                tint: NordicColors.surfaceDim,
+              ),
+            ),
+            const SizedBox(width: 8.0),
+            Expanded(
+              child: _buildPhotoBox(
+                label: 'SAU (After)',
+                photo: afterPhoto,
+                volScore: afterPhoto?.volScore,
+                tint: NordicColors.primaryFixed,
+              ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 
@@ -520,62 +470,57 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     required String label,
     required JobPhotoDto? photo,
     double? volScore,
-    required Color headerBg,
-    required Color headerTextColor,
+    required Color tint,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: NordicColors.borderVariant),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 8.0),
-            decoration: BoxDecoration(
-              color: headerBg,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(11.0),
-              ),
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.0,
-                fontWeight: FontWeight.bold,
-                color: headerTextColor,
-              ),
-            ),
-          ),
-          Container(
-            height: 110.0,
-            color: const Color(0xFF0F172A),
-            child: JobPhotoImage(
-              service: _photosService,
-              photo: photo,
-              height: 110.0,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12.0),
+      child: Container(
+        color: NordicColors.surfaceLow,
+        child: Column(
+          children: [
+            Container(
               width: double.infinity,
-            ),
-          ),
-          if (volScore != null)
-            Padding(
+              color: tint,
               padding: const EdgeInsets.symmetric(
-                vertical: 4.0,
-                horizontal: 6.0,
+                vertical: 6.0,
+                horizontal: 8.0,
               ),
               child: Text(
-                'VoL: ${volScore.toStringAsFixed(1)} (ĐẠT)',
+                label,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 10.0,
-                  color: NordicColors.textSecondary,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 11.0,
+                  fontWeight: FontWeight.w600,
+                  color: NordicColors.textTitle,
                 ),
               ),
             ),
-        ],
+            SizedBox(
+              height: 120.0,
+              child: JobPhotoImage(
+                service: _photosService,
+                photo: photo,
+                height: 120.0,
+                width: double.infinity,
+              ),
+            ),
+            if (volScore != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4.0,
+                  horizontal: 6.0,
+                ),
+                child: Text(
+                  'VoL: ${volScore.toStringAsFixed(1)} (ĐẠT)',
+                  style: const TextStyle(
+                    fontSize: 10.0,
+                    color: NordicColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -587,39 +532,35 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     final payout = result.payoutAmount;
     final commissionPercent = (result.commissionRate * 100).round();
 
-    return TintedCard(
-      backgroundColor: const Color(0xFFF0FDF4),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.verified, color: Color(0xFF16A34A)),
-                SizedBox(width: 8.0),
-                Flexible(
-                  child: Text(
-                    'Chi Tiết Nghiệm Thu & Khóa Ca',
-                    style: NordicTypography.h3,
-                  ),
+    return NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.verified_outlined, color: NordicColors.primary),
+              SizedBox(width: 8.0),
+              Flexible(
+                child: Text(
+                  'Chi Tiết Nghiệm Thu & Khóa Ca',
+                  style: NordicTypography.titleSmall,
                 ),
-              ],
-            ),
-            const Divider(),
-            _buildDetailRow('Tổng Phí Dịch Vụ:', '${gross.toString()} đ'),
-            _buildDetailRow(
-              'Chi Phí Nền Tảng ($commissionPercent%):',
-              '${(gross - payout).toString()} đ',
-            ),
-            const Divider(),
-            _buildDetailRow(
-              'Thu Nhập Thợ (${100 - commissionPercent}%):',
-              '${payout.toString()} đ',
-              isBold: true,
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const Divider(),
+          _buildDetailRow('Tổng Phí Dịch Vụ:', '${gross.toString()} đ'),
+          _buildDetailRow(
+            'Chi Phí Nền Tảng ($commissionPercent%):',
+            '${(gross - payout).toString()} đ',
+          ),
+          const Divider(),
+          _buildDetailRow(
+            'Thu Nhập Thợ (${100 - commissionPercent}%):',
+            '${payout.toString()} đ',
+            isBold: true,
+          ),
+        ],
       ),
     );
   }
@@ -644,7 +585,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               val,
               textAlign: TextAlign.end,
               style: isBold
-                  ? NordicTypography.h3
+                  ? NordicTypography.titleSmall
                   : NordicTypography.labelMedium,
             ),
           ),
@@ -654,55 +595,51 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
   }
 
   Widget _buildRedoFormCard() {
-    return TintedCard(
-      backgroundColor: const Color(0xFFFEF2F2),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Yêu Cầu Dọn Lại (15–30 phút)',
-              style: NordicTypography.h3,
-            ),
-            const SizedBox(height: 6.0),
-            const Text(
-              'Ghi rõ các khu vực thợ cần làm lại để hoàn thiện chất lượng ca làm.',
-              style: NordicTypography.bodySmall,
-            ),
-            const SizedBox(height: 12.0),
-            NordicTextInput(
-              label: 'Nội dung / Lý do yêu cầu dọn lại',
-              controller: _redoReasonController,
-            ),
-            const SizedBox(height: 10.0),
-            NordicTextInput(
-              label: 'Đường dẫn ảnh khoanh vùng lỗi (Không bắt buộc)',
-              controller: _redoPhotoController,
-            ),
-            const SizedBox(height: 14.0),
-            Row(
-              children: [
-                Expanded(
-                  child: NordicButton(
-                    label: 'Hủy Bỏ',
-                    variant: NordicButtonVariant.secondary,
-                    onPressed: () => setState(() => _showRedoForm = false),
-                  ),
+    return NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Yêu Cầu Dọn Lại (15–30 phút)',
+            style: NordicTypography.titleSmall,
+          ),
+          const SizedBox(height: 4.0),
+          const Text(
+            'Ghi rõ khu vực thợ cần làm lại.',
+            style: NordicTypography.bodySmall,
+          ),
+          const SizedBox(height: 12.0),
+          NordicTextInput(
+            label: 'Nội dung / Lý do yêu cầu dọn lại',
+            controller: _redoReasonController,
+          ),
+          const SizedBox(height: 10.0),
+          NordicTextInput(
+            label: 'Đường dẫn ảnh khoanh vùng lỗi (Không bắt buộc)',
+            controller: _redoPhotoController,
+          ),
+          const SizedBox(height: 14.0),
+          Row(
+            children: [
+              Expanded(
+                child: NordicButton(
+                  label: 'Hủy Bỏ',
+                  variant: NordicButtonVariant.secondary,
+                  onPressed: () => setState(() => _showRedoForm = false),
                 ),
-                const SizedBox(width: 10.0),
-                Expanded(
-                  child: NordicButton(
-                    label: 'Gửi Yêu Cầu Dọn Lại',
-                    variant: NordicButtonVariant.primary,
-                    isLoading: _isLoading,
-                    onPressed: _handleRequestRedo,
-                  ),
+              ),
+              const SizedBox(width: 10.0),
+              Expanded(
+                child: NordicButton(
+                  label: 'Gửi Yêu Cầu Dọn Lại',
+                  variant: NordicButtonVariant.primary,
+                  isLoading: _isLoading,
+                  onPressed: _handleRequestRedo,
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

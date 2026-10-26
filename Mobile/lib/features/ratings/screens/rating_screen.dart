@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/avatar_initials.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/progress_ring.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../logic/rating_logic.dart';
 import '../models/rating_models.dart';
@@ -143,14 +145,26 @@ class _RatingScreenState extends State<RatingScreen> {
         ? widget.role.title
         : '${widget.role.title} ${widget.ratedName}';
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(leading: const CloseButton(), title: Text(title)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: _body(),
         ),
       ),
+      // ui-templates `customer/rating.html`: "Gửi đánh giá" sits at the bottom while the form is open.
+      bottomNavigationBar: _phase == _Phase.form
+          ? BottomActionBar(
+              children: [
+                NordicButton(
+                  key: const Key('rating-submit'),
+                  label: 'Gửi đánh giá',
+                  isLoading: _sending,
+                  onPressed: _complete && !_sending ? _submit : null,
+                ),
+              ],
+            )
+          : null,
     );
   }
 
@@ -179,21 +193,22 @@ class _RatingScreenState extends State<RatingScreen> {
         reasonMessage(_window?.reason ?? '') ??
         'Hiện chưa đánh giá được ca này.';
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(20.0),
       children: [
         NordicCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
               const Icon(
-                Icons.hourglass_empty_rounded,
+                Icons.timer_outlined,
                 color: NordicColors.textSecondary,
               ),
-              const SizedBox(height: 8.0),
-              Text(
-                message,
-                key: const Key('rating-closed-message'),
-                style: NordicTypography.bodyRegular,
+              const SizedBox(width: 12.0),
+              Expanded(
+                child: Text(
+                  message,
+                  key: const Key('rating-closed-message'),
+                  style: NordicTypography.bodyRegular,
+                ),
               ),
             ],
           ),
@@ -204,32 +219,30 @@ class _RatingScreenState extends State<RatingScreen> {
 
   Widget _thanks() {
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(20.0),
       children: [
-        NordicCard(
-          child: Column(
-            children: [
-              const Icon(
-                Icons.check_circle_rounded,
-                size: 48.0,
-                color: NordicColors.secondaryAccent,
-              ),
-              const SizedBox(height: 12.0),
-              const Text(
-                'Cảm ơn bạn đã đánh giá',
-                key: Key('rating-thanks'),
-                style: NordicTypography.h3,
-              ),
-              const SizedBox(height: 8.0),
-              Text(
-                widget.role.isInternalOnly
-                    ? 'Đánh giá của bạn đã được lưu và chỉ dùng nội bộ để giữ chất lượng dịch vụ.'
-                    : 'Đánh giá đã được lưu vĩnh viễn và góp vào điểm uy tín của thợ.',
-                textAlign: TextAlign.center,
-                style: NordicTypography.bodyRegular,
-              ),
-            ],
+        const SizedBox(height: 24.0),
+        const Center(
+          child: ProgressRing(
+            value: 1.0,
+            size: 112.0,
+            child: Icon(Icons.check, size: 44.0, color: NordicColors.primary),
           ),
+        ),
+        const SizedBox(height: 16.0),
+        const Text(
+          'Cảm ơn bạn đã đánh giá',
+          key: Key('rating-thanks'),
+          textAlign: TextAlign.center,
+          style: NordicTypography.titleMedium,
+        ),
+        const SizedBox(height: 8.0),
+        Text(
+          widget.role.isInternalOnly
+              ? 'Đánh giá của bạn đã được lưu và chỉ dùng nội bộ để giữ chất lượng dịch vụ.'
+              : 'Đánh giá đã được lưu vĩnh viễn và góp vào điểm uy tín của thợ.',
+          textAlign: TextAlign.center,
+          style: NordicTypography.bodySmall,
         ),
       ],
     );
@@ -238,100 +251,84 @@ class _RatingScreenState extends State<RatingScreen> {
   Widget _form() {
     final window = _window!;
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
       children: [
-        const EyebrowBadge(text: 'Đánh giá 2 chiều cố định'),
-        const SizedBox(height: 12.0),
-        Text(
-          widget.role == RatingRole.customer
-              ? 'Ca làm vừa rồi thế nào?'
-              : 'Gia chủ phối hợp ra sao?',
-          style: NordicTypography.h2,
-        ),
-        const SizedBox(height: 4.0),
-        Text(
-          countdownText(window.secondsRemaining),
-          key: const Key('rating-countdown'),
-          style: NordicTypography.labelMedium.copyWith(
-            color: NordicColors.textSecondary,
-          ),
+        if (widget.ratedName != null) ...[
+          Center(child: AvatarInitials(widget.ratedName!, size: 72.0)),
+          const SizedBox(height: 12.0),
+        ],
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.timer_outlined,
+              size: 18.0,
+              color: NordicColors.textSecondary,
+            ),
+            const SizedBox(width: 6.0),
+            Flexible(
+              child: Text(
+                countdownText(window.secondsRemaining),
+                key: const Key('rating-countdown'),
+                style: NordicTypography.bodySmall,
+              ),
+            ),
+          ],
         ),
         if (widget.role.isInternalOnly) ...[
           const SizedBox(height: 4.0),
-          Text(
+          const Text(
             'Đánh giá này chỉ dùng nội bộ, gia chủ không nhìn thấy.',
-            key: const Key('rating-internal'),
+            key: Key('rating-internal'),
+            textAlign: TextAlign.center,
             style: NordicTypography.bodySmall,
           ),
         ],
-        const SizedBox(height: 16.0),
+        const SizedBox(height: 24.0),
+        Center(
+          child: StarRow(
+            keyPrefix: 'stars',
+            label: 'Tổng thể',
+            value: _stars,
+            size: 44.0,
+            onChanged: (v) => setState(() => _stars = v),
+          ),
+        ),
+        Center(child: _fieldError(_errors.stars ?? _serverFields['stars'])),
+        const SizedBox(height: 24.0),
         NordicCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Đánh giá tổng thể', style: NordicTypography.h3),
-              const SizedBox(height: 8.0),
-              StarRow(
-                keyPrefix: 'stars',
-                label: 'Tổng thể',
-                value: _stars,
-                onChanged: (v) => setState(() => _stars = v),
-              ),
-              _fieldError(_errors.stars ?? _serverFields['stars']),
-              const SizedBox(height: 16.0),
-              const Text('Theo từng tiêu chí', style: NordicTypography.h3),
-              for (final c in widget.role.criteria) ...[
-                const SizedBox(height: 12.0),
-                Text(c.label, style: NordicTypography.labelMedium),
-                StarRow(
-                  keyPrefix: 'criterion-${c.key}',
-                  label: c.label,
-                  value: _criteria[c.key],
-                  onChanged: (v) => setState(() => _criteria[c.key] = v),
-                ),
-                _fieldError(
-                  _errors.criteria[c.key] ?? _serverFields['criteria.${c.key}'],
-                ),
+              for (var i = 0; i < widget.role.criteria.length; i++) ...[
+                if (i > 0) const Divider(height: 1, thickness: 1),
+                _criterion(widget.role.criteria[i]),
               ],
               _fieldError(_serverFields['criteria']),
             ],
           ),
         ),
-        const SizedBox(height: 12.0),
-        NordicCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Nhận xét (không bắt buộc)',
-                style: NordicTypography.h3,
-              ),
-              const SizedBox(height: 8.0),
-              TextField(
-                key: const Key('rating-comment'),
-                controller: _comment,
-                maxLines: 4,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: 'Chia sẻ thêm về ca làm…',
-                ),
-              ),
-              Text(
-                '${_comment.text.trim().length}/$maxCommentLength ký tự',
-                style: NordicTypography.bodySmall.copyWith(
-                  color: NordicColors.textSecondary,
-                ),
-              ),
-              _fieldError(_errors.comment ?? _serverFields['comment']),
-            ],
+        const SizedBox(height: 16.0),
+        TextField(
+          key: const Key('rating-comment'),
+          controller: _comment,
+          maxLines: 4,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            hintText: 'Nhận xét (không bắt buộc)',
           ),
         ),
-        const SizedBox(height: 12.0),
+        const SizedBox(height: 4.0),
         Text(
+          '${_comment.text.trim().length}/$maxCommentLength ký tự',
+          textAlign: TextAlign.right,
+          style: NordicTypography.bodySmall,
+        ),
+        _fieldError(_errors.comment ?? _serverFields['comment']),
+        const SizedBox(height: 12.0),
+        const Text(
           'Đánh giá được lưu vĩnh viễn, không sửa hay gửi lại được sau khi bấm Gửi.',
-          style: NordicTypography.bodySmall.copyWith(
-            color: NordicColors.textSecondary,
-          ),
+          style: NordicTypography.bodySmall,
         ),
         if (_failure != null) ...[
           const SizedBox(height: 12.0),
@@ -343,16 +340,34 @@ class _RatingScreenState extends State<RatingScreen> {
             ),
           ),
         ],
-        const SizedBox(height: 16.0),
-        NordicButton(
-          key: const Key('rating-submit'),
-          label: 'Gửi đánh giá',
-          isLoading: _sending,
-          onPressed: _complete && !_sending ? _submit : null,
-        ),
       ],
     );
   }
+
+  /// ui-templates `.crit`: the criterion on the left, its stars on the right.
+  Widget _criterion(RatingCriterion c) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(c.label, style: NordicTypography.titleSmall)),
+            StarRow(
+              keyPrefix: 'criterion-${c.key}',
+              label: c.label,
+              value: _criteria[c.key],
+              size: 22.0,
+              onChanged: (v) => setState(() => _criteria[c.key] = v),
+            ),
+          ],
+        ),
+        _fieldError(
+          _errors.criteria[c.key] ?? _serverFields['criteria.${c.key}'],
+        ),
+      ],
+    ),
+  );
 
   Widget _fieldError(String? message) {
     if (message == null) return const SizedBox.shrink();
@@ -372,6 +387,7 @@ class StarRow extends StatelessWidget {
   final String label;
   final int? value;
   final ValueChanged<int> onChanged;
+  final double size;
 
   const StarRow({
     super.key,
@@ -379,11 +395,13 @@ class StarRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.size = 32.0,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = minScore; i <= maxScore; i++)
           Semantics(
@@ -393,12 +411,19 @@ class StarRow extends StatelessWidget {
             child: IconButton(
               key: Key('$keyPrefix-$i'),
               onPressed: () => onChanged(i),
+              padding: EdgeInsets.all(size < 30.0 ? 2.0 : 4.0),
+              constraints: BoxConstraints(
+                minWidth: size + 8.0,
+                minHeight: size + 8.0,
+              ),
               icon: Icon(
                 value != null && i <= value!
                     ? Icons.star_rounded
                     : Icons.star_border_rounded,
-                color: NordicColors.accentAmber,
-                size: 32.0,
+                color: value != null && i <= value!
+                    ? NordicColors.accentAmber
+                    : NordicColors.surfaceDim,
+                size: size,
               ),
             ),
           ),

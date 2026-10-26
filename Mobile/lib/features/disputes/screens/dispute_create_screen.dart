@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/progress_ring.dart';
 import '../../payouts/logic/payout_logic.dart';
 import '../logic/dispute_logic.dart';
 import '../models/dispute_models.dart';
@@ -123,69 +125,122 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sent = _created != null;
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(title: const Text('Gửi khiếu nại')),
+      appBar: AppBar(
+        leading: const CloseButton(),
+        title: const Text('Khiếu nại'),
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _created != null ? _sent(_created!) : _form(),
+          child: sent ? _sent(_created!) : _form(),
         ),
       ),
+      // ui-templates `customer/dispute-create.html`: "Gửi khiếu nại" sits at the bottom.
+      bottomNavigationBar: sent
+          ? null
+          : BottomActionBar(
+              children: [
+                NordicButton(
+                  key: const Key('dispute-submit'),
+                  label: 'Gửi khiếu nại',
+                  isLoading: _sending,
+                  onPressed: _sending || !_uploader.isAvailable || !_complete
+                      ? null
+                      : _submit,
+                ),
+              ],
+            ),
     );
   }
 
   Widget _sent(Dispute d) {
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(20.0),
       children: [
-        NordicCard(
-          child: Column(
-            children: [
-              const Icon(
-                Icons.check_circle_rounded,
-                size: 48.0,
-                color: NordicColors.secondaryAccent,
-              ),
-              const SizedBox(height: 12.0),
-              const Text(
-                'Đã gửi khiếu nại',
-                key: Key('dispute-sent'),
-                style: NordicTypography.h3,
-              ),
-              const SizedBox(height: 8.0),
-              Text(
-                'Admin sẽ xem xét. Hạn xử lý dự kiến: ${formatVietnamDateTime(d.slaDueAt)}.',
-                textAlign: TextAlign.center,
-                style: NordicTypography.bodyRegular,
-              ),
-              const SizedBox(height: 16.0),
-              NordicButton(
-                key: const Key('dispute-done'),
-                label: 'Xong',
-                onPressed: () => Navigator.of(context).pop(true),
-              ),
-            ],
+        const SizedBox(height: 24.0),
+        const Center(
+          child: ProgressRing(
+            value: 1.0,
+            size: 112.0,
+            child: Icon(Icons.check, size: 44.0, color: NordicColors.primary),
           ),
+        ),
+        const SizedBox(height: 16.0),
+        const Text(
+          'Đã gửi khiếu nại',
+          key: Key('dispute-sent'),
+          textAlign: TextAlign.center,
+          style: NordicTypography.titleMedium,
+        ),
+        const SizedBox(height: 8.0),
+        Text(
+          'Admin sẽ xem xét. Hạn xử lý dự kiến: ${formatVietnamDateTime(d.slaDueAt)}.',
+          textAlign: TextAlign.center,
+          style: NordicTypography.bodySmall,
+        ),
+        const SizedBox(height: 24.0),
+        NordicButton(
+          key: const Key('dispute-done'),
+          label: 'Xong',
+          width: double.infinity,
+          onPressed: () => Navigator.of(context).pop(true),
         ),
       ],
     );
   }
 
+  Widget _caps(String text, {String? trailing}) => Padding(
+    padding: const EdgeInsets.only(top: 24.0, bottom: 8.0),
+    child: Row(
+      children: [
+        Expanded(child: Text(text, style: NordicTypography.caps)),
+        if (trailing != null) Text(trailing, style: NordicTypography.bodySmall),
+      ],
+    ),
+  );
+
   Widget _form() {
     String? fieldError(String key) => _serverFields[key];
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
       children: [
-        Text('Đơn #${widget.orderId}', style: NordicTypography.h3),
-        const SizedBox(height: 4.0),
-        const Text(
-          'Khiếu nại phải gửi trong vòng 24 giờ sau ca làm, và mỗi đơn chỉ có một khiếu nại.',
-          style: NordicTypography.bodySmall,
+        Container(
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: NordicColors.surfaceLow,
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Đơn #${widget.orderId}',
+                style: NordicTypography.titleSmall,
+              ),
+              const SizedBox(height: 4.0),
+              const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.timer_outlined,
+                    size: 16.0,
+                    color: NordicColors.textSecondary,
+                  ),
+                  SizedBox(width: 6.0),
+                  Expanded(
+                    child: Text(
+                      'Gửi trong vòng 24 giờ sau ca làm; mỗi đơn chỉ có một khiếu nại.',
+                      style: NordicTypography.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 16.0),
-        const Text('Loại khiếu nại', style: NordicTypography.labelMedium),
-        const SizedBox(height: 8.0),
+        _caps('VẤN ĐỀ'),
         Wrap(
           spacing: 8.0,
           runSpacing: 8.0,
@@ -195,51 +250,83 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                 key: Key('dispute-category-${c.code}'),
                 label: Text(c.label),
                 selected: _category == c.code,
+                showCheckmark: false,
                 onSelected: (_) => setState(() => _category = c.code),
               ),
           ],
         ),
         _error(_errors.category ?? fieldError('category')),
-        const SizedBox(height: 16.0),
-        const Text('Mô tả sự việc', style: NordicTypography.labelMedium),
-        const SizedBox(height: 8.0),
+        _caps('MÔ TẢ'),
         TextField(
           key: const Key('dispute-description'),
           controller: _description,
           maxLines: 5,
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
-            border: const OutlineInputBorder(),
             hintText: 'Chuyện gì đã xảy ra?',
             counterText:
                 '${_description.text.trim().length}/$maxDescriptionLength',
           ),
         ),
         _error(_errors.description ?? fieldError('description')),
-        const SizedBox(height: 16.0),
-        Text(
-          'Ảnh bằng chứng (${_evidence.length}/$maxEvidenceCount)',
-          style: NordicTypography.labelMedium,
-        ),
-        const SizedBox(height: 8.0),
-        for (var i = 0; i < _evidence.length; i++)
-          ListTile(
-            key: Key('dispute-evidence-$i'),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.image_outlined),
-            title: Text('Ảnh ${i + 1}', style: NordicTypography.bodyRegular),
-            trailing: IconButton(
-              key: Key('dispute-remove-$i'),
-              tooltip: 'Bỏ ảnh ${i + 1}',
-              icon: const Icon(Icons.close_rounded),
-              onPressed: () => setState(() => _evidence.removeAt(i)),
-            ),
+        _caps('Ảnh bằng chứng (${_evidence.length}/$maxEvidenceCount)'),
+        if (_evidence.isNotEmpty) ...[
+          GridView.count(
+            crossAxisCount: 3,
+            mainAxisSpacing: 8.0,
+            crossAxisSpacing: 8.0,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (var i = 0; i < _evidence.length; i++)
+                Container(
+                  key: Key('dispute-evidence-$i'),
+                  decoration: BoxDecoration(
+                    color: NordicColors.surfaceContainer,
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.image_outlined,
+                              color: NordicColors.textSecondary,
+                            ),
+                            Text(
+                              'Ảnh ${i + 1}',
+                              style: NordicTypography.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        top: 0.0,
+                        right: 0.0,
+                        child: IconButton(
+                          key: Key('dispute-remove-$i'),
+                          tooltip: 'Bỏ ảnh ${i + 1}',
+                          iconSize: 18.0,
+                          icon: const Icon(Icons.close),
+                          onPressed: () =>
+                              setState(() => _evidence.removeAt(i)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
+          const SizedBox(height: 8.0),
+        ],
         if (_uploader.isAvailable)
           NordicButton(
             key: const Key('dispute-add-photo'),
             label: 'Thêm ảnh',
+            width: double.infinity,
+            icon: const Icon(Icons.add_a_photo_outlined, size: 18.0),
             variant: NordicButtonVariant.secondary,
             isLoading: _uploading,
             onPressed: _uploading || _evidence.length >= maxEvidenceCount
@@ -255,10 +342,9 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
             ),
           ),
         _error(_errors.evidence ?? fieldError('evidenceUrls')),
-        const SizedBox(height: 16.0),
         if (_failure != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
+            padding: const EdgeInsets.only(top: 12.0),
             child: Text(
               _failure!,
               key: const Key('dispute-failure'),
@@ -267,14 +353,6 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
               ),
             ),
           ),
-        NordicButton(
-          key: const Key('dispute-submit'),
-          label: 'Gửi khiếu nại',
-          isLoading: _sending,
-          onPressed: _sending || !_uploader.isAvailable || !_complete
-              ? null
-              : _submit,
-        ),
       ],
     );
   }
