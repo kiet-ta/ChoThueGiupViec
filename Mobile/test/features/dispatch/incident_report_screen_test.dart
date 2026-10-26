@@ -73,7 +73,6 @@ void main() {
 
         // Verify title & disclaimer
         expect(find.text('Báo Cáo Sự Cố Bất Khả Kháng'), findsOneWidget);
-        expect(find.textContaining('MIỄN PHẠT SỰ CỐ (BR-10)'), findsOneWidget);
 
         // Try tapping submit without capturing photo
         final submitButton = find.byKey(const Key('submit_incident_button'));
@@ -83,12 +82,17 @@ void main() {
           scrollable: find.byType(Scrollable).first,
         );
         expect(submitButton, findsOneWidget);
+        await tester.ensureVisible(submitButton);
+        await tester.pumpAndSettle();
         await tester.tap(submitButton);
         await tester.pumpAndSettle();
 
         // Expect validation error for photo evidence
         expect(
-          find.textContaining('Vui lòng chụp ảnh bằng chứng'),
+          find.textContaining(
+            'Vui lòng chụp ảnh bằng chứng',
+            skipOffstage: false,
+          ),
           findsOneWidget,
         );
       },
@@ -132,6 +136,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final submitButton = find.byKey(const Key('submit_incident_button'));
+        await tester.ensureVisible(submitButton);
+        await tester.pumpAndSettle();
         await tester.tap(submitButton);
         await tester.pumpAndSettle();
 

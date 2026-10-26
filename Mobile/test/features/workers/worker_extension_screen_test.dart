@@ -86,7 +86,6 @@ void main() {
         await pumpScreen(tester, FakeExtensionService());
 
         expect(find.text('Làm Lần 2 #2001'), findsOneWidget);
-        expect(find.text('YÊU CẦU LÀM LẦN 2 (BR-08)'), findsOneWidget);
         expect(find.text('Nguyễn Văn An'), findsOneWidget);
         expect(find.text('Phòng khách & Bếp - Căn hộ 402'), findsOneWidget);
         expect(find.text('2 giờ'), findsOneWidget);

@@ -4,7 +4,6 @@ import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/location_wrapper.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../models/incident_log.dart';
@@ -146,7 +145,6 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
       appBar: AppBar(title: const Text('Báo Cáo Sự Cố Bất Khả Kháng')),
       body: Center(
         child: ConstrainedBox(
@@ -163,8 +161,6 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        const EyebrowBadge(text: 'MIỄN PHẠT SỰ CỐ (BR-10)'),
-        const SizedBox(height: 8.0),
         const Text(
           'Gặp sự cố trên đường / hiện trường?',
           style: NordicTypography.h2,
