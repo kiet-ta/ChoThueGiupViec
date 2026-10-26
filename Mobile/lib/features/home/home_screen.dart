@@ -3,18 +3,16 @@ import 'package:flutter/material.dart';
 import '../../core/models/user_role.dart';
 import '../../core/theme/nordic_colors.dart';
 import '../../core/theme/nordic_typography.dart';
-import '../../core/widgets/nordic_button.dart';
-import '../../core/widgets/nordic_card.dart';
 import '../identity/screens/phone_input_screen.dart';
 import '../identity/services/token_storage.dart';
-import '../workers/routes.dart';
 import 'customer_shell.dart';
 import 'home_actions.dart';
+import 'worker_shell.dart';
 
 /// Root screen of TỔ ẤM — Nordic Care (390x844 frame).
 /// Signed out: the minimal welcome of ui-templates `shared/welcome.html` (logo, one line, two role
 /// buttons). Signed-in customer: [CustomerShell] with the bottom navigation (MOB-UI-02).
-/// Signed-in worker: the worker actions (MOB-NAV), unchanged until the Worker flow gets its own ticket.
+/// Signed-in worker: [WorkerShell] with its bottom navigation (MOB-UI-03).
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -37,10 +35,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  void _open(String route) {
-    Navigator.of(context).pushNamed(route).then((_) => _refresh());
-  }
-
   void _openLogin(AppRole role) {
     Navigator.push(
       context,
@@ -60,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return CustomerShell(onSignOut: _signOut);
     }
     if (session?.role == SessionRoles.worker) {
-      return _workerHome(session!);
+      return WorkerShell(onSignOut: _signOut, workerId: session!.id);
     }
     return _welcome();
   }
@@ -127,91 +121,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _workerHome(AuthUserView session) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: false,
-        title: Text(
-          'TỔ ẤM',
-          style: NordicTypography.titleMedium.copyWith(
-            color: NordicColors.primary,
-          ),
-        ),
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 12.0,
-            ),
-            children: [
-              _sessionPanel(session),
-              const SizedBox(height: 16.0),
-              NordicButton(
-                label: 'Vào Trực Ca',
-                width: double.infinity,
-                onPressed: () => _open(WorkerRoutes.slots),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _sessionPanel(AuthUserView session) {
-    final actions = homeActionsFor(session.role);
-    return NordicCard(
-      isHighlighted: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.engineering_outlined,
-                color: NordicColors.primary,
-              ),
-              const SizedBox(width: 8.0),
-              Expanded(
-                child: Text(
-                  'Thợ #${session.id}',
-                  style: NordicTypography.titleSmall,
-                ),
-              ),
-              TextButton(
-                key: const Key('home-sign-out'),
-                onPressed: _signOut,
-                child: const Text('Đăng xuất'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4.0),
-          for (final action in actions)
-            // Own Material: the card paints a background that would hide the ink of the tile.
-            Material(
-              type: MaterialType.transparency,
-              child: ListTile(
-                key: Key('home-action-${action.route}'),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                leading: Icon(action.icon, color: NordicColors.primary),
-                title: Text(action.label, style: NordicTypography.labelMedium),
-                subtitle: Text(
-                  action.subtitle,
-                  style: NordicTypography.bodySmall,
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _open(action.route),
-              ),
-            ),
-        ],
       ),
     );
   }
