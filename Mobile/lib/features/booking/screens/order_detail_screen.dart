@@ -570,7 +570,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
               ),
               const SizedBox(width: 8.0),
-              Flexible(
+              // Full label width ("Chờ bạn nghiệm thu"); the name column gives way first.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180.0),
                 child: StatusPill(
                   assignmentStatusLabel(a.assignmentStatus),
                   textKey: Key('assignment-status-${a.assignmentId}'),
@@ -623,7 +625,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               icon: Icons.star_outline,
               title: 'Đánh giá thợ',
               subtitle: named ? workerName(a) : null,
-              trailing: '48 giờ',
               onTap: () => _open(
                 RatingRoutes.ratings,
                 RatingScreenArgs(
@@ -639,7 +640,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           key: const Key('dispute-order'),
           icon: Icons.flag_outlined,
           title: 'Khiếu nại về đơn này',
-          trailing: '24 giờ',
           onTap: () => _open(
             DisputeRoutes.disputes,
             DisputeScreenArgs(
@@ -663,7 +663,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             const Expanded(
               child: Text('Làm lần 2', style: NordicTypography.titleSmall),
             ),
-            Flexible(
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180.0),
               child: StatusPill(
                 extensionStatusLabel(extension.extStatus),
                 textKey: const Key('extension-status'),

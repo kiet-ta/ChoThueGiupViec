@@ -326,7 +326,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
           ? BottomActionBar(
               children: [
                 NordicButton(
-                  label: 'Dọn Lại (15–30ph)',
+                  label: 'Dọn lại',
                   variant: NordicButtonVariant.secondary,
                   onPressed: () {
                     setState(() {
@@ -336,7 +336,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                   },
                 ),
                 NordicButton(
-                  label: 'Xác Nhận Nghiệm Thu',
+                  label: 'Nghiệm thu',
                   variant: NordicButtonVariant.primary,
                   isLoading: _isLoading,
                   onPressed: _handleAcceptCompletion,
