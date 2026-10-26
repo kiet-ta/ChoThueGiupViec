@@ -156,7 +156,7 @@ void main() {
 
         expect(service.createdOrders, [42]);
         expect(service.createdExtensions, isEmpty);
-        expect(find.text('Thanh toán GV261014ABC123'), findsOneWidget);
+        expect(find.text('Đơn GV261014ABC123'), findsOneWidget);
         expect(textOf(tester, 'payment-amount'), '260.000 đ');
         expect(
           tester
