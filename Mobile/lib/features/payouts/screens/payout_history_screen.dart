@@ -69,7 +69,6 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
       appBar: AppBar(title: const Text('Lịch sử giải ngân')),
       body: Center(
         child: ConstrainedBox(

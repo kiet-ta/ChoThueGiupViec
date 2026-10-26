@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
@@ -95,21 +94,13 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: const Text('Xác Thực eKYC'),
-        backgroundColor: Colors.white,
-        foregroundColor: NordicColors.textTitle,
-        elevation: 0.5,
-      ),
+      appBar: AppBar(title: const Text('Xác Thực eKYC')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
-              const EyebrowBadge(text: 'Xác Thực Danh Tính Thợ'),
-              const SizedBox(height: 8.0),
               const Text(
                 'Chụp Ảnh CCCD & Chân Dung',
                 style: NordicTypography.h2,
@@ -128,7 +119,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
                 const SizedBox(height: 16.0),
                 if (_errorMessage != null) ...[
                   TintedCard(
-                    backgroundColor: const Color(0xFFFEE2E2),
+                    backgroundColor: NordicColors.errorContainer,
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Text(
@@ -317,7 +308,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
       height: 140.0,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: NordicColors.surfaceContainer,
         borderRadius: BorderRadius.circular(12.0),
         border: Border.all(color: NordicColors.border),
       ),

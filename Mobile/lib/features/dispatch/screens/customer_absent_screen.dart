@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../models/customer_absent_report.dart';
@@ -124,7 +123,6 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
       appBar: AppBar(title: const Text('Báo Khách Vắng Mặt')),
       body: Center(
         child: ConstrainedBox(
@@ -141,8 +139,6 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        const EyebrowBadge(text: 'HIỆN TRƯỜNG (BR-05)'),
-        const SizedBox(height: 8.0),
         const Text('Khách hàng chưa mở cửa?', style: NordicTypography.h2),
         const SizedBox(height: 4.0),
         Text(

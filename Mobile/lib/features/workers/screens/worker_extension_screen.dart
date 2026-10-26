@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../models/worker_extension_models.dart';
@@ -121,13 +120,7 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text('Làm Lần 2 #${_offer.assignmentId}'),
-        backgroundColor: Colors.white,
-        foregroundColor: NordicColors.textTitle,
-        elevation: 0.5,
-      ),
+      appBar: AppBar(title: Text('Làm Lần 2 #${_offer.assignmentId}')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
@@ -143,8 +136,6 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        const EyebrowBadge(text: 'Yêu Cầu Làm Lần 2 (BR-08)'),
-        const SizedBox(height: 8.0),
         Text('Khách Hàng Yêu Cầu Làm Thêm Giờ', style: NordicTypography.h2),
         const SizedBox(height: 16.0),
 
@@ -152,9 +143,9 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
           Container(
             padding: const EdgeInsets.all(12.0),
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF2F2),
+              color: NordicColors.errorContainer,
               borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: const Color(0xFFFCA5A5)),
+              border: Border.all(color: NordicColors.error),
             ),
             child: Row(
               children: [
@@ -215,7 +206,7 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
 
         // Extension Request Details Card
         TintedCard(
-          backgroundColor: const Color(0xFFF0FDF4),
+          backgroundColor: NordicColors.primaryFixed,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -333,7 +324,7 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
               fontSize: isHighlight ? 16.0 : 14.0,
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
               color: isHighlight
-                  ? const Color(0xFF16A34A)
+                  ? NordicColors.primary
                   : NordicColors.textTitle,
             ),
           ),
@@ -352,7 +343,7 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
         Icon(
           isAccepted ? Icons.check_circle : Icons.cancel,
           size: 64.0,
-          color: isAccepted ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+          color: isAccepted ? NordicColors.primary : NordicColors.error,
         ),
         const SizedBox(height: 16.0),
         Text(
