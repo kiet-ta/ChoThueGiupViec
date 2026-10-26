@@ -4,13 +4,13 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
-import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../logic/booking_logic.dart';
 import '../logic/order_logic.dart';
 import '../models/booking_models.dart';
 import '../routes.dart';
 import '../services/order_service.dart';
+import 'order_status_pill.dart';
 
 /// The customer's orders, newest first as the server sends them (MOB-M2-06); contract booking.md 3.4.
 class OrderHistoryScreen extends StatefulWidget {
@@ -126,19 +126,130 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ui-templates `customer/orders.html`: a tab of the customer shell (large title) or a pushed screen.
+    final pushed = ModalRoute.of(context)?.canPop ?? false;
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(title: const Text('Lịch sử đơn')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 16.0,
+      appBar: pushed ? AppBar(title: const Text('Lịch sử đơn')) : null,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 390.0),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 32.0),
+              children: [
+                if (!pushed)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8.0, bottom: 16.0),
+                    child: Text('Đơn', style: NordicTypography.screenTitle),
+                  ),
+                ..._body(),
+              ],
             ),
-            children: _body(),
           ),
+        ),
+      ),
+    );
+  }
+
+  static const _weekdays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+  /// The orders grouped by the month of their day, in the server's order.
+  List<Widget> _rows() {
+    final widgets = <Widget>[];
+    String? month;
+    var group = <Widget>[];
+    void flush() {
+      if (group.isEmpty) return;
+      widgets.add(
+        Material(
+          color: NordicColors.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+            side: const BorderSide(color: NordicColors.border),
+          ),
+          child: Column(children: group),
+        ),
+      );
+      group = <Widget>[];
+    }
+
+    for (final order in _items) {
+      final day = DateTime.tryParse(order.scheduledDate);
+      final key = day == null ? '' : 'Tháng ${day.month}/${day.year}';
+      if (key != month) {
+        flush();
+        month = key;
+        if (key.isNotEmpty) {
+          widgets.add(
+            Padding(
+              padding: EdgeInsets.only(
+                top: widgets.isEmpty ? 16.0 : 24.0,
+                bottom: 8.0,
+              ),
+              child: Text(key.toUpperCase(), style: NordicTypography.caps),
+            ),
+          );
+        }
+      }
+      if (group.isNotEmpty) group.add(const Divider(height: 1, thickness: 1));
+      group.add(_row(order, day));
+    }
+    flush();
+    return widgets;
+  }
+
+  Widget _row(OrderSummary order, DateTime? day) {
+    return InkWell(
+      key: Key('order-${order.orderId}'),
+      onTap: () => _open(order),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 40.0,
+              child: Column(
+                children: [
+                  Text(
+                    day == null ? '–' : day.day.toString().padLeft(2, '0'),
+                    style: NordicTypography.numberSmall,
+                  ),
+                  if (day != null)
+                    Text(
+                      _weekdays[day.weekday - 1],
+                      style: const TextStyle(
+                        fontSize: 11.0,
+                        color: NordicColors.textSecondary,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12.0),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${tierLabel(order.serviceTier)} · ${shiftLabel(order.shiftCode)}',
+                    style: NordicTypography.titleSmall,
+                  ),
+                  const SizedBox(height: 2.0),
+                  Text(order.orderCode, style: NordicTypography.bodySmall),
+                  Text(
+                    '${order.requiredWorkers} thợ · ${formatVnd(order.totalAmount)}',
+                    style: NordicTypography.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8.0),
+            OrderStatusPill(
+              order.orderStatus,
+              textKey: Key('order-status-${order.orderId}'),
+            ),
+          ],
         ),
       ),
     );
@@ -170,44 +281,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         key: const Key('history-count'),
         style: NordicTypography.bodySmall,
       ),
-      const SizedBox(height: 8.0),
-      for (final order in _items) ...[
-        NordicCard(
-          key: Key('order-${order.orderId}'),
-          onTap: () => _open(order),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      order.orderCode,
-                      style: NordicTypography.labelMedium,
-                    ),
-                  ),
-                  Text(
-                    orderStatusLabel(order.orderStatus),
-                    key: Key('order-status-${order.orderId}'),
-                    style: NordicTypography.labelSmall,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4.0),
-              Text(
-                scheduleText(order.scheduledDate, order.shiftCode),
-                style: NordicTypography.bodyRegular,
-              ),
-              const SizedBox(height: 2.0),
-              Text(
-                '${tierLabel(order.serviceTier)} · ${order.requiredWorkers} thợ · ${formatVnd(order.totalAmount)}',
-                style: NordicTypography.bodySmall,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8.0),
-      ],
+      ..._rows(),
+      const SizedBox(height: 16.0),
       if (_moreError != null)
         Text(
           _moreError!,
@@ -218,6 +293,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         NordicButton(
           key: const Key('history-more'),
           label: 'Xem thêm',
+          width: double.infinity,
           variant: NordicButtonVariant.secondary,
           isLoading: _loadingMore,
           onPressed: _more,

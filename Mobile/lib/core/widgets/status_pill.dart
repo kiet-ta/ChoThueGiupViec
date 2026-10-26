@@ -11,11 +11,15 @@ class StatusPill extends StatelessWidget {
   final PillTone tone;
   final bool dot;
 
+  /// Key of the label's [Text], for tests that read the shown status.
+  final Key? textKey;
+
   const StatusPill(
     this.label, {
     super.key,
     this.tone = PillTone.neutral,
     this.dot = false,
+    this.textKey,
   });
 
   (Color, Color) get _colors => switch (tone) {
@@ -49,12 +53,17 @@ class StatusPill extends StatelessWidget {
             ),
             const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: foreground,
+          Flexible(
+            child: Text(
+              label,
+              key: textKey,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: foreground,
+              ),
             ),
           ),
         ],

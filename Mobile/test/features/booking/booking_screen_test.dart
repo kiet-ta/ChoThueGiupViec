@@ -185,8 +185,10 @@ void main() {
 
         expect(find.textContaining('1 Lê Lợi · 50 m²'), findsOneWidget);
         expect(find.textContaining('9 Hai Bà Trưng · 90 m²'), findsOneWidget);
-        expect(find.text('Ca sáng · 08:00–12:00'), findsOneWidget);
-        expect(find.text('Ca tối · 17:30–20:30'), findsOneWidget);
+        expect(find.bySemanticsLabel('Ca sáng · 08:00–12:00'), findsOneWidget);
+        expect(find.bySemanticsLabel('Ca tối · 17:30–20:30'), findsOneWidget);
+        expect(find.text('08:00'), findsOneWidget);
+        expect(find.text('→ 20:30'), findsOneWidget);
         expect(find.byKey(const Key('day-2026-10-14')), findsOneWidget);
       },
     );

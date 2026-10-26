@@ -7,12 +7,14 @@ import '../models/booking_models.dart';
 /// The order status as a pill (ui-templates `.pill`): the label from `orderStatusLabel`, the tone only supports it.
 class OrderStatusPill extends StatelessWidget {
   final String status;
+  final Key? textKey;
 
-  const OrderStatusPill(this.status, {super.key});
+  const OrderStatusPill(this.status, {super.key, this.textKey});
 
   @override
   Widget build(BuildContext context) => StatusPill(
     orderStatusLabel(status),
+    textKey: textKey,
     tone: switch (status) {
       OrderStatus.completed || OrderStatus.assigned => PillTone.ok,
       OrderStatus.pendingPayment ||
