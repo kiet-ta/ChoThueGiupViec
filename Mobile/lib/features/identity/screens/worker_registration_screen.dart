@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
-import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/step_dots.dart';
 import '../services/api_error.dart';
 import '../services/auth_service.dart';
 
@@ -99,21 +99,17 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
     int maxLines = 1,
     int? maxLength,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: TextField(
-        key: Key('worker-reg-$key'),
-        controller: controller,
-        enabled: !_submitting,
-        keyboardType: keyboardType,
-        maxLines: maxLines,
-        maxLength: maxLength,
-        decoration: InputDecoration(
-          labelText: label,
-          errorText: _fieldErrors[key],
-          counterText: '',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-        ),
+    return TextField(
+      key: Key('worker-reg-$key'),
+      controller: controller,
+      enabled: !_submitting,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      maxLength: maxLength,
+      decoration: InputDecoration(
+        labelText: label,
+        errorText: _fieldErrors[key],
+        counterText: '',
       ),
     );
   }
@@ -121,58 +117,70 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NordicColors.canvas,
       appBar: AppBar(title: const Text('Hồ sơ chuyên viên')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
             children: [
-              const EyebrowBadge(text: 'Đăng ký thợ'),
-              const SizedBox(height: 8.0),
+              // The phone is verified; the profile is being filled; eKYC comes after the new login.
+              const StepDots(
+                steps: [
+                  StepItem('SĐT', DotState.done),
+                  StepItem('Hồ sơ', DotState.current),
+                  StepItem('eKYC', DotState.todo),
+                ],
+              ),
+              const SizedBox(height: 24.0),
               const Text('Hoàn tất hồ sơ', style: NordicTypography.h2),
               const SizedBox(height: 6.0),
               const Text(
                 'Số điện thoại đã được xác thực. Điền thông tin để bắt đầu nhận việc; sau đó bạn xác minh danh tính (eKYC).',
                 style: NordicTypography.bodySmall,
               ),
+              const SizedBox(height: 20.0),
+              _field('Họ và tên', _fullName, 'fullName'),
               const SizedBox(height: 16.0),
-              NordicCard(
-                child: Column(
-                  children: [
-                    _field('Họ và tên', _fullName, 'fullName'),
-                    _field(
-                      'Số CCCD (12 chữ số)',
-                      _nationalId,
-                      'nationalId',
-                      keyboardType: TextInputType.number,
-                      maxLength: 12,
-                    ),
-                    _field('Địa chỉ', _address, 'address'),
-                    _field('Giới thiệu (tuỳ chọn)', _bio, 'bio', maxLines: 2),
-                    if (_message != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: Text(
-                          _message!,
-                          style: const TextStyle(
-                            color: Color(0xFF991B1B),
-                            fontSize: 13.0,
-                          ),
-                        ),
-                      ),
-                    NordicButton(
-                      label: _submitting ? 'Đang gửi…' : 'Hoàn tất hồ sơ',
-                      width: double.infinity,
-                      onPressed: _submitting ? null : _submit,
-                    ),
-                  ],
-                ),
+              _field(
+                'Số CCCD (12 chữ số)',
+                _nationalId,
+                'nationalId',
+                keyboardType: TextInputType.number,
+                maxLength: 12,
               ),
+              const SizedBox(height: 16.0),
+              _field('Địa chỉ', _address, 'address'),
+              const SizedBox(height: 16.0),
+              _field('Giới thiệu (tuỳ chọn)', _bio, 'bio', maxLines: 2),
+              if (_message != null) ...[
+                const SizedBox(height: 16.0),
+                Container(
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: NordicColors.errorContainer,
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  child: Text(
+                    _message!,
+                    style: const TextStyle(
+                      color: NordicColors.error,
+                      fontSize: 13.0,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomActionBar(
+        children: [
+          NordicButton(
+            label: _submitting ? 'Đang gửi…' : 'Hoàn tất hồ sơ',
+            onPressed: _submitting ? null : _submit,
+          ),
+        ],
       ),
     );
   }

@@ -119,6 +119,54 @@ void main() {
       expect(find.byKey(const Key('slot-1')), findsOneWidget);
     });
 
+    testWidgets(
+      'counts the shifts of the week and of the 14 days, and fills the grid',
+      (tester) async {
+        final service = _FakeSlots()
+          ..slots = [
+            _slot(1, '2026-10-14', 'SHIFT_MORNING', '08:00', '12:00'),
+            _slot(2, '2026-10-15', 'SHIFT_AFTERNOON', '13:00', '17:00'),
+            _slot(3, '2026-10-20', 'SHIFT_MORNING', '08:00', '12:00'),
+          ];
+        await _pump(tester, service);
+
+        Text value(String key) => tester.widget<Text>(
+          find
+              .descendant(of: find.byKey(Key(key)), matching: find.byType(Text))
+              .last,
+        );
+        // The StatTile value is a rich text; read the plain text of the tile instead.
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('schedule-week-count')),
+            matching: find.textContaining('2', findRichText: true),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('schedule-total-count')),
+            matching: find.textContaining('3', findRichText: true),
+          ),
+          findsOneWidget,
+        );
+
+        Color? cell(String date, String code) =>
+            (tester
+                        .widget<Container>(
+                          find.byKey(Key('roster-cell-$date-$code')),
+                        )
+                        .decoration
+                    as BoxDecoration)
+                .color;
+        expect(
+          cell('2026-10-14', 'SHIFT_MORNING'),
+          isNot(cell('2026-10-14', 'SHIFT_EVENING')),
+        );
+        expect(value, isNotNull);
+      },
+    );
+
     testWidgets('says so when the agency has not rostered the worker', (
       tester,
     ) async {
