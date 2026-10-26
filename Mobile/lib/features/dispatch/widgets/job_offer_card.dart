@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/countdown_timer_widget.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../models/job_offer.dart';
@@ -44,204 +43,250 @@ class JobOfferCard extends StatelessWidget {
   int get _windowSeconds =>
       offer.isConsecutiveShift ? _consecutiveWindowSeconds : 30;
 
+  String get _tierLabel =>
+      offer.serviceTier == 'PREMIUM' ? 'Premium' : 'Tiêu chuẩn';
+
   @override
   Widget build(BuildContext context) {
+    final commission = offer.grossAmount - offer.netEarnings;
+    final netFlex =
+        (offer.netEarnings /
+                (offer.grossAmount > 0 ? offer.grossAmount : 1) *
+                100)
+            .round()
+            .clamp(1, 99);
     return NordicCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Eyebrow badge
-            Row(
-              children: [
-                EyebrowBadge(
-                  text: offer.isConsecutiveShift
-                      ? 'CA THỨ HAI LIÊN TIẾP'
-                      : offer.serviceTier == 'PREMIUM'
-                      ? 'DỊCH VỤ PREMIUM'
-                      : 'DỊCH VỤ TIÊU CHUẨN',
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header: caption + booking date, countdown ring (30 s, or 120 s for the second consecutive shift)
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      offer.isConsecutiveShift
+                          ? 'CA THỨ HAI LIÊN TIẾP'
+                          : 'Việc mới',
+                      style: NordicTypography.caps,
+                    ),
+                    const SizedBox(height: 4.0),
+                    Text(offer.bookingDate, style: NordicTypography.h2),
+                  ],
                 ),
-              ],
-            ),
-            if (offer.isConsecutiveShift) ...[
-              const SizedBox(height: 8.0),
-              Text(
-                'Đơn này thiếu một thợ. Khách đồng ý để bạn làm luôn ca ngay sau ca bạn đã nhận. Bạn có $_consecutiveWindowSeconds giây để xác nhận.',
-                key: const Key('consecutive_shift_notice'),
-                style: NordicTypography.bodySmall,
               ),
-            ],
-            const SizedBox(height: 12.0),
-
-            // Countdown timer banner: 30 s for a normal offer, 120 s for the second consecutive shift
-            Center(
-              child: CountdownTimerWidget(
+              CountdownTimerWidget(
                 totalSeconds: _windowSeconds,
                 initialSeconds: offer.remainingSeconds > 0
                     ? offer.remainingSeconds
                     : _windowSeconds,
                 onTimeout: onTimeout,
               ),
-            ),
-            const SizedBox(height: 16.0),
-
-            // District & Location
-            Row(
-              children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  color: NordicColors.primary,
-                  size: 24.0,
-                ),
-                const SizedBox(width: 8.0),
-                Expanded(
-                  child: Text(offer.district, style: NordicTypography.h2),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4.0),
+            ],
+          ),
+          if (offer.isConsecutiveShift) ...[
+            const SizedBox(height: 8.0),
             Text(
-              'Cách bạn khoảng ${offer.approximateDistanceKm.toStringAsFixed(1)} km',
-              style: NordicTypography.bodySmall.copyWith(
-                color: NordicColors.textSecondary,
-              ),
+              'Đơn này thiếu một thợ. Khách đồng ý để bạn làm luôn ca ngay sau ca bạn đã nhận. Bạn có $_consecutiveWindowSeconds giây để xác nhận.',
+              key: const Key('consecutive_shift_notice'),
+              style: NordicTypography.bodySmall,
             ),
-            const SizedBox(height: 12.0),
+          ],
+          const SizedBox(height: 16.0),
 
-            const Divider(color: NordicColors.border, height: 1.0),
-            const SizedBox(height: 12.0),
-
-            // Date & Shift duration
-            Row(
+          // Net amount (thực nhận sau hoa hồng) with the gross / commission split
+          Container(
+            padding: const EdgeInsets.all(20.0),
+            decoration: BoxDecoration(
+              color: NordicColors.surfaceLow,
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _buildDetailItem(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Ngày làm',
-                    value: offer.bookingDate,
+                Text(
+                  'Thực nhận',
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.textSecondary,
                   ),
                 ),
-                Expanded(
-                  child: _buildDetailItem(
-                    icon: Icons.schedule_outlined,
-                    label: 'Thời lượng',
-                    value:
-                        '${offer.estimatedDurationHours.toStringAsFixed(1)}h (${offer.shiftTime})',
-                  ),
+                const SizedBox(height: 8.0),
+                Text(
+                  _formatCurrency(offer.netEarnings),
+                  style: NordicTypography.numberLarge,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12.0),
-
-            // Net earnings highlight (thực nhận sau hoa hồng)
-            Container(
-              padding: const EdgeInsets.all(14.0),
-              decoration: BoxDecoration(
-                color: NordicColors.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(12.0),
-                border: Border.all(color: NordicColors.primary.withAlpha(50)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'THỰC NHẬN SAU HOA HỒNG',
-                          style: NordicTypography.labelMedium.copyWith(
-                            fontSize: 12.0,
+                const SizedBox(height: 16.0),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: netFlex,
+                      child: Container(
+                        height: 8.0,
+                        decoration: const BoxDecoration(
+                          color: NordicColors.primary,
+                          borderRadius: BorderRadius.horizontal(
+                            left: Radius.circular(4.0),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8.0),
-                      Text(
-                        'Hoa hồng ${(offer.commissionRate * 100).round()}%',
-                        style: NordicTypography.bodySmall.copyWith(
-                          color: NordicColors.textSecondary,
+                    ),
+                    const SizedBox(width: 2.0),
+                    Expanded(
+                      flex: 100 - netFlex,
+                      child: Container(
+                        height: 8.0,
+                        decoration: const BoxDecoration(
+                          color: NordicColors.accentAmber,
+                          borderRadius: BorderRadius.horizontal(
+                            right: Radius.circular(4.0),
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8.0),
-                  Text(
-                    _formatCurrency(offer.netEarnings),
-                    style: NordicTypography.h1.copyWith(
-                      color: NordicColors.primary,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                  const SizedBox(height: 4.0),
-                  Text(
-                    'Tổng tiền đơn hàng: ${_formatCurrency(offer.grossAmount)}',
-                    style: NordicTypography.bodySmall.copyWith(
-                      decoration: TextDecoration.lineThrough,
-                      color: NordicColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16.0),
-
-            // Actions: Accept / Decline
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                NordicButton(
-                  key: const Key('accept_offer_button'),
-                  label: offer.isConsecutiveShift
-                      ? 'Xác nhận ca thứ hai (${_windowSeconds}s)'
-                      : 'Nhận Cuốc (30s)',
-                  variant: NordicButtonVariant.primary,
-                  isLoading: isAccepting,
-                  onPressed: isDeclining ? null : onAccept,
+                  ],
                 ),
                 const SizedBox(height: 8.0),
-                NordicButton(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: _splitLabel(
+                        'Giá ca',
+                        _formatCurrency(offer.grossAmount),
+                      ),
+                    ),
+                    const SizedBox(width: 8.0),
+                    Flexible(
+                      child: _splitLabel(
+                        'Phí ${(offer.commissionRate * 100).round()}%',
+                        _formatCurrency(commission),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12.0),
+
+          // Three info cards: start time, distance, service tier
+          Row(
+            children: [
+              Expanded(
+                child: _buildDetailItem(
+                  icon: Icons.schedule_outlined,
+                  value: offer.shiftTime.split('-').first,
+                  caption:
+                      '${offer.estimatedDurationHours.toStringAsFixed(offer.estimatedDurationHours % 1 == 0 ? 0 : 1)} giờ',
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: _buildDetailItem(
+                  icon: Icons.near_me_outlined,
+                  value: '${offer.approximateDistanceKm.toStringAsFixed(1)} km',
+                  caption: offer.district,
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: _buildDetailItem(
+                  icon: Icons.cleaning_services_outlined,
+                  value: _tierLabel,
+                  caption: offer.shiftTime,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20.0),
+
+          // Actions: Decline (ghost) / Accept
+          Row(
+            children: [
+              Expanded(
+                child: NordicButton(
                   key: const Key('decline_offer_button'),
                   label: 'Bỏ qua',
                   variant: NordicButtonVariant.secondary,
                   isLoading: isDeclining,
                   onPressed: isAccepting ? null : onDecline,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(width: 10.0),
+              Expanded(
+                flex: 2,
+                child: NordicButton(
+                  key: const Key('accept_offer_button'),
+                  label: offer.isConsecutiveShift
+                      ? 'Xác nhận ca thứ hai (${_windowSeconds}s)'
+                      : 'Nhận việc',
+                  variant: NordicButtonVariant.primary,
+                  isLoading: isAccepting,
+                  onPressed: isDeclining ? null : onAccept,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _splitLabel(String label, String value) {
+    return Text.rich(
+      TextSpan(
+        text: '$label ',
+        style: NordicTypography.bodySmall.copyWith(
+          color: NordicColors.textSecondary,
         ),
+        children: [
+          TextSpan(
+            text: value,
+            style: NordicTypography.bodySmall.copyWith(
+              color: NordicColors.textTitle,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildDetailItem({
     required IconData icon,
-    required String label,
     required String value,
+    required String caption,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 16.0, color: NordicColors.textSecondary),
-            const SizedBox(width: 4.0),
-            Text(
-              label,
-              style: NordicTypography.bodySmall.copyWith(
-                color: NordicColors.textSecondary,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 6.0),
+      decoration: BoxDecoration(
+        color: NordicColors.surface,
+        borderRadius: BorderRadius.circular(14.0),
+        border: Border.all(color: NordicColors.border),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 20.0, color: NordicColors.primary),
+          const SizedBox(height: 4.0),
+          Text(
+            value,
+            style: NordicTypography.h3,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            caption,
+            style: NordicTypography.labelSmall.copyWith(
+              color: NordicColors.textSecondary,
             ),
-          ],
-        ),
-        const SizedBox(height: 4.0),
-        Text(
-          value,
-          style: NordicTypography.labelMedium,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }

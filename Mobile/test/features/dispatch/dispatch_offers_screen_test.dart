@@ -36,10 +36,10 @@ void main() {
         // District
         expect(find.text('Quận Cầu Giấy'), findsOneWidget);
         // Net earnings header & amount (208.000 đ)
-        expect(find.text('THỰC NHẬN SAU HOA HỒNG'), findsOneWidget);
+        expect(find.text('Thực nhận'), findsOneWidget);
         expect(find.text('208.000 đ'), findsOneWidget);
         // Commission 20%
-        expect(find.text('Hoa hồng 20%'), findsOneWidget);
+        expect(find.textContaining('Phí 20%'), findsOneWidget);
         // Action buttons
         expect(find.byKey(const Key('accept_offer_button')), findsOneWidget);
         expect(find.byKey(const Key('decline_offer_button')), findsOneWidget);

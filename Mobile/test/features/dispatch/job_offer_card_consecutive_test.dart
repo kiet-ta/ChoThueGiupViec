@@ -68,7 +68,7 @@ void main() {
       await _pump(tester, _offer(consecutive: false, remaining: 28));
 
       expect(find.byKey(const Key('consecutive_shift_notice')), findsNothing);
-      expect(find.textContaining('Nhận Cuốc (30s)'), findsOneWidget);
+      expect(find.text('Nhận việc'), findsOneWidget);
     });
   });
 }
