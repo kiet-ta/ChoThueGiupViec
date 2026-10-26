@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../../core/widgets/step_dots.dart';
 import '../models/ekyc_models.dart';
 import '../services/workers_ekyc_service.dart';
 import '../widgets/tinted_card.dart';
@@ -107,7 +109,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
               ),
               const SizedBox(height: 6.0),
               const Text(
-                'Theo quy định PRD 2.8, thợ Freelance cần xác thực eKYC trước khi nhận ca làm.',
+                'Thợ freelance cần xác thực eKYC trước khi nhận ca làm.',
                 style: NordicTypography.bodySmall,
               ),
               const SizedBox(height: 16.0),
@@ -125,7 +127,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
                       child: Text(
                         _errorMessage!,
                         style: const TextStyle(
-                          color: Color(0xFF991B1B),
+                          color: NordicColors.error,
                           fontSize: 14.0,
                         ),
                       ),
@@ -134,64 +136,30 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
                   const SizedBox(height: 16.0),
                 ],
                 _buildStepContent(),
-                const SizedBox(height: 20.0),
-                _buildActionButtons(),
               ],
             ],
           ),
         ),
       ),
+      bottomNavigationBar: _result == null
+          ? BottomActionBar(children: [_buildActionButtons()])
+          : null,
     );
   }
 
   Widget _buildStepIndicator() {
-    return Row(
-      children: [
-        _buildStepBadge(0, '1. Mặt trước'),
-        const SizedBox(width: 4.0),
-        _buildStepBadge(1, '2. Mặt sau'),
-        const SizedBox(width: 4.0),
-        _buildStepBadge(2, '3. Selfie'),
-        const SizedBox(width: 4.0),
-        _buildStepBadge(3, '4. Xác nhận'),
+    DotState state(int i) => _currentStep > i
+        ? DotState.done
+        : _currentStep == i
+        ? DotState.current
+        : DotState.todo;
+    return StepDots(
+      steps: [
+        StepItem('Mặt trước', state(0)),
+        StepItem('Mặt sau', state(1)),
+        StepItem('Chân dung', state(2)),
+        StepItem('Gửi', state(3)),
       ],
-    );
-  }
-
-  Widget _buildStepBadge(int stepIndex, String title) {
-    final isActive = _currentStep == stepIndex;
-    final isDone = _currentStep > stepIndex;
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-        decoration: BoxDecoration(
-          color: isActive
-              ? NordicColors.primary
-              : isDone
-              ? NordicColors.primary.withValues(alpha: 0.15)
-              : NordicColors.surface,
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(
-            color: isActive ? NordicColors.primary : NordicColors.border,
-          ),
-        ),
-        child: Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 11.0,
-            fontWeight: isActive || isDone
-                ? FontWeight.bold
-                : FontWeight.normal,
-            color: isActive
-                ? Colors.white
-                : isDone
-                ? NordicColors.primary
-                : NordicColors.textSecondary,
-          ),
-        ),
-      ),
     );
   }
 
@@ -303,36 +271,47 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
     }
   }
 
+  /// `.shot`: a framed picture slot with its label and the address of the photo.
   Widget _buildPhotoPreview(String url, String label) {
     return Container(
-      height: 140.0,
+      height: 92.0,
       width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       decoration: BoxDecoration(
-        color: NordicColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(12.0),
+        color: NordicColors.surface,
+        borderRadius: BorderRadius.circular(16.0),
         border: Border.all(color: NordicColors.border),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
         children: [
-          const Icon(
-            Icons.badge_outlined,
-            size: 40.0,
-            color: NordicColors.primary,
+          Container(
+            width: 84.0,
+            height: 56.0,
+            decoration: BoxDecoration(
+              color: NordicColors.surfaceContainer,
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: const Icon(
+              Icons.badge_outlined,
+              size: 28.0,
+              color: NordicColors.primary,
+            ),
           ),
-          const SizedBox(height: 8.0),
-          Text(label, style: NordicTypography.labelMedium),
-          const SizedBox(height: 4.0),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              url,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.0,
-                color: NordicColors.textSecondary,
-              ),
+          const SizedBox(width: 14.0),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: NordicTypography.titleSmall),
+                const SizedBox(height: 2.0),
+                Text(
+                  url,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
             ),
           ),
         ],
@@ -343,7 +322,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
   Widget _buildSummaryTile(String title, String url) {
     return Row(
       children: [
-        const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 20.0),
+        const Icon(Icons.check_circle, color: NordicColors.primary, size: 20.0),
         const SizedBox(width: 8.0),
         Expanded(
           child: Column(

@@ -6,6 +6,7 @@ import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../logic/payout_logic.dart';
 import '../models/payout_models.dart';
 import '../services/payouts_service.dart';
@@ -127,6 +128,7 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
     );
   }
 
+  /// `.list .item`: a round icon (clock while pending, check once transferred), the month, the amount and a pill.
   Widget _tile(PayoutHistoryItem item) {
     final transferred = item.itemStatus == 'TRANSFERRED';
     final key = item.periodMonth.length == 7
@@ -137,11 +139,29 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
       child: NordicCard(
         child: Row(
           children: [
+            Container(
+              width: 40.0,
+              height: 40.0,
+              decoration: BoxDecoration(
+                color: transferred
+                    ? NordicColors.primaryFixed
+                    : NordicColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              child: Icon(
+                transferred ? Icons.check : Icons.schedule,
+                size: 22.0,
+                color: transferred
+                    ? NordicColors.primary
+                    : NordicColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 12.0),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(key, style: NordicTypography.bodyLarge),
+                  Text(key, style: NordicTypography.titleSmall),
                   const SizedBox(height: 2.0),
                   Text(
                     transferred
@@ -152,10 +172,21 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
                 ],
               ),
             ),
-            Text(
-              formatVnd(item.netAmount),
-              key: Key('history-net-${item.batchId}'),
-              style: NordicTypography.bodyLarge,
+            const SizedBox(width: 8.0),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatVnd(item.netAmount),
+                  key: Key('history-net-${item.batchId}'),
+                  style: NordicTypography.titleSmall,
+                ),
+                const SizedBox(height: 4.0),
+                StatusPill(
+                  transferred ? 'Đã chuyển' : 'Đang chờ',
+                  tone: transferred ? PillTone.ok : PillTone.warn,
+                ),
+              ],
             ),
           ],
         ),

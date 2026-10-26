@@ -4,8 +4,10 @@ import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/location_wrapper.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/step_dots.dart';
 import '../models/incident_log.dart';
 import '../services/dispatch_service.dart';
 
@@ -154,161 +156,196 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
               : _buildFormView(),
         ),
       ),
+      bottomNavigationBar: _submittedIncident != null
+          ? null
+          : BottomActionBar(
+              children: [
+                NordicButton(
+                  key: const Key('submit_incident_button'),
+                  label: 'Gửi Báo Cáo Sự Cố',
+                  isLoading: _isSubmitting,
+                  onPressed: _isSubmitting ? null : _handleSubmitIncident,
+                ),
+              ],
+            ),
+    );
+  }
+
+  static const _incidentIcons = {
+    'ACCIDENT': Icons.car_crash_outlined,
+    'HEALTH': Icons.medical_services_outlined,
+    'SEVERE_WEATHER': Icons.thunderstorm_outlined,
+    'OTHER': Icons.more_horiz,
+  };
+
+  /// `.kind`: one tile of the 2 x 2 grid of incident types, the chosen one with a primary border.
+  Widget _kindTile(String code) {
+    final on = _selectedType == code;
+    return InkWell(
+      key: Key('incident-kind-$code'),
+      borderRadius: BorderRadius.circular(16.0),
+      onTap: () => setState(() => _selectedType = code),
+      child: Container(
+        padding: EdgeInsets.all(on ? 13.0 : 14.0),
+        decoration: BoxDecoration(
+          color: NordicColors.surface,
+          borderRadius: BorderRadius.circular(16.0),
+          border: Border.all(
+            color: on ? NordicColors.primary : NordicColors.border,
+            width: on ? 2.0 : 1.0,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_incidentIcons[code], color: NordicColors.primary),
+            const SizedBox(height: 10.0),
+            Text(
+              _incidentTypes[code]!,
+              style: NordicTypography.titleSmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildFormView() {
+    final codes = _incidentTypes.keys.toList();
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
       children: [
         const Text(
           'Gặp sự cố trên đường / hiện trường?',
           style: NordicTypography.h2,
         ),
         const SizedBox(height: 4.0),
-        Text(
+        const Text(
           'Báo cáo kèm ảnh và GPS để được miễn phạt. Hệ thống tự động kích hoạt điều phối cứu hộ 5 phút.',
-          style: NordicTypography.bodyRegular,
+          style: NordicTypography.bodySmall,
         ),
         const SizedBox(height: 16.0),
 
-        // Incident Type Selection
-        NordicCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Loại sự cố:', style: NordicTypography.labelMedium),
-                const SizedBox(height: 8.0),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: _selectedType,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12.0,
-                      vertical: 8.0,
-                    ),
-                  ),
-                  items: _incidentTypes.entries
-                      .map(
-                        (e) => DropdownMenuItem(
-                          value: e.key,
-                          child: Text(e.value, overflow: TextOverflow.ellipsis),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedType = val);
-                  },
-                ),
-                const SizedBox(height: 16.0),
+        // Incident type: 2 x 2 tiles
+        Row(
+          children: [
+            Expanded(child: _kindTile(codes[0])),
+            const SizedBox(width: 12.0),
+            Expanded(child: _kindTile(codes[1])),
+          ],
+        ),
+        const SizedBox(height: 12.0),
+        Row(
+          children: [
+            Expanded(child: _kindTile(codes[2])),
+            const SizedBox(width: 12.0),
+            Expanded(child: _kindTile(codes[3])),
+          ],
+        ),
 
-                const Text(
-                  'Mô tả chi tiết sự cố:',
-                  style: NordicTypography.labelMedium,
-                ),
-                const SizedBox(height: 8.0),
-                TextField(
-                  key: const Key('incident_description_input'),
-                  controller: _descriptionController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    hintText: 'Ví dụ: Xe bị thủng lốp tại ngã tư Cầu Giấy, đang tìm tiệm vá xe...',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
+        const SizedBox(height: 24.0),
+        const Text('MÔ TẢ', style: NordicTypography.caps),
+        const SizedBox(height: 8.0),
+        TextField(
+          key: const Key('incident_description_input'),
+          controller: _descriptionController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Ví dụ: Xe bị thủng lốp tại ngã tư Cầu Giấy, đang tìm tiệm vá xe...',
           ),
         ),
-        const SizedBox(height: 16.0),
 
+        const SizedBox(height: 24.0),
+        const Text('ẢNH VÀ VỊ TRÍ', style: NordicTypography.caps),
+        const SizedBox(height: 8.0),
         // Camera evidence & GPS
         NordicCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Bằng chứng hiện trường (Ảnh + GPS):',
-                  style: NordicTypography.labelMedium,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              OutlinedButton.icon(
+                key: const Key('take_incident_photo_button'),
+                onPressed: _handleCapturePhoto,
+                icon: const Icon(Icons.add_a_photo_outlined),
+                label: Text(
+                  _capturedEvidence != null
+                      ? 'Chụp lại ảnh'
+                      : 'Chụp ảnh bằng chứng',
                 ),
-                const SizedBox(height: 12.0),
-                OutlinedButton.icon(
-                  key: const Key('take_incident_photo_button'),
-                  onPressed: _handleCapturePhoto,
-                  icon: const Icon(Icons.camera_alt),
-                  label: Text(
-                    _capturedEvidence != null
-                        ? 'Chụp lại ảnh'
-                        : 'Chụp ảnh bằng chứng',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14.0),
-                  ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14.0),
                 ),
-                if (_capturedEvidence != null) ...[
-                  const SizedBox(height: 8.0),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.check_circle,
-                        color: NordicColors.success,
-                        size: 16.0,
-                      ),
-                      const SizedBox(width: 6.0),
-                      Expanded(
-                        child: Text(
-                          'Đã chụp: ${_capturedEvidence!.path}',
-                          style: NordicTypography.bodySmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 12.0),
+              ),
+              if (_capturedEvidence != null) ...[
+                const SizedBox(height: 8.0),
                 Row(
                   children: [
-                    Icon(
-                      _currentGps != null
-                          ? Icons.location_on
-                          : Icons.location_searching,
-                      color: _currentGps != null
-                          ? NordicColors.primary
-                          : NordicColors.accentAmber,
-                      size: 18.0,
+                    const Icon(
+                      Icons.check_circle,
+                      color: NordicColors.primary,
+                      size: 16.0,
                     ),
-                    const SizedBox(width: 8.0),
+                    const SizedBox(width: 6.0),
                     Expanded(
                       child: Text(
-                        _isLoadingGps
-                            ? 'Đang định vị GPS...'
-                            : _currentGps != null
-                            ? 'GPS: ${_currentGps!.latitude.toStringAsFixed(4)}, ${_currentGps!.longitude.toStringAsFixed(4)}'
-                            : 'Chưa lấy được GPS',
+                        'Đã chụp: ${_capturedEvidence!.path}',
                         style: NordicTypography.bodySmall,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ],
-            ),
+              const SizedBox(height: 12.0),
+              Row(
+                children: [
+                  Icon(
+                    _currentGps != null
+                        ? Icons.location_on
+                        : Icons.location_searching,
+                    color: _currentGps != null
+                        ? NordicColors.primary
+                        : NordicColors.accentAmber,
+                    size: 18.0,
+                  ),
+                  const SizedBox(width: 8.0),
+                  Expanded(
+                    child: Text(
+                      _isLoadingGps
+                          ? 'Đang định vị GPS...'
+                          : _currentGps != null
+                          ? 'GPS: ${_currentGps!.latitude.toStringAsFixed(4)}, ${_currentGps!.longitude.toStringAsFixed(4)}'
+                          : 'Chưa lấy được GPS',
+                      style: NordicTypography.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16.0),
 
+        // What happens next
+        const NordicCard(
+          child: StepDots(
+            steps: [
+              StepItem('Báo', DotState.current),
+              StepItem('Tìm thợ thay', DotState.todo),
+              StepItem('Thợ mới', DotState.todo),
+            ],
+          ),
+        ),
+
         if (_errorMessage != null) ...[
+          const SizedBox(height: 16.0),
           Container(
             padding: const EdgeInsets.all(12.0),
-            margin: const EdgeInsets.only(bottom: 16.0),
             decoration: BoxDecoration(
               color: NordicColors.errorContainer,
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: NordicColors.error),
+              borderRadius: BorderRadius.circular(12.0),
             ),
             child: Text(
               _errorMessage!,
@@ -318,13 +355,6 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
             ),
           ),
         ],
-
-        NordicButton(
-          key: const Key('submit_incident_button'),
-          label: 'Gửi Báo Cáo Sự Cố',
-          isLoading: _isSubmitting,
-          onPressed: _isSubmitting ? null : _handleSubmitIncident,
-        ),
       ],
     );
   }

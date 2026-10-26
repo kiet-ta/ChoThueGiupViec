@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/progress_ring.dart';
 import '../models/customer_absent_report.dart';
 import '../services/dispatch_service.dart';
 
@@ -132,6 +134,25 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
               : _buildReportingView(),
         ),
       ),
+      bottomNavigationBar: _absentReport != null
+          ? null
+          : BottomActionBar(
+              children: [
+                NordicButton(
+                  key: const Key('report_absent_button'),
+                  label: _canReportAbsent
+                      ? 'Báo Vắng Mặt (40%)'
+                      : 'Chưa đủ điều kiện',
+                  variant: _canReportAbsent
+                      ? NordicButtonVariant.primary
+                      : NordicButtonVariant.secondary,
+                  isLoading: _isSubmittingReport,
+                  onPressed: _canReportAbsent && !_isSubmittingReport
+                      ? _handleReportAbsent
+                      : null,
+                ),
+              ],
+            ),
     );
   }
 
@@ -146,6 +167,28 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
           style: NordicTypography.bodyRegular,
         ),
         const SizedBox(height: 16.0),
+        Row(
+          children: [
+            Expanded(
+              child: _ringCard(
+                value: _elapsedMinutes / 15,
+                big: '$_elapsedMinutes',
+                unit: '/ 15 phút',
+                label: 'Đã chờ',
+              ),
+            ),
+            const SizedBox(width: 12.0),
+            Expanded(
+              child: _ringCard(
+                value: _callAttempts / 2,
+                big: '$_callAttempts',
+                unit: '/ 2 lần',
+                label: 'Đã gọi',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12.0),
 
         // Precondition 1: Wait >= 15 minutes
         NordicCard(
@@ -258,20 +301,36 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
             ),
           ),
         ],
-
-        // Submit action
-        NordicButton(
-          key: const Key('report_absent_button'),
-          label: _canReportAbsent ? 'Báo Vắng Mặt (40%)' : 'Chưa đủ điều kiện',
-          variant: _canReportAbsent
-              ? NordicButtonVariant.primary
-              : NordicButtonVariant.secondary,
-          isLoading: _isSubmittingReport,
-          onPressed: _canReportAbsent && !_isSubmittingReport
-              ? _handleReportAbsent
-              : null,
-        ),
       ],
+    );
+  }
+
+  /// `.card.center` with a [ProgressRing]: the big number inside, the small unit under it, a label below.
+  Widget _ringCard({
+    required double value,
+    required String big,
+    required String unit,
+    required String label,
+  }) {
+    return NordicCard(
+      child: Column(
+        children: [
+          ProgressRing(
+            value: value,
+            size: 104,
+            stroke: 9,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(big, style: NordicTypography.numberMedium),
+                Text(unit, style: NordicTypography.bodySmall),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8.0),
+          Text(label, style: NordicTypography.titleSmall),
+        ],
+      ),
     );
   }
 

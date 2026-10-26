@@ -64,7 +64,10 @@ void main() {
         // Tap 'Tiếp theo' -> Step 4 (Summary & Confirm)
         await tapVisible(tester, find.text('Tiếp theo'));
         await tester.pumpAndSettle();
-        expect(find.text('Xác Nhận Thông Tin Ảnh eKYC'), findsOneWidget);
+        expect(
+          find.text('Xác Nhận Thông Tin Ảnh eKYC', skipOffstage: false),
+          findsOneWidget,
+        );
         expect(find.text('Gửi Xác Thực eKYC'), findsOneWidget);
       },
     );

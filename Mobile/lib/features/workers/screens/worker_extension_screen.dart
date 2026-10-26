@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../../../core/widgets/avatar_initials.dart';
+import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/step_dots.dart';
 import '../models/worker_extension_models.dart';
 import '../services/worker_extension_service.dart';
-import '../widgets/tinted_card.dart';
 
 /// Screen for Worker responding to extension request ("Làm lần 2", BR-08, contract workers.md §2.6).
 /// Implements MOB-M4-06.
@@ -129,34 +131,44 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
               : _buildOfferView(),
         ),
       ),
+      bottomNavigationBar: _buildActionBar(),
     );
   }
 
   Widget _buildOfferView() {
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
       children: [
-        Text('Khách Hàng Yêu Cầu Làm Thêm Giờ', style: NordicTypography.h2),
-        const SizedBox(height: 16.0),
+        // The one big number: the hours the customer asks for.
+        Column(
+          children: [
+            const Text('Khách muốn thêm', style: NordicTypography.bodySmall),
+            const SizedBox(height: 8.0),
+            Text(
+              '${_hoursText(_offer.extraHours)} giờ',
+              style: NordicTypography.numberLarge,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20.0),
 
         if (_errorMessage != null) ...[
           Container(
             padding: const EdgeInsets.all(12.0),
             decoration: BoxDecoration(
               color: NordicColors.errorContainer,
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: NordicColors.error),
+              borderRadius: BorderRadius.circular(12.0),
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline, color: Color(0xFFDC2626)),
+                const Icon(Icons.error_outline, color: NordicColors.error),
                 const SizedBox(width: 8.0),
                 Expanded(
                   child: Text(
                     _errorMessage!,
                     style: const TextStyle(
                       fontSize: 13.0,
-                      color: Color(0xFF991B1B),
+                      color: NordicColors.error,
                     ),
                   ),
                 ),
@@ -166,134 +178,108 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
           const SizedBox(height: 16.0),
         ],
 
-        // Job & Customer Summary Card
+        // Customer and place
         NordicCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      backgroundColor: NordicColors.surfaceSubtle,
-                      child: Icon(Icons.person, color: NordicColors.primary),
-                    ),
-                    const SizedBox(width: 12.0),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_offer.customerName, style: NordicTypography.h3),
-                          const SizedBox(height: 2.0),
-                          Text(
-                            _offer.workZone,
-                            style: const TextStyle(
-                              fontSize: 12.0,
-                              color: NordicColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16.0),
-
-        // Extension Request Details Card
-        TintedCard(
-          backgroundColor: NordicColors.primaryFixed,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.more_time, color: Color(0xFF16A34A)),
-                    SizedBox(width: 8.0),
-                    Flexible(
-                      child: Text(
-                        'Chi Tiết Tăng Giờ Ca Làm',
-                        style: NordicTypography.labelMedium,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16.0),
-                _buildDetailRow(
-                  'Số giờ làm thêm:',
-                  '${_hoursText(_offer.extraHours)} giờ',
-                ),
-                const SizedBox(height: 8.0),
-                _buildDetailRow(
-                  'Thời gian kết thúc mới:',
-                  '${_offer.currentEndTime} ➔ ${_offer.newEndTime}',
-                ),
-                const SizedBox(height: 8.0),
-                _buildDetailRow(
-                  'Thù lao làm thêm:',
-                  '+${_formatVnd(_offer.extraAmount)}',
-                  isHighlight: true,
-                ),
-                const SizedBox(height: 12.0),
-                const Divider(),
-                const SizedBox(height: 8.0),
-                const Row(
+          child: Row(
+            children: [
+              AvatarInitials(_offer.customerName, size: 44),
+              const SizedBox(width: 12.0),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16.0,
-                      color: NordicColors.textSecondary,
+                    Text(
+                      _offer.customerName,
+                      style: NordicTypography.titleSmall,
                     ),
-                    SizedBox(width: 6.0),
-                    Expanded(
-                      child: Text(
-                        'Khách hàng đã thanh toán trước khoản thù lao này. Nếu đồng ý, ca làm của bạn sẽ được nối dài ngay.',
-                        style: TextStyle(
-                          fontSize: 12.0,
-                          color: NordicColors.textSecondary,
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 2.0),
+                    Text(_offer.workZone, style: NordicTypography.bodySmall),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 24.0),
+        const SizedBox(height: 12.0),
 
-        // Action Buttons
-        if (_isSubmitting)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
+        // New end time and the extra pay
+        NordicCard(
+          child: Column(
+            children: [
+              _buildDetailRow(
+                'Thời gian kết thúc mới:',
+                '${_offer.currentEndTime} ➔ ${_offer.newEndTime}',
+              ),
+              const SizedBox(height: 8.0),
+              _buildDetailRow(
+                'Thù lao làm thêm:',
+                '+${_formatVnd(_offer.extraAmount)}',
+                isHighlight: true,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12.0),
+
+        // Where the answer stands (owner decision C: the worker answers before any payment)
+        const NordicCard(
+          child: StepDots(
+            steps: [
+              StepItem('Khách gửi', DotState.done),
+              StepItem('Bạn đồng ý', DotState.current),
+              StepItem('Khách trả', DotState.todo),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12.0),
+        const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 16.0,
+              color: NordicColors.textSecondary,
             ),
-          )
-        else ...[
-          NordicButton(
-            label: 'Đồng Ý Nối Ca (+${_formatVnd(_offer.extraAmount)})',
-            variant: NordicButtonVariant.primary,
-            icon: const Icon(Icons.check_circle, size: 18.0),
-            width: double.infinity,
-            onPressed: () => _handleResponse(accept: true),
-          ),
-          const SizedBox(height: 12.0),
-          NordicButton(
-            label: 'Từ Chối Làm Thêm',
-            variant: NordicButtonVariant.secondary,
-            icon: const Icon(Icons.cancel_outlined, size: 18.0),
-            width: double.infinity,
-            onPressed: () => _handleResponse(accept: false),
-          ),
-        ],
+            SizedBox(width: 6.0),
+            Expanded(
+              child: Text(
+                'Khách hàng đã thanh toán trước khoản thù lao này. Nếu đồng ý, ca làm của bạn sẽ được nối dài ngay.',
+                style: NordicTypography.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// `.btn-bar`: decline and accept, pinned at the bottom while the answer has not been sent.
+  Widget? _buildActionBar() {
+    if (_responseResult != null) return null;
+    if (_isSubmitting) {
+      return const BottomActionBar(
+        children: [Center(child: CircularProgressIndicator())],
+      );
+    }
+    return BottomActionBar(
+      children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            NordicButton(
+              label: 'Đồng Ý Nối Ca (+${_formatVnd(_offer.extraAmount)})',
+              variant: NordicButtonVariant.primary,
+              onPressed: () => _handleResponse(accept: true),
+            ),
+            const SizedBox(height: 8.0),
+            NordicButton(
+              label: 'Từ Chối Làm Thêm',
+              variant: NordicButtonVariant.secondary,
+              onPressed: () => _handleResponse(accept: false),
+            ),
+          ],
+        ),
       ],
     );
   }
