@@ -304,6 +304,26 @@ void main() {
       },
     );
 
+    Finder timelineTicks() => find.descendant(
+      of: find.byKey(const Key('order-timeline')),
+      matching: find.byIcon(Icons.check),
+    );
+
+    testWidgets('an assigned order ticks "Có thợ"', (tester) async {
+      final assigned = FakeOrderService()
+        ..status = OrderStatus.assigned
+        ..workers = [_worker(7, AssignmentStatus.assigned)];
+      await pumpDetail(tester, assigned);
+
+      expect(timelineTicks(), findsNWidgets(3)); // Thanh toán, Tìm thợ, Có thợ
+    });
+
+    testWidgets('a dispatching order leaves "Tìm thợ" open', (tester) async {
+      await pumpDetail(tester, FakeOrderService());
+
+      expect(timelineTicks(), findsNWidgets(1)); // only Thanh toán
+    });
+
     testWidgets('an unpaid order offers the payment of that order', (
       tester,
     ) async {

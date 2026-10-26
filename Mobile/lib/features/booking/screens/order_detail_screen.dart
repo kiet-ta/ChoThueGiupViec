@@ -510,12 +510,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return StepDots(
       key: const Key('order-timeline'),
       steps: [
-        for (final step in steps)
+        for (var i = 0; i < steps.length; i++)
           StepItem(
-            step.label,
-            step.current
-                ? DotState.current
-                : (step.done ? DotState.done : DotState.todo),
+            steps[i].label,
+            // "Có thợ" (and after) is a milestone already reached when it is the current step: show it ticked.
+            // The waiting steps (pay, find a worker) stay an open ring while the order sits on them.
+            steps[i].done || (steps[i].current && i >= 2)
+                ? DotState.done
+                : (steps[i].current ? DotState.current : DotState.todo),
           ),
       ],
     );
