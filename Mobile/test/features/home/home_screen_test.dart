@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/home/customer_shell.dart';
 import 'package:mobile/features/home/home_screen.dart';
+import 'package:mobile/features/home/worker_shell.dart';
 import 'package:mobile/features/identity/models/auth_models.dart';
 import 'package:mobile/features/identity/services/token_storage.dart';
 
@@ -103,29 +104,41 @@ void main() {
     expect(find.text('Tôi cần giúp việc'), findsOneWidget);
   });
 
-  testWidgets(
-    'a signed-in worker sees the worker actions and Vao Truc Ca opens the slots',
-    (tester) async {
-      TokenStorage().saveAuth(_session('Worker'));
-      useDesignFrame(tester);
-      final opened = <String>[];
-      await tester.pumpWidget(_app(opened));
-
-      expect(find.text('Thợ #12'), findsOneWidget);
-      expect(find.text('Lịch rảnh'), findsOneWidget);
-      expect(find.text('Nhận việc'), findsOneWidget);
-
-      await tapVisible(tester, find.text('Vào Trực Ca'));
-
-      expect(opened, ['/workers/slots']);
-    },
-  );
-
-  testWidgets('a worker signs out from the panel', (tester) async {
+  testWidgets('a signed-in worker lands on the shell with the bottom bar', (
+    tester,
+  ) async {
     TokenStorage().saveAuth(_session('Worker'));
     useDesignFrame(tester);
     await tester.pumpWidget(_app(<String>[]));
 
+    expect(find.byType(WorkerShell), findsOneWidget);
+    expect(find.text('Thợ #12'), findsOneWidget);
+    for (final label in ['Hôm nay', 'Lịch', 'Việc', 'Thu nhập', 'Tài khoản']) {
+      expect(find.text(label), findsWidgets);
+    }
+  });
+
+  testWidgets('the centre button of the worker shell opens the offers', (
+    tester,
+  ) async {
+    TokenStorage().saveAuth(_session('Worker'));
+    useDesignFrame(tester);
+    final opened = <String>[];
+    await tester.pumpWidget(_app(opened));
+
+    await tester.tap(find.byKey(const Key('worker-shell-job')));
+    await tester.pumpAndSettle();
+
+    expect(opened, ['/dispatch/offers']);
+  });
+
+  testWidgets('a worker signs out from the account tab', (tester) async {
+    TokenStorage().saveAuth(_session('Worker'));
+    useDesignFrame(tester);
+    await tester.pumpWidget(_app(<String>[]));
+
+    await tester.tap(find.byKey(const Key('worker-tab-3')));
+    await tester.pumpAndSettle();
     await tapVisible(tester, find.byKey(const Key('home-sign-out')));
 
     expect(TokenStorage().isAuthenticated, isFalse);

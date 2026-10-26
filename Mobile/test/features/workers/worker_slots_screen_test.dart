@@ -97,8 +97,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Lịch Rảnh Ca Làm'), findsOneWidget);
-      expect(find.text('Block Slots Lịch Tuần'), findsOneWidget);
+      expect(find.text('Lịch rảnh'), findsOneWidget);
       expect(find.text('12/10 – 18/10/2026'), findsOneWidget);
 
       // Verify shifts rendered
