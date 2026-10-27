@@ -18,3 +18,7 @@ dist/
 *.pfx
 *.pem
 *.key
+# Local UAT notes and screenshots: personal test artifacts, never committed (ticket #472)
+/images/
+Backend/UAT-VIEN.md
+/UAT-WORKER.md
