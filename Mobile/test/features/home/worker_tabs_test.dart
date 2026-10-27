@@ -7,6 +7,7 @@ import 'package:mobile/features/payouts/models/payout_models.dart';
 import 'package:mobile/features/payouts/services/payouts_service.dart';
 import 'package:mobile/features/workers/models/booking_slot_models.dart';
 import 'package:mobile/features/workers/screens/worker_screen.dart';
+import 'package:mobile/features/workers/services/workers_profile_service.dart';
 import 'package:mobile/features/workers/services/workers_slots_service.dart';
 
 import '../workers/design_frame.dart';
@@ -57,6 +58,11 @@ class _Slots extends WorkersSlotsService {
   );
 }
 
+class _Profile extends WorkersProfileService {
+  @override
+  Future<String?> getFullName() async => 'Nguyễn Văn Thợi';
+}
+
 void main() {
   testWidgets('Today tab shows the month earnings and the active slots', (
     tester,
@@ -80,16 +86,50 @@ void main() {
     expect(find.text('Tháng 10'), findsOneWidget);
     expect(find.text('4.160.000 đ'), findsOneWidget);
     expect(find.text('18'), findsOneWidget);
-    final active = tester.widget<Container>(
-      find.byKey(const Key('week-cell-2026-10-26-SHIFT_AFTERNOON')),
+    Container cell(String key) => tester.widget<Container>(
+      find.descendant(
+        of: find.byKey(Key(key)),
+        matching: find.byType(Container),
+      ),
     );
-    final off = tester.widget<Container>(
-      find.byKey(const Key('week-cell-2026-10-26-SHIFT_MORNING')),
-    );
+    final active = cell('week-cell-2026-10-26-SHIFT_AFTERNOON');
+    final off = cell('week-cell-2026-10-26-SHIFT_MORNING');
     expect(
       (active.decoration as BoxDecoration).color,
       isNot((off.decoration as BoxDecoration).color),
     );
+    expect(find.text('Sáng'), findsOneWidget);
+    expect(find.text('Chiều'), findsOneWidget);
+    expect(find.text('Tối'), findsOneWidget);
+  });
+
+  testWidgets('Today tab shows the worker name, and a cell opens that day', (
+    tester,
+  ) async {
+    useDesignFrame(tester);
+    final opened = <DateTime>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WorkerTodayTab(
+          workerId: 12,
+          payouts: _Payouts(),
+          slots: _Slots(),
+          profile: _Profile(),
+          onShowSlotsOn: opened.add,
+          now: () => DateTime(2026, 10, 26),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nguyễn Văn Thợi'), findsOneWidget);
+    expect(find.text('Thợ #12'), findsNothing);
+
+    await tapVisible(
+      tester,
+      find.byKey(const Key('week-cell-2026-10-28-SHIFT_MORNING')),
+    );
+    expect(opened, [DateTime(2026, 10, 28)]);
   });
 
   testWidgets('Today tab links open the offers, the slots and the income', (
