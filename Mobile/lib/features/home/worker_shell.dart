@@ -39,8 +39,17 @@ class _WorkerShellState extends State<WorkerShell> {
   /// A counter per tab: pushing a new key rebuilds (reloads) the tab when the worker comes back to it.
   final _generation = [0, 0, 0, 0];
 
-  void _select(int index) => setState(() {
+  /// The day the Lịch tab opens on after a cell of the Today grid was tapped; null = today.
+  DateTime? _slotsDate;
+
+  void _openSlotsOn(DateTime date) {
+    _slotsDate = date;
+    _select(1, keepDate: true);
+  }
+
+  void _select(int index, {bool keepDate = false}) => setState(() {
     if (index == _tab) return;
+    if (!keepDate) _slotsDate = null;
     _tab = index;
     _visited.add(index);
     _generation[index]++;
@@ -61,10 +70,11 @@ class _WorkerShellState extends State<WorkerShell> {
         key: key,
         workerId: widget.workerId,
         onShowSlots: () => _select(1),
+        onShowSlotsOn: _openSlotsOn,
         onShowIncome: () => _select(2),
         onOpenOffers: _openOffers,
       ),
-      1 => WorkerSlotsScreen(key: key),
+      1 => WorkerSlotsScreen(key: key, initialDate: _slotsDate),
       2 => PayoutScreen(key: key),
       _ => WorkerScreen(
         key: key,
