@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/models/user_role.dart';
+import '../../core/motion/nordic_motion.dart';
 import '../../core/theme/nordic_colors.dart';
 import '../../core/theme/nordic_typography.dart';
 import '../identity/screens/phone_input_screen.dart';
@@ -90,7 +91,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           key: const Key('welcome-customer'),
                           icon: Icons.cleaning_services_outlined,
                           title: 'Tôi cần giúp việc',
-                          description: 'Đặt ca dọn nhà, theo dõi đơn và giữ người giúp việc yêu thích.',
                           filled: true,
                           onTap: () => _openLogin(AppRole.customer),
                         ),
@@ -99,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           key: const Key('welcome-worker'),
                           icon: Icons.work_outline,
                           title: 'Tôi là người giúp việc',
-                          description: 'Nhận việc mới, sắp lịch rảnh và theo dõi thu nhập.',
                           filled: false,
                           onTap: () => _openLogin(AppRole.worker),
                         ),
@@ -175,6 +174,7 @@ class _WelcomeHero extends StatefulWidget {
 
 class _WelcomeHeroState extends State<_WelcomeHero> {
   static const _interval = Duration(milliseconds: 3500);
+  static final _slideCurve = SpringCurve(NordicMotion.standard);
 
   final _pages = PageController();
   Timer? _timer;
@@ -204,13 +204,14 @@ class _WelcomeHeroState extends State<_WelcomeHero> {
   void _next() {
     if (!mounted || !_pages.hasClients) return;
     final target = (_pages.page?.round() ?? _page) + 1;
-    if (MediaQuery.of(context).disableAnimations) {
+    if (NordicMotion.reduced(context)) {
       _pages.jumpToPage(target);
     } else {
+      // The standard spring (MOB-UI-12): starts gently, settles without overshoot.
       _pages.animateToPage(
         target,
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeInOut,
+        duration: NordicMotion.standard.settleDuration,
+        curve: _slideCurve,
       );
     }
   }
@@ -391,12 +392,11 @@ class _WelcomeHeroState extends State<_WelcomeHero> {
   }
 }
 
-/// One role of the welcome: icon, title, what the role does in the app, chevron.
+/// One role of the welcome: icon, title, chevron (no description line, MOB-UI-12).
 /// [filled] is the primary (green) card; the other is a white card with a border.
 class _RoleCard extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String description;
   final bool filled;
   final VoidCallback onTap;
 
@@ -404,7 +404,6 @@ class _RoleCard extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    required this.description,
     required this.filled,
     required this.onTap,
   });
@@ -454,26 +453,12 @@ class _RoleCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: NordicTypography.titleSmall.copyWith(
-                          fontSize: 16,
-                          color: foreground,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        description,
-                        style: NordicTypography.bodyRegular.copyWith(
-                          fontSize: 13,
-                          height: 1.45,
-                          color: muted,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    title,
+                    style: NordicTypography.titleSmall.copyWith(
+                      fontSize: 17,
+                      color: foreground,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),

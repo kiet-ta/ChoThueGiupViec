@@ -151,6 +151,14 @@ void main() {
       expectStyle(NordicTypography.h2, 'Newsreader', 22, FontWeight.w500, 1.4);
     });
 
+    test('display tightens tracking by -0.02 em with tight leading', () {
+      const display = NordicTypography.display;
+      expect(display.fontSize, 30.0);
+      expect(display.letterSpacing, closeTo(-0.02 * 30.0, 1e-9));
+      expect(display.height, 1.1);
+      expect(display.fontWeight, FontWeight.w700);
+    });
+
     test('body, label and metric use Plus Jakarta Sans', () {
       const jakarta = 'Plus Jakarta Sans';
       expectStyle(NordicTypography.h3, jakarta, 18, FontWeight.w400, 1.6);

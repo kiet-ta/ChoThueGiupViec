@@ -50,7 +50,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
 
     if (normalized == null) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập số điện thoại di động 10 số hợp lệ (ví dụ: 0912345678).';
+        _errorMessage = 'Số điện thoại chưa đúng. Ví dụ: 0912 345 678';
       });
       return;
     }
@@ -95,76 +95,78 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
   @override
   Widget build(BuildContext context) {
     final roleLabel = widget.role == AppRole.worker
-        ? 'Chuyên Viên / Thợ'
-        : 'Khách Hàng';
+        ? 'Người giúp việc'
+        : 'Khách hàng';
 
     // MOB-UI-10: the welcome look. A housework photo with the title on top, the form on a
-    // sheet over its bottom edge; the button sits at the bottom.
+    // sheet over its bottom edge. MOB-UI-12: the button bar is part of the body, so the
+    // keyboard pushes it up instead of covering it. The screen fills the full width.
     return Scaffold(
       backgroundColor: NordicColors.canvas,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: EdgeInsets.zero,
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                AuthPhotoHeader(
+                  role: widget.role,
+                  title: 'Nhập số điện thoại',
+                  titleKey: const Key('phone-input-title'),
+                  subtitle: 'Mã xác nhận gửi qua tin nhắn.',
+                ),
+                AuthFormSheet(children: _form(roleLabel)),
+              ],
+            ),
+          ),
+          BottomActionBar(
             children: [
-              AuthPhotoHeader(
-                role: widget.role,
-                title: 'Số điện thoại',
-                titleKey: const Key('phone-input-title'),
-                subtitle: 'Mã 6 số sẽ gửi qua SMS.',
-              ),
-              AuthFormSheet(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: StatusPill('Vai trò: $roleLabel', tone: PillTone.ok),
-                  ),
-                  const SizedBox(height: 20.0),
-                  PhoneInputField(
-                    controller: _phoneController,
-                    enabled: !_isLoading,
-                    errorText: _errorMessage,
-                    onChanged: (_) {
-                      if (_errorMessage != null) {
-                        setState(() => _errorMessage = null);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16.0),
-                  const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.lock_outline,
-                        size: 14.0,
-                        color: NordicColors.textSecondary,
-                      ),
-                      SizedBox(width: 6.0),
-                      Expanded(
-                        child: Text(
-                          'Không cần mật khẩu: số điện thoại là tài khoản của bạn.',
-                          style: NordicTypography.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              NordicButton(
+                label: 'Nhận mã',
+                width: double.infinity,
+                isLoading: _isLoading,
+                onPressed: _handleRequestOtp,
               ),
             ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: BottomActionBar(
-        children: [
-          NordicButton(
-            label: 'Gửi Mã Xác Thực',
-            width: double.infinity,
-            isLoading: _isLoading,
-            onPressed: _handleRequestOtp,
           ),
         ],
       ),
     );
+  }
+
+  List<Widget> _form(String roleLabel) {
+    return [
+      Align(
+        alignment: Alignment.centerLeft,
+        child: StatusPill(roleLabel, tone: PillTone.ok),
+      ),
+      const SizedBox(height: 20.0),
+      PhoneInputField(
+        controller: _phoneController,
+        enabled: !_isLoading,
+        errorText: _errorMessage,
+        isValid: AuthService.normalizePhone(_phoneController.text) != null,
+        // Rebuild on every digit: the clear button and the check mark follow it.
+        onChanged: (_) => setState(() => _errorMessage = null),
+      ),
+      const SizedBox(height: 16.0),
+      const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.lock_outline,
+            size: 14.0,
+            color: NordicColors.textSecondary,
+          ),
+          SizedBox(width: 6.0),
+          Expanded(
+            child: Text(
+              'Không cần mật khẩu.',
+              style: NordicTypography.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 }
