@@ -61,6 +61,9 @@ public class JobOrderConfiguration : IEntityTypeConfiguration<JobOrder>
             .HasColumnType("TINYINT")
             .IsRequired();
 
+        // Plain id, no foreign key: WORKER belongs to M4 and a removed worker must not block the order row.
+        builder.Property(x => x.PreferredWorkerId).HasColumnName("preferred_worker_id");
+
         builder.Property(x => x.RequiredSkill)
             .HasColumnName("required_skill")
             .HasMaxLength(100)

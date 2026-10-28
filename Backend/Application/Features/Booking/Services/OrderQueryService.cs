@@ -111,7 +111,9 @@ public sealed class OrderQueryService(
         }
 
         var created = await creation.CreateAsync(
-            new CreateOrderRequest(customerId, body.AddressId, tier, body.ScheduledDate!.Value, body.ShiftCode ?? string.Empty, body.CustomerNote, body.RequiredSkill),
+            new CreateOrderRequest(
+                customerId, body.AddressId, tier, body.ScheduledDate!.Value, body.ShiftCode ?? string.Empty, body.CustomerNote, body.RequiredSkill,
+                body.PreferredWorkerId),
             cancellationToken);
         return OrderDto.From(created);
     }

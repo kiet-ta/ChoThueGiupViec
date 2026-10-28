@@ -23,6 +23,7 @@ public sealed class WorkersModule : IModule
         services.AddScoped<IEkycProvider, EkycProvider>();
         services.AddScoped<IEkycAuditService, EkycAuditService>();
         services.AddScoped<IWorkerAvailabilityQuery, WorkerAvailabilityQuery>();
+        services.AddScoped<IWorkerFreeShiftQuery, WorkerFreeShiftQuery>();
 
         services.AddScoped<IWorkerProfileService, WorkerProfileService>();
         services.AddScoped<IWorkerEkycService, WorkerEkycService>();

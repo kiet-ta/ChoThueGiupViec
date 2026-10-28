@@ -11,6 +11,8 @@ namespace CommonService.Application.Features.Booking.Services;
 /// <summary>
 /// Creates a PENDING_PAYMENT order (BE-M2-03, contract booking.md 3.3). The price is frozen into total_amount (Q01).
 /// PREMIUM: the order is inserted and the capacity reserved in ONE transaction, keyed by the order id (B8); no capacity -> rollback, FULLY_BOOKED.
+/// ECONOMY may carry a <c>preferredWorkerId</c>: it must be one of the customer's favorites (404 otherwise, read through
+/// <see cref="ICustomerFavoriteQuery"/>); Dispatch offers that worker the first seat before the radius scan.
 /// </summary>
 public sealed class OrderCreationService(
     ICustomerAddressQuery addresses,
@@ -19,7 +21,8 @@ public sealed class OrderCreationService(
     IAgencyCapacityService capacity,
     IUnitOfWork unitOfWork,
     IClock clock,
-    IOptions<BusinessRules> rules) : IOrderCreationService
+    IOptions<BusinessRules> rules,
+    ICustomerFavoriteQuery? favorites = null) : IOrderCreationService
 {
     private const int MaxNoteLength = 500;
     private const int MaxSkillLength = 100;
@@ -33,6 +36,12 @@ public sealed class OrderCreationService(
 
         var address = await addresses.GetOwnedAsync(request.CustomerId, request.AddressId, cancellationToken)
             ?? throw new NotFoundException("Address", request.AddressId);
+
+        if (request.PreferredWorkerId is int preferredWorkerId
+            && (favorites is null || !await favorites.IsFavoriteAsync(request.CustomerId, preferredWorkerId, cancellationToken)))
+        {
+            throw new NotFoundException("FavoriteWorker", preferredWorkerId);
+        }
 
         var nowUtc = clock.UtcNow;
         var shiftStartUtc = BookingWindowPolicy.GetShiftStartUtc(request.ScheduledDate, request.ShiftCode, clock)!.Value;
@@ -69,6 +78,7 @@ public sealed class OrderCreationService(
                     RequiredSkill = request.RequiredSkill,
                     TotalAmount = quote.TotalAmount,
                     CustomerNote = request.CustomerNote,
+                    PreferredWorkerId = request.PreferredWorkerId,
                     CreatedAt = nowUtc,
                     UpdatedAt = nowUtc,
                 };
@@ -158,6 +168,16 @@ public sealed class OrderCreationService(
         else if (!string.IsNullOrWhiteSpace(request.RequiredSkill) && request.ServiceTier != ServiceTier.Premium)
         {
             errors["requiredSkill"] = ["requiredSkill is only allowed for PREMIUM orders."];
+        }
+
+        if (request.PreferredWorkerId is <= 0)
+        {
+            errors["preferredWorkerId"] = ["preferredWorkerId must be greater than 0."];
+        }
+        else if (request.PreferredWorkerId is not null && request.ServiceTier != ServiceTier.Economy)
+        {
+            // PREMIUM workers come from the partner agency's roster (Q13), not from the freelancer pool.
+            errors["preferredWorkerId"] = ["preferredWorkerId is only allowed for ECONOMY orders."];
         }
 
         if (errors.Count > 0)

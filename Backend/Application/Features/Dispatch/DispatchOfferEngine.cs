@@ -20,7 +20,8 @@ public sealed record DispatchOrderContext(
     int RequiredWorkers,
     GeoPoint Location,
     decimal TotalAmount,
-    JobOrderStatus OrderStatus = JobOrderStatus.Dispatching)
+    JobOrderStatus OrderStatus = JobOrderStatus.Dispatching,
+    int? PreferredWorkerId = null)
 {
     /// <summary>Seats are offered only while the order is being dispatched (contract booking.md B4: PAID -&gt; DISPATCHING before OrderPaid).</summary>
     public bool IsDispatchable => OrderStatus is JobOrderStatus.Paid or JobOrderStatus.Dispatching;
@@ -203,9 +204,10 @@ public class DispatchOfferEngine
                 continue; // idempotent: a repeated OrderPaid or a sweep only fills missing seats
             }
 
+            // The customer's favorite is asked first for the first open seat; once offered they are excluded from the other seats.
             var offer = await StartDispatchForOrderAsync(
                 order.OrderId, order.CustomerId, order.ServiceTier, order.ScheduledDate, order.ShiftCode, order.Location,
-                grossPerSeat, seq, cancellationToken);
+                grossPerSeat, seq, cancellationToken, preferredWorkerId: order.PreferredWorkerId);
             if (offer == null)
             {
                 break; // AssignmentFailed was published for the order; the other seats are not offered
@@ -220,6 +222,8 @@ public class DispatchOfferEngine
     /// <summary>
     /// Offers one seat of an order to the best ranked candidate who has not had this order yet. Publishes <see cref="AssignmentFailed"/>
     /// when the 5 -&gt; 7 -&gt; 10 km steps are exhausted. Premium orders go through the agency hold instead.
+    /// <paramref name="preferredWorkerId"/> (the customer's favorite, booking.md 3.3) is offered the seat first when that worker has not
+    /// had the order yet, is free for the shift and passes the usual eligibility; otherwise the radius scan runs as usual.
     /// </summary>
     public async Task<DispatchOffer?> StartDispatchForOrderAsync(
         long orderId,
@@ -230,7 +234,8 @@ public class DispatchOfferEngine
         GeoPoint location,
         decimal grossAmount,
         byte assignmentSeq = 1,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? preferredWorkerId = null)
     {
         if (serviceTier == ServiceTier.Premium)
         {
@@ -244,6 +249,24 @@ public class DispatchOfferEngine
         }
 
         var excluded = new HashSet<long>(await _dispatchRepository.GetWorkerIdsAlreadyOfferedAsync(orderId, cancellationToken));
+
+        if (preferredWorkerId is int preferred && !excluded.Contains(preferred))
+        {
+            // Not free, too far or not eligible: the scan below would not find them either.
+            excluded.Add(preferred);
+            var match = await _scanner.FindWorkerCandidateAsync(serviceTier, date, shiftCode, location, preferred, cancellationToken);
+            if (match is { } found)
+            {
+                var preferredOffer = await TryOfferAsync(orderId, customerId, serviceTier, assignmentSeq, grossAmount, found.Candidate,
+                    found.ScoreResult, found.RadiusKm, cancellationToken);
+                if (preferredOffer != null)
+                {
+                    _logger.LogInformation("Order {OrderId} seat {Seq} offered first to the customer's preferred worker {WorkerId}.",
+                        orderId, assignmentSeq, preferred);
+                    return preferredOffer;
+                }
+            }
+        }
 
         while (true)
         {
