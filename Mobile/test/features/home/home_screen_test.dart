@@ -59,6 +59,61 @@ void main() {
     expect(opened, isEmpty);
   });
 
+  testWidgets('signed out: each role card says what the role does', (
+    tester,
+  ) async {
+    useDesignFrame(tester);
+    await tester.pumpWidget(_app(<String>[]));
+
+    expect(find.text('BẠN LÀ AI?'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('welcome-customer')),
+        matching: find.text(
+          'Đặt ca dọn nhà, theo dõi đơn và giữ người giúp việc yêu thích.',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('welcome-worker')),
+        matching: find.text(
+          'Nhận việc mới, sắp lịch rảnh và theo dõi thu nhập.',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Đăng nhập bằng số điện thoại và mã OTP'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('signed out: the worker card opens the phone login', (
+    tester,
+  ) async {
+    useDesignFrame(tester);
+    final opened = <String>[];
+    await tester.pumpWidget(_app(opened));
+
+    await tapVisible(tester, find.byKey(const Key('welcome-worker')));
+
+    expect(find.byKey(const Key('phone-input-title')), findsOneWidget);
+    expect(opened, isEmpty);
+  });
+
+  testWidgets('signed out: the welcome scrolls on a short screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 560);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app(<String>[]));
+
+    expect(tester.takeException(), isNull);
+    await tapVisible(tester, find.byKey(const Key('welcome-worker')));
+    expect(find.byKey(const Key('phone-input-title')), findsOneWidget);
+  });
+
   testWidgets('a signed-in customer lands on the shell with the bottom bar', (
     tester,
   ) async {
