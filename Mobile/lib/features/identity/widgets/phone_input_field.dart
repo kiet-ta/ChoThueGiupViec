@@ -41,13 +41,20 @@ class PhoneInputField extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12.0),
                 border: Border.all(color: NordicColors.border),
               ),
-              child: const Text(
-                '+84',
-                style: TextStyle(
-                  fontSize: 15.0,
-                  fontWeight: FontWeight.w600,
-                  color: NordicColors.textTitle,
-                ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _VietnamFlag(),
+                  SizedBox(width: 8.0),
+                  Text(
+                    '+84',
+                    style: TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.w600,
+                      color: NordicColors.textTitle,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 10.0),
@@ -134,6 +141,27 @@ class _ValidMark extends StatelessWidget {
         size: 20.0,
         color: NordicColors.primary,
         semanticLabel: 'Số hợp lệ',
+      ),
+    );
+  }
+}
+
+/// The flag of Vietnam, drawn in code (MOB-UI-18): a red field with a yellow star. Decorative.
+class _VietnamFlag extends StatelessWidget {
+  const _VietnamFlag();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Container(
+        key: const Key('phone-flag'),
+        width: 24.0,
+        height: 16.0,
+        decoration: BoxDecoration(
+          color: const Color(0xFFDA251D),
+          borderRadius: BorderRadius.circular(2.0),
+        ),
+        child: const Icon(Icons.star, size: 11.0, color: Color(0xFFFFFF00)),
       ),
     );
   }
