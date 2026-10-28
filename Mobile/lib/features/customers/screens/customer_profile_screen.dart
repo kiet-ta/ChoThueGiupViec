@@ -15,6 +15,7 @@ import '../../../core/widgets/status_state_widget.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_profile.dart';
 import '../services/customer_profile_service.dart';
+import '../widgets/sign_out_dialog.dart';
 
 /// The customer profile: who is signed in, name and email to edit (MOB-UI-14,
 /// `Mobile/DESIGN-SYSTEM.md`: `NordicPage`, "Lưu" above the keyboard, a failed save shakes).
@@ -145,43 +146,12 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     }
   }
 
+  /// The same question as the Tài khoản tab; the tab then signs out the same way as its own row
+  /// (token cleared and back to the welcome screen).
   Future<void> _handleLogout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Đăng xuất?', style: NordicTypography.h3),
-        content: const Text(
-          'Lần sau bạn cần mã xác nhận để vào lại.',
-          style: NordicTypography.bodyRegular,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(
-              'Huỷ',
-              style: TextStyle(color: NordicColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: NordicColors.error,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Đăng xuất',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      _tokenStorage.clear();
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    }
+    if (!await confirmCustomerSignOut(context)) return;
+    _tokenStorage.clear();
+    if (mounted) Navigator.pop(context, customerSignedOutResult);
   }
 
   @override
