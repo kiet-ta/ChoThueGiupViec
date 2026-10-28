@@ -194,7 +194,7 @@ void main() {
               key: const Key('open-profile'),
               onPressed: () async {
                 result = await Navigator.of(context).push(
-                  MaterialPageRoute<Object?>(
+                  MaterialPageRoute<Object>(
                     builder: (_) => CustomerProfileScreen(
                       service: service,
                       tokenStorage: tokenStorage,

@@ -173,7 +173,7 @@ void main() {
               key: const Key('open-list'),
               onPressed: () async {
                 picked = await Navigator.of(context).push(
-                  MaterialPageRoute<Object?>(
+                  MaterialPageRoute<Object>(
                     builder: (_) => AddressListScreen(
                       addressService: service,
                       args: const AddressListArgs(selectedAddressId: 1),
