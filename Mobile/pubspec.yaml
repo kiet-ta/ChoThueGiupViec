@@ -89,6 +89,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  # Welcome slideshow photos, Unsplash License (assets/images/welcome/CREDITS.txt).
+  assets:
+    - assets/images/welcome/
+
   # Static TTFs from Google Fonts, SIL OFL 1.1 (assets/fonts/OFL-*.txt). Names = NordicTypography families.
   fonts:
     - family: Plus Jakarta Sans
