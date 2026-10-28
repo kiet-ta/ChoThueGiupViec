@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/models/user_role.dart';
@@ -132,15 +134,41 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// The brand block of the welcome: logo mark and name on top, the promise at the bottom of a
-/// soft green panel that grows to fill the height the role cards leave free.
+/// Photos of the welcome slideshow (Unsplash License, assets/images/welcome/CREDITS.txt) and the
+/// work each one shows (spec: cleaning shifts; the worker brings the tool kit, ADR-0010).
+const _welcomePhotos = [
+  (
+    'assets/images/welcome/mop-living-room.jpg',
+    Icons.cleaning_services_outlined,
+    'Lau sàn',
+  ),
+  (
+    'assets/images/welcome/vacuum-sofa.jpg',
+    Icons.weekend_outlined,
+    'Hút bụi sofa',
+  ),
+  (
+    'assets/images/welcome/broom-kitchen.jpg',
+    Icons.kitchen_outlined,
+    'Dọn bếp',
+  ),
+  (
+    'assets/images/welcome/caddy-stairs.jpg',
+    Icons.handyman_outlined,
+    'Thợ mang đủ dụng cụ',
+  ),
+];
+
+/// The brand block of the welcome: logo mark and name on top, a slideshow of housework photos,
+/// the promise at the bottom of a soft green panel that grows to fill the height the role
+/// cards leave free.
 class _WelcomeHero extends StatelessWidget {
   const _WelcomeHero();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
       decoration: BoxDecoration(
         color: NordicColors.primaryFixed.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(28),
@@ -148,45 +176,223 @@ class _WelcomeHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: _brand(),
+          ),
+          const SizedBox(height: 16),
+          const Spacer(),
+          const _PhotoSlideshow(),
+          const SizedBox(height: 20),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: _promise(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _brand() {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: NordicColors.primary,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.home_outlined,
+            color: NordicColors.textInverse,
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          'TỔ ẤM',
+          style: NordicTypography.titleMedium.copyWith(
+            letterSpacing: 1.2,
+            color: NordicColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _promise() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Narrow box: the promise breaks after the comma, one half per line.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 210),
+          child: Text(
+            'Nhà sạch, lòng nhẹ.',
+            style: NordicTypography.greeting.copyWith(fontSize: 38),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Đặt người giúp việc theo từng ca.',
+          style: NordicTypography.bodyRegular,
+        ),
+      ],
+    );
+  }
+}
+
+/// The housework photos, one at a time: moves on to the next one every [_interval] (sliding, or
+/// jumping when the platform asks for reduced motion), can be swiped, loops without end.
+/// A caption names the work in the photo; dots show which photo is on. Decorative: hidden
+/// from screen readers.
+class _PhotoSlideshow extends StatefulWidget {
+  const _PhotoSlideshow();
+
+  @override
+  State<_PhotoSlideshow> createState() => _PhotoSlideshowState();
+}
+
+class _PhotoSlideshowState extends State<_PhotoSlideshow> {
+  static const _interval = Duration(milliseconds: 3500);
+
+  final _pages = PageController();
+  Timer? _timer;
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(_interval, (_) => _next());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    for (final (asset, _, _) in _welcomePhotos) {
+      precacheImage(AssetImage(asset), context);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pages.dispose();
+    super.dispose();
+  }
+
+  void _next() {
+    if (!mounted || !_pages.hasClients) return;
+    final target = (_pages.page?.round() ?? _page) + 1;
+    if (MediaQuery.of(context).disableAnimations) {
+      _pages.jumpToPage(target);
+    } else {
+      _pages.animateToPage(
+        target,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = _page % _welcomePhotos.length;
+    final (_, icon, caption) = _welcomePhotos[current];
+    return ExcludeSemantics(
+      child: SizedBox(
+        height: 220,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: NordicColors.primary,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.home_outlined,
-                  color: NordicColors.textInverse,
-                  size: 24,
+              // No item count: the pages go on for ever, page n shows photo n % length.
+              PageView.builder(
+                controller: _pages,
+                onPageChanged: (page) => setState(() => _page = page),
+                itemBuilder: (context, page) => Image.asset(
+                  _welcomePhotos[page % _welcomePhotos.length].$1,
+                  fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                'TỔ ẤM',
-                style: NordicTypography.titleMedium.copyWith(
-                  letterSpacing: 1.2,
-                  color: NordicColors.primary,
+              // Darker bottom edge so the caption and the dots stay readable on any photo.
+              IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.center,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        NordicColors.contrastDark.withValues(alpha: 0.55),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: IgnorePointer(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _caption(icon, caption),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      for (var i = 0; i < _welcomePhotos.length; i++)
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          margin: const EdgeInsets.only(left: 5),
+                          width: i == current ? 18 : 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: NordicColors.textInverse.withValues(
+                              alpha: i == current ? 1 : 0.55,
+                            ),
+                            borderRadius: BorderRadius.circular(9999),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 36),
-          const Spacer(),
-          // Narrow box: the promise breaks after the comma, one half per line.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 210),
+        ),
+      ),
+    );
+  }
+
+  Widget _caption(IconData icon, String caption) {
+    return Container(
+      key: const Key('welcome-photo-caption'),
+      padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
+      decoration: BoxDecoration(
+        color: NordicColors.surface,
+        borderRadius: BorderRadius.circular(9999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: NordicColors.primary),
+          const SizedBox(width: 6),
+          Flexible(
             child: Text(
-              'Nhà sạch, lòng nhẹ.',
-              style: NordicTypography.greeting.copyWith(fontSize: 38),
+              caption,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: NordicTypography.labelMedium.copyWith(
+                color: NordicColors.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Đặt người giúp việc theo từng ca.',
-            style: NordicTypography.bodyRegular,
           ),
         ],
       ),

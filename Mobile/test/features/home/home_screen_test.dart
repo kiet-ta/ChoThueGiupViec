@@ -88,6 +88,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('signed out: the photo slideshow moves on by itself', (
+    tester,
+  ) async {
+    useDesignFrame(tester);
+    await tester.pumpWidget(_app(<String>[]));
+    await tester.pumpAndSettle();
+
+    Finder caption(String text) => find.descendant(
+      of: find.byKey(const Key('welcome-photo-caption')),
+      matching: find.text(text),
+    );
+    expect(find.byType(Image), findsWidgets);
+    expect(caption('Lau sàn'), findsOneWidget);
+
+    // Every 3.5 s the next photo slides in; after the last one it starts over.
+    for (final next in [
+      'Hút bụi sofa',
+      'Dọn bếp',
+      'Thợ mang đủ dụng cụ',
+      'Lau sàn',
+    ]) {
+      await tester.pump(const Duration(milliseconds: 3500));
+      await tester.pumpAndSettle();
+      expect(caption(next), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('signed out: the photo slideshow can be swiped', (tester) async {
+    useDesignFrame(tester);
+    await tester.pumpWidget(_app(<String>[]));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(PageView), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('welcome-photo-caption')),
+        matching: find.text('Hút bụi sofa'),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('signed out: the worker card opens the phone login', (
     tester,
   ) async {
