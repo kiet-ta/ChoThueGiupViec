@@ -279,6 +279,52 @@ public class DispatchOfferEngineTests
     }
 
     [Fact]
+    public async Task DispatchPaidOrder_offers_the_first_seat_to_the_customers_preferred_worker_before_closer_ones()
+    {
+        var h = new Harness();
+        h.Repo.Orders[520] = new DispatchOrderContext(
+            520, 201, ServiceTier.Economy, ShiftDate, "SANG", 2, OrderLocation, 520000m, PreferredWorkerId: 703);
+        h.AddWorker(701, slotId: 111, distanceKm: 1.0);
+        h.AddWorker(702, slotId: 112, distanceKm: 2.0);
+        h.AddWorker(703, slotId: 113, distanceKm: 6.0); // the favorite: outside the 5 km step
+
+        var offers = await h.Engine.DispatchPaidOrderAsync(520);
+
+        var rows = h.Repo.Assignments.Values.OrderBy(a => a.AssignmentSeq).ToList();
+        Assert.Equal(2, offers.Count);
+        Assert.Equal([703, 701], rows.Select(a => a.WorkerId)); // seat 1 the favorite, seat 2 the usual best candidate
+        Assert.Equal(7, rows[0].DispatchRadiusKm); // the smallest step that reaches 6 km
+        Assert.Equal(113, rows[0].SlotId);
+    }
+
+    [Fact]
+    public async Task DispatchPaidOrder_without_a_free_preferred_worker_dispatches_as_usual()
+    {
+        var h = new Harness();
+        h.Repo.Orders[521] = new DispatchOrderContext(
+            521, 201, ServiceTier.Economy, ShiftDate, "SANG", 1, OrderLocation, 260000m, PreferredWorkerId: 799);
+        h.AddWorker(701, slotId: 121, distanceKm: 1.0);
+
+        var offers = await h.Engine.DispatchPaidOrderAsync(521);
+
+        Assert.Equal(701, Assert.Single(offers).WorkerId);
+    }
+
+    [Fact]
+    public async Task DispatchPaidOrder_ignores_a_preferred_worker_beyond_10_km()
+    {
+        var h = new Harness();
+        h.Repo.Orders[522] = new DispatchOrderContext(
+            522, 201, ServiceTier.Economy, ShiftDate, "SANG", 1, OrderLocation, 260000m, PreferredWorkerId: 703);
+        h.AddWorker(701, slotId: 131, distanceKm: 3.0);
+        h.AddWorker(703, slotId: 133, distanceKm: 12.0);
+
+        var offers = await h.Engine.DispatchPaidOrderAsync(522);
+
+        Assert.Equal(701, Assert.Single(offers).WorkerId);
+    }
+
+    [Fact]
     public async Task OrderPaidDispatchHandler_dispatches_the_paid_order_read_by_id()
     {
         var h = new Harness();

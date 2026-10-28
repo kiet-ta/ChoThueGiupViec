@@ -5,7 +5,9 @@ import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../booking/models/booking_models.dart';
 import '../../booking/routes.dart';
+import '../../booking/screens/booking_screen.dart';
 import '../models/favorite_worker.dart';
 import '../services/favorite_worker_service.dart';
 import '../widgets/favorite_worker_card.dart';
@@ -93,10 +95,16 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
     }
   }
 
-  /// Opens the booking form (MOB-UI-14). Booking has no "preferred helper" field yet, so it does
-  /// not pretend to reserve this person: it only starts a booking.
+  /// Opens the booking form with this person already picked (booking.md 3.3 `preferredWorkerId`): the form
+  /// greys out the days and shifts they are busy, and Dispatch offers them the job first.
   void _onBookWithWorker(FavoriteWorker worker) {
-    Navigator.of(context).pushNamed(BookingRoutes.booking);
+    Navigator.of(context).pushNamed(
+      BookingRoutes.booking,
+      arguments: BookingScreenArgs(
+        serviceTier: ServiceTier.economy,
+        preferredWorkerId: worker.workerId,
+      ),
+    );
   }
 
   @override

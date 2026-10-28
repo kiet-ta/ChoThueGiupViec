@@ -99,6 +99,8 @@ Modules never call each other: they use a **port** (interface + DTOs in `Applica
 | `IWorkerAvailabilityQuery` | M4 | M3 | `FakeWorkerAvailabilityQuery` |
 | `IWorkerReputation` | M6 | M3 | `FakeWorkerReputation` (replaced by the real `EfWorkerReputation`, section 7.2a) |
 | `IWorkerProfileQuery` (Q21 C3) | M4 | M1 (favorite workers) | `FakeWorkerProfileQuery` |
+| `IWorkerFreeShiftQuery` (a worker's `AVAILABLE` slots, customers.md 2.3) | M4 | M1 (favorite worker availability) | `FakeWorkerFreeShiftQuery` |
+| `ICustomerFavoriteQuery` (is this worker a favorite, booking.md 3.3) | M1 | M2 (`preferredWorkerId`) | `FakeCustomerFavoriteQuery` |
 | `IAuditLog` (append-only, G-5) | M6 | M2, M5, M6 | `FakeAuditLog` (replaced by the real `EfAuditLog`, section 7.6) |
 | `IEkycProvider` (Fake only, Q05) | M4 | M4 | `FakeEkycProvider` (confidence 92.00) |
 | `IImageQualityService` (VoL, Q03) | M4 | M4 | `FakeImageQualityService` |

@@ -12,6 +12,7 @@ import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../customers/routes.dart';
+import '../../customers/models/favorite_worker.dart';
 import '../../customers/screens/address_list_screen.dart';
 import '../../payments/models/payment_models.dart';
 import '../../payments/routes.dart';
@@ -20,13 +21,20 @@ import '../models/booking_models.dart';
 import '../routes.dart';
 import '../services/booking_service.dart';
 
-/// What the booking form opens with: the segment and address the customer already picked elsewhere
-/// (the Home's "Đặt nhanh" tiles), so they are ticked without a second tap.
+/// What the booking form opens with: the segment, address or favorite worker the customer already picked
+/// elsewhere (the Home's "Đặt nhanh" tiles, the Yêu thích list), so they are ticked without a second tap.
 class BookingScreenArgs {
   final String? serviceTier;
   final int? addressId;
 
-  const BookingScreenArgs({this.serviceTier, this.addressId});
+  /// A favorite worker (ECONOMY only): ticked, and their busy days and shifts greyed out.
+  final int? preferredWorkerId;
+
+  const BookingScreenArgs({
+    this.serviceTier,
+    this.addressId,
+    this.preferredWorkerId,
+  });
 }
 
 /// Booking flow of a customer (MOB-M2-01 choose the segment, MOB-M2-02 address -> day and shift -> note -> fixed price -> order);
@@ -44,6 +52,9 @@ class BookingScreen extends StatefulWidget {
   /// What "Thêm địa chỉ" does; by default the Customers feature's address book opens.
   final VoidCallback? onManageAddresses;
 
+  /// The customer's favorite workers and their free shifts; by default the Customers feature.
+  final IBookingFavoriteSource? favorites;
+
   /// The preselected choices; when null they are read from the route arguments.
   final BookingScreenArgs? args;
 
@@ -55,6 +66,7 @@ class BookingScreen extends StatefulWidget {
     this.now,
     this.onOrderCreated,
     this.onManageAddresses,
+    this.favorites,
   });
 
   @override
@@ -64,6 +76,7 @@ class BookingScreen extends StatefulWidget {
 class _BookingScreenState extends State<BookingScreen> {
   late final IBookingService _service;
   late final IBookingAddressSource _addressSource;
+  late final IBookingFavoriteSource _favoriteSource;
   late final List<DateTime> _days;
 
   final _noteController = TextEditingController();
@@ -85,6 +98,16 @@ class _BookingScreenState extends State<BookingScreen> {
 
   bool _argsRead = false;
 
+  /// Favorites of the customer; empty (section hidden) until loaded or when the call failed.
+  List<FavoriteWorker> _favorites = const [];
+  int? _preferredWorkerId;
+
+  /// The preferred worker's free shifts ([freeShiftKey]); null when nobody is picked or not known (nothing greyed out).
+  Set<String>? _free;
+  bool _freeLoading = false;
+  String? _freeError;
+  int _freeRequest = 0; // an older answer must not overwrite a newer choice
+
   bool _submitting = false; // one order per tap
   CreateOrderFailure? _failure;
   String? _hint;
@@ -94,8 +117,10 @@ class _BookingScreenState extends State<BookingScreen> {
     super.initState();
     _service = widget.service ?? BookingService();
     _addressSource = widget.addresses ?? CustomerAddressBookSource();
+    _favoriteSource = widget.favorites ?? CustomerFavoriteSource();
     _days = selectableDates((widget.now ?? DateTime.now)());
     _load();
+    _loadFavorites();
   }
 
   @override
@@ -109,6 +134,9 @@ class _BookingScreenState extends State<BookingScreen> {
     // Checked against the server's options and the address book once they are loaded.
     _tier ??= args?.serviceTier;
     _addressId ??= args?.addressId;
+    _preferredWorkerId ??= args?.preferredWorkerId;
+    // A favorite worker only works the freelancer segment.
+    if (_preferredWorkerId != null) _tier ??= ServiceTier.economy;
   }
 
   @override
@@ -199,8 +227,84 @@ class _BookingScreenState extends State<BookingScreen> {
       _tier = tier;
       _failure = null;
       _hint = null;
+      // PREMIUM workers come from the partner agency, not from the favorites.
+      if (tier != ServiceTier.economy) _clearPreferred();
     });
     _refreshQuote();
+  }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final list = await _favoriteSource.getFavorites();
+      if (!mounted) return;
+      setState(() => _favorites = list);
+      final preferred = _preferredWorkerId;
+      if (preferred == null) return;
+      if (list.any((w) => w.workerId == preferred)) {
+        _choosePreferred(preferred); // opened from the Yêu thích list
+      } else {
+        setState(_clearPreferred);
+      }
+    } on ApiException {
+      // No favorites section; booking works as before.
+      if (mounted) setState(_clearPreferred);
+    }
+  }
+
+  void _clearPreferred() {
+    _preferredWorkerId = null;
+    _free = null;
+    _freeLoading = false;
+    _freeError = null;
+    _freeRequest++;
+  }
+
+  /// Picks a favorite (or nobody) and greys out the days and shifts that worker is not free for.
+  Future<void> _choosePreferred(int? workerId) async {
+    setState(() {
+      _clearPreferred();
+      _preferredWorkerId = workerId;
+      _freeLoading = workerId != null;
+      _failure = null;
+      _hint = null;
+    });
+    if (workerId == null) return;
+    final id = _freeRequest;
+    try {
+      final free = await _favoriteSource.getFreeShifts(workerId);
+      if (!mounted || id != _freeRequest) return;
+      setState(() {
+        _free = free;
+        _freeLoading = false;
+        // A choice the worker cannot take is dropped, so it is picked again on a free one.
+        if (_day != null && !_dayFree(_day!)) _day = null;
+        if (_shiftCode != null && !_shiftFree(_shiftCode!)) _shiftCode = null;
+      });
+    } on ApiException {
+      if (!mounted || id != _freeRequest) return;
+      setState(() {
+        _freeLoading = false;
+        _freeError = 'Chưa xem được lịch trống. Bạn vẫn đặt được; hệ thống sẽ mời người này trước.';
+      });
+    }
+  }
+
+  /// True when the day has a shift the preferred worker is free for (always true when nothing is known).
+  bool _dayFree(DateTime day) {
+    final free = _free;
+    if (free == null) return true;
+    final shifts = _options?.shifts ?? const <ShiftOption>[];
+    return shifts.any(
+      (s) => free.contains(freeShiftKey(dateKey(day), s.shiftCode)),
+    );
+  }
+
+  /// True when the preferred worker is free for the shift on the chosen day (true before a day is chosen).
+  bool _shiftFree(String shiftCode) {
+    final free = _free;
+    final day = _day;
+    if (free == null || day == null) return true;
+    return free.contains(freeShiftKey(dateKey(day), shiftCode));
   }
 
   void _chooseAddress(int addressId) {
@@ -237,6 +341,9 @@ class _BookingScreenState extends State<BookingScreen> {
       scheduledDate: dateKey(_day!),
       shiftCode: _shiftCode!,
       customerNote: note.isEmpty ? null : note,
+      preferredWorkerId: _tier == ServiceTier.economy
+          ? _preferredWorkerId
+          : null,
     );
 
     setState(() {
@@ -374,6 +481,8 @@ class _BookingScreenState extends State<BookingScreen> {
         ],
       ),
       _fieldError('serviceTier'),
+      if (_tier == ServiceTier.economy && _favorites.isNotEmpty)
+        ..._favoriteSection(),
 
       _heading('Địa chỉ', top: NordicSpace.lg),
       if (addresses.isEmpty)
@@ -423,10 +532,14 @@ class _BookingScreenState extends State<BookingScreen> {
               key: Key('day-${dateKey(day)}'),
               day: day,
               selected: _day == day,
+              unavailable: !_dayFree(day),
               onTap: () => setState(() {
                 _day = day;
                 _failure = null;
                 _hint = null;
+                if (_shiftCode != null && !_shiftFree(_shiftCode!)) {
+                  _shiftCode = null;
+                }
               }),
             );
           },
@@ -445,6 +558,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 key: Key('shift-${options.shifts[i].shiftCode}'),
                 shift: options.shifts[i],
                 selected: _shiftCode == options.shifts[i].shiftCode,
+                unavailable: !_shiftFree(options.shifts[i].shiftCode),
                 onTap: () => setState(() {
                   _shiftCode = options.shifts[i].shiftCode;
                   _failure = null;
@@ -554,6 +668,55 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   /// ui-templates `.caps` label above each group, with an optional note on the right.
+  /// "Người giúp việc yêu thích": nobody (the usual search) or one favorite, offered the job first.
+  List<Widget> _favoriteSection() {
+    final preferred = _preferredWorkerId;
+    final free = _free;
+    final String? note;
+    if (preferred == null) {
+      note = null;
+    } else if (_freeLoading) {
+      note = 'Đang xem lịch trống của người này…';
+    } else if (_freeError != null) {
+      note = _freeError;
+    } else if (free != null && free.isEmpty) {
+      note = 'Người này chưa mở ca trống nào trong 2 tuần tới.';
+    } else {
+      note = 'Ngày và ca bị làm mờ là lúc người này bận. Hệ thống mời người này trước; nếu họ không nhận, sẽ tìm người khác gần bạn.';
+    }
+    return [
+      _heading('Người giúp việc yêu thích', top: NordicSpace.lg),
+      _ChoiceCard(
+        key: const Key('favorite-none'),
+        selected: preferred == null,
+        title: 'Để hệ thống chọn',
+        subtitle: 'Người phù hợp gần bạn nhất, trong 10 km.',
+        icon: Icons.auto_awesome_outlined,
+        onTap: () => _choosePreferred(null),
+      ),
+      for (final worker in _favorites) ...[
+        const SizedBox(height: NordicSpace.xs),
+        _ChoiceCard(
+          key: Key('favorite-${worker.workerId}'),
+          selected: preferred == worker.workerId,
+          title: worker.fullName,
+          subtitle:
+              '★ ${worker.ratingAvg.toStringAsFixed(1).replaceAll('.', ',')} · ${worker.completedJobs} ca',
+          icon: Icons.favorite_outline,
+          onTap: () => _choosePreferred(worker.workerId),
+        ),
+      ],
+      if (note != null) ...[
+        const SizedBox(height: NordicSpace.xs),
+        Text(
+          note,
+          key: const Key('favorite-note'),
+          style: NordicTypography.bodySmall,
+        ),
+      ],
+    ];
+  }
+
   Widget _heading(String text, {double top = 0.0, String? trailing}) => Padding(
     padding: EdgeInsets.only(top: top, bottom: 8.0),
     child: Row(
@@ -599,6 +762,10 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
       );
 }
+
+/// A day or shift the preferred worker is not free for: faded (it is also not pressable).
+Widget _dimmed(bool unavailable, Widget child) =>
+    unavailable ? Opacity(opacity: 0.35, child: child) : child;
 
 /// Outline of a selectable tile: primary border when chosen (ui-templates `.tier.on`, `.shift.on`).
 BoxDecoration _tileDecoration(bool selected) => BoxDecoration(
@@ -677,19 +844,24 @@ class _TierTile extends StatelessWidget {
 class _DayTile extends StatelessWidget {
   final DateTime day;
   final bool selected;
+
+  /// The preferred worker is not free that day: greyed out and not pressable.
+  final bool unavailable;
   final VoidCallback onTap;
 
   const _DayTile({
     super.key,
     required this.day,
     required this.selected,
+    this.unavailable = false,
     required this.onTap,
   });
 
   static const _weekdays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
   @override
-  Widget build(BuildContext context) => Pressable(child: _tile(context));
+  Widget build(BuildContext context) =>
+      _dimmed(unavailable, Pressable(child: _tile(context)));
 
   Widget _tile(BuildContext context) {
     final color = selected ? Colors.white : NordicColors.textTitle;
@@ -697,8 +869,9 @@ class _DayTile extends StatelessWidget {
       selected: selected,
       button: true,
       label: dayLabel(day),
+      enabled: !unavailable,
       child: InkWell(
-        onTap: onTap,
+        onTap: unavailable ? null : onTap,
         borderRadius: NordicRadius.cardAll,
         child: Container(
           width: 48.0,
@@ -740,12 +913,16 @@ class _DayTile extends StatelessWidget {
 class _ShiftTile extends StatelessWidget {
   final ShiftOption shift;
   final bool selected;
+
+  /// The preferred worker is not free for this shift on the chosen day: greyed out and not pressable.
+  final bool unavailable;
   final VoidCallback onTap;
 
   const _ShiftTile({
     super.key,
     required this.shift,
     required this.selected,
+    this.unavailable = false,
     required this.onTap,
   });
 
@@ -757,16 +934,18 @@ class _ShiftTile extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) => Pressable(child: _tile(context));
+  Widget build(BuildContext context) =>
+      _dimmed(unavailable, Pressable(child: _tile(context)));
 
   Widget _tile(BuildContext context) {
     return Semantics(
       selected: selected,
       button: true,
       label: shiftText(shift),
+      enabled: !unavailable,
       excludeSemantics: true,
       child: InkWell(
-        onTap: onTap,
+        onTap: unavailable ? null : onTap,
         borderRadius: NordicRadius.cardAll,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
@@ -801,6 +980,7 @@ class _ChoiceCard extends StatelessWidget {
   final bool selected;
   final String title;
   final String? subtitle;
+  final IconData icon;
   final VoidCallback onTap;
 
   const _ChoiceCard({
@@ -808,6 +988,7 @@ class _ChoiceCard extends StatelessWidget {
     required this.selected,
     required this.title,
     this.subtitle,
+    this.icon = Icons.home_outlined,
     required this.onTap,
   });
 
@@ -833,10 +1014,7 @@ class _ChoiceCard extends StatelessWidget {
                   color: NordicColors.surfaceLow,
                   borderRadius: NordicRadius.tileAll,
                 ),
-                child: const Icon(
-                  Icons.home_outlined,
-                  color: NordicColors.primary,
-                ),
+                child: Icon(icon, color: NordicColors.primary),
               ),
               const SizedBox(width: NordicSpace.sm),
               Expanded(

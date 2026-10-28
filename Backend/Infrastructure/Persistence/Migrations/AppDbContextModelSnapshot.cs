@@ -1036,6 +1036,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(20)")
                         .HasColumnName("order_status");
 
+                    b.Property<int?>("PreferredWorkerId")
+                        .HasColumnType("int")
+                        .HasColumnName("preferred_worker_id");
+
                     b.Property<string>("RequiredSkill")
                         .HasMaxLength(100)
                         .IsUnicode(true)

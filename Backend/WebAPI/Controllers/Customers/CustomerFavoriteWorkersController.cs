@@ -64,6 +64,32 @@ public class CustomerFavoriteWorkersController : ControllerBase
         return StatusCode(result.StatusCode, ApiResponse<object>.Fail(result.ErrorMessage ?? "Request failed.", null));
     }
 
+    /// <summary>
+    /// The free shifts of one of the caller's favorite workers, <paramref name="from"/> .. <paramref name="to"/> (default: the booking
+    /// window). 404 when the worker is not in the caller's favorites.
+    /// </summary>
+    [HttpGet("{workerId:int}/availability")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<FavoriteWorkerFreeShiftDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Availability(
+        int workerId,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromServices] IFavoriteWorkerAvailabilityService availability,
+        CancellationToken ct)
+    {
+        if (_currentUser.UserId is not int customerId)
+        {
+            return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
+        }
+
+        var result = await availability.GetFreeShiftsAsync(customerId, workerId, from, to, ct);
+        return Ok(ApiResponse<IReadOnlyList<FavoriteWorkerFreeShiftDto>>.Ok(result, "Free shifts retrieved."));
+    }
+
     /// <summary>Removes a worker from the caller's favorites. Removing a worker that is not in the list is still 200.</summary>
     [HttpDelete("{workerId:int}")]
     [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status200OK)]
