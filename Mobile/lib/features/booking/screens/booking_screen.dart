@@ -140,6 +140,22 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_argsRead) return;
+    _argsRead = true;
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    final args =
+        widget.args ?? (routeArgs is BookingScreenArgs ? routeArgs : null);
+    // Checked against the server's options and the address book once they are loaded.
+    _tier ??= args?.serviceTier;
+    _addressId ??= args?.addressId;
+    _preferredWorkerId ??= args?.preferredWorkerId;
+    // A favorite worker only works the freelancer segment.
+    if (_preferredWorkerId != null) _tier ??= ServiceTier.economy;
+  }
+
+  @override
   void dispose() {
     _noteController.dispose();
     super.dispose();
@@ -284,7 +300,8 @@ class _BookingScreenState extends State<BookingScreen> {
       if (!mounted || id != _freeRequest) return;
       setState(() {
         _freeLoading = false;
-        _freeError = 'Chưa xem được lịch trống. Bạn vẫn đặt được; hệ thống sẽ mời người này trước.';
+        _freeError =
+            'Chưa xem được lịch trống. Bạn vẫn đặt được; hệ thống sẽ mời người này trước.';
       });
     }
   }
@@ -682,7 +699,8 @@ class _BookingScreenState extends State<BookingScreen> {
     } else if (free != null && free.isEmpty) {
       note = 'Người này chưa mở ca trống nào trong 2 tuần tới.';
     } else {
-      note = 'Ngày và ca bị làm mờ là lúc người này bận. Hệ thống mời người này trước; nếu họ không nhận, sẽ tìm người khác gần bạn.';
+      note =
+          'Ngày và ca bị làm mờ là lúc người này bận. Hệ thống mời người này trước; nếu họ không nhận, sẽ tìm người khác gần bạn.';
     }
     return [
       _heading('Người giúp việc yêu thích', top: NordicSpace.lg),

@@ -193,8 +193,8 @@ void main() {
             builder: (context) => TextButton(
               key: const Key('open-profile'),
               onPressed: () async {
-                result = await Navigator.of(context).push(
-                  MaterialPageRoute<Object>(
+                result = await Navigator.of(context).push<Object?>(
+                  MaterialPageRoute<Object?>(
                     builder: (_) => CustomerProfileScreen(
                       service: service,
                       tokenStorage: tokenStorage,

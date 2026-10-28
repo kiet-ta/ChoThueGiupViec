@@ -186,6 +186,7 @@ class _PaymentScreenState extends State<PaymentScreen>
         !isSandboxAutoConfirmable(payment)) {
       return null;
     }
+    // IPaymentsService does not extend the confirmer, so the check above cannot promote it.
     return service as ISandboxPaymentConfirmer;
   }
 
