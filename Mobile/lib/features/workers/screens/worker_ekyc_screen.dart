@@ -279,7 +279,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       decoration: BoxDecoration(
         color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: NordicColors.border),
       ),
       child: Row(
@@ -289,7 +289,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
             height: 56.0,
             decoration: BoxDecoration(
               color: NordicColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(12.0),
+              borderRadius: BorderRadius.zero,
             ),
             child: const Icon(
               Icons.badge_outlined,

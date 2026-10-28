@@ -27,12 +27,12 @@ class StatTile extends StatelessWidget {
     return Material(
       color: NordicColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         side: const BorderSide(color: NordicColors.border),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(

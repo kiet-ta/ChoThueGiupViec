@@ -157,7 +157,7 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
             padding: const EdgeInsets.all(12.0),
             decoration: BoxDecoration(
               color: NordicColors.errorContainer,
-              borderRadius: BorderRadius.circular(12.0),
+              borderRadius: BorderRadius.zero,
             ),
             child: Row(
               children: [

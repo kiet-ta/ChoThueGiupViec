@@ -92,9 +92,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         backgroundColor: NordicColors.surface,
         title: Text('Xác Nhận Xoá', style: NordicTypography.h3),
         content: Text(
@@ -172,7 +170,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
                     color: NordicColors.surface,
                     clipBehavior: Clip.antiAlias,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
+                      borderRadius: BorderRadius.zero,
                       side: const BorderSide(color: NordicColors.border),
                     ),
                     child: Column(

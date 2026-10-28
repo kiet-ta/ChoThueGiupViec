@@ -546,7 +546,7 @@ class _BookingScreenState extends State<BookingScreen> {
             color: isError
                 ? NordicColors.errorContainer
                 : NordicColors.amberSoft,
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.zero,
           ),
           child: Text(
             text,
@@ -562,7 +562,7 @@ class _BookingScreenState extends State<BookingScreen> {
 /// Outline of a selectable tile: primary border when chosen (ui-templates `.tier.on`, `.shift.on`).
 BoxDecoration _tileDecoration(bool selected) => BoxDecoration(
   color: NordicColors.surface,
-  borderRadius: BorderRadius.circular(16.0),
+  borderRadius: BorderRadius.zero,
   border: Border.all(
     color: selected ? NordicColors.primary : NordicColors.border,
     width: selected ? 2.0 : 1.0,
@@ -591,7 +591,7 @@ class _TierTile extends StatelessWidget {
       button: true,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.zero,
         child: Container(
           padding: const EdgeInsets.all(14.0),
           decoration: _tileDecoration(selected),
@@ -654,12 +654,12 @@ class _DayTile extends StatelessWidget {
       label: dayLabel(day),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.zero,
         child: Container(
           width: 48.0,
           decoration: BoxDecoration(
             color: selected ? NordicColors.primary : NordicColors.surface,
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.zero,
             border: Border.all(
               color: selected ? NordicColors.primary : NordicColors.border,
             ),
@@ -720,7 +720,7 @@ class _ShiftTile extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.zero,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
           decoration: _tileDecoration(selected),
@@ -771,7 +771,7 @@ class _ChoiceCard extends StatelessWidget {
       button: true,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.zero,
         child: Container(
           padding: const EdgeInsets.all(12.0),
           decoration: _tileDecoration(selected),
@@ -782,7 +782,7 @@ class _ChoiceCard extends StatelessWidget {
                 height: 40.0,
                 decoration: BoxDecoration(
                   color: NordicColors.surfaceLow,
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: const Icon(
                   Icons.home_outlined,

@@ -32,8 +32,7 @@ class MiniMapWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return NordicCard(
       padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16.0),
+      child: ClipRect(
         child: SizedBox(
           height: height,
           width: double.infinity,
@@ -82,7 +81,7 @@ class MiniMapWidget extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(12.0),
+                          borderRadius: BorderRadius.zero,
                           border: Border.all(color: NordicColors.border),
                         ),
                         child: Text(
@@ -111,7 +110,7 @@ class MiniMapWidget extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(20.0),
+                    borderRadius: BorderRadius.zero,
                     border: Border.all(color: NordicColors.border),
                   ),
                   child: Row(

@@ -336,7 +336,7 @@ class _PaymentScreenState extends State<PaymentScreen>
               padding: const EdgeInsets.all(12.0),
               decoration: BoxDecoration(
                 color: NordicColors.surfaceLow,
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.zero,
               ),
               child: SelectableText(
                 payment.qrPayload ?? '—',
@@ -396,8 +396,7 @@ class _PaymentScreenState extends State<PaymentScreen>
         ],
       ),
       const SizedBox(height: 16.0),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(3.0),
+      ClipRect(
         child: LinearProgressIndicator(
           value: _lifeLeft(payment, now),
           minHeight: 6.0,
@@ -425,7 +424,7 @@ class _PaymentScreenState extends State<PaymentScreen>
     padding: const EdgeInsets.all(14.0),
     decoration: BoxDecoration(
       color: NordicColors.surface,
-      borderRadius: BorderRadius.circular(16.0),
+      borderRadius: BorderRadius.zero,
       border: Border.all(color: NordicColors.border),
     ),
     child: Column(
@@ -550,7 +549,7 @@ class _SandboxBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
       decoration: BoxDecoration(
         color: NordicColors.amberSoft,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.zero,
       ),
       child: const Row(
         children: [

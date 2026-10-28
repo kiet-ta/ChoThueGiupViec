@@ -51,7 +51,7 @@ class WorkerScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: NordicColors.surface,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.zero,
                     border: Border.all(color: NordicColors.border),
                   ),
                   child: Row(

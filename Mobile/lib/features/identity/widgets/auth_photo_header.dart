@@ -132,7 +132,7 @@ class AuthPhotoHeader extends StatelessWidget {
           height: 32.0,
           decoration: BoxDecoration(
             color: NordicColors.primary,
-            borderRadius: BorderRadius.circular(10.0),
+            borderRadius: BorderRadius.zero,
           ),
           child: const Icon(
             Icons.home_outlined,
@@ -154,7 +154,7 @@ class AuthPhotoHeader extends StatelessWidget {
   }
 }
 
-/// The form sheet (canvas colour, like the bottom action bar) under an [AuthPhotoHeader]: rounded on top and slid
+/// The form sheet (canvas colour, like the bottom action bar) under an [AuthPhotoHeader]: square, slid
 /// [AuthPhotoHeader.sheetOverlap] up over the photo.
 class AuthFormSheet extends StatelessWidget {
   final List<Widget> children;
@@ -169,7 +169,7 @@ class AuthFormSheet extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20.0, 24.0, 20.0, 8.0),
         decoration: const BoxDecoration(
           color: NordicColors.canvas,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28.0)),
+          borderRadius: BorderRadius.zero,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

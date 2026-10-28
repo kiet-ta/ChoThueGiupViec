@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'nordic_colors.dart';
+import 'nordic_radius.dart';
 import 'nordic_typography.dart';
 
 /// Complete ThemeData setup for TỔ ẤM — Nordic Care.
@@ -76,14 +77,14 @@ class NordicTheme {
         elevation: 4,
         shape: CircleBorder(),
       ),
-      // ui-templates `.chip`: pill, hairline border, primary fill when selected.
+      // ui-templates `.chip`: button corners, hairline border, primary fill when selected.
       chipTheme: ChipThemeData(
         backgroundColor: NordicColors.surface,
         selectedColor: NordicColors.primary,
         secondarySelectedColor: NordicColors.primary,
         checkmarkColor: Colors.white,
         side: const BorderSide(color: NordicColors.border),
-        shape: const StadiumBorder(),
+        shape: NordicRadius.buttonShape,
         labelStyle: const TextStyle(
           fontFamily: NordicTypography.fontFamily,
           fontSize: 13,
@@ -98,7 +99,7 @@ class NordicTheme {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
-      // ui-templates `.seg`: a pill track, the selected segment white.
+      // ui-templates `.seg`: a track with button corners, the selected segment white.
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith(
@@ -114,7 +115,7 @@ class NordicTheme {
           side: const WidgetStatePropertyAll(
             BorderSide(color: NordicColors.surfaceContainer, width: 2),
           ),
-          shape: const WidgetStatePropertyAll(StadiumBorder()),
+          shape: const WidgetStatePropertyAll(NordicRadius.buttonShape),
           textStyle: const WidgetStatePropertyAll(
             TextStyle(
               fontFamily: NordicTypography.fontFamily,
@@ -128,9 +129,7 @@ class NordicTheme {
         backgroundColor: NordicColors.surface,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: NordicRadius.none),
       ),
       listTileTheme: const ListTileThemeData(
         iconColor: NordicColors.textSecondary,
@@ -146,11 +145,15 @@ class NordicTheme {
           color: NordicColors.textSecondary,
         ),
       ),
+      // Dialogs are square like cards (Material 3 rounds them by 28 px).
+      dialogTheme: const DialogThemeData(
+        shape: RoundedRectangleBorder(borderRadius: NordicRadius.none),
+      ),
       cardTheme: CardThemeData(
         color: NordicColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: NordicRadius.none,
           side: const BorderSide(color: NordicColors.border, width: 1.0),
         ),
       ),
@@ -167,7 +170,7 @@ class NordicTheme {
             fontWeight: FontWeight.w600,
           ),
           minimumSize: const Size(64, 52),
-          shape: const StadiumBorder(),
+          shape: NordicRadius.buttonShape,
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 14.0),
         ),
       ),
@@ -183,12 +186,13 @@ class NordicTheme {
             fontWeight: FontWeight.w600,
           ),
           minimumSize: const Size(64, 52),
-          shape: const StadiumBorder(),
+          shape: NordicRadius.buttonShape,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: NordicColors.primary,
+          shape: NordicRadius.buttonShape,
           textStyle: const TextStyle(
             fontFamily: NordicTypography.fontFamily,
             fontSize: 13.0,
@@ -202,7 +206,7 @@ class NordicTheme {
           side: const BorderSide(color: NordicColors.border, width: 1.0),
           backgroundColor: NordicColors.surface,
           minimumSize: const Size(64, 52),
-          shape: const StadiumBorder(),
+          shape: NordicRadius.buttonShape,
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 14.0),
           textStyle: const TextStyle(
             fontFamily: NordicTypography.fontFamily,
@@ -219,19 +223,19 @@ class NordicTheme {
           vertical: 14.0,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: NordicRadius.none,
           borderSide: const BorderSide(color: NordicColors.border, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: NordicRadius.none,
           borderSide: const BorderSide(color: NordicColors.border, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: NordicRadius.none,
           borderSide: const BorderSide(color: NordicColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: NordicRadius.none,
           borderSide: const BorderSide(color: NordicColors.error, width: 1.0),
         ),
         hintStyle: NordicTypography.bodyRegular.copyWith(

@@ -23,7 +23,7 @@ class NordicCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
           color: isHighlighted ? NordicColors.primary : NordicColors.border,
           width: isHighlighted ? 2.0 : 1.0,
@@ -50,7 +50,7 @@ class NordicCard extends StatelessWidget {
     if (onTap != null) {
       return InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.zero,
         child: cardContent,
       );
     }

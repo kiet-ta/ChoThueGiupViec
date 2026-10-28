@@ -110,7 +110,7 @@ class FavoriteWorkerCard extends StatelessWidget {
     padding: const EdgeInsets.all(12.0),
     decoration: BoxDecoration(
       color: NordicColors.surfaceLow,
-      borderRadius: BorderRadius.circular(12.0),
+      borderRadius: BorderRadius.zero,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

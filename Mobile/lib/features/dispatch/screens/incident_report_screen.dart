@@ -183,13 +183,13 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     final on = _selectedType == code;
     return InkWell(
       key: Key('incident-kind-$code'),
-      borderRadius: BorderRadius.circular(16.0),
+      borderRadius: BorderRadius.zero,
       onTap: () => setState(() => _selectedType = code),
       child: Container(
         padding: EdgeInsets.all(on ? 13.0 : 14.0),
         decoration: BoxDecoration(
           color: NordicColors.surface,
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: BorderRadius.zero,
           border: Border.all(
             color: on ? NordicColors.primary : NordicColors.border,
             width: on ? 2.0 : 1.0,
@@ -345,7 +345,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
             padding: const EdgeInsets.all(12.0),
             decoration: BoxDecoration(
               color: NordicColors.errorContainer,
-              borderRadius: BorderRadius.circular(12.0),
+              borderRadius: BorderRadius.zero,
             ),
             child: Text(
               _errorMessage!,
@@ -407,7 +407,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: NordicColors.success.withAlpha(20),
-                        borderRadius: BorderRadius.circular(4.0),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Text(
                         'MIỄN PHẠT 100%',

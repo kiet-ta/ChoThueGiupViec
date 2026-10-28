@@ -64,9 +64,7 @@ class AdminUnitPickerField extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: NordicColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       builder: (context) => _AdminUnitSheet(title: label, options: options),
     );
     if (picked != null && picked != value) {

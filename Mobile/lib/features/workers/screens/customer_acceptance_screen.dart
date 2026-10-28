@@ -362,7 +362,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
         color: isError
             ? NordicColors.errorContainer
             : NordicColors.primaryFixed,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.zero,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,8 +472,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     double? volScore,
     required Color tint,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12.0),
+    return ClipRect(
       child: Container(
         color: NordicColors.surfaceLow,
         child: Column(

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../theme/nordic_colors.dart';
+import '../theme/nordic_radius.dart';
 
 enum NordicButtonVariant { primary, secondary, ghost }
 
-/// Pill-shaped CTA button matching the TỔ ẤM Nordic Care specification.
+/// CTA button (corners: NordicRadius.button) matching the TỔ ẤM Nordic Care specification.
 class NordicButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -52,7 +53,7 @@ class NordicButton extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: NordicColors.primary,
             foregroundColor: Colors.white,
-            shape: const StadiumBorder(),
+            shape: NordicRadius.buttonShape,
             padding: const EdgeInsets.symmetric(
               horizontal: 24.0,
               vertical: 14.0,
@@ -68,7 +69,7 @@ class NordicButton extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: NordicColors.textTitle,
             side: const BorderSide(color: NordicColors.border, width: 1.0),
-            shape: const StadiumBorder(),
+            shape: NordicRadius.buttonShape,
             padding: const EdgeInsets.symmetric(
               horizontal: 24.0,
               vertical: 14.0,
@@ -82,7 +83,7 @@ class NordicButton extends StatelessWidget {
           onPressed: isLoading ? null : onPressed,
           style: TextButton.styleFrom(
             foregroundColor: NordicColors.textTitle,
-            shape: const StadiumBorder(),
+            shape: NordicRadius.buttonShape,
             padding: const EdgeInsets.symmetric(
               horizontal: 20.0,
               vertical: 12.0,

@@ -270,7 +270,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
             height: 10,
             decoration: BoxDecoration(
               color: swatch,
-              borderRadius: BorderRadius.circular(3),
+              borderRadius: BorderRadius.zero,
             ),
           ),
           const SizedBox(width: 8.0),
@@ -286,8 +286,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
       child: Column(
         children: [
           if (total > 0)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6.0),
+            ClipRect(
               child: Row(
                 children: [
                   for (final (part, color) in [

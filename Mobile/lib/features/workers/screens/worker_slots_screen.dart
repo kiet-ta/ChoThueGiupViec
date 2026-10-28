@@ -300,13 +300,13 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     final on = index == _selectedDay;
     return InkWell(
       key: Key('slots-day-$index'),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.zero,
       onTap: () => setState(() => _selectedDay = index),
       child: Container(
         height: 64,
         decoration: BoxDecoration(
           color: on ? NordicColors.primary : NordicColors.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.zero,
           border: Border.all(
             color: on ? NordicColors.primary : NordicColors.border,
           ),
@@ -373,7 +373,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
           color: NordicColors.surface,
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.zero,
             side: const BorderSide(color: NordicColors.border),
           ),
           child: Column(
@@ -408,7 +408,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               color: isActive
                   ? NordicColors.primaryFixed
                   : NordicColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
             ),
             child: Icon(
               icon,

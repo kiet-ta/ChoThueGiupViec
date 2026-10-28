@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/nordic_colors.dart';
+import 'package:mobile/core/theme/nordic_radius.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/core/theme/nordic_typography.dart';
 
@@ -108,6 +109,46 @@ void main() {
         greaterThanOrEqualTo(4.5),
       );
     });
+
+    test(
+      'only buttons are rounded, by 6 px; cards, sheets and inputs are square',
+      () {
+        expect(NordicRadius.button, 6.0);
+        expect(NordicRadius.none, BorderRadius.zero);
+        const buttonShape = RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(6.0)),
+        );
+        final theme = NordicTheme.lightTheme;
+        for (final style in [
+          theme.elevatedButtonTheme.style,
+          theme.filledButtonTheme.style,
+          theme.outlinedButtonTheme.style,
+          theme.textButtonTheme.style,
+          theme.segmentedButtonTheme.style,
+        ]) {
+          expect(style!.shape!.resolve({}), buttonShape);
+        }
+        expect(theme.chipTheme.shape, buttonShape);
+
+        const square = RoundedRectangleBorder(borderRadius: BorderRadius.zero);
+        expect(
+          (theme.cardTheme.shape! as RoundedRectangleBorder).borderRadius,
+          BorderRadius.zero,
+        );
+        expect(theme.bottomSheetTheme.shape, square);
+        expect(theme.dialogTheme.shape, square);
+        expect(
+          (theme.inputDecorationTheme.border! as OutlineInputBorder)
+              .borderRadius,
+          BorderRadius.zero,
+        );
+        expect(
+          (theme.inputDecorationTheme.focusedBorder! as OutlineInputBorder)
+              .borderRadius,
+          BorderRadius.zero,
+        );
+      },
+    );
 
     test('NordicTheme configured with lightTheme properties', () {
       final theme = NordicTheme.lightTheme;

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/nordic_colors.dart';
 import '../theme/nordic_typography.dart';
 
-/// Top eyebrow pill badge with accent dot and uppercase text.
+/// Top eyebrow badge (square, MOB-UI-11) with accent dot and uppercase text.
 class EyebrowBadge extends StatelessWidget {
   final String text;
 
@@ -15,7 +15,7 @@ class EyebrowBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
       decoration: BoxDecoration(
         color: NordicColors.secondaryAccent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(9999.0),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

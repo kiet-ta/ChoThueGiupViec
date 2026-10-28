@@ -210,7 +210,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
           padding: const EdgeInsets.all(12.0),
           decoration: BoxDecoration(
             color: NordicColors.surfaceLow,
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.zero,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +283,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                   key: Key('dispute-evidence-$i'),
                   decoration: BoxDecoration(
                     color: NordicColors.surfaceContainer,
-                    borderRadius: BorderRadius.circular(12.0),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Stack(
                     children: [

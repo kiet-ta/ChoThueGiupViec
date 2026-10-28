@@ -216,7 +216,7 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: NordicColors.border),
       ),
       child: Column(
@@ -303,7 +303,7 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
       padding: const EdgeInsets.symmetric(horizontal: 3),
       child: InkWell(
         key: Key('week-cell-${_date(d)}-${_shiftCodes[shift]}'),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.zero,
         onTap: widget.onShowSlotsOn == null
             ? null
             : () => widget.onShowSlotsOn!(d),
@@ -314,7 +314,7 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
             color: on
                 ? NordicColors.primaryFixed
                 : NordicColors.surfaceContainer,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.zero,
           ),
           child: on
               ? const Icon(Icons.check, size: 16, color: NordicColors.primary)
@@ -340,7 +340,7 @@ class _Legend extends StatelessWidget {
           height: 10,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.zero,
           ),
         ),
         const SizedBox(width: 6),

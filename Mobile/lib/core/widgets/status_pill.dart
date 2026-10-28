@@ -5,7 +5,7 @@ import '../theme/nordic_colors.dart';
 /// Tone of a [StatusPill]; the label always carries the meaning, the color only supports it.
 enum PillTone { neutral, ok, warn, bad }
 
-/// ui-templates `.pill`: a small rounded label for a status.
+/// ui-templates `.pill`: a small square label for a status (MOB-UI-11).
 class StatusPill extends StatelessWidget {
   final String label;
   final PillTone tone;
@@ -37,7 +37,7 @@ class StatusPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -304,7 +304,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 decoration: BoxDecoration(
                   color: NordicColors.surfaceLow,
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: BorderRadius.zero,
                   border: Border.all(color: NordicColors.border),
                 ),
                 child: Row(

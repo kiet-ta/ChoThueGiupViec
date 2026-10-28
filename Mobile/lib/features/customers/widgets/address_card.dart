@@ -52,7 +52,7 @@ class AddressCard extends StatelessWidget {
               height: 40.0,
               decoration: BoxDecoration(
                 color: NordicColors.surfaceLow,
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.zero,
               ),
               child: Icon(_getHousingIcon(), color: NordicColors.primary),
             ),

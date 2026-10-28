@@ -20,7 +20,7 @@ class TintedCard extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: NordicColors.border),
       ),
       child: child,

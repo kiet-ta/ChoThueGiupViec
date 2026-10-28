@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/device/device_location.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 
@@ -106,9 +107,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           backgroundColor: NordicColors.surface,
           title: Text('Nhập Toạ Độ GPS', style: NordicTypography.h3),
           content: Column(
@@ -228,7 +227,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
           decoration: BoxDecoration(
             color: NordicColors.surfaceSubtle,
-            borderRadius: BorderRadius.circular(10.0),
+            borderRadius: BorderRadius.zero,
             border: Border.all(color: NordicColors.border),
           ),
           child: Row(
@@ -271,7 +270,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
               selectedColor: NordicColors.primary,
               backgroundColor: NordicColors.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: NordicRadius.buttonAll,
                 side: BorderSide(
                   color: isSelected
                       ? NordicColors.primary

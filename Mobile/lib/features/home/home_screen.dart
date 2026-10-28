@@ -219,8 +219,7 @@ class _WelcomeHeroState extends State<_WelcomeHero> {
   Widget build(BuildContext context) {
     final current = _page % _welcomePhotos.length;
     final (_, icon, caption) = _welcomePhotos[current];
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
+    return ClipRect(
       child: Stack(
         children: [
           // Positioned layers do not count in the card's height: the content below sets it.
@@ -291,7 +290,7 @@ class _WelcomeHeroState extends State<_WelcomeHero> {
                               color: NordicColors.textInverse.withValues(
                                 alpha: i == current ? 1 : 0.55,
                               ),
-                              borderRadius: BorderRadius.circular(9999),
+                              borderRadius: BorderRadius.zero,
                             ),
                           ),
                       ],
@@ -316,7 +315,7 @@ class _WelcomeHeroState extends State<_WelcomeHero> {
           height: 44,
           decoration: BoxDecoration(
             color: NordicColors.primary,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.zero,
           ),
           child: const Icon(
             Icons.home_outlined,
@@ -368,7 +367,7 @@ class _WelcomeHeroState extends State<_WelcomeHero> {
       padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
       decoration: BoxDecoration(
         color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(9999),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -418,7 +417,7 @@ class _RoleCard extends StatelessWidget {
         ? NordicColors.textInverse.withValues(alpha: 0.82)
         : NordicColors.textSecondary;
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.zero,
       side: filled
           ? BorderSide.none
           : const BorderSide(color: NordicColors.border),

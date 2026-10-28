@@ -279,7 +279,7 @@ class _AgencyScheduleScreenState extends State<AgencyScheduleScreen> {
                             color: rostered.contains('${isoDate(d)}:$code')
                                 ? NordicColors.primary
                                 : NordicColors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(8.0),
+                            borderRadius: BorderRadius.zero,
                           ),
                         ),
                       ),
@@ -316,7 +316,7 @@ class _Legend extends StatelessWidget {
           height: 10.0,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3.0),
+            borderRadius: BorderRadius.zero,
           ),
         ),
         const SizedBox(width: 6.0),

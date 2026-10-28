@@ -89,7 +89,7 @@ class _OtpCodeFieldState extends State<OtpCodeField> {
                   margin: EdgeInsets.only(left: index == 0 ? 0 : 8.0),
                   decoration: BoxDecoration(
                     color: NordicColors.surface,
-                    borderRadius: BorderRadius.circular(12.0),
+                    borderRadius: BorderRadius.zero,
                     border: Border.all(
                       color: isCurrent
                           ? NordicColors.primary

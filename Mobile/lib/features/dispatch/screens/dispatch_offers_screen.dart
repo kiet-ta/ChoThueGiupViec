@@ -294,7 +294,7 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
               margin: const EdgeInsets.only(bottom: 16.0),
               decoration: BoxDecoration(
                 color: NordicColors.errorContainer,
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: NordicColors.error),
               ),
               child: Text(

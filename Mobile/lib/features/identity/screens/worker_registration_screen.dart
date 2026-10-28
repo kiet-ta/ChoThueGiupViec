@@ -159,7 +159,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                   padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
                     color: NordicColors.errorContainer,
-                    borderRadius: BorderRadius.circular(12.0),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Text(
                     _message!,

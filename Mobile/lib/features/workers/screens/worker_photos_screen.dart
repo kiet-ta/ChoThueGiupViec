@@ -359,8 +359,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
 
               // The photo about to be sent
               if (_picked?.bytes != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12.0),
+                ClipRect(
                   child: Image.memory(
                     _picked!.bytes!,
                     height: 180.0,
@@ -430,7 +429,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     (p) => p.photoPhase == phase && p.angleNo == angle && p.isAccepted,
   );
 
-  /// `.seg`: Trước / Sau in one rounded track, the chosen one filled.
+  /// `.seg`: Trước / Sau in one square track, the chosen one filled.
   Widget _buildPhaseSegmentedControl() {
     Widget segment(String phase, String label) {
       final selected = _selectedPhase == phase;
@@ -441,7 +440,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             padding: const EdgeInsets.symmetric(vertical: 10.0),
             decoration: BoxDecoration(
               color: selected ? NordicColors.primary : Colors.transparent,
-              borderRadius: BorderRadius.circular(999.0),
+              borderRadius: BorderRadius.zero,
             ),
             child: Text(
               label,
@@ -460,7 +459,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       padding: const EdgeInsets.all(4.0),
       decoration: BoxDecoration(
         color: NordicColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(999.0),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         children: [
@@ -479,7 +478,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       final selected = _selectedPhase == phase && _selectedAngle == angle;
       return InkWell(
         key: Key('photo-cell-$phase-$angle'),
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.zero,
         onTap: () => setState(() {
           _selectedPhase = phase;
           _selectedAngle = angle;
@@ -489,7 +488,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
           height: 48.0,
           decoration: BoxDecoration(
             color: done ? NordicColors.primaryFixed : null,
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.zero,
             border: done
                 ? null
                 : Border.all(
@@ -636,8 +635,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                   children: [
                     Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(6.0),
+                        ClipRect(
                           child: JobPhotoImage(
                             service: _service,
                             photo: p,

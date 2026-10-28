@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/nordic_colors.dart';
 import '../theme/nordic_typography.dart';
 
-/// Pill badge with checkmark for core guarantees.
+/// Square badge with checkmark for core guarantees.
 class TrustBadge extends StatelessWidget {
   final String text;
 
@@ -15,7 +15,7 @@ class TrustBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
       decoration: BoxDecoration(
         color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(9999.0),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: NordicColors.border, width: 1.0),
         boxShadow: [
           BoxShadow(

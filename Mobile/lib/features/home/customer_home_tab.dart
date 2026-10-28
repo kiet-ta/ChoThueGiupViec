@@ -224,7 +224,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
         height: 150,
         decoration: BoxDecoration(
           color: NordicColors.surfaceLow,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
         ),
       );
     }
@@ -233,12 +233,12 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
       return Material(
         color: NordicColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           side: const BorderSide(color: NordicColors.border),
         ),
         child: InkWell(
           key: const Key('home-no-order'),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           onTap: _openBooking,
           child: const Padding(
             padding: EdgeInsets.all(16),
@@ -269,10 +269,10 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     const muted = TextStyle(fontSize: 12, color: Color(0xB8FFFFFF));
     return Material(
       color: NordicColors.primary,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.zero,
       child: InkWell(
         key: const Key('home-next-order'),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         onTap: () => _openOrder(order.orderId),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -298,7 +298,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0x29FFFFFF),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Text(
                         orderStatusLabel(order.orderStatus),
@@ -348,7 +348,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                               color: steps[i].done || steps[i].current
                                   ? Colors.white
                                   : const Color(0x4DFFFFFF),
-                              borderRadius: BorderRadius.circular(2),
+                              borderRadius: BorderRadius.zero,
                             ),
                           ),
                         ),
@@ -428,12 +428,12 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     return Material(
       color: NordicColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         side: const BorderSide(color: NordicColors.border),
       ),
       child: InkWell(
         key: Key('home-quote-$tier'),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         onTap: _openBooking,
         child: Padding(
           padding: const EdgeInsets.all(12),

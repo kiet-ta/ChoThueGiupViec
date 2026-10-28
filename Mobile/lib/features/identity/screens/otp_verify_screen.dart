@@ -166,7 +166,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: NordicColors.errorContainer,
-                        borderRadius: BorderRadius.circular(12.0),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Row(
                         children: [

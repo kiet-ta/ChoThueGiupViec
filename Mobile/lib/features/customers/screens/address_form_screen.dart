@@ -203,7 +203,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                       padding: const EdgeInsets.all(12.0),
                       decoration: BoxDecoration(
                         color: NordicColors.errorContainer,
-                        borderRadius: BorderRadius.circular(12.0),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Text(
                         _generalError!,
@@ -369,7 +369,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   Material(
                     color: NordicColors.surface,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
+                      borderRadius: BorderRadius.zero,
                       side: const BorderSide(color: NordicColors.border),
                     ),
                     child: SwitchListTile(

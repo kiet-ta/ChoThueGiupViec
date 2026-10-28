@@ -146,7 +146,7 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
                 color: transferred
                     ? NordicColors.primaryFixed
                     : NordicColors.surfaceContainer,
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.zero,
               ),
               child: Icon(
                 transferred ? Icons.check : Icons.schedule,

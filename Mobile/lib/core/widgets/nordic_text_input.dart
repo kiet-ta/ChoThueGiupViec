@@ -71,23 +71,23 @@ class NordicTextInput extends StatelessWidget {
           vertical: 14.0,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: NordicColors.border, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: NordicColors.border, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: NordicColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: NordicColors.error, width: 1.0),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: NordicColors.error, width: 1.5),
         ),
       ),

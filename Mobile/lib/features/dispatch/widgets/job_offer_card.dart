@@ -102,7 +102,7 @@ class JobOfferCard extends StatelessWidget {
             padding: const EdgeInsets.all(20.0),
             decoration: BoxDecoration(
               color: NordicColors.surfaceLow,
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: BorderRadius.zero,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,9 +127,7 @@ class JobOfferCard extends StatelessWidget {
                         height: 8.0,
                         decoration: const BoxDecoration(
                           color: NordicColors.primary,
-                          borderRadius: BorderRadius.horizontal(
-                            left: Radius.circular(4.0),
-                          ),
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
                     ),
@@ -140,9 +138,7 @@ class JobOfferCard extends StatelessWidget {
                         height: 8.0,
                         decoration: const BoxDecoration(
                           color: NordicColors.accentAmber,
-                          borderRadius: BorderRadius.horizontal(
-                            right: Radius.circular(4.0),
-                          ),
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
                     ),
@@ -264,7 +260,7 @@ class JobOfferCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 6.0),
       decoration: BoxDecoration(
         color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(14.0),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: NordicColors.border),
       ),
       child: Column(

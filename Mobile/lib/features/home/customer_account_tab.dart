@@ -100,12 +100,12 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
             Material(
               color: NordicColors.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
                 side: const BorderSide(color: NordicColors.border),
               ),
               child: InkWell(
                 key: const Key('account-profile'),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
                 onTap: () => _open(CustomerRoutes.customerProfile),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -210,7 +210,7 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
     decoration: BoxDecoration(
       color: NordicColors.surface,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.zero,
       border: Border.all(color: NordicColors.border),
     ),
     child: Column(

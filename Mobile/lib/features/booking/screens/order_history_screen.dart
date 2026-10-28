@@ -165,7 +165,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           color: NordicColors.surface,
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.zero,
             side: const BorderSide(color: NordicColors.border),
           ),
           child: Column(children: group),

@@ -33,7 +33,7 @@ class PhoneInputField extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: NordicColors.surface,
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: NordicColors.border),
               ),
               child: const Text(
