@@ -38,16 +38,16 @@ String formatArea(double areaM2) {
 }
 
 String tierLabel(String tier) => switch (tier) {
-  ServiceTier.economy => 'Economy',
-  ServiceTier.premium => 'Premium',
+  ServiceTier.economy => 'Cơ bản',
+  ServiceTier.premium => 'Cao cấp',
   _ => tier,
 };
 
 /// One line that tells the two segments apart (PRD 2.1): who does the work and how it is assigned.
 String tierDescription(String tier, BookingOptions options) => switch (tier) {
-  ServiceTier.economy => 'Thợ tự do gần bạn nhận ca. Giá tiết kiệm.',
+  ServiceTier.economy => 'Người làm tự do gần bạn nhận ca. Giá tiết kiệm.',
   ServiceTier.premium =>
-    'Nhân viên của doanh nghiệp đối tác, có cam kết chất lượng. Cần đặt trước ít nhất ${options.premiumMinLeadHours} giờ.',
+    'Nhân viên của công ty đối tác, cam kết chất lượng. Đặt trước ít nhất ${options.premiumMinLeadHours} giờ.',
   _ => '',
 };
 
@@ -90,8 +90,8 @@ String dayLabel(DateTime day) =>
 /// The line under the price: one worker, or two workers above the standard area (BR-02).
 String workersNote(PriceQuote quote, BookingOptions options) =>
     quote.requiredWorkers >= 2
-    ? 'Diện tích ${formatArea(quote.totalAreaM2)} lớn hơn ${formatArea(options.standardMaxAreaM2)}: cần ${quote.requiredWorkers} thợ làm song song.'
-    : '1 thợ, một ca tối đa ${options.shiftMaxHours} giờ.';
+    ? 'Diện tích ${formatArea(quote.totalAreaM2)} lớn hơn ${formatArea(options.standardMaxAreaM2)}: cần ${quote.requiredWorkers} người làm cùng lúc.'
+    : '1 người, một ca tối đa ${options.shiftMaxHours} giờ.';
 
 String? validateNote(String text) => text.trim().length > customerNoteMaxLength
     ? 'Ghi chú tối đa $customerNoteMaxLength ký tự (đang ${text.trim().length}).'
@@ -105,7 +105,7 @@ String? missingChoice({
   required String? shiftCode,
   required bool hasQuote,
 }) {
-  if (tier == null) return 'Chọn phân khúc dịch vụ.';
+  if (tier == null) return 'Chọn gói dịch vụ.';
   if (addressId == null) return 'Chọn địa chỉ làm việc.';
   if (day == null) return 'Chọn ngày làm việc.';
   if (shiftCode == null) return 'Chọn ca làm việc.';
@@ -161,7 +161,7 @@ CreateOrderFailure createOrderFailure(
           BookingErrorCode.shiftInPast =>
             'Ca này đã bắt đầu hoặc đã qua. Hãy chọn ca khác.',
           BookingErrorCode.premiumLeadTime =>
-            'Đơn Premium cần đặt trước ít nhất $premiumMinLeadHours giờ. Hãy chọn ca muộn hơn.',
+            'Gói Cao cấp cần đặt trước ít nhất $premiumMinLeadHours giờ. Chọn ca muộn hơn nhé.',
           BookingErrorCode.fullyBooked => 'Các doanh nghiệp đối tác đã kín lịch cho ca này. Hãy chọn ca hoặc ngày khác.',
           _ => 'Không đặt được đơn lúc này. Vui lòng thử lại.',
         },

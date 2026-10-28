@@ -156,7 +156,7 @@ void main() {
 
         expect(service.createdOrders, [42]);
         expect(service.createdExtensions, isEmpty);
-        expect(find.text('Đơn GV261014ABC123'), findsOneWidget);
+        expect(find.text('Mã đơn GV261014ABC123'), findsOneWidget);
         expect(textOf(tester, 'payment-amount'), '260.000 đ');
         expect(
           tester
@@ -481,10 +481,7 @@ void main() {
       final service = FakePaymentsService();
       await pumpPayment(tester, service, TestClock(), args: null);
 
-      expect(
-        find.textContaining('mở từ một đơn cần thanh toán'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('đơn đang chờ thanh toán'), findsOneWidget);
       expect(find.text('SANDBOX – no real money'), findsOneWidget);
       expect(service.createdOrders, isEmpty);
     });

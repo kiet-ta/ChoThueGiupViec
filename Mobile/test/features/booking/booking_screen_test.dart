@@ -173,7 +173,7 @@ void main() {
 
         expect(find.byKey(const Key('tier-ECONOMY')), findsOneWidget);
         expect(find.byKey(const Key('tier-PREMIUM')), findsOneWidget);
-        expect(find.textContaining('Thợ tự do'), findsOneWidget);
+        expect(find.textContaining('Người làm tự do'), findsOneWidget);
         expect(find.textContaining('ít nhất 4 giờ'), findsOneWidget);
       },
     );
@@ -208,11 +208,11 @@ void main() {
         expect(textOf(tester, 'quote-total'), '260.000 đ');
         expect(
           textOf(tester, 'quote-breakdown'),
-          '260.000 đ × 1 thợ · Economy',
+          '260.000 đ × 1 người · Cơ bản',
         );
         expect(
           textOf(tester, 'quote-workers-note'),
-          '1 thợ, một ca tối đa 4 giờ.',
+          '1 người, một ca tối đa 4 giờ.',
         );
       },
     );
@@ -233,9 +233,9 @@ void main() {
         expect(textOf(tester, 'quote-total'), '780.000 đ');
         expect(
           textOf(tester, 'quote-breakdown'),
-          '390.000 đ × 2 thợ · Premium',
+          '390.000 đ × 2 người · Cao cấp',
         );
-        expect(textOf(tester, 'quote-workers-note'), contains('cần 2 thợ'));
+        expect(textOf(tester, 'quote-workers-note'), contains('cần 2 người'));
       },
     );
 
@@ -261,7 +261,7 @@ void main() {
         await pumpBooking(tester, service);
 
         await tapKey(tester, 'submit-order');
-        expect(textOf(tester, 'booking-hint'), contains('phân khúc'));
+        expect(textOf(tester, 'booking-hint'), contains('gói'));
 
         await tapKey(tester, 'tier-ECONOMY');
         await tapKey(tester, 'submit-order');

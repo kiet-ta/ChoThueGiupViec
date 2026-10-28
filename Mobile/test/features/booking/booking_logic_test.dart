@@ -64,10 +64,10 @@ void main() {
 
   group('labels', () {
     test('names the two segments and explains them, with the lead time from the options', () {
-      expect(tierLabel('ECONOMY'), 'Economy');
-      expect(tierLabel('PREMIUM'), 'Premium');
+      expect(tierLabel('ECONOMY'), 'Cơ bản');
+      expect(tierLabel('PREMIUM'), 'Cao cấp');
       expect(tierLabel('GOLD'), 'GOLD');
-      expect(tierDescription('ECONOMY', options), contains('Thợ tự do'));
+      expect(tierDescription('ECONOMY', options), contains('Người làm tự do'));
       expect(tierDescription('PREMIUM', options), contains('ít nhất 4 giờ'));
     });
 
@@ -78,10 +78,10 @@ void main() {
     });
 
     test('says one worker, or two workers above the standard area', () {
-      expect(workersNote(quote(), options), '1 thợ, một ca tối đa 4 giờ.');
+      expect(workersNote(quote(), options), '1 người, một ca tối đa 4 giờ.');
       expect(
         workersNote(quote(workers: 2, area: 90), options),
-        contains('cần 2 thợ'),
+        contains('cần 2 người'),
       );
       expect(
         workersNote(quote(workers: 2, area: 90), options),
@@ -147,7 +147,7 @@ void main() {
       );
       final day = DateTime.utc(2026, 10, 15);
 
-      expect(missing(), contains('phân khúc'));
+      expect(missing(), contains('gói'));
       expect(missing(tier: 'ECONOMY'), contains('địa chỉ'));
       expect(missing(tier: 'ECONOMY', address: 3), contains('ngày'));
       expect(missing(tier: 'ECONOMY', address: 3, day: day), contains('ca'));

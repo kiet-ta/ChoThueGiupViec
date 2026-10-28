@@ -224,7 +224,7 @@ void main() {
     test('has a label and sits on the "find a worker" step', () {
       expect(
         orderStatusLabel(OrderStatus.awaitingFallback),
-        'Chờ bạn chọn: 1 thợ làm 2 ca',
+        'Chờ bạn chọn: 1 người làm 2 ca',
       );
       final steps = orderTimeline(OrderStatus.awaitingFallback);
       expect(steps[1].current, isTrue);

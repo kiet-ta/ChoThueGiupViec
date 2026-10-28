@@ -26,7 +26,7 @@ class FallbackService implements IFallbackService {
       '/api/dispatch/orders/$orderId/fallback',
       fromJson: (json) => FallbackStatus.fromJson(json as Map<String, dynamic>),
     );
-    return _require(response.data, 'trạng thái chọn thợ');
+    return _require(response.data, 'trạng thái chọn người làm');
   }
 
   @override
