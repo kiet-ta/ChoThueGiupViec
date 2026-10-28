@@ -59,31 +59,24 @@ void main() {
     expect(opened, isEmpty);
   });
 
-  testWidgets('signed out: each role card says what the role does', (
+  testWidgets('signed out: each role card shows only its title', (
     tester,
   ) async {
     useDesignFrame(tester);
     await tester.pumpWidget(_app(<String>[]));
 
     expect(find.text('BẠN LÀ AI?'), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('welcome-customer')),
-        matching: find.text(
-          'Đặt ca dọn nhà, theo dõi đơn và giữ người giúp việc yêu thích.',
-        ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('welcome-worker')),
-        matching: find.text(
-          'Nhận việc mới, sắp lịch rảnh và theo dõi thu nhập.',
-        ),
-      ),
-      findsOneWidget,
-    );
+    for (final (key, title) in [
+      ('welcome-customer', 'Tôi cần giúp việc'),
+      ('welcome-worker', 'Tôi là người giúp việc'),
+    ]) {
+      final texts = find.descendant(
+        of: find.byKey(Key(key)),
+        matching: find.byType(Text),
+      );
+      expect(texts, findsOneWidget, reason: '$key has one line of text');
+      expect(tester.widget<Text>(texts).data, title);
+    }
     expect(find.text('Đăng nhập bằng số điện thoại và mã OTP'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
