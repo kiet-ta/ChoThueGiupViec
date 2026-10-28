@@ -129,7 +129,10 @@ void main() {
 
       expect(opened?.name, BookingRoutes.booking);
       final args = opened?.arguments as BookingScreenArgs;
-      expect(args.preferredWorkerId, 103); // the newest favorite is listed first
+      expect(
+        args.preferredWorkerId,
+        103,
+      ); // the newest favorite is listed first
       expect(args.serviceTier, ServiceTier.economy);
     });
   });
