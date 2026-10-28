@@ -186,7 +186,7 @@ class _PaymentScreenState extends State<PaymentScreen>
         !isSandboxAutoConfirmable(payment)) {
       return null;
     }
-    return service;
+    return service as ISandboxPaymentConfirmer;
   }
 
   void _scheduleSandboxConfirm(Payment payment) {
