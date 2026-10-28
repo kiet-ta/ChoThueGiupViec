@@ -305,21 +305,20 @@ void main() {
       },
     );
 
-    testWidgets(
-      'a preselected worker who is no longer a favorite is dropped',
-      (tester) async {
-        final favorites = FakeFavorites([_mai]);
-        await pumpBooking(
-          tester,
-          FakeBookingService(),
-          favorites: favorites,
-          args: const BookingScreenArgs(preferredWorkerId: 7),
-        );
+    testWidgets('a preselected worker who is no longer a favorite is dropped', (
+      tester,
+    ) async {
+      final favorites = FakeFavorites([_mai]);
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        favorites: favorites,
+        args: const BookingScreenArgs(preferredWorkerId: 7),
+      );
 
-        expect(favorites.freeAsked, isEmpty);
-        expect(find.byKey(const Key('favorite-note')), findsNothing);
-      },
-    );
+      expect(favorites.freeAsked, isEmpty);
+      expect(find.byKey(const Key('favorite-note')), findsNothing);
+    });
 
     testWidgets(
       'opened from a quick-booking tile, the segment and address are ticked',
