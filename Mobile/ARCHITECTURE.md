@@ -20,6 +20,17 @@ The visual identity follows the team design skill (`.agents/skills/project-team-
   - Pill buttons (`rounded-full` / `StadiumBorder`).
   - Double-bezel white cards with 1px hairline borders (`#E5E7EB`, no DESIGN.md token yet) and soft 16px corner radii.
 
+### 2.1 Motion & interaction (MOB-UI-12)
+Apple fluid-interface principles (the local `apple-design` Agent Skill), applied first to the sign-in screens. Reuse these on every screen you redesign instead of hand-made durations and curves:
+- **Springs, not durations** (`lib/core/motion/nordic_motion.dart`). A `NordicSpring` is a damping ratio + a response in seconds. `NordicMotion.standard` (1.0 / 0.35 s, no overshoot) for anything that appears, moves or changes on its own; `NordicMotion.momentum` (0.8 / 0.3 s) only after a gesture that carried momentum (flick, drag release); `NordicMotion.shake` for a wrong entry. With an `AnimationController`, use `animateWith(spring.simulate(from: controller.value, velocity: controller.velocity))` so a motion can be interrupted and restarted from where it is; with implicit widgets, use `curve: SpringCurve(spring)` and `duration: spring.settleDuration`.
+- **Press feedback on touch-down**: wrap tappable custom widgets in `Pressable` (`lib/core/widgets/pressable.dart`); `NordicButton` already does.
+- **Errors**: `ErrorShake` (`lib/core/motion/error_shake.dart`) around the input that was wrong, raised by one per error; it shakes and vibrates on the same frame. Always pair it with a message.
+- **Status while typing**: show validity inline (e.g. the check mark of `PhoneInputField`) instead of only after submit.
+- **Main button above the keyboard**: put `BottomActionBar` in the body (a `Column` with the scrolling content `Expanded`), not in `Scaffold.bottomNavigationBar`, which the keyboard covers.
+- **Materials**: controls over photos sit on a small blurred material (see the back button of `AuthPhotoHeader`), solid when `MediaQuery.highContrast`.
+- **Type**: the largest title of a screen uses `NordicTypography.display` (-0.02 em tracking, 1.1 leading); body text keeps ~0 tracking.
+- **Reduced motion** (`NordicMotion.reduced(context)`): no slide, scale or shake; fade (`NordicMotion.fade`) or dim instead, keep haptics. Every widget above handles it.
+
 ## 3. Directory Structure & Feature Module Registration
 ```
 Mobile/

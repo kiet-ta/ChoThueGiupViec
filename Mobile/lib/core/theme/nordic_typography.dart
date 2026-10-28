@@ -154,6 +154,18 @@ class NordicTypography {
     fontFeatures: [FontFeature.tabularFigures()],
   );
 
+  /// The largest title of a screen (MOB-UI-12, `apple-design` skill §15): tracking scales
+  /// with size, so large text is tightened by -0.02 em (30 px x -0.02 = -0.6) and leading is
+  /// tight (1.1). Body text keeps ~0 tracking and looser leading.
+  static const TextStyle display = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 30.0,
+    fontWeight: FontWeight.w700,
+    height: 1.1,
+    letterSpacing: -0.6,
+    color: NordicColors.textTitle,
+  );
+
   /// `.appbar.large .title`: the title of a tab screen.
   static const TextStyle screenTitle = TextStyle(
     fontFamily: fontFamily,

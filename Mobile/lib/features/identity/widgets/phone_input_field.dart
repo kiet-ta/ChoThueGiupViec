@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/motion/nordic_motion.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 
@@ -11,12 +12,16 @@ class PhoneInputField extends StatelessWidget {
   final String? errorText;
   final bool enabled;
 
+  /// The number is a valid mobile number: a check mark says so while typing (MOB-UI-12).
+  final bool isValid;
+
   const PhoneInputField({
     super.key,
     required this.controller,
     this.onChanged,
     this.errorText,
     this.enabled = true,
+    this.isValid = false,
   });
 
   @override
@@ -75,12 +80,18 @@ class PhoneInputField extends StatelessWidget {
                     vertical: 14.0,
                   ),
                   suffixIcon: controller.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.close, size: 18.0),
-                          onPressed: () {
-                            controller.clear();
-                            onChanged?.call('');
-                          },
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _ValidMark(visible: isValid),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18.0),
+                              onPressed: () {
+                                controller.clear();
+                                onChanged?.call('');
+                              },
+                            ),
+                          ],
                         )
                       : null,
                 ),
@@ -99,6 +110,31 @@ class PhoneInputField extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The check mark of a valid number: grows in on the standard spring, or just appears under
+/// reduced motion.
+class _ValidMark extends StatelessWidget {
+  final bool visible;
+
+  const _ValidMark({required this.visible});
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = NordicMotion.reduced(context);
+    return AnimatedScale(
+      key: const Key('phone-valid-mark'),
+      scale: visible ? 1.0 : 0.0,
+      duration: reduced ? Duration.zero : NordicMotion.standard.settleDuration,
+      curve: SpringCurve(NordicMotion.standard),
+      child: const Icon(
+        Icons.check_circle,
+        size: 20.0,
+        color: NordicColors.primary,
+        semanticLabel: 'Số hợp lệ',
+      ),
     );
   }
 }

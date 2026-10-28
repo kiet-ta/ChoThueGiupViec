@@ -99,55 +99,36 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
         : 'Khách Hàng';
 
     // MOB-UI-10: the welcome look. A housework photo with the title on top, the form on a
-    // sheet over its bottom edge; the button sits at the bottom.
+    // sheet over its bottom edge. MOB-UI-12: the button bar is part of the body, so the
+    // keyboard pushes it up instead of covering it.
     return Scaffold(
       backgroundColor: NordicColors.canvas,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: EdgeInsets.zero,
+          child: Column(
             children: [
-              AuthPhotoHeader(
-                role: widget.role,
-                title: 'Số điện thoại',
-                titleKey: const Key('phone-input-title'),
-                subtitle: 'Mã 6 số sẽ gửi qua SMS.',
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    AuthPhotoHeader(
+                      role: widget.role,
+                      title: 'Số điện thoại',
+                      titleKey: const Key('phone-input-title'),
+                      subtitle: 'Mã 6 số sẽ gửi qua SMS.',
+                    ),
+                    AuthFormSheet(children: _form(roleLabel)),
+                  ],
+                ),
               ),
-              AuthFormSheet(
+              BottomActionBar(
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: StatusPill('Vai trò: $roleLabel', tone: PillTone.ok),
-                  ),
-                  const SizedBox(height: 20.0),
-                  PhoneInputField(
-                    controller: _phoneController,
-                    enabled: !_isLoading,
-                    errorText: _errorMessage,
-                    onChanged: (_) {
-                      if (_errorMessage != null) {
-                        setState(() => _errorMessage = null);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16.0),
-                  const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.lock_outline,
-                        size: 14.0,
-                        color: NordicColors.textSecondary,
-                      ),
-                      SizedBox(width: 6.0),
-                      Expanded(
-                        child: Text(
-                          'Không cần mật khẩu: số điện thoại là tài khoản của bạn.',
-                          style: NordicTypography.bodySmall,
-                        ),
-                      ),
-                    ],
+                  NordicButton(
+                    label: 'Gửi Mã Xác Thực',
+                    width: double.infinity,
+                    isLoading: _isLoading,
+                    onPressed: _handleRequestOtp,
                   ),
                 ],
               ),
@@ -155,16 +136,42 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomActionBar(
+    );
+  }
+
+  List<Widget> _form(String roleLabel) {
+    return [
+      Align(
+        alignment: Alignment.centerLeft,
+        child: StatusPill('Vai trò: $roleLabel', tone: PillTone.ok),
+      ),
+      const SizedBox(height: 20.0),
+      PhoneInputField(
+        controller: _phoneController,
+        enabled: !_isLoading,
+        errorText: _errorMessage,
+        isValid: AuthService.normalizePhone(_phoneController.text) != null,
+        // Rebuild on every digit: the clear button and the check mark follow it.
+        onChanged: (_) => setState(() => _errorMessage = null),
+      ),
+      const SizedBox(height: 16.0),
+      const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          NordicButton(
-            label: 'Gửi Mã Xác Thực',
-            width: double.infinity,
-            isLoading: _isLoading,
-            onPressed: _handleRequestOtp,
+          Icon(
+            Icons.lock_outline,
+            size: 14.0,
+            color: NordicColors.textSecondary,
+          ),
+          SizedBox(width: 6.0),
+          Expanded(
+            child: Text(
+              'Không cần mật khẩu: số điện thoại là tài khoản của bạn.',
+              style: NordicTypography.bodySmall,
+            ),
           ),
         ],
       ),
-    );
+    ];
   }
 }

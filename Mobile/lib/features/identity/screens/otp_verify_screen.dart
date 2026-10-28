@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/models/user_role.dart';
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/bottom_action_bar.dart';
@@ -36,6 +38,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  /// Wrong or incomplete codes so far: each one shakes the cells ([ErrorShake]).
+  int _errors = 0;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +58,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     if (effectiveCode.length != 6) {
       setState(() {
         _errorMessage = 'Vui lòng nhập đủ 6 chữ số mã OTP.';
+        _errors++;
       });
       return;
     }
@@ -72,6 +78,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     setState(() => _isLoading = false);
 
     if (response.isSuccess) {
+      // A light tap on the same frame as the success, before the screen leaves.
+      HapticFeedback.lightImpact();
       if (response.isNewWorker) {
         // A new worker has no profile yet: ask for it (there is no session until it exists and the worker signs in again).
         Navigator.of(context).pushReplacement(
@@ -94,6 +102,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
         _errorMessage =
             response.errorMessage ??
             'Xác thực không thành công. Vui lòng thử lại.';
+        _errors++;
       });
     }
   }
@@ -131,67 +140,35 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   @override
   Widget build(BuildContext context) {
     // MOB-UI-10: the welcome look. Photo with the title and where the code went on top, then the
-    // 6 cells and resend on a sheet; the button at the bottom.
+    // 6 cells and resend on a sheet. MOB-UI-12: the button bar is part of the body, so the
+    // keyboard pushes it up instead of covering it; a wrong code shakes the cells.
     return Scaffold(
       backgroundColor: NordicColors.canvas,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: EdgeInsets.zero,
+          child: Column(
             children: [
-              AuthPhotoHeader(
-                role: widget.role,
-                title: 'Nhập mã xác thực',
-                subtitle: 'Đã gửi tới ${widget.phoneNumber}',
-              ),
-              AuthFormSheet(
-                children: [
-                  OtpCodeField(
-                    controller: _otpController,
-                    enabled: !_isLoading,
-                    onCompleted: (code) => _handleVerify(code),
-                    onChanged: (_) {
-                      if (_errorMessage != null) {
-                        setState(() => _errorMessage = null);
-                      }
-                    },
-                  ),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 14.0),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12.0,
-                        vertical: 8.0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: NordicColors.errorContainer,
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            size: 16.0,
-                            color: NordicColors.error,
-                          ),
-                          const SizedBox(width: 8.0),
-                          Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: NordicTypography.bodySmall.copyWith(
-                                color: NordicColors.error,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    AuthPhotoHeader(
+                      role: widget.role,
+                      title: 'Nhập mã xác thực',
+                      subtitle: 'Đã gửi tới ${widget.phoneNumber}',
                     ),
+                    AuthFormSheet(children: _form()),
                   ],
-                  const SizedBox(height: 16.0),
-                  ResendTimer(
-                    initialSeconds: widget.resendCooldownSeconds,
-                    onResend: _handleResend,
+                ),
+              ),
+              BottomActionBar(
+                children: [
+                  NordicButton(
+                    label: 'Xác Nhận Đăng Nhập',
+                    width: double.infinity,
+                    isLoading: _isLoading,
+                    onPressed: () => _handleVerify(),
                   ),
                 ],
               ),
@@ -199,16 +176,58 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomActionBar(
-        children: [
-          NordicButton(
-            label: 'Xác Nhận Đăng Nhập',
-            width: double.infinity,
-            isLoading: _isLoading,
-            onPressed: () => _handleVerify(),
-          ),
-        ],
-      ),
     );
+  }
+
+  List<Widget> _form() {
+    return [
+      ErrorShake(
+        key: const Key('otp-shake'),
+        errors: _errors,
+        child: OtpCodeField(
+          controller: _otpController,
+          enabled: !_isLoading,
+          onCompleted: (code) => _handleVerify(code),
+          onChanged: (_) {
+            if (_errorMessage != null) {
+              setState(() => _errorMessage = null);
+            }
+          },
+        ),
+      ),
+      if (_errorMessage != null) ...[
+        const SizedBox(height: 14.0),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+          decoration: BoxDecoration(
+            color: NordicColors.errorContainer,
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 16.0,
+                color: NordicColors.error,
+              ),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: Text(
+                  _errorMessage!,
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      const SizedBox(height: 16.0),
+      ResendTimer(
+        initialSeconds: widget.resendCooldownSeconds,
+        onResend: _handleResend,
+      ),
+    ];
   }
 }

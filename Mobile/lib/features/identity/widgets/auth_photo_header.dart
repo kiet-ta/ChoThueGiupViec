@@ -1,6 +1,9 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/models/user_role.dart';
+import '../../../core/motion/nordic_motion.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 
@@ -73,15 +76,7 @@ class AuthPhotoHeader extends StatelessWidget {
                 Row(
                   children: [
                     if (canPop)
-                      IconButton(
-                        key: const Key('auth-back'),
-                        tooltip: 'Quay lại',
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(
-                          Icons.arrow_back,
-                          color: NordicColors.textInverse,
-                        ),
-                      )
+                      _backButton(context)
                     else
                       const SizedBox(height: 48.0),
                     const Spacer(),
@@ -97,8 +92,7 @@ class AuthPhotoHeader extends StatelessWidget {
                       Text(
                         title,
                         key: titleKey,
-                        style: NordicTypography.screenTitle.copyWith(
-                          fontSize: 30.0,
+                        style: NordicTypography.display.copyWith(
                           color: NordicColors.textInverse,
                         ),
                       ),
@@ -119,6 +113,35 @@ class AuthPhotoHeader extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Back on a small round blurred material (`apple-design` skill §12) so it reads on any
+  /// photo; solid when the platform asks for more contrast.
+  Widget _backButton(BuildContext context) {
+    final solid = MediaQuery.maybeHighContrastOf(context) ?? false;
+    final button = Material(
+      color: solid
+          ? NordicColors.contrastDark
+          : NordicColors.contrastDark.withValues(alpha: 0.28),
+      shape: const CircleBorder(),
+      child: IconButton(
+        key: const Key('auth-back'),
+        tooltip: 'Quay lại',
+        onPressed: () => Navigator.of(context).maybePop(),
+        icon: const Icon(Icons.arrow_back, color: NordicColors.textInverse),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(left: 8.0),
+      child: ClipOval(
+        child: solid
+            ? button
+            : BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
+                child: button,
+              ),
       ),
     );
   }
@@ -154,17 +177,66 @@ class AuthPhotoHeader extends StatelessWidget {
   }
 }
 
-/// The form sheet (canvas colour, like the bottom action bar) under an [AuthPhotoHeader]: rounded on top and slid
-/// [AuthPhotoHeader.sheetOverlap] up over the photo.
-class AuthFormSheet extends StatelessWidget {
+/// The form sheet (canvas colour, like the bottom action bar) under an [AuthPhotoHeader]: rounded
+/// on top and slid [AuthPhotoHeader.sheetOverlap] up over the photo. It arrives from below on
+/// the [NordicMotion.standard] spring while fading in (MOB-UI-12); under reduced motion it only
+/// fades.
+class AuthFormSheet extends StatefulWidget {
   final List<Widget> children;
+
+  /// How far below its place the sheet starts.
+  static const double entranceOffset = 48.0;
 
   const AuthFormSheet({super.key, required this.children});
 
   @override
+  State<AuthFormSheet> createState() => _AuthFormSheetState();
+}
+
+class _AuthFormSheetState extends State<AuthFormSheet>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _arrival = AnimationController.unbounded(
+    vsync: this,
+  );
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (NordicMotion.reduced(context)) {
+      _arrival.animateTo(
+        1.0,
+        duration: NordicMotion.fade,
+        curve: Curves.easeOut,
+      );
+    } else {
+      _arrival.animateWith(NordicMotion.standard.simulate());
+    }
+  }
+
+  @override
+  void dispose() {
+    _arrival.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Transform.translate(
-      offset: const Offset(0.0, -AuthPhotoHeader.sheetOverlap),
+    final reduced = NordicMotion.reduced(context);
+    return AnimatedBuilder(
+      animation: _arrival,
+      builder: (context, child) {
+        final progress = _arrival.value;
+        final rise = reduced
+            ? 0.0
+            : (1.0 - progress) * AuthFormSheet.entranceOffset;
+        return Transform.translate(
+          offset: Offset(0.0, rise - AuthPhotoHeader.sheetOverlap),
+          child: Opacity(opacity: progress.clamp(0.0, 1.0), child: child),
+        );
+      },
       child: Container(
         padding: const EdgeInsets.fromLTRB(20.0, 24.0, 20.0, 8.0),
         decoration: const BoxDecoration(
@@ -173,7 +245,7 @@ class AuthFormSheet extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
+          children: widget.children,
         ),
       ),
     );
