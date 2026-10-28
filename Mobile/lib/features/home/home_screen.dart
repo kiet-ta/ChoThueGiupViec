@@ -159,103 +159,21 @@ const _welcomePhotos = [
   ),
 ];
 
-/// The brand block of the welcome: logo mark and name on top, a slideshow of housework photos,
-/// the promise at the bottom of a soft green panel that grows to fill the height the role
-/// cards leave free.
-class _WelcomeHero extends StatelessWidget {
+/// The brand block of the welcome: housework photos fill the whole card as a slideshow, the logo
+/// on top and the caption, dots and promise at the bottom sit on them. The card grows to fill
+/// the height the role cards leave free.
+///
+/// The slideshow moves on to the next photo every [_interval] (sliding, or jumping when the
+/// platform asks for reduced motion), can be swiped and loops without end. The photos are
+/// decorative: hidden from screen readers.
+class _WelcomeHero extends StatefulWidget {
   const _WelcomeHero();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
-      decoration: BoxDecoration(
-        color: NordicColors.primaryFixed.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: _brand(),
-          ),
-          const SizedBox(height: 16),
-          const Spacer(),
-          const _PhotoSlideshow(),
-          const SizedBox(height: 20),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: _promise(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _brand() {
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: NordicColors.primary,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(
-            Icons.home_outlined,
-            color: NordicColors.textInverse,
-            size: 24,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'TỔ ẤM',
-          style: NordicTypography.titleMedium.copyWith(
-            letterSpacing: 1.2,
-            color: NordicColors.primary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _promise() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Narrow box: the promise breaks after the comma, one half per line.
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 210),
-          child: Text(
-            'Nhà sạch, lòng nhẹ.',
-            style: NordicTypography.greeting.copyWith(fontSize: 38),
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Đặt người giúp việc theo từng ca.',
-          style: NordicTypography.bodyRegular,
-        ),
-      ],
-    );
-  }
+  State<_WelcomeHero> createState() => _WelcomeHeroState();
 }
 
-/// The housework photos, one at a time: moves on to the next one every [_interval] (sliding, or
-/// jumping when the platform asks for reduced motion), can be swiped, loops without end.
-/// A caption names the work in the photo; dots show which photo is on. Decorative: hidden
-/// from screen readers.
-class _PhotoSlideshow extends StatefulWidget {
-  const _PhotoSlideshow();
-
-  @override
-  State<_PhotoSlideshow> createState() => _PhotoSlideshowState();
-}
-
-class _PhotoSlideshowState extends State<_PhotoSlideshow> {
+class _WelcomeHeroState extends State<_WelcomeHero> {
   static const _interval = Duration(milliseconds: 3500);
 
   final _pages = PageController();
@@ -301,16 +219,15 @@ class _PhotoSlideshowState extends State<_PhotoSlideshow> {
   Widget build(BuildContext context) {
     final current = _page % _welcomePhotos.length;
     final (_, icon, caption) = _welcomePhotos[current];
-    return ExcludeSemantics(
-      child: SizedBox(
-        height: 220,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Stack(
+        children: [
+          // Positioned layers do not count in the card's height: the content below sets it.
+          Positioned.fill(
+            child: ExcludeSemantics(
               // No item count: the pages go on for ever, page n shows photo n % length.
-              PageView.builder(
+              child: PageView.builder(
                 controller: _pages,
                 onPageChanged: (page) => setState(() => _page = page),
                 itemBuilder: (context, page) => Image.asset(
@@ -318,56 +235,130 @@ class _PhotoSlideshowState extends State<_PhotoSlideshow> {
                   fit: BoxFit.cover,
                 ),
               ),
-              // Darker bottom edge so the caption and the dots stay readable on any photo.
-              IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.center,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        NordicColors.contrastDark.withValues(alpha: 0.55),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 12,
-                child: IgnorePointer(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _caption(icon, caption),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      for (var i = 0; i < _welcomePhotos.length; i++)
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          margin: const EdgeInsets.only(left: 5),
-                          width: i == current ? 18 : 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: NordicColors.textInverse.withValues(
-                              alpha: i == current ? 1 : 0.55,
-                            ),
-                            borderRadius: BorderRadius.circular(9999),
-                          ),
-                        ),
+            ),
+          ),
+          // Darker top and bottom so the white logo name and text stay readable on any photo.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0, 0.3, 0.5, 1],
+                    colors: [
+                      NordicColors.contrastDark.withValues(alpha: 0.45),
+                      NordicColors.contrastDark.withValues(alpha: 0),
+                      NordicColors.contrastDark.withValues(alpha: 0.1),
+                      NordicColors.contrastDark.withValues(alpha: 0.82),
                     ],
                   ),
                 ),
               ),
-            ],
+            ),
+          ),
+          // The text lets swipes through to the photos.
+          IgnorePointer(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: double.infinity,
+                minHeight: 380,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _brand(),
+                    const SizedBox(height: 120),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _caption(icon, caption),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        for (var i = 0; i < _welcomePhotos.length; i++)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            margin: const EdgeInsets.only(left: 5),
+                            width: i == current ? 18 : 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: NordicColors.textInverse.withValues(
+                                alpha: i == current ? 1 : 0.55,
+                              ),
+                              borderRadius: BorderRadius.circular(9999),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _promise(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _brand() {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: NordicColors.primary,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.home_outlined,
+            color: NordicColors.textInverse,
+            size: 24,
           ),
         ),
-      ),
+        const SizedBox(width: 12),
+        Text(
+          'TỔ ẤM',
+          style: NordicTypography.titleMedium.copyWith(
+            letterSpacing: 1.2,
+            color: NordicColors.textInverse,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _promise() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Narrow box: the promise breaks after the comma, one half per line.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 210),
+          child: Text(
+            'Nhà sạch, lòng nhẹ.',
+            style: NordicTypography.greeting.copyWith(
+              fontSize: 38,
+              color: NordicColors.textInverse,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Đặt người giúp việc theo từng ca.',
+          style: NordicTypography.bodyRegular.copyWith(
+            color: NordicColors.textInverse.withValues(alpha: 0.88),
+          ),
+        ),
+      ],
     );
   }
 
