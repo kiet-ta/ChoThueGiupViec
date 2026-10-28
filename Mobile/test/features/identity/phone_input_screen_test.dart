@@ -30,28 +30,25 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Số điện thoại'), findsOneWidget);
-      expect(find.text('Gửi Mã Xác Thực'), findsOneWidget);
+      expect(find.text('Nhập số điện thoại'), findsOneWidget);
+      expect(find.text('Nhận mã'), findsOneWidget);
 
       // Tap submit with empty phone -> shows error
-      await tester.tap(find.text('Gửi Mã Xác Thực'));
+      await tester.tap(find.text('Nhận mã'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Vui lòng nhập số điện thoại'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Số điện thoại chưa đúng'), findsOneWidget);
 
       // Enter valid phone
       await tester.enterText(find.byType(TextField), '0912345678');
       await tester.pumpAndSettle();
 
       // Tap submit -> navigates to OtpVerifyScreen
-      await tester.tap(find.text('Gửi Mã Xác Thực'));
+      await tester.tap(find.text('Nhận mã'));
       await tester.pumpAndSettle();
 
       expect(find.byType(OtpVerifyScreen), findsOneWidget);
-      expect(find.text('Nhập mã xác thực'), findsOneWidget);
+      expect(find.text('Nhập mã xác nhận'), findsOneWidget);
     });
 
     testWidgets('displays worker role indicator when role is Worker', (
@@ -72,7 +69,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Vai trò: Chuyên Viên / Thợ'), findsOneWidget);
+      expect(find.text('Người giúp việc'), findsOneWidget);
     });
 
     String photoOf(WidgetTester tester) {
@@ -96,7 +93,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(photoOf(tester), 'assets/images/welcome/mop-living-room.jpg');
       expect(find.byKey(const Key('phone-input-title')), findsOneWidget);
-      expect(find.text('Mã 6 số sẽ gửi qua SMS.'), findsOneWidget);
+      expect(find.text('Mã xác nhận gửi qua tin nhắn.'), findsOneWidget);
       // First screen of the app: nothing to go back to.
       expect(find.byKey(const Key('auth-back')), findsNothing);
 
@@ -177,7 +174,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final button = find.text('Gửi Mã Xác Thực');
+      final button = find.text('Nhận mã');
       expect(tester.getRect(button).bottom, lessThanOrEqualTo(844 - 300));
       expect(button.hitTestable(), findsOneWidget);
     });
@@ -208,7 +205,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(markScale(), 1.0);
       // Nothing was submitted: no error message yet.
-      expect(find.textContaining('Vui lòng nhập'), findsNothing);
+      expect(find.textContaining('chưa đúng'), findsNothing);
     });
 
     testWidgets('the form sheet rises into place, or only fades when motion '
@@ -251,6 +248,28 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
       expect(sheetY(), -AuthPhotoHeader.sheetOverlap);
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('fills the full width of a wider phone, no side strips', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 926);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: const PhoneInputScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      for (final part in [AuthPhotoHeader, AuthFormSheet]) {
+        final rect = tester.getRect(find.byType(part));
+        expect(rect.left, 0.0, reason: '$part left edge');
+        expect(rect.right, 428.0, reason: '$part right edge');
+      }
     });
   });
 }

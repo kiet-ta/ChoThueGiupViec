@@ -40,21 +40,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Nhập mã xác thực'), findsOneWidget);
+      expect(find.text('Nhập mã xác nhận'), findsOneWidget);
       expect(find.textContaining('0912345678'), findsOneWidget);
-      expect(find.text('Xác Nhận Đăng Nhập'), findsOneWidget);
+      expect(find.text('Đăng nhập'), findsOneWidget);
 
       // Tap submit with empty OTP -> shows error
-      await tester.tap(find.text('Xác Nhận Đăng Nhập'));
+      await tester.tap(find.text('Đăng nhập'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Vui lòng nhập đủ 6 chữ số'), findsOneWidget);
+      expect(find.textContaining('Nhập đủ 6 số'), findsOneWidget);
 
       // Enter valid OTP 123456
       await tester.enterText(find.byType(TextField), '123456');
       await tester.pumpAndSettle();
 
       // Tap submit -> succeeds and stores token
-      await tester.tap(find.text('Xác Nhận Đăng Nhập'));
+      await tester.tap(find.text('Đăng nhập'));
       await tester.pumpAndSettle();
 
       expect(storage.isAuthenticated, isTrue);
@@ -83,7 +83,7 @@ void main() {
       await tester.enterText(find.byType(TextField), '000000');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Xác Nhận Đăng Nhập'));
+      await tester.tap(find.text('Đăng nhập'));
       await tester.pumpAndSettle();
 
       expect(
@@ -171,7 +171,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final button = find.text('Xác Nhận Đăng Nhập');
+      final button = find.text('Đăng nhập');
       expect(tester.getRect(button).bottom, lessThanOrEqualTo(844 - 300));
       expect(button.hitTestable(), findsOneWidget);
     });

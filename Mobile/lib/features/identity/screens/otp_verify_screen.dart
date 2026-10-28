@@ -57,7 +57,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     final effectiveCode = (code ?? _otpController.text).trim();
     if (effectiveCode.length != 6) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập đủ 6 chữ số mã OTP.';
+        _errorMessage = 'Nhập đủ 6 số.';
         _errors++;
       });
       return;
@@ -92,16 +92,14 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đăng nhập thành công vào TỔ ẤM!'),
+          content: Text('Đăng nhập thành công'),
           backgroundColor: NordicColors.primary,
         ),
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
       setState(() {
-        _errorMessage =
-            response.errorMessage ??
-            'Xác thực không thành công. Vui lòng thử lại.';
+        _errorMessage = response.errorMessage ?? 'Mã chưa đúng. Thử lại nhé.';
         _errors++;
       });
     }
@@ -141,40 +139,36 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Widget build(BuildContext context) {
     // MOB-UI-10: the welcome look. Photo with the title and where the code went on top, then the
     // 6 cells and resend on a sheet. MOB-UI-12: the button bar is part of the body, so the
-    // keyboard pushes it up instead of covering it; a wrong code shakes the cells.
+    // keyboard pushes it up instead of covering it; a wrong code shakes the cells. The screen
+    // fills the full width.
     return Scaffold(
       backgroundColor: NordicColors.canvas,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    AuthPhotoHeader(
-                      role: widget.role,
-                      title: 'Nhập mã xác thực',
-                      subtitle: 'Đã gửi tới ${widget.phoneNumber}',
-                    ),
-                    AuthFormSheet(children: _form()),
-                  ],
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                AuthPhotoHeader(
+                  role: widget.role,
+                  title: 'Nhập mã xác nhận',
+                  subtitle: 'Đã gửi đến ${widget.phoneNumber}',
                 ),
-              ),
-              BottomActionBar(
-                children: [
-                  NordicButton(
-                    label: 'Xác Nhận Đăng Nhập',
-                    width: double.infinity,
-                    isLoading: _isLoading,
-                    onPressed: () => _handleVerify(),
-                  ),
-                ],
+                AuthFormSheet(children: _form()),
+              ],
+            ),
+          ),
+          BottomActionBar(
+            children: [
+              NordicButton(
+                label: 'Đăng nhập',
+                width: double.infinity,
+                isLoading: _isLoading,
+                onPressed: () => _handleVerify(),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

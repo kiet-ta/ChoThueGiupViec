@@ -91,7 +91,7 @@ class _ResendTimerState extends State<ResendTimer> {
         color: NordicColors.primary,
       ),
       label: Text(
-        'Gửi lại mã xác thực OTP',
+        'Gửi lại mã',
         style: NordicTypography.bodyRegular.copyWith(
           color: NordicColors.primary,
           fontWeight: FontWeight.w600,
