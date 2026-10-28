@@ -356,6 +356,40 @@ void main() {
     );
 
     testWidgets(
+      'opened from a quick-booking tile, the segment and address are ticked',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(
+          tester,
+          service,
+          args: const BookingScreenArgs(
+            serviceTier: ServiceTier.premium,
+            addressId: 2,
+          ),
+        );
+
+        expect(service.quotes.single, (addressId: 2, tier: 'PREMIUM'));
+        expect(find.byKey(const Key('quote-total')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a preselected segment or address that does not exist is dropped',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(
+          tester,
+          service,
+          args: const BookingScreenArgs(serviceTier: 'GOLD', addressId: 99),
+        );
+
+        expect(service.quotes, isEmpty);
+        await tapKey(tester, 'tier-ECONOMY');
+        expect(service.quotes.single, (addressId: 1, tier: 'ECONOMY'));
+      },
+    );
+
+    testWidgets(
       'shows no price until a segment is chosen, then the fixed price for the default address',
       (tester) async {
         final service = FakeBookingService();

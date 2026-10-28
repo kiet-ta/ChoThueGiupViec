@@ -192,6 +192,8 @@ void main() {
     await tester.tap(find.byKey(const Key('customer-tab-3')));
     await tester.pumpAndSettle();
     await tapVisible(tester, find.byKey(const Key('home-sign-out')));
+    await tester.tap(find.byKey(const Key('sign-out-confirm')));
+    await tester.pumpAndSettle();
 
     expect(TokenStorage().isAuthenticated, isFalse);
     expect(find.text('Tôi cần giúp việc'), findsOneWidget);

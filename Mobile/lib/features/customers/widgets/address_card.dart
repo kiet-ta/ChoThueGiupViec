@@ -95,7 +95,15 @@ class AddressCard extends StatelessWidget {
                     ),
                     if (address.isDefault) ...[
                       const SizedBox(width: 6.0),
-                      const StatusPill('Mặc định', tone: PillTone.ok),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: const StatusPill(
+                            'Mặc định',
+                            tone: PillTone.ok,
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),

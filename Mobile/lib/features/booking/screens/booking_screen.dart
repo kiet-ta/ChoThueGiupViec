@@ -140,6 +140,19 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_argsRead) return;
+    _argsRead = true;
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    final args =
+        widget.args ?? (routeArgs is BookingScreenArgs ? routeArgs : null);
+    // Checked against the server's options and the address book once they are loaded.
+    _tier ??= args?.serviceTier;
+    _addressId ??= args?.addressId;
+  }
+
+  @override
   void dispose() {
     _noteController.dispose();
     super.dispose();
