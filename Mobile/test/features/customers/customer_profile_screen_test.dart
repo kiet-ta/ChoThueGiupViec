@@ -147,5 +147,31 @@ void main() {
       expect(find.text('Huỷ'), findsOneWidget);
       expect(find.text('Đăng xuất'), findsWidgets);
     });
+
+    testWidgets('a new customer with no score yet starts at 5, not 0', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      service.setMockProfile(service.mockProfile.copyWith(trustScore: 0.0));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: CustomerProfileScreen(
+            service: service,
+            tokenStorage: tokenStorage,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('5,0 • Xuất sắc'), findsOneWidget);
+      expect(find.textContaining('0,0'), findsNothing);
+    });
   });
 }

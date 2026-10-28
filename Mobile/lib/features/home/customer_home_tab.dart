@@ -251,25 +251,23 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     }
     final next = _next;
     if (next == null) {
-      return NordicCard(
+      // A notice, not a button: booking has its own card right below.
+      return Container(
         key: const Key('home-no-order'),
-        onTap: _openBooking,
-        child: Row(
+        padding: const EdgeInsets.all(NordicSpace.md),
+        decoration: BoxDecoration(
+          color: NordicColors.surfaceLow,
+          borderRadius: NordicRadius.cardAll,
+          border: Border.all(color: NordicColors.border),
+        ),
+        child: const Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: NordicColors.primaryFixed,
-                borderRadius: NordicRadius.tileAll,
-              ),
-              child: const Icon(
-                Icons.event_available_outlined,
-                color: NordicColors.primary,
-              ),
+            Icon(
+              Icons.notifications_none_outlined,
+              color: NordicColors.textSecondary,
             ),
-            const SizedBox(width: NordicSpace.sm),
-            const Expanded(
+            SizedBox(width: NordicSpace.sm),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -279,13 +277,12 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Bấm để đặt ca dọn nhà.',
+                    'Khi bạn đặt ca, lịch sẽ hiện ở đây.',
                     style: NordicTypography.bodySmall,
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: NordicColors.borderVariant),
           ],
         ),
       );

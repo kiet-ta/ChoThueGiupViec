@@ -195,7 +195,7 @@ void main() {
     });
 
     testWidgets(
-      'without an open order it offers to book, and without an address it shows no prices',
+      'without an open order it shows a notice (booking is the card below), and without an address no prices',
       (tester) async {
         useDesignFrame(tester);
         final opened = <String>[];
@@ -213,7 +213,10 @@ void main() {
         expect(find.text('Đặt nhanh'), findsNothing);
         await tester.tap(find.byKey(const Key('home-no-order')));
         await tester.pumpAndSettle();
+        expect(opened, isEmpty);
 
+        await tester.tap(find.byKey(const Key('home-book-banner')));
+        await tester.pumpAndSettle();
         expect(opened, ['/booking']);
       },
     );
@@ -251,7 +254,8 @@ void main() {
       expect(find.text('Nguyễn Văn An'), findsOneWidget);
       expect(find.text('0901 234 567'), findsOneWidget);
       expect(find.text('15'), findsOneWidget);
-      expect(find.text('2026'), findsOneWidget);
+      expect(find.text('15/01/2026'), findsOneWidget);
+      expect(find.text('Ngày tham gia'), findsOneWidget);
     });
 
     testWidgets('the rows open their screens and the last one signs out', (

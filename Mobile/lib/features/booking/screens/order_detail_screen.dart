@@ -29,6 +29,7 @@ import '../../workers/screens/customer_acceptance_screen.dart';
 import '../logic/booking_logic.dart';
 import '../logic/order_logic.dart';
 import '../models/booking_models.dart';
+import '../routes.dart';
 import '../services/fallback_service.dart';
 import '../services/order_service.dart';
 import 'fallback_prompt_card.dart';
@@ -383,11 +384,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       if (order.orderStatus == OrderStatus.cancelled &&
           (order.cancelReason ?? '').isNotEmpty) ...[
         const SizedBox(height: NordicSpace.sm),
-        Text(
-          'Lý do huỷ: ${order.cancelReason}',
-          key: const Key('order-cancel-reason'),
-          style: NordicTypography.bodySmall,
-        ),
+        _cancelReasonCard(cancelReasonView(order.cancelReason!)),
       ],
       if (order.orderStatus == OrderStatus.awaitingFallback) ...[
         const SizedBox(height: NordicSpace.md),
@@ -430,6 +427,44 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final t = instant.toUtc().add(const Duration(hours: 7));
     return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   }
+
+  /// Why the order was cancelled, in kind words; a system cancel offers to book another time.
+  Widget _cancelReasonCard(CancelReasonView view) => NordicCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.info_outline,
+              size: 20.0,
+              color: NordicColors.textSecondary,
+            ),
+            const SizedBox(width: NordicSpace.xs),
+            Expanded(
+              child: Text(
+                view.text,
+                key: const Key('order-cancel-reason'),
+                style: NordicTypography.bodyRegular,
+              ),
+            ),
+          ],
+        ),
+        if (view.suggestRebook) ...[
+          const SizedBox(height: NordicSpace.sm),
+          NordicButton(
+            key: const Key('order-rebook'),
+            label: 'Chọn lịch khác',
+            width: double.infinity,
+            variant: NordicButtonVariant.secondary,
+            onPressed: () =>
+                Navigator.of(context).pushNamed(BookingRoutes.booking),
+          ),
+        ],
+      ],
+    ),
+  );
 
   Widget _summary(BookingOrder order, String displayStatus) {
     final start = _localTime(order.shiftStartAt);

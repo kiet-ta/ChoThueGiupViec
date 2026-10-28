@@ -22,6 +22,8 @@ import '../services/payments_service.dart';
 /// Sandbox only: the banner "SANDBOX – no real money" is always on screen (decision Q04).
 /// Two limits of the project today, both said on screen: there is no QR-rendering package, so the QR content is shown as text;
 /// and there is no realtime client, so "paid" arrives by asking the server every few seconds (the contract's fallback).
+/// A payment of the Fake gateway confirms itself [sandboxAutoConfirmDelay] after the QR is shown (the backend's Development-only
+/// confirm), so a tester does not wait for an admin; a MoMo sandbox payment is still paid on MoMo.
 class PaymentScreen extends StatefulWidget {
   /// What to pay; when null it is read from the route arguments.
   final PaymentScreenArgs? args;
@@ -33,6 +35,9 @@ class PaymentScreen extends StatefulWidget {
   /// How often the status is asked again.
   final Duration pollInterval;
 
+  /// How long a Fake-gateway payment waits before the screen confirms it; null turns the shortcut off.
+  final Duration? sandboxAutoConfirmDelay;
+
   /// What "Xem đơn" does after the payment; by default the screen closes and returns the paid [Payment].
   final void Function(Payment payment)? onPaid;
 
@@ -42,6 +47,7 @@ class PaymentScreen extends StatefulWidget {
     this.service,
     this.now,
     this.pollInterval = defaultPollInterval,
+    this.sandboxAutoConfirmDelay = defaultSandboxAutoConfirmDelay,
     this.onPaid,
   });
 
@@ -65,6 +71,8 @@ class _PaymentScreenState extends State<PaymentScreen>
 
   Timer? _pollTimer;
   Timer? _tickTimer;
+  Timer? _autoConfirmTimer;
+  int? _autoConfirmedPaymentId; // one confirm per payment
 
   DateTime _now() => (widget.now ?? DateTime.now)();
 
@@ -89,6 +97,7 @@ class _PaymentScreenState extends State<PaymentScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _stopTimers();
+    _autoConfirmTimer?.cancel();
     super.dispose();
   }
 
@@ -166,6 +175,45 @@ class _PaymentScreenState extends State<PaymentScreen>
       ); // the countdown, or the switch to "expired" when the deadline passes
     });
     _pollTimer = Timer.periodic(widget.pollInterval, (_) => _poll());
+    _scheduleSandboxConfirm(payment);
+  }
+
+  /// The service that can confirm a sandbox payment, when this payment is one it can confirm.
+  ISandboxPaymentConfirmer? _confirmerFor(Payment payment) {
+    final service = _service;
+    if (widget.sandboxAutoConfirmDelay == null ||
+        service is! ISandboxPaymentConfirmer ||
+        !isSandboxAutoConfirmable(payment)) {
+      return null;
+    }
+    return service;
+  }
+
+  void _scheduleSandboxConfirm(Payment payment) {
+    final confirmer = _confirmerFor(payment);
+    if (confirmer == null ||
+        _autoConfirmedPaymentId == payment.paymentId ||
+        _autoConfirmTimer != null) {
+      return;
+    }
+    _autoConfirmTimer = Timer(widget.sandboxAutoConfirmDelay!, () async {
+      _autoConfirmTimer = null;
+      final current = _payment;
+      if (!mounted ||
+          current == null ||
+          current.paymentId != payment.paymentId ||
+          !shouldKeepPolling(current, _now())) {
+        return;
+      }
+      _autoConfirmedPaymentId = payment.paymentId;
+      try {
+        await confirmer.confirmSandbox(payment.paymentId);
+      } on ApiException {
+        // Not a Development backend (404) or already settled: the normal polling still shows the real status.
+        return;
+      }
+      if (mounted) await _poll();
+    });
   }
 
   Future<void> _poll() async {
@@ -409,6 +457,14 @@ class _PaymentScreenState extends State<PaymentScreen>
         key: const Key('payment-waiting-note'),
         style: NordicTypography.bodySmall,
       ),
+      if (_confirmerFor(payment) != null) ...[
+        const SizedBox(height: NordicSpace.xxs),
+        Text(
+          sandboxAutoConfirmNote(widget.sandboxAutoConfirmDelay!),
+          key: const Key('payment-auto-confirm-note'),
+          style: NordicTypography.bodySmall,
+        ),
+      ],
     ];
   }
 

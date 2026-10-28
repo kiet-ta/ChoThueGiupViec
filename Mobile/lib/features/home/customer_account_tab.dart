@@ -17,7 +17,7 @@ import '../disputes/routes.dart';
 import '../disputes/screens/dispute_screen.dart';
 
 /// The customer's Tài khoản tab (ui-templates `customer/account.html`): who is signed in, three counts
-/// read from real answers (orders = `total` of the order list, addresses, year joined) and the links
+/// read from real answers (orders = `total` of the order list, addresses, date joined) and the links
 /// that used to be the Home's action list.
 /// MOB-UI-14: `NordicPage.tab` with the large title, pressable profile card (`Mobile/DESIGN-SYSTEM.md`).
 class CustomerAccountTab extends StatefulWidget {
@@ -149,10 +149,8 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
             const SizedBox(width: NordicSpace.xs),
             Expanded(
               child: _count(
-                profile?.createdAt == null
-                    ? '–'
-                    : '${profile!.createdAt!.year}',
-                'Năm tham gia',
+                profile?.createdAt == null ? '–' : profile!.formattedCreatedAt,
+                'Ngày tham gia',
               ),
             ),
           ],
@@ -206,7 +204,11 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
     ),
     child: Column(
       children: [
-        Text(value, style: NordicTypography.numberMedium),
+        // A full date (dd/mm/yyyy) is wider than a count: it shrinks to fit the tile.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(value, maxLines: 1, style: NordicTypography.numberMedium),
+        ),
         const SizedBox(height: NordicSpace.xs),
         Text(
           label,

@@ -70,6 +70,23 @@ class FakePaymentsService implements IPaymentsService {
   }
 }
 
+/// A fake that can also confirm a sandbox payment, like the real service against a Development backend.
+class ConfirmingPaymentsService extends FakePaymentsService
+    implements ISandboxPaymentConfirmer {
+  final confirmed = <int>[];
+  Object? confirmError;
+
+  @override
+  Future<void> confirmSandbox(int paymentId) {
+    confirmed.add(paymentId);
+    if (confirmError != null) return Future.error(confirmError!);
+    polls.clear();
+    polls.add(_payment(status: 'SUCCESS'));
+    pollCalls = 0;
+    return Future.value();
+  }
+}
+
 /// A clock the test moves forward together with the fake timers.
 class TestClock {
   DateTime now = _start;
@@ -84,6 +101,7 @@ Future<List<Payment>> pumpPayment(
     orderId: 42,
     orderCode: 'GV261014ABC123',
   ),
+  Duration pollInterval = const Duration(seconds: 3),
 }) async {
   tester.view.physicalSize = const Size(390, 1800);
   tester.view.devicePixelRatio = 1.0;
@@ -99,7 +117,7 @@ Future<List<Payment>> pumpPayment(
         args: args,
         service: service,
         now: () => clock.now,
-        pollInterval: const Duration(seconds: 3),
+        pollInterval: pollInterval,
         onPaid: done.add,
       ),
     ),
@@ -126,6 +144,89 @@ String textOf(WidgetTester tester, String key) =>
 
 void main() {
   group('PaymentScreen (MOB-M2-03)', () {
+    testWidgets(
+      'a Fake-gateway payment confirms itself after 5 seconds, without an admin',
+      (tester) async {
+        final service = ConfirmingPaymentsService();
+        final clock = TestClock();
+        final done = await pumpPayment(
+          tester,
+          service,
+          clock,
+          pollInterval: const Duration(seconds: 30),
+        );
+
+        expect(
+          find.byKey(const Key('payment-auto-confirm-note')),
+          findsOneWidget,
+        );
+        await elapse(tester, clock, const Duration(seconds: 4));
+        expect(service.confirmed, isEmpty);
+
+        await elapse(tester, clock, const Duration(seconds: 1));
+        await tester.pump();
+        expect(service.confirmed, [5]);
+        expect(find.byKey(const Key('payment-paid')), findsOneWidget);
+        await tester.pump();
+        expect(done.single.isPaid, isTrue);
+        await close(tester);
+      },
+    );
+
+    testWidgets(
+      'a backend without the dev confirm (404) leaves the payment waiting',
+      (tester) async {
+        final service = ConfirmingPaymentsService()
+          ..confirmError = const ApiException(404, 'Not found');
+        final clock = TestClock();
+        await pumpPayment(
+          tester,
+          service,
+          clock,
+          pollInterval: const Duration(seconds: 30),
+        );
+
+        await elapse(tester, clock, const Duration(seconds: 6));
+        expect(service.confirmed, [5]);
+        expect(find.byKey(const Key('payment-countdown')), findsOneWidget);
+        expect(find.byKey(const Key('payment-paid')), findsNothing);
+        await close(tester);
+      },
+    );
+
+    testWidgets('a MoMo sandbox payment is never confirmed by the app', (
+      tester,
+    ) async {
+      final service = ConfirmingPaymentsService()
+        ..created = Payment(
+          paymentId: 6,
+          purpose: 'ORDER',
+          orderId: 42,
+          extensionId: null,
+          gateway: 'MOMO',
+          amount: 260000,
+          txnStatus: 'PENDING',
+          qrPayload: 'momo://x',
+          payUrl: null,
+          expiresAt: _start.add(const Duration(minutes: 15)),
+          paidAt: null,
+          createdAt: _start,
+          sandbox: true,
+        );
+      final clock = TestClock();
+      await pumpPayment(
+        tester,
+        service,
+        clock,
+        pollInterval: const Duration(seconds: 30),
+      );
+
+      expect(find.byKey(const Key('payment-auto-confirm-note')), findsNothing);
+      await elapse(tester, clock, const Duration(seconds: 6));
+      expect(service.confirmed, isEmpty);
+      await close(tester);
+    });
+
     testWidgets(
       'always shows the sandbox banner, also while loading and on an error',
       (tester) async {
