@@ -7,6 +7,7 @@ import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../services/auth_service.dart';
 import 'worker_registration_screen.dart';
+import '../widgets/auth_photo_header.dart';
 import '../widgets/otp_code_field.dart';
 import '../widgets/resend_timer.dart';
 
@@ -129,74 +130,70 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ui-templates `shared/otp.html`: title, where the code went, 6 cells, resend; the button at the bottom.
+    // MOB-UI-10: the welcome look. Photo with the title and where the code went on top, then the
+    // 6 cells and resend on a sheet; the button at the bottom.
     return Scaffold(
-      appBar: AppBar(),
+      backgroundColor: NordicColors.canvas,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
+            padding: EdgeInsets.zero,
             children: [
-              const Text(
-                'Nhập mã xác thực',
-                style: NordicTypography.screenTitle,
+              AuthPhotoHeader(
+                role: widget.role,
+                title: 'Nhập mã xác thực',
+                subtitle: 'Đã gửi tới ${widget.phoneNumber}',
               ),
-              const SizedBox(height: 4.0),
-              Text(
-                'Đã gửi tới ${widget.phoneNumber}',
-                style: const TextStyle(
-                  fontSize: 14.0,
-                  color: NordicColors.textSecondary,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: 24.0),
-              OtpCodeField(
-                controller: _otpController,
-                enabled: !_isLoading,
-                onCompleted: (code) => _handleVerify(code),
-                onChanged: (_) {
-                  if (_errorMessage != null) {
-                    setState(() => _errorMessage = null);
-                  }
-                },
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 14.0),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0,
-                    vertical: 8.0,
+              AuthFormSheet(
+                children: [
+                  OtpCodeField(
+                    controller: _otpController,
+                    enabled: !_isLoading,
+                    onCompleted: (code) => _handleVerify(code),
+                    onChanged: (_) {
+                      if (_errorMessage != null) {
+                        setState(() => _errorMessage = null);
+                      }
+                    },
                   ),
-                  decoration: BoxDecoration(
-                    color: NordicColors.errorContainer,
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        size: 16.0,
-                        color: NordicColors.error,
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 14.0),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12.0,
+                        vertical: 8.0,
                       ),
-                      const SizedBox(width: 8.0),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: NordicTypography.bodySmall.copyWith(
+                      decoration: BoxDecoration(
+                        color: NordicColors.errorContainer,
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 16.0,
                             color: NordicColors.error,
                           ),
-                        ),
+                          const SizedBox(width: 8.0),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: NordicTypography.bodySmall.copyWith(
+                                color: NordicColors.error,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ],
+                  const SizedBox(height: 16.0),
+                  ResendTimer(
+                    initialSeconds: widget.resendCooldownSeconds,
+                    onResend: _handleResend,
                   ),
-                ),
-              ],
-              const SizedBox(height: 16.0),
-              ResendTimer(
-                initialSeconds: widget.resendCooldownSeconds,
-                onResend: _handleResend,
+                ],
               ),
             ],
           ),
