@@ -36,7 +36,7 @@ bool matchesAdminUnitQuery(String name, String query) {
 
 /// Required read-only field of the address form that opens a searchable list of [options] (province, then ward).
 /// A [value] outside [options] (an address saved before the catalogue) is shown as is and fails validation with
-/// [notInListMessage], so the customer chooses again.
+/// [notInListMessage], so the customer chooses again. Field and sheet shapes come from the theme (MOB-UI-14).
 class AdminUnitPickerField extends StatelessWidget {
   final String label;
   final String? value;
@@ -64,9 +64,7 @@ class AdminUnitPickerField extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: NordicColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
-      ),
+      // Shape from the theme: [NordicRadius.sheet] on top.
       builder: (context) => _AdminUnitSheet(title: label, options: options),
     );
     if (picked != null && picked != value) {
@@ -84,9 +82,8 @@ class AdminUnitPickerField extends StatelessWidget {
       enabled: enabled,
       onTap: () => _openPicker(context),
       decoration: InputDecoration(
-        labelText: '$label*',
+        labelText: label,
         helperText: helperText,
-        border: const OutlineInputBorder(),
         suffixIcon: const Icon(Icons.arrow_drop_down_rounded),
       ),
       validator: (_) {
@@ -137,9 +134,8 @@ class _AdminUnitSheetState extends State<_AdminUnitSheet> {
                 child: TextField(
                   autofocus: true,
                   decoration: const InputDecoration(
-                    hintText: 'Tìm kiếm (có thể gõ không dấu)',
+                    hintText: 'Tìm (gõ không dấu cũng được)',
                     prefixIcon: Icon(Icons.search_rounded),
-                    border: OutlineInputBorder(),
                   ),
                   onChanged: (text) => setState(() => _query = text),
                 ),
@@ -149,7 +145,7 @@ class _AdminUnitSheetState extends State<_AdminUnitSheet> {
                 child: matches.isEmpty
                     ? Center(
                         child: Text(
-                          'Không tìm thấy kết quả phù hợp',
+                          'Không tìm thấy. Thử gõ tên khác.',
                           style: NordicTypography.bodySmall,
                         ),
                       )

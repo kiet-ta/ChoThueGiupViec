@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/avatar_initials.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
+import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_button.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_profile.dart';
 import '../services/customer_profile_service.dart';
 
-/// Screen displaying and editing customer profile according to TỔ ẤM — Nordic Care.
+/// The customer profile: who is signed in, name and email to edit (MOB-UI-14,
+/// `Mobile/DESIGN-SYSTEM.md`: `NordicPage`, "Lưu" above the keyboard, a failed save shakes).
 class CustomerProfileScreen extends StatefulWidget {
   final CustomerProfileService? service;
   final TokenStorage? tokenStorage;
@@ -27,6 +32,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   late final TokenStorage _tokenStorage;
 
   final _formKey = GlobalKey<FormState>();
+
+  /// Failed saves so far: each one shakes the fields.
+  int _formErrors = 0;
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
 
@@ -71,7 +79,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Không thể tải thông tin hồ sơ: $e';
+          _errorMessage = 'Chưa tải được hồ sơ. Kiểm tra mạng rồi thử lại.';
           _isLoading = false;
         });
       }
@@ -80,6 +88,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) {
+      setState(() => _formErrors++);
       return;
     }
 
@@ -105,7 +114,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           const SnackBar(
             backgroundColor: NordicColors.primary,
             content: Text(
-              'Cập nhật hồ sơ thành công!',
+              'Đã lưu hồ sơ',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -124,7 +133,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           SnackBar(
             backgroundColor: NordicColors.error,
             content: Text(
-              e is ArgumentError ? e.message.toString() : 'Lỗi cập nhật: $e',
+              e is ArgumentError
+                  ? e.message.toString()
+                  : 'Chưa lưu được hồ sơ. Thử lại nhé.',
               style: const TextStyle(color: Colors.white),
             ),
           ),
@@ -137,9 +148,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Đăng xuất tài khoản', style: NordicTypography.h3),
+        title: const Text('Đăng xuất?', style: NordicTypography.h3),
         content: const Text(
-          'Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?',
+          'Lần sau bạn cần mã xác nhận để vào lại.',
           style: NordicTypography.bodyRegular,
         ),
         actions: [
@@ -175,40 +186,43 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final ready = !_isLoading && _errorMessage == null;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Hồ sơ')),
-      body: _isLoading
-          ? const LoadingStateWidget()
-          : _errorMessage != null
-          ? ErrorStateWidget(message: _errorMessage!, onRetry: _loadProfile)
-          : _buildProfileContent(),
-      // ui-templates `customer/profile.html`: "Lưu" sits at the bottom.
-      bottomNavigationBar: ready
-          ? BottomActionBar(
-              children: [
-                NordicButton(
-                  key: const Key('saveProfileButton'),
-                  label: 'Lưu Thay Đổi',
-                  isLoading: _isSaving,
-                  onPressed: _isSaving ? null : _handleSave,
-                ),
-              ],
-            )
+    return NordicPage.pushed(
+      title: 'Hồ sơ',
+      // "Lưu" sits in the action bar, above the keyboard (DESIGN-SYSTEM §5 Form).
+      actions: ready
+          ? [
+              NordicButton(
+                key: const Key('saveProfileButton'),
+                label: 'Lưu',
+                isLoading: _isSaving,
+                onPressed: _isSaving ? null : _handleSave,
+              ),
+            ]
           : null,
+      children: [
+        if (_isLoading)
+          const SizedBox(height: 320, child: LoadingStateWidget())
+        else if (_errorMessage != null)
+          SizedBox(
+            height: 360,
+            child: ErrorStateWidget(
+              message: _errorMessage!,
+              onRetry: _loadProfile,
+            ),
+          )
+        else
+          _buildProfileContent(),
+      ],
     );
   }
 
-  /// ui-templates `.field`: a small label above the input.
+  /// A small label above the input.
   Widget _field(String label, Widget input) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
         label,
-        style: const TextStyle(
-          fontSize: 12.0,
-          fontWeight: FontWeight.w600,
-          color: NordicColors.textSecondary,
-        ),
+        style: NordicTypography.bodySmall.copyWith(fontWeight: FontWeight.w600),
       ),
       const SizedBox(height: 6.0),
       input,
@@ -218,136 +232,148 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   Widget _buildProfileContent() {
     final profile = _profile!;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(child: AvatarInitials(profile.fullName, size: 72.0)),
-            const SizedBox(height: 12.0),
-            Text(
-              profile.fullName.isNotEmpty ? profile.fullName : 'Khách Hàng',
-              textAlign: TextAlign.center,
-              style: NordicTypography.titleMedium,
-            ),
-            const SizedBox(height: 8.0),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8.0,
-              runSpacing: 4.0,
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          NordicCard(
+            padding: const EdgeInsets.all(NordicSpace.gutter),
+            child: Column(
               children: [
-                StatusPill(
-                  profile.statusDisplayName,
-                  tone: profile.accountStatus.toUpperCase() == 'ACTIVE'
-                      ? PillTone.ok
-                      : PillTone.warn,
-                  dot: true,
+                AvatarInitials(profile.fullName, size: 72.0),
+                const SizedBox(height: NordicSpace.sm),
+                Text(
+                  profile.fullName.isNotEmpty ? profile.fullName : 'Khách hàng',
+                  textAlign: TextAlign.center,
+                  style: NordicTypography.titleMedium,
                 ),
-                StatusPill(
-                  '${profile.trustScore.toStringAsFixed(1)} • ${profile.trustScoreTierName}',
-                  tone: PillTone.warn,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24.0),
-            _field(
-              'Họ và tên *',
-              TextFormField(
-                key: const Key('fullNameField'),
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  hintText: 'Ví dụ: Nguyễn Văn An',
-                ),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Vui lòng nhập họ và tên';
-                  }
-                  if (val.trim().length > 100) {
-                    return 'Họ và tên không được quá 100 ký tự';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(height: 14.0),
-            _field(
-              'Email',
-              TextFormField(
-                key: const Key('emailField'),
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  hintText: 'Ví dụ: an.nguyen@example.com',
-                ),
-                validator: (val) {
-                  if (val != null && val.trim().isNotEmpty) {
-                    if (val.trim().length > 255) {
-                      return 'Email không được quá 255 ký tự';
-                    }
-                    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-                    if (!emailRegex.hasMatch(val.trim())) {
-                      return 'Email không đúng định dạng';
-                    }
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(height: 14.0),
-            // The phone is the OTP login identity: shown, never edited.
-            _field(
-              'Số điện thoại',
-              Container(
-                height: 52.0,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                decoration: BoxDecoration(
-                  color: NordicColors.surfaceLow,
-                  borderRadius: BorderRadius.circular(12.0),
-                  border: Border.all(color: NordicColors.border),
-                ),
-                child: Row(
+                const SizedBox(height: NordicSpace.xs),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: NordicSpace.xs,
+                  runSpacing: NordicSpace.xxs,
                   children: [
-                    Expanded(
-                      child: Text(
-                        profile.phoneNumber,
-                        style: const TextStyle(
-                          fontSize: 15.0,
-                          color: NordicColors.textTitle,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
-                      ),
+                    StatusPill(
+                      profile.statusDisplayName,
+                      tone: profile.accountStatus.toUpperCase() == 'ACTIVE'
+                          ? PillTone.ok
+                          : PillTone.warn,
+                      dot: true,
                     ),
-                    const Icon(
-                      Icons.lock_outline,
-                      size: 18.0,
-                      color: NordicColors.textSecondary,
+                    StatusPill(
+                      '${profile.trustScore.toStringAsFixed(1).replaceAll('.', ',')} • ${profile.trustScoreTierName}',
+                      tone: PillTone.warn,
                     ),
                   ],
                 ),
+                const SizedBox(height: NordicSpace.xs),
+                Text(
+                  'Thành viên từ ${profile.formattedCreatedAt}',
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: NordicSpace.lg),
+          // A failed save shakes the fields (DESIGN-SYSTEM §5 Form).
+          ErrorShake(
+            errors: _formErrors,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _field(
+                  'Họ và tên',
+                  TextFormField(
+                    key: const Key('fullNameField'),
+                    controller: _nameController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      hintText: 'Ví dụ: Nguyễn Văn An',
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Nhập họ và tên.';
+                      }
+                      if (val.trim().length > 100) {
+                        return 'Họ và tên tối đa 100 ký tự.';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(height: NordicSpace.md),
+                _field(
+                  'Email (không bắt buộc)',
+                  TextFormField(
+                    key: const Key('emailField'),
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      hintText: 'Ví dụ: an.nguyen@gmail.com',
+                    ),
+                    validator: (val) {
+                      if (val != null && val.trim().isNotEmpty) {
+                        if (val.trim().length > 255) {
+                          return 'Email tối đa 255 ký tự.';
+                        }
+                        final emailRegex = RegExp(
+                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                        );
+                        if (!emailRegex.hasMatch(val.trim())) {
+                          return 'Email chưa đúng. Ví dụ: an@gmail.com';
+                        }
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: NordicSpace.md),
+          // The phone is the sign-in identity: shown, never edited.
+          _field(
+            'Số điện thoại (dùng để đăng nhập)',
+            Container(
+              height: 52.0,
+              padding: const EdgeInsets.symmetric(horizontal: NordicSpace.md),
+              decoration: BoxDecoration(
+                color: NordicColors.surfaceLow,
+                borderRadius: NordicRadius.fieldAll,
+                border: Border.all(color: NordicColors.border),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      profile.phoneNumber,
+                      style: const TextStyle(
+                        fontSize: 15.0,
+                        color: NordicColors.textTitle,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.lock_outline,
+                    size: 18.0,
+                    color: NordicColors.textSecondary,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16.0),
-            Text(
-              'Thành viên từ: ${profile.formattedCreatedAt}',
-              style: NordicTypography.bodySmall,
-            ),
-            const SizedBox(height: 24.0),
-            NordicButton(
-              key: const Key('logoutButton'),
-              label: 'Đăng Xuất',
-              width: double.infinity,
-              variant: NordicButtonVariant.ghost,
-              icon: const Icon(
-                Icons.logout,
-                size: 18,
-                color: NordicColors.error,
-              ),
-              onPressed: _handleLogout,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: NordicSpace.section),
+          NordicButton(
+            key: const Key('logoutButton'),
+            label: 'Đăng xuất',
+            width: double.infinity,
+            variant: NordicButtonVariant.ghost,
+            icon: const Icon(Icons.logout, size: 18, color: NordicColors.error),
+            onPressed: _handleLogout,
+          ),
+        ],
       ),
     );
   }

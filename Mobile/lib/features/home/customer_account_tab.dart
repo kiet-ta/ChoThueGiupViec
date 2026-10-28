@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/nordic_colors.dart';
+import '../../core/theme/nordic_spacing.dart';
 import '../../core/theme/nordic_typography.dart';
 import '../../core/widgets/avatar_initials.dart';
 import '../../core/widgets/grouped_list_card.dart';
+import '../../core/widgets/nordic_card.dart';
+import '../../core/widgets/nordic_page.dart';
 import '../booking/services/order_service.dart';
 import '../customers/models/customer_profile.dart';
 import '../customers/routes.dart';
@@ -16,6 +19,7 @@ import '../disputes/screens/dispute_screen.dart';
 /// The customer's Tài khoản tab (ui-templates `customer/account.html`): who is signed in, three counts
 /// read from real answers (orders = `total` of the order list, addresses, year joined) and the links
 /// that used to be the Home's action list.
+/// MOB-UI-14: `NordicPage.tab` with the large title, pressable profile card (`Mobile/DESIGN-SYSTEM.md`).
 class CustomerAccountTab extends StatefulWidget {
   final VoidCallback onSignOut;
   final VoidCallback? onShowOrders;
@@ -88,141 +92,126 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
   @override
   Widget build(BuildContext context) {
     final profile = _profile;
-    return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 8, bottom: 16),
-              child: Text('Tài khoản', style: NordicTypography.screenTitle),
-            ),
-            Material(
-              color: NordicColors.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: NordicColors.border),
-              ),
-              child: InkWell(
-                key: const Key('account-profile'),
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => _open(CustomerRoutes.customerProfile),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      AvatarInitials(profile?.fullName ?? '', size: 72),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              (profile == null ||
-                                      profile.fullName.trim().isEmpty)
-                                  ? 'Khách hàng'
-                                  : profile.fullName,
-                              style: NordicTypography.titleMedium,
-                            ),
-                            if (profile != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                _phone(profile.phoneNumber),
-                                style: NordicTypography.bodySmall,
-                              ),
-                            ],
-                          ],
+    return NordicPage.tab(
+      title: 'Tài khoản',
+      children: [
+        NordicCard(
+          key: const Key('account-profile'),
+          onTap: () => _open(CustomerRoutes.customerProfile),
+          child: Row(
+            children: [
+              AvatarInitials(profile?.fullName ?? '', size: 64),
+              const SizedBox(width: NordicSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (profile == null || profile.fullName.trim().isEmpty)
+                          ? 'Khách hàng'
+                          : profile.fullName,
+                      style: NordicTypography.titleMedium,
+                    ),
+                    if (profile != null) ...[
+                      const SizedBox(height: NordicSpace.xxs),
+                      Text(
+                        _phone(profile.phoneNumber),
+                        style: NordicTypography.bodyRegular.copyWith(
+                          color: NordicColors.textSecondary,
                         ),
                       ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: NordicColors.borderVariant,
-                      ),
                     ],
-                  ),
+                    const SizedBox(height: NordicSpace.xxs),
+                    const Text(
+                      'Xem và sửa hồ sơ',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: NordicColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: _count('${_orderCount ?? '–'}', 'Đơn đã đặt')),
-                const SizedBox(width: 8),
-                Expanded(child: _count('${_addressCount ?? '–'}', 'Địa chỉ')),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _count(
-                    profile?.createdAt == null
-                        ? '–'
-                        : '${profile!.createdAt!.year}',
-                    'Tham gia',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            GroupedListCard(
-              items: [
-                GroupedListItem(
-                  key: const Key('account-addresses'),
-                  icon: Icons.location_on_outlined,
-                  title: 'Sổ địa chỉ',
-                  onTap: () => _open(CustomerRoutes.addressList),
-                ),
-                GroupedListItem(
-                  key: const Key('account-orders'),
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Lịch sử đơn',
-                  onTap: widget.onShowOrders,
-                ),
-                GroupedListItem(
-                  key: const Key('account-disputes'),
-                  icon: Icons.flag_outlined,
-                  title: 'Khiếu nại',
-                  onTap: () => _open(
-                    DisputeRoutes.disputes,
-                    arguments: const DisputeScreenArgs(
-                      role: DisputeRole.customer,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            GroupedListCard(
-              items: [
-                GroupedListItem(
-                  key: const Key('home-sign-out'),
-                  icon: Icons.logout,
-                  title: 'Đăng xuất',
-                  danger: true,
-                  onTap: widget.onSignOut,
-                ),
-              ],
+              const Icon(
+                Icons.chevron_right,
+                color: NordicColors.borderVariant,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: NordicSpace.sm),
+        Row(
+          children: [
+            Expanded(child: _count('${_orderCount ?? '–'}', 'Đơn đã đặt')),
+            const SizedBox(width: NordicSpace.xs),
+            Expanded(child: _count('${_addressCount ?? '–'}', 'Địa chỉ')),
+            const SizedBox(width: NordicSpace.xs),
+            Expanded(
+              child: _count(
+                profile?.createdAt == null
+                    ? '–'
+                    : '${profile!.createdAt!.year}',
+                'Năm tham gia',
+              ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: NordicSpace.section),
+        GroupedListCard(
+          items: [
+            GroupedListItem(
+              key: const Key('account-addresses'),
+              icon: Icons.location_on_outlined,
+              title: 'Địa chỉ của tôi',
+              onTap: () => _open(CustomerRoutes.addressList),
+            ),
+            GroupedListItem(
+              key: const Key('account-orders'),
+              icon: Icons.receipt_long_outlined,
+              title: 'Đơn đã đặt',
+              onTap: widget.onShowOrders,
+            ),
+            GroupedListItem(
+              key: const Key('account-disputes'),
+              icon: Icons.flag_outlined,
+              title: 'Khiếu nại',
+              onTap: () => _open(
+                DisputeRoutes.disputes,
+                arguments: const DisputeScreenArgs(role: DisputeRole.customer),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: NordicSpace.md),
+        GroupedListCard(
+          items: [
+            GroupedListItem(
+              key: const Key('home-sign-out'),
+              icon: Icons.logout,
+              title: 'Đăng xuất',
+              danger: true,
+              onTap: widget.onSignOut,
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _count(String value, String label) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-    decoration: BoxDecoration(
-      color: NordicColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: NordicColors.border),
+  Widget _count(String value, String label) => NordicCard(
+    padding: const EdgeInsets.symmetric(
+      vertical: NordicSpace.md,
+      horizontal: NordicSpace.xs,
     ),
     child: Column(
       children: [
         Text(value, style: NordicTypography.numberMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: NordicSpace.xs),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: NordicColors.textSecondary,
-          ),
+          textAlign: TextAlign.center,
+          style: NordicTypography.bodySmall,
         ),
       ],
     ),

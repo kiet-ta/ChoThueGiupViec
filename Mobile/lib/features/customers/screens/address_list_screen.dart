@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/widgets/nordic_button.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../models/customer_address.dart';
 import '../services/customer_address_service.dart';
@@ -11,7 +12,8 @@ import '../widgets/address_card.dart';
 import 'address_form_screen.dart';
 
 /// Screen listing customer addresses with support for editing, deleting,
-/// setting default address, and navigating to address creation.
+/// setting default address, and navigating to address creation. MOB-UI-14: one pressable card
+/// per address, "Thêm địa chỉ" in the action bar (`Mobile/DESIGN-SYSTEM.md`).
 class AddressListScreen extends StatefulWidget {
   final CustomerAddressService? addressService;
 
@@ -92,13 +94,10 @@ class _AddressListScreenState extends State<AddressListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
-        ),
         backgroundColor: NordicColors.surface,
-        title: Text('Xác Nhận Xoá', style: NordicTypography.h3),
+        title: Text('Xoá địa chỉ này?', style: NordicTypography.h3),
         content: Text(
-          'Bạn có chắc chắn muốn xoá địa chỉ "${address.label}" không?',
+          '"${address.label}" sẽ bị xoá khỏi danh sách.',
           style: NordicTypography.bodyRegular,
         ),
         actions: [
@@ -124,7 +123,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đã xoá địa chỉ "${address.label}" thành công.'),
+            content: Text('Đã xoá địa chỉ "${address.label}".'),
             backgroundColor: NordicColors.primary,
           ),
         );
@@ -133,7 +132,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xoá thất bại: $e'),
+            content: const Text('Chưa xoá được địa chỉ. Thử lại nhé.'),
             backgroundColor: NordicColors.error,
           ),
         );
@@ -143,66 +142,40 @@ class _AddressListScreenState extends State<AddressListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sổ địa chỉ')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: RefreshIndicator(
-            onRefresh: _loadAddresses,
-            color: NordicColors.primary,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
-              children: [
-                if (_isLoading)
-                  const LoadingStateWidget()
-                else if (_errorMessage != null)
-                  ErrorStateWidget(
-                    message: _errorMessage!,
-                    onRetry: _loadAddresses,
-                  )
-                else if (_addresses.isEmpty)
-                  const EmptyStateWidget(
-                    title: 'Chưa Có Địa Chỉ Nào',
-                    subtitle: 'Thêm địa chỉ để đặt ca và nhận báo giá.',
-                    icon: Icons.location_on_outlined,
-                  )
-                else
-                  Material(
-                    color: NordicColors.surface,
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      side: const BorderSide(color: NordicColors.border),
-                    ),
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < _addresses.length; i++) ...[
-                          if (i > 0) const Divider(height: 1, thickness: 1),
-                          AddressCard(
-                            address: _addresses[i],
-                            onEdit: () => _navigateToEdit(_addresses[i]),
-                            onDelete: () => _confirmDelete(_addresses[i]),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
+    return NordicPage.pushed(
+      title: 'Địa chỉ của tôi',
+      onRefresh: _loadAddresses,
+      actions: [
+        NordicButton(
+          label: 'Thêm địa chỉ',
+          icon: const Icon(Icons.add, size: 18.0),
+          variant: _addresses.isEmpty && !_isLoading
+              ? NordicButtonVariant.primary
+              : NordicButtonVariant.secondary,
+          onPressed: _navigateToAdd,
         ),
-      ),
-      bottomNavigationBar: BottomActionBar(
-        children: [
-          NordicButton(
-            label: 'Thêm Địa Chỉ Mới',
-            icon: const Icon(Icons.add, size: 18.0),
-            variant: NordicButtonVariant.secondary,
-            onPressed: _navigateToAdd,
-          ),
-        ],
-      ),
+      ],
+      children: [
+        if (_isLoading)
+          const SizedBox(height: 320, child: LoadingStateWidget())
+        else if (_errorMessage != null)
+          ErrorStateWidget(message: _errorMessage!, onRetry: _loadAddresses)
+        else if (_addresses.isEmpty)
+          const EmptyStateWidget(
+            title: 'Chưa có địa chỉ nào',
+            subtitle: 'Thêm địa chỉ để đặt ca và xem giá.',
+            icon: Icons.location_on_outlined,
+          )
+        else
+          for (var i = 0; i < _addresses.length; i++) ...[
+            if (i > 0) const SizedBox(height: NordicSpace.sm),
+            AddressCard(
+              address: _addresses[i],
+              onEdit: () => _navigateToEdit(_addresses[i]),
+              onDelete: () => _confirmDelete(_addresses[i]),
+            ),
+          ],
+      ],
     );
   }
 }

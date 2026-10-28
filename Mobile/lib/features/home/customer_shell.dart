@@ -1,6 +1,12 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
+import '../../core/motion/nordic_motion.dart';
 import '../../core/theme/nordic_colors.dart';
+import '../../core/theme/nordic_radius.dart';
+import '../../core/theme/nordic_spacing.dart';
+import '../../core/widgets/pressable.dart';
 import '../booking/routes.dart';
 import '../booking/screens/order_history_screen.dart';
 import '../customers/screens/favorite_workers_screen.dart';
@@ -9,7 +15,8 @@ import 'customer_home_tab.dart';
 
 /// The signed-in customer's app (ui-templates `customer/*`, `assets/app.js`): four tabs and a raised
 /// centre button. Trang chủ · Đơn · (+ Đặt ca) · Yêu thích · Tài khoản. Detail screens are pushed on top
-/// and have no bottom bar.
+/// and have no bottom bar. The bar is a translucent material with a soft pill on the selected tab
+/// (MOB-UI-14, `Mobile/DESIGN-SYSTEM.md`).
 class CustomerShell extends StatefulWidget {
   /// Signs out; the Home then shows the welcome again.
   final VoidCallback onSignOut;
@@ -60,30 +67,39 @@ class _CustomerShellState extends State<CustomerShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // The bar is a translucent material: the tab content scrolls under it (DESIGN-SYSTEM §4).
+      extendBody: true,
       body: IndexedStack(index: _tab, children: _tabs),
-      floatingActionButton: SizedBox(
-        width: 58,
-        height: 58,
-        child: FloatingActionButton(
-          key: const Key('customer-shell-book'),
-          tooltip: 'Đặt ca',
-          onPressed: _book,
-          child: const Icon(Icons.add, size: 28),
+      floatingActionButton: Pressable(
+        child: SizedBox(
+          width: 58,
+          height: 58,
+          child: FloatingActionButton(
+            key: const Key('customer-shell-book'),
+            tooltip: 'Đặt ca',
+            onPressed: _book,
+            child: const Icon(Icons.add, size: 28),
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        color: NordicColors.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        height: 68,
-        padding: EdgeInsets.zero,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 6,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: NordicColors.border)),
-          ),
+      bottomNavigationBar: _bar(context),
+    );
+  }
+
+  Widget _bar(BuildContext context) {
+    final solid = MediaQuery.maybeHighContrastOf(context) ?? false;
+    final bar = DecoratedBox(
+      decoration: BoxDecoration(
+        color: solid
+            ? NordicColors.surface
+            : NordicColors.surface.withValues(alpha: 0.86),
+        border: const Border(top: BorderSide(color: NordicColors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
           child: Row(
             children: [
               _item(0, Icons.home_outlined, Icons.home, 'Trang chủ'),
@@ -92,7 +108,7 @@ class _CustomerShellState extends State<CustomerShell> {
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
-                    padding: EdgeInsets.only(bottom: 10),
+                    padding: EdgeInsets.only(bottom: NordicSpace.xs),
                     child: Text(
                       'Đặt ca',
                       style: TextStyle(
@@ -111,11 +127,19 @@ class _CustomerShellState extends State<CustomerShell> {
         ),
       ),
     );
+    if (solid) return bar;
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: bar,
+      ),
+    );
   }
 
   Widget _item(int index, IconData icon, IconData selectedIcon, String label) {
     final selected = _tab == index;
     final color = selected ? NordicColors.primary : NordicColors.textSecondary;
+    final reduced = NordicMotion.reduced(context);
     return Expanded(
       child: InkResponse(
         key: Key('customer-tab-$index'),
@@ -123,7 +147,28 @@ class _CustomerShellState extends State<CustomerShell> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(selected ? selectedIcon : icon, color: color, size: 24),
+            // The selected tab sits on a soft green pill that grows in on the standard spring.
+            AnimatedContainer(
+              duration: reduced
+                  ? Duration.zero
+                  : NordicMotion.standard.settleDuration,
+              curve: _pillCurve,
+              padding: EdgeInsets.symmetric(
+                horizontal: selected ? NordicSpace.md : NordicSpace.xs,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: selected
+                    ? NordicColors.primaryFixed
+                    : NordicColors.primaryFixed.withValues(alpha: 0),
+                borderRadius: NordicRadius.pill,
+              ),
+              child: Icon(
+                selected ? selectedIcon : icon,
+                color: color,
+                size: 24,
+              ),
+            ),
             const SizedBox(height: 3),
             Text(
               label,
@@ -138,4 +183,6 @@ class _CustomerShellState extends State<CustomerShell> {
       ),
     );
   }
+
+  static final _pillCurve = SpringCurve(NordicMotion.standard);
 }

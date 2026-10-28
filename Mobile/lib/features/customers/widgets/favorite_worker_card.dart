@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/avatar_initials.dart';
+import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../models/favorite_worker.dart';
@@ -62,7 +64,9 @@ class FavoriteWorkerCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _metric(
-                  value: worker.ratingAvg.toStringAsFixed(1),
+                  value: worker.ratingAvg
+                      .toStringAsFixed(1)
+                      .replaceAll('.', ','),
                   below: Row(
                     children: [
                       for (var i = 1; i <= 5; i++)
@@ -93,13 +97,12 @@ class FavoriteWorkerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12.0),
-          SizedBox(
+          NordicButton(
+            label: 'Đặt ca',
             width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onBookJob,
-              icon: const Icon(Icons.calendar_month_outlined, size: 18.0),
-              label: const Text('Đặt Ca Với Thợ'),
-            ),
+            variant: NordicButtonVariant.secondary,
+            icon: const Icon(Icons.calendar_month_outlined, size: 18.0),
+            onPressed: onBookJob,
           ),
         ],
       ),
@@ -110,7 +113,7 @@ class FavoriteWorkerCard extends StatelessWidget {
     padding: const EdgeInsets.all(12.0),
     decoration: BoxDecoration(
       color: NordicColors.surfaceLow,
-      borderRadius: BorderRadius.circular(12.0),
+      borderRadius: NordicRadius.tileAll,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

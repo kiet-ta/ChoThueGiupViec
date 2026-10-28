@@ -59,7 +59,7 @@ void main() {
   }
 
   Future<void> tapCurrent(WidgetTester tester) async {
-    await tester.tap(find.text('Lấy GPS Hiện Tại'));
+    await tester.tap(find.text('Dùng vị trí hiện tại'));
     await tester.pump();
     await tester.pump();
   }
@@ -117,7 +117,7 @@ void main() {
         expect(find.textContaining(c.$2), findsOneWidget);
         expect(changes, isEmpty);
         expect(
-          find.text('Lấy GPS Hiện Tại'),
+          find.text('Dùng vị trí hiện tại'),
           findsOneWidget,
           reason: 'the button is usable again',
         );

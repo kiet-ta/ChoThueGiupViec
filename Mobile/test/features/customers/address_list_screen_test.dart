@@ -31,10 +31,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sổ địa chỉ'), findsOneWidget);
+      expect(find.text('Địa chỉ của tôi'), findsOneWidget);
       expect(find.text('Nhà riêng'), findsOneWidget);
       expect(find.text('Mặc định'), findsOneWidget);
-      expect(find.text('Thêm Địa Chỉ Mới'), findsOneWidget);
+      expect(find.text('Thêm địa chỉ'), findsOneWidget);
       expect(find.text('m²'), findsWidgets);
     });
 
@@ -56,11 +56,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Thêm Địa Chỉ Mới'));
+      await tester.tap(find.text('Thêm địa chỉ'));
       await tester.pumpAndSettle();
 
       expect(find.byType(AddressFormScreen), findsOneWidget);
-      expect(find.text('Thêm Địa Chỉ Mới'), findsWidgets);
+      expect(find.text('Thêm địa chỉ'), findsWidgets);
     });
 
     testWidgets('displays empty state when no addresses exist', (tester) async {
@@ -81,8 +81,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Chưa Có Địa Chỉ Nào'), findsOneWidget);
-      expect(find.text('Thêm Địa Chỉ Mới'), findsOneWidget);
+      expect(find.text('Chưa có địa chỉ nào'), findsOneWidget);
+      expect(find.text('Thêm địa chỉ'), findsOneWidget);
     });
 
     testWidgets('shows delete confirmation dialog and deletes address', (
@@ -110,14 +110,14 @@ void main() {
       await tester.tap(deleteButtons.first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Xác Nhận Xoá'), findsOneWidget);
+      expect(find.text('Xoá địa chỉ này?'), findsOneWidget);
       expect(find.text('Xoá'), findsOneWidget);
 
       await tester.tap(find.text('Xoá'));
       await tester.pumpAndSettle();
 
       // Check snackbar
-      expect(find.textContaining('thành công'), findsOneWidget);
+      expect(find.textContaining('Đã xoá địa chỉ'), findsOneWidget);
     });
   });
 }

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../models/customer_address.dart';
 
 /// One row of the address book (ui-templates `customer/addresses.html`): housing icon, label with the
 /// default pill, the address on one line, and the total area as the number on the right.
-/// Rows sit inside one grouped card ([AddressListScreen]); a tap edits, the bin deletes.
+/// Each address is its own pressable [NordicCard] (MOB-UI-14); a tap edits, the bin deletes.
 class AddressCard extends StatelessWidget {
   final CustomerAddress address;
   final VoidCallback onEdit;
@@ -41,77 +44,80 @@ class AddressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return NordicCard(
       onTap: onEdit,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16.0, 12.0, 4.0, 12.0),
-        child: Row(
-          children: [
-            Container(
-              width: 40.0,
-              height: 40.0,
-              decoration: BoxDecoration(
-                color: NordicColors.surfaceLow,
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              child: Icon(_getHousingIcon(), color: NordicColors.primary),
+      padding: const EdgeInsets.fromLTRB(
+        NordicSpace.md,
+        NordicSpace.sm,
+        NordicSpace.xxs,
+        NordicSpace.sm,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40.0,
+            height: 40.0,
+            decoration: BoxDecoration(
+              color: NordicColors.surfaceLow,
+              borderRadius: NordicRadius.tileAll,
             ),
-            const SizedBox(width: 12.0),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          address.label,
-                          style: NordicTypography.titleSmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (address.isDefault) ...[
-                        const SizedBox(width: 6.0),
-                        const StatusPill('Mặc định', tone: PillTone.ok),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2.0),
-                  Text(
-                    address.fullAddress,
-                    style: NordicTypography.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8.0),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Icon(_getHousingIcon(), color: NordicColors.primary),
+          ),
+          const SizedBox(width: 12.0),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _area,
-                  key: Key('address-area-${address.addressId}'),
-                  style: NordicTypography.titleSmall,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        address.label,
+                        style: NordicTypography.titleSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (address.isDefault) ...[
+                      const SizedBox(width: 6.0),
+                      const StatusPill('Mặc định', tone: PillTone.ok),
+                    ],
+                  ],
                 ),
-                const Text(
-                  'm²',
-                  style: TextStyle(
-                    fontSize: 11.0,
-                    color: NordicColors.textSecondary,
-                  ),
+                const SizedBox(height: 2.0),
+                Text(
+                  address.fullAddress,
+                  style: NordicTypography.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20.0),
-              color: NordicColors.textSecondary,
-              tooltip: 'Xoá',
-              onPressed: onDelete,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8.0),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _area,
+                key: Key('address-area-${address.addressId}'),
+                style: NordicTypography.titleSmall,
+              ),
+              const Text(
+                'm²',
+                style: TextStyle(
+                  fontSize: 11.0,
+                  color: NordicColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20.0),
+            color: NordicColors.textSecondary,
+            tooltip: 'Xoá',
+            onPressed: onDelete,
+          ),
+        ],
       ),
     );
   }
