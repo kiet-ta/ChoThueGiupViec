@@ -113,12 +113,12 @@ void main() {
       (tester) async {
         await pumpScreen(tester);
 
-        expect(find.text('Nghiệm Thu Ca #55'), findsOneWidget);
-        expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
-        expect(find.text('Đối Chiếu Ảnh Before / After'), findsOneWidget);
+        expect(find.text('Nghiệm thu ca'), findsOneWidget);
+        expect(find.text('Chờ nghiệm thu'), findsOneWidget);
+        expect(find.text('So sánh ảnh trước và sau'), findsOneWidget);
         expect(find.text('Góc 1: Toàn cảnh phòng'), findsOneWidget);
-        expect(find.text('TRƯỚC (Before)'), findsOneWidget);
-        expect(find.text('SAU (After)'), findsOneWidget);
+        expect(find.text('Trước'), findsOneWidget);
+        expect(find.text('Sau'), findsOneWidget);
         expect(find.text('Nghiệm thu'), findsOneWidget);
         expect(find.text('Dọn lại'), findsOneWidget);
       },
@@ -225,10 +225,10 @@ void main() {
         await tapVisible(tester, find.text('Nghiệm thu'));
 
         expect(acceptance.accepted.single.id, 55);
-        expect(find.text('ĐÃ NGHIỆM THU'), findsOneWidget);
-        expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsOneWidget);
-        expect(find.text('Chi Phí Nền Tảng (0%):'), findsOneWidget);
-        expect(find.text('Thu Nhập Thợ (100%):'), findsOneWidget);
+        expect(find.text('Đã nghiệm thu'), findsOneWidget);
+        expect(find.text('Chi tiết nghiệm thu'), findsOneWidget);
+        expect(find.text('Phí nền tảng (0%)'), findsOneWidget);
+        expect(find.text('Người làm nhận (100%)'), findsOneWidget);
         expect(find.text('300000 đ'), findsNWidgets(2));
       },
     );
@@ -247,11 +247,11 @@ void main() {
         find.textContaining('Ca này không còn chờ nghiệm thu'),
         findsOneWidget,
       );
-      await scrollTo(tester, find.text('CHỜ NGHIỆM THU'));
-      expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
-      expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
-      expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsNothing);
-      expect(find.textContaining('Nghiệm thu thành công'), findsNothing);
+      await scrollTo(tester, find.text('Chờ nghiệm thu'));
+      expect(find.text('Chờ nghiệm thu'), findsOneWidget);
+      expect(find.text('Đã nghiệm thu'), findsNothing);
+      expect(find.text('Chi tiết nghiệm thu'), findsNothing);
+      expect(find.textContaining('Ca làm đã xong'), findsNothing);
     });
 
     testWidgets(
@@ -274,10 +274,10 @@ void main() {
           find.textContaining('Không kết nối được máy chủ'),
           findsOneWidget,
         );
-        expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
+        expect(find.text('Đã nghiệm thu'), findsNothing);
         expect(find.textContaining('208000'), findsNothing);
         expect(find.textContaining('260000'), findsNothing);
-        expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsNothing);
+        expect(find.text('Chi tiết nghiệm thu'), findsNothing);
       },
     );
 
@@ -297,7 +297,7 @@ void main() {
         find.textContaining('Máy chủ không trả kết quả nghiệm thu'),
         findsOneWidget,
       );
-      expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
+      expect(find.text('Đã nghiệm thu'), findsNothing);
     });
 
     testWidgets(
@@ -311,33 +311,24 @@ void main() {
         await pumpScreen(tester, acceptance: acceptance);
 
         await tapVisible(tester, find.text('Dọn lại'));
-        expect(find.text('Yêu Cầu Dọn Lại (15–30 phút)'), findsOneWidget);
+        expect(find.text('Yêu cầu dọn lại (15–30 phút)'), findsOneWidget);
 
-        await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
-        await scrollTo(
-          tester,
-          find.text('Vui lòng nhập lý do yêu cầu dọn lại.'),
-        );
-        expect(
-          find.text('Vui lòng nhập lý do yêu cầu dọn lại.'),
-          findsOneWidget,
-        );
+        await tapVisible(tester, find.text('Gửi yêu cầu'));
+        await scrollTo(tester, find.text('Nhập chỗ cần làm lại.'));
+        expect(find.text('Nhập chỗ cần làm lại.'), findsOneWidget);
         expect(acceptance.redos, isEmpty);
 
         // NordicTextInput draws its label above the TextField, so find the field inside the labelled input.
         final reasonField = find.descendant(
-          of: find.widgetWithText(
-            NordicTextInput,
-            'Nội dung / Lý do yêu cầu dọn lại',
-          ),
+          of: find.widgetWithText(NordicTextInput, 'Chỗ cần làm lại'),
           matching: find.byType(TextField),
         );
         await tester.enterText(reasonField, 'Chưa lau kính');
-        await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
+        await tapVisible(tester, find.text('Gửi yêu cầu'));
 
         expect(acceptance.redos.single, (id: 55, reason: 'Chưa lau kính'));
-        await scrollTo(tester, find.text('ĐANG DỌN LẠI'));
-        expect(find.text('ĐANG DỌN LẠI'), findsOneWidget);
+        await scrollTo(tester, find.text('Đang dọn lại'));
+        expect(find.text('Đang dọn lại'), findsOneWidget);
       },
     );
 
@@ -350,23 +341,20 @@ void main() {
 
         await tapVisible(tester, find.text('Dọn lại'));
         final reasonField = find.descendant(
-          of: find.widgetWithText(
-            NordicTextInput,
-            'Nội dung / Lý do yêu cầu dọn lại',
-          ),
+          of: find.widgetWithText(NordicTextInput, 'Chỗ cần làm lại'),
           matching: find.byType(TextField),
         );
         await tester.enterText(reasonField, 'Chưa lau kính');
-        await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
+        await tapVisible(tester, find.text('Gửi yêu cầu'));
         await scrollTo(tester, find.textContaining('không còn chờ nghiệm thu'));
 
         expect(
           find.textContaining('Ca này không còn chờ nghiệm thu'),
           findsOneWidget,
         );
-        await scrollTo(tester, find.text('CHỜ NGHIỆM THU'));
-        expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
-        expect(find.text('ĐANG DỌN LẠI'), findsNothing);
+        await scrollTo(tester, find.text('Chờ nghiệm thu'));
+        expect(find.text('Chờ nghiệm thu'), findsOneWidget);
+        expect(find.text('Đang dọn lại'), findsNothing);
         expect(
           find.textContaining('Đã ghi nhận yêu cầu dọn lại'),
           findsNothing,
@@ -418,7 +406,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Nghiệm Thu Ca #77'), findsOneWidget);
+      expect(find.text('Nghiệm thu ca'), findsOneWidget);
     });
   });
 }

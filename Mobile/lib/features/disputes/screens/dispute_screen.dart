@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/status_pill.dart';
@@ -99,48 +100,45 @@ class _DisputeScreenState extends State<DisputeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Khiếu nại')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _body(),
-        ),
-      ),
-      bottomNavigationBar: widget.orderId != null && !_loading && _error == null
-          ? BottomActionBar(
-              children: [
-                NordicButton(
-                  key: const Key('dispute-new'),
-                  label: 'Khiếu nại ca này',
-                  onPressed: _startNew,
-                ),
-              ],
-            )
+    // MOB-UI-16: a pushed `NordicPage`; "Khiếu nại ca này" in the bar (DESIGN-SYSTEM §5 List).
+    return NordicPage.pushed(
+      title: 'Khiếu nại',
+      onRefresh: _load,
+      actions: widget.orderId != null && !_loading && _error == null
+          ? [
+              NordicButton(
+                key: const Key('dispute-new'),
+                label: 'Khiếu nại ca này',
+                onPressed: _startNew,
+              ),
+            ]
           : null,
+      children: _body(),
     );
   }
 
-  Widget _body() {
+  List<Widget> _body() {
     if (_loading) {
-      return const LoadingStateWidget(message: 'Đang tải khiếu nại…');
+      return const [
+        SizedBox(
+          height: 320,
+          child: LoadingStateWidget(message: 'Đang tải khiếu nại…'),
+        ),
+      ];
     }
     if (_error != null) {
-      return ErrorStateWidget(message: _error!, onRetry: _load);
+      return [ErrorStateWidget(message: _error!, onRetry: _load)];
     }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
-      children: [
-        if (_items.isEmpty)
-          const EmptyStateWidget(
-            key: Key('dispute-empty'),
-            title: 'Bạn chưa có khiếu nại nào.',
-            icon: Icons.flag_outlined,
-          )
-        else
-          for (final d in _items) _tile(d),
-      ],
-    );
+    if (_items.isEmpty) {
+      return const [
+        EmptyStateWidget(
+          key: Key('dispute-empty'),
+          title: 'Chưa có khiếu nại nào',
+          icon: Icons.flag_outlined,
+        ),
+      ];
+    }
+    return [for (final d in _items) _tile(d)];
   }
 
   PillTone _tone(String status) => switch (status) {
@@ -173,7 +171,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
 
   Widget _tile(Dispute d) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: NordicSpace.sm),
       child: NordicCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +185,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
                     style: NordicTypography.titleSmall,
                   ),
                 ),
-                const SizedBox(width: 8.0),
+                const SizedBox(width: NordicSpace.xs),
                 Flexible(
                   child: StatusPill(
                     statusLabel(d.disputeStatus),
@@ -198,19 +196,19 @@ class _DisputeScreenState extends State<DisputeScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 4.0),
+            const SizedBox(height: NordicSpace.xxs),
             Text(
               'Gửi lúc ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh',
               style: NordicTypography.bodySmall,
             ),
-            const SizedBox(height: 8.0),
+            const SizedBox(height: NordicSpace.xs),
             Text(
               d.description,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: NordicTypography.bodyRegular,
             ),
-            const SizedBox(height: 16.0),
+            const SizedBox(height: NordicSpace.md),
             _steps(d.disputeStatus),
             ..._outcome(d),
           ],
@@ -230,7 +228,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
           style: NordicTypography.titleSmall,
         ),
         if (d.compensationAmount != null) ...[
-          const SizedBox(height: 4.0),
+          const SizedBox(height: NordicSpace.xxs),
           Text(
             'Bồi thường: ${formatVnd(d.compensationAmount!)}',
             key: Key('dispute-compensation-${d.disputeId}'),
@@ -241,7 +239,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
     }
     if (d.disputeStatus == Dispute.dismissed) {
       return [
-        const SizedBox(height: 12.0),
+        const SizedBox(height: NordicSpace.sm),
         const Text(
           'Khiếu nại đã bị bác bỏ, không có khoản bồi thường.',
           style: NordicTypography.bodySmall,
@@ -249,7 +247,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
       ];
     }
     return [
-      const SizedBox(height: 12.0),
+      const SizedBox(height: NordicSpace.sm),
       Row(
         children: [
           const Icon(

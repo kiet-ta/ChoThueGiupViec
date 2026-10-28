@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
@@ -88,6 +91,9 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
     }
   }
 
+  /// Refused sends so far: each one shakes the form.
+  int _formErrors = 0;
+
   Future<void> _submit() async {
     if (_sending) return; // one request per tap
     final errors = validateDispute(
@@ -101,7 +107,10 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
       _serverFields = const {};
       _failure = null;
     });
-    if (!errors.isEmpty) return;
+    if (!errors.isEmpty) {
+      setState(() => _formErrors++);
+      return;
+    }
 
     setState(() => _sending = true);
     try {
@@ -131,16 +140,17 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
         leading: const CloseButton(),
         title: const Text('Khiếu nại'),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: sent ? _sent(_created!) : _form(),
-        ),
-      ),
-      // ui-templates `customer/dispute-create.html`: "Gửi khiếu nại" sits at the bottom.
-      bottomNavigationBar: sent
-          ? null
-          : BottomActionBar(
+      // MOB-UI-16: full width; "Gửi khiếu nại" sits in the body's bar, above the keyboard while
+      // the description is typed; a refused send shakes the form (DESIGN-SYSTEM §5 Form).
+      body: Column(
+        children: [
+          Expanded(
+            child: sent
+                ? _sent(_created!)
+                : ErrorShake(errors: _formErrors, child: _form()),
+          ),
+          if (!sent)
+            BottomActionBar(
               children: [
                 NordicButton(
                   key: const Key('dispute-submit'),
@@ -152,6 +162,8 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                 ),
               ],
             ),
+        ],
+      ),
     );
   }
 
@@ -159,7 +171,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
     return ListView(
       padding: const EdgeInsets.all(20.0),
       children: [
-        const SizedBox(height: 24.0),
+        const SizedBox(height: NordicSpace.lg),
         const Center(
           child: ProgressRing(
             value: 1.0,
@@ -167,20 +179,20 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
             child: Icon(Icons.check, size: 44.0, color: NordicColors.primary),
           ),
         ),
-        const SizedBox(height: 16.0),
+        const SizedBox(height: NordicSpace.md),
         const Text(
           'Đã gửi khiếu nại',
           key: Key('dispute-sent'),
           textAlign: TextAlign.center,
           style: NordicTypography.titleMedium,
         ),
-        const SizedBox(height: 8.0),
+        const SizedBox(height: NordicSpace.xs),
         Text(
-          'Admin sẽ xem xét. Hạn xử lý dự kiến: ${formatVietnamDateTime(d.slaDueAt)}.',
+          'Chúng tôi sẽ xem xét. Hạn xử lý dự kiến: ${formatVietnamDateTime(d.slaDueAt)}.',
           textAlign: TextAlign.center,
           style: NordicTypography.bodySmall,
         ),
-        const SizedBox(height: 24.0),
+        const SizedBox(height: NordicSpace.lg),
         NordicButton(
           key: const Key('dispute-done'),
           label: 'Xong',
@@ -195,7 +207,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
     padding: const EdgeInsets.only(top: 24.0, bottom: 8.0),
     child: Row(
       children: [
-        Expanded(child: Text(text, style: NordicTypography.caps)),
+        Expanded(child: Text(text, style: NordicTypography.titleSmall)),
         if (trailing != null) Text(trailing, style: NordicTypography.bodySmall),
       ],
     ),
@@ -210,7 +222,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
           padding: const EdgeInsets.all(12.0),
           decoration: BoxDecoration(
             color: NordicColors.surfaceLow,
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: NordicRadius.cardAll,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +231,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                 'Đơn #${widget.orderId}',
                 style: NordicTypography.titleSmall,
               ),
-              const SizedBox(height: 4.0),
+              const SizedBox(height: NordicSpace.xxs),
               const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -240,7 +252,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
             ],
           ),
         ),
-        _caps('VẤN ĐỀ'),
+        _caps('Vấn đề'),
         Wrap(
           spacing: 8.0,
           runSpacing: 8.0,
@@ -256,7 +268,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
           ],
         ),
         _error(_errors.category ?? fieldError('category')),
-        _caps('MÔ TẢ'),
+        _caps('Mô tả'),
         TextField(
           key: const Key('dispute-description'),
           controller: _description,
@@ -283,7 +295,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                   key: Key('dispute-evidence-$i'),
                   decoration: BoxDecoration(
                     color: NordicColors.surfaceContainer,
-                    borderRadius: BorderRadius.circular(12.0),
+                    borderRadius: NordicRadius.tileAll,
                   ),
                   child: Stack(
                     children: [
@@ -319,7 +331,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 8.0),
+          const SizedBox(height: NordicSpace.xs),
         ],
         if (_uploader.isAvailable)
           NordicButton(
