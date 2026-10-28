@@ -12,6 +12,7 @@ import '../booking/logic/booking_logic.dart';
 import '../booking/logic/order_logic.dart';
 import '../booking/models/booking_models.dart';
 import '../booking/routes.dart';
+import '../booking/screens/booking_screen.dart';
 import '../booking/services/booking_service.dart';
 import '../booking/services/order_service.dart';
 import '../customers/models/favorite_worker.dart';
@@ -173,6 +174,14 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
 
   void _openBooking() => Navigator.of(context).pushNamed(BookingRoutes.booking);
 
+  /// A "Đặt nhanh" tile: the form opens with that segment and address already ticked.
+  void _openQuickBooking(String tier, int addressId) {
+    Navigator.of(context).pushNamed(
+      BookingRoutes.booking,
+      arguments: BookingScreenArgs(serviceTier: tier, addressId: addressId),
+    );
+  }
+
   void _openOrder(int orderId) => Navigator.of(context)
       .pushNamed(
         BookingRoutes.bookingDetail,
@@ -251,25 +260,23 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     }
     final next = _next;
     if (next == null) {
-      return NordicCard(
+      // A notice, not a button: booking has its own card right below.
+      return Container(
         key: const Key('home-no-order'),
-        onTap: _openBooking,
-        child: Row(
+        padding: const EdgeInsets.all(NordicSpace.md),
+        decoration: BoxDecoration(
+          color: NordicColors.surfaceLow,
+          borderRadius: NordicRadius.cardAll,
+          border: Border.all(color: NordicColors.border),
+        ),
+        child: const Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: NordicColors.primaryFixed,
-                borderRadius: NordicRadius.tileAll,
-              ),
-              child: const Icon(
-                Icons.event_available_outlined,
-                color: NordicColors.primary,
-              ),
+            Icon(
+              Icons.notifications_none_outlined,
+              color: NordicColors.textSecondary,
             ),
-            const SizedBox(width: NordicSpace.sm),
-            const Expanded(
+            SizedBox(width: NordicSpace.sm),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -279,13 +286,12 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Bấm để đặt ca dọn nhà.',
+                    'Khi bạn đặt ca, lịch sẽ hiện ở đây.',
                     style: NordicTypography.bodySmall,
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: NordicColors.borderVariant),
           ],
         ),
       );
@@ -541,19 +547,19 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
             if (q.byTier[tier] != null) ...[
               if (tier == ServiceTier.premium)
                 const SizedBox(width: NordicSpace.sm),
-              Expanded(child: _quoteTile(tier, q.byTier[tier]!)),
+              Expanded(child: _quoteTile(tier, q.byTier[tier]!, q.address)),
             ],
         ],
       ),
     ];
   }
 
-  Widget _quoteTile(String tier, PriceQuote quote) {
+  Widget _quoteTile(String tier, PriceQuote quote, BookingAddress address) {
     final price = formatVnd(quote.unitPrice);
     final number = price.substring(0, price.length - 2);
     return NordicCard(
       key: Key('home-quote-$tier'),
-      onTap: _openBooking,
+      onTap: () => _openQuickBooking(tier, address.addressId),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -12,12 +12,13 @@ import '../customers/models/customer_profile.dart';
 import '../customers/routes.dart';
 import '../customers/services/customer_address_service.dart';
 import '../customers/services/customer_profile_service.dart';
+import '../customers/widgets/sign_out_dialog.dart';
 import '../disputes/models/dispute_models.dart';
 import '../disputes/routes.dart';
 import '../disputes/screens/dispute_screen.dart';
 
 /// The customer's Tài khoản tab (ui-templates `customer/account.html`): who is signed in, three counts
-/// read from real answers (orders = `total` of the order list, addresses, year joined) and the links
+/// read from real answers (orders = `total` of the order list, addresses, date joined) and the links
 /// that used to be the Home's action list.
 /// MOB-UI-14: `NordicPage.tab` with the large title, pressable profile card (`Mobile/DESIGN-SYSTEM.md`).
 class CustomerAccountTab extends StatefulWidget {
@@ -79,9 +80,20 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
   }
 
   void _open(String route, {Object? arguments}) {
-    Navigator.of(context).pushNamed(route, arguments: arguments).then((_) {
-      if (mounted) _load();
+    Navigator.of(context).pushNamed(route, arguments: arguments).then((result) {
+      if (!mounted) return;
+      // Signed out on the profile screen: finish it the same way as the row below.
+      if (result == customerSignedOutResult) {
+        widget.onSignOut();
+      } else {
+        _load();
+      }
     });
+  }
+
+  /// Asks first, like the profile screen, then signs out through the shell.
+  Future<void> _signOut() async {
+    if (await confirmCustomerSignOut(context) && mounted) widget.onSignOut();
   }
 
   /// `0912 345 678`.
@@ -149,10 +161,8 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
             const SizedBox(width: NordicSpace.xs),
             Expanded(
               child: _count(
-                profile?.createdAt == null
-                    ? '–'
-                    : '${profile!.createdAt!.year}',
-                'Năm tham gia',
+                profile?.createdAt == null ? '–' : profile!.formattedCreatedAt,
+                'Ngày tham gia',
               ),
             ),
           ],
@@ -191,7 +201,7 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
               icon: Icons.logout,
               title: 'Đăng xuất',
               danger: true,
-              onTap: widget.onSignOut,
+              onTap: _signOut,
             ),
           ],
         ),
@@ -206,7 +216,11 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
     ),
     child: Column(
       children: [
-        Text(value, style: NordicTypography.numberMedium),
+        // A full date (dd/mm/yyyy) is wider than a count: it shrinks to fit the tile.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(value, maxLines: 1, style: NordicTypography.numberMedium),
+        ),
         const SizedBox(height: NordicSpace.xs),
         Text(
           label,

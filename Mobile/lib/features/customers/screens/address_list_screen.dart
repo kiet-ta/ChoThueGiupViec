@@ -11,13 +11,26 @@ import '../services/customer_address_service.dart';
 import '../widgets/address_card.dart';
 import 'address_form_screen.dart';
 
+/// Opened from the booking form: the address it uses now. A tapped card closes the list with that
+/// address id, which becomes the booking's address.
+class AddressListArgs {
+  final int? selectedAddressId;
+
+  const AddressListArgs({this.selectedAddressId});
+}
+
 /// Screen listing customer addresses with support for editing, deleting,
 /// setting default address, and navigating to address creation. MOB-UI-14: one pressable card
 /// per address, "Thêm địa chỉ" in the action bar (`Mobile/DESIGN-SYSTEM.md`).
+/// A tap on a card chooses that address: for the booking form when it opened the list
+/// ([AddressListArgs]), otherwise as the default address; the pencil edits.
 class AddressListScreen extends StatefulWidget {
   final CustomerAddressService? addressService;
 
-  const AddressListScreen({super.key, this.addressService});
+  /// Set when a booking picks its address; when null it is read from the route arguments.
+  final AddressListArgs? args;
+
+  const AddressListScreen({super.key, this.addressService, this.args});
 
   @override
   State<AddressListScreen> createState() => _AddressListScreenState();
@@ -28,6 +41,19 @@ class _AddressListScreenState extends State<AddressListScreen> {
   List<CustomerAddress> _addresses = [];
   bool _isLoading = true;
   String? _errorMessage;
+
+  /// Non-null when the booking form opened the list to pick its address.
+  AddressListArgs? _pick;
+  bool _argsRead = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_argsRead) return;
+    _argsRead = true;
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    _pick = widget.args ?? (routeArgs is AddressListArgs ? routeArgs : null);
+  }
 
   @override
   void initState() {
@@ -90,6 +116,37 @@ class _AddressListScreenState extends State<AddressListScreen> {
     }
   }
 
+  /// A tap on a card: the booking's address, or else the default address.
+  Future<void> _select(CustomerAddress address) async {
+    if (_pick != null) {
+      Navigator.of(context).pop(address.addressId);
+      return;
+    }
+    if (address.isDefault) return;
+    try {
+      await _service.updateAddress(
+        address.addressId,
+        address.copyWith(isDefault: true),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã chọn "${address.label}" làm địa chỉ mặc định.'),
+          backgroundColor: NordicColors.primary,
+        ),
+      );
+      _loadAddresses();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chưa chọn được địa chỉ này. Thử lại nhé.'),
+          backgroundColor: NordicColors.error,
+        ),
+      );
+    }
+  }
+
   Future<void> _confirmDelete(CustomerAddress address) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -143,7 +200,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
   @override
   Widget build(BuildContext context) {
     return NordicPage.pushed(
-      title: 'Địa chỉ của tôi',
+      title: _pick != null ? 'Chọn địa chỉ' : 'Địa chỉ của tôi',
       onRefresh: _loadAddresses,
       actions: [
         NordicButton(
@@ -171,6 +228,8 @@ class _AddressListScreenState extends State<AddressListScreen> {
             if (i > 0) const SizedBox(height: NordicSpace.sm),
             AddressCard(
               address: _addresses[i],
+              selected: _pick?.selectedAddressId == _addresses[i].addressId,
+              onSelect: () => _select(_addresses[i]),
               onEdit: () => _navigateToEdit(_addresses[i]),
               onDelete: () => _confirmDelete(_addresses[i]),
             ),

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
+import 'package:mobile/features/booking/screens/booking_screen.dart';
 import 'package:mobile/features/booking/services/booking_service.dart';
 import 'package:mobile/features/booking/services/order_service.dart';
 import 'package:mobile/features/customers/services/customer_address_service.dart';
 import 'package:mobile/features/customers/services/customer_profile_service.dart';
 import 'package:mobile/features/customers/services/favorite_worker_service.dart';
+import 'package:mobile/features/customers/widgets/sign_out_dialog.dart';
 import 'package:mobile/features/home/customer_account_tab.dart';
 import 'package:mobile/features/home/customer_home_tab.dart';
 import 'package:mobile/features/home/customer_shell.dart';
@@ -180,6 +182,32 @@ void main() {
       },
     );
 
+    testWidgets('a quick-booking tile opens the form with its segment ticked', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      Object? args;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _homeTab(_Orders(const [])),
+          onGenerateRoute: (settings) {
+            args = settings.arguments;
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (_) => const Scaffold(body: Text('booking')),
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tapVisible(tester, find.byKey(const Key('home-quote-PREMIUM')));
+      expect(args, isA<BookingScreenArgs>());
+      final booking = args as BookingScreenArgs;
+      expect(booking.serviceTier, ServiceTier.premium);
+      expect(booking.addressId, _home.addressId);
+    });
+
     testWidgets('a tap on the next order opens its detail', (tester) async {
       useDesignFrame(tester);
       final opened = <String>[];
@@ -195,7 +223,7 @@ void main() {
     });
 
     testWidgets(
-      'without an open order it offers to book, and without an address it shows no prices',
+      'without an open order it shows a notice (booking is the card below), and without an address no prices',
       (tester) async {
         useDesignFrame(tester);
         final opened = <String>[];
@@ -213,7 +241,10 @@ void main() {
         expect(find.text('Đặt nhanh'), findsNothing);
         await tester.tap(find.byKey(const Key('home-no-order')));
         await tester.pumpAndSettle();
+        expect(opened, isEmpty);
 
+        await tester.tap(find.byKey(const Key('home-book-banner')));
+        await tester.pumpAndSettle();
         expect(opened, ['/booking']);
       },
     );
@@ -251,7 +282,8 @@ void main() {
       expect(find.text('Nguyễn Văn An'), findsOneWidget);
       expect(find.text('0901 234 567'), findsOneWidget);
       expect(find.text('15'), findsOneWidget);
-      expect(find.text('2026'), findsOneWidget);
+      expect(find.text('15/01/2026'), findsOneWidget);
+      expect(find.text('Ngày tham gia'), findsOneWidget);
     });
 
     testWidgets('the rows open their screens and the last one signs out', (
@@ -284,6 +316,46 @@ void main() {
       await tester.pumpAndSettle();
 
       await tapVisible(tester, find.byKey(const Key('home-sign-out')));
+      expect(find.text('Đăng xuất?'), findsOneWidget);
+      expect(signedOut, isFalse);
+      await tester.tap(find.byKey(const Key('sign-out-cancel')));
+      await tester.pumpAndSettle();
+      expect(signedOut, isFalse);
+
+      await tapVisible(tester, find.byKey(const Key('home-sign-out')));
+      await tester.tap(find.byKey(const Key('sign-out-confirm')));
+      await tester.pumpAndSettle();
+      expect(signedOut, isTrue);
+    });
+
+    testWidgets('signing out on the profile screen signs out the shell too', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      var signedOut = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CustomerAccountTab(
+            onSignOut: () => signedOut = true,
+            profile: CustomerProfileService(isMock: true),
+            addresses: CustomerAddressService(isMock: true),
+            orders: _Orders(const []),
+          ),
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            settings: settings,
+            builder: (context) => TextButton(
+              key: const Key('fake-profile-sign-out'),
+              onPressed: () => Navigator.pop(context, customerSignedOutResult),
+              child: const Text('sign out'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tapVisible(tester, find.byKey(const Key('account-profile')));
+      await tester.tap(find.byKey(const Key('fake-profile-sign-out')));
+      await tester.pumpAndSettle();
       expect(signedOut, isTrue);
     });
   });

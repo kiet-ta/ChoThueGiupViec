@@ -10,17 +10,24 @@ import '../models/customer_address.dart';
 
 /// One row of the address book (ui-templates `customer/addresses.html`): housing icon, label with the
 /// default pill, the address on one line, and the total area as the number on the right.
-/// Each address is its own pressable [NordicCard] (MOB-UI-14); a tap edits, the bin deletes.
+/// Each address is its own pressable [NordicCard] (MOB-UI-14): a tap on the card chooses the address,
+/// the pencil edits it, the bin deletes it.
 class AddressCard extends StatelessWidget {
   final CustomerAddress address;
+  final VoidCallback onSelect;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+
+  /// The address the current booking uses: marked with a check.
+  final bool selected;
 
   const AddressCard({
     super.key,
     required this.address,
+    required this.onSelect,
     required this.onEdit,
     required this.onDelete,
+    this.selected = false,
   });
 
   IconData _getHousingIcon() {
@@ -45,7 +52,8 @@ class AddressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return NordicCard(
-      onTap: onEdit,
+      key: Key('address-card-${address.addressId}'),
+      onTap: onSelect,
       padding: const EdgeInsets.fromLTRB(
         NordicSpace.md,
         NordicSpace.sm,
@@ -58,10 +66,18 @@ class AddressCard extends StatelessWidget {
             width: 40.0,
             height: 40.0,
             decoration: BoxDecoration(
-              color: NordicColors.surfaceLow,
+              color: selected
+                  ? NordicColors.primaryFixed
+                  : NordicColors.surfaceLow,
               borderRadius: NordicRadius.tileAll,
             ),
-            child: Icon(_getHousingIcon(), color: NordicColors.primary),
+            child: Icon(
+              selected ? Icons.check : _getHousingIcon(),
+              key: selected
+                  ? Key('address-selected-${address.addressId}')
+                  : null,
+              color: NordicColors.primary,
+            ),
           ),
           const SizedBox(width: 12.0),
           Expanded(
@@ -79,7 +95,15 @@ class AddressCard extends StatelessWidget {
                     ),
                     if (address.isDefault) ...[
                       const SizedBox(width: 6.0),
-                      const StatusPill('Mặc định', tone: PillTone.ok),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: const StatusPill(
+                            'Mặc định',
+                            tone: PillTone.ok,
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -110,6 +134,13 @@ class AddressCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          IconButton(
+            key: Key('address-edit-${address.addressId}'),
+            icon: const Icon(Icons.edit_outlined, size: 20.0),
+            color: NordicColors.textSecondary,
+            tooltip: 'Sửa',
+            onPressed: onEdit,
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 20.0),

@@ -13,8 +13,14 @@ abstract class IPaymentsService {
   Future<Payment> getPayment(int paymentId);
 }
 
+/// The sandbox shortcut: confirms a Fake-gateway payment as if its callback had arrived, so the customer does not wait for an
+/// admin (backend `POST /api/dev/payments/{paymentId}/confirm`, Development only: 404 anywhere else).
+abstract class ISandboxPaymentConfirmer {
+  Future<void> confirmSandbox(int paymentId);
+}
+
 /// payments.md 2.1 to 2.3 over the shared [ApiClient]. Failures are thrown as [ApiException] (with its business `code`).
-class PaymentsService implements IPaymentsService {
+class PaymentsService implements IPaymentsService, ISandboxPaymentConfirmer {
   final ApiClient _client;
 
   PaymentsService({ApiClient? client}) : _client = client ?? ApiClient();
@@ -52,4 +58,9 @@ class PaymentsService implements IPaymentsService {
       fromJson: _parse,
     )).data,
   );
+
+  @override
+  Future<void> confirmSandbox(int paymentId) async {
+    await _client.post<dynamic>('/api/dev/payments/$paymentId/confirm');
+  }
 }

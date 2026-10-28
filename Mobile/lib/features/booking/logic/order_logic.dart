@@ -198,6 +198,75 @@ String? validateCancelReason(String text) {
   return null;
 }
 
+/// A cancel reason as the customer reads it.
+class CancelReasonView {
+  final String text;
+
+  /// True when the order was cancelled because nobody could take it: the screen offers to book another time.
+  final bool suggestRebook;
+
+  const CancelReasonView(this.text, {this.suggestRebook = false});
+}
+
+const String noWorkerNearbyText =
+    'Thật tiếc, trong bán kính 10 km hiện không tìm được người giúp việc. Bạn còn lịch nào khác không?';
+
+/// The server writes its own cancel reasons for the system (dispatch, fallback, payment), in back-office words
+/// (e.g. "Quá bán kính 10 km không tìm được thợ phù hợp (BR-03)."). They are shown in plain, kind words here;
+/// a reason the customer typed is shown as typed.
+CancelReasonView cancelReasonView(String raw) {
+  final r = raw.trim();
+  final lower = r.toLowerCase();
+  if (r == 'PAYMENT_EXPIRED') {
+    return const CancelReasonView(
+      'Đơn tự huỷ vì quá hạn thanh toán. Bạn không bị trừ tiền.',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('br-03') ||
+      lower.contains('không tìm thấy thợ') ||
+      lower.contains('không tìm được thợ')) {
+    return const CancelReasonView(noWorkerNearbyText, suggestRebook: true);
+  }
+  if (lower.contains('từ chối đổi thợ')) {
+    return const CancelReasonView(
+      'Bạn đã chọn không đổi người làm sau sự cố, nên đơn được huỷ và hoàn đủ 100 %.',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('cứu hộ') || lower.contains('br-10')) {
+    return const CancelReasonView(
+      'Thật tiếc, chưa tìm được người thay thế cho ca của bạn. Đơn đã huỷ và hoàn đủ 100 %. Bạn còn lịch nào khác không?',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('agency') || lower.contains('premium')) {
+    return const CancelReasonView(
+      'Thật tiếc, gói Cao cấp hiện không còn đối tác trống lịch cho ca này. Bạn còn lịch nào khác không?',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('khách không trả lời')) {
+    return const CancelReasonView(
+      'Đơn đã huỷ vì chưa nhận được lựa chọn của bạn trước giờ bắt đầu ca. Tiền đã được hoàn đủ 100 %.',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('khách từ chối')) {
+    return const CancelReasonView(
+      'Bạn đã chọn không để 1 người làm 2 ca liên tiếp, nên đơn được huỷ và hoàn đủ 100 %.',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('br-02')) {
+    return const CancelReasonView(
+      'Thật tiếc, người giúp việc không còn trống ca liền sau. Đơn đã huỷ và hoàn đủ 100 %. Bạn còn lịch nào khác không?',
+      suggestRebook: true,
+    );
+  }
+  return CancelReasonView('Lý do huỷ: $r');
+}
+
 /// True when there are more orders on the server than are shown.
 bool hasMoreOrders(int shown, int total) => shown < total;
 
