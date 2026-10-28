@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
+import 'package:mobile/features/booking/screens/booking_screen.dart';
 import 'package:mobile/features/booking/services/booking_service.dart';
 import 'package:mobile/features/booking/services/order_service.dart';
 import 'package:mobile/features/customers/services/customer_address_service.dart';
@@ -180,6 +181,32 @@ void main() {
         expect(find.text('Người giúp việc yêu thích'), findsOneWidget);
       },
     );
+
+    testWidgets('a quick-booking tile opens the form with its segment ticked', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      Object? args;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _homeTab(_Orders(const [])),
+          onGenerateRoute: (settings) {
+            args = settings.arguments;
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (_) => const Scaffold(body: Text('booking')),
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tapVisible(tester, find.byKey(const Key('home-quote-PREMIUM')));
+      expect(args, isA<BookingScreenArgs>());
+      final booking = args as BookingScreenArgs;
+      expect(booking.serviceTier, ServiceTier.premium);
+      expect(booking.addressId, _home.addressId);
+    });
 
     testWidgets('a tap on the next order opens its detail', (tester) async {
       useDesignFrame(tester);

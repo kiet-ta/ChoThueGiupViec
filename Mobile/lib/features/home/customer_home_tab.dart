@@ -12,6 +12,7 @@ import '../booking/logic/booking_logic.dart';
 import '../booking/logic/order_logic.dart';
 import '../booking/models/booking_models.dart';
 import '../booking/routes.dart';
+import '../booking/screens/booking_screen.dart';
 import '../booking/services/booking_service.dart';
 import '../booking/services/order_service.dart';
 import '../customers/models/favorite_worker.dart';
@@ -172,6 +173,14 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   }
 
   void _openBooking() => Navigator.of(context).pushNamed(BookingRoutes.booking);
+
+  /// A "Đặt nhanh" tile: the form opens with that segment and address already ticked.
+  void _openQuickBooking(String tier, int addressId) {
+    Navigator.of(context).pushNamed(
+      BookingRoutes.booking,
+      arguments: BookingScreenArgs(serviceTier: tier, addressId: addressId),
+    );
+  }
 
   void _openOrder(int orderId) => Navigator.of(context)
       .pushNamed(
@@ -538,19 +547,19 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
             if (q.byTier[tier] != null) ...[
               if (tier == ServiceTier.premium)
                 const SizedBox(width: NordicSpace.sm),
-              Expanded(child: _quoteTile(tier, q.byTier[tier]!)),
+              Expanded(child: _quoteTile(tier, q.byTier[tier]!, q.address)),
             ],
         ],
       ),
     ];
   }
 
-  Widget _quoteTile(String tier, PriceQuote quote) {
+  Widget _quoteTile(String tier, PriceQuote quote, BookingAddress address) {
     final price = formatVnd(quote.unitPrice);
     final number = price.substring(0, price.length - 2);
     return NordicCard(
       key: Key('home-quote-$tier'),
-      onTap: _openBooking,
+      onTap: () => _openQuickBooking(tier, address.addressId),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
