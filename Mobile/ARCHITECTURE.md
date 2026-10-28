@@ -11,14 +11,15 @@ The visual identity follows the team design skill (`.agents/skills/project-team-
 - **Design Frame:** 390×844 standard mobile layout.
 - **Source of truth:** `DESIGN.md` in that skill (YAML token values win over the prose and over any copy).
 - **Canvas:** `#FAF8F3` (`canvas-background`); cards `#FFFFFF` (`card-surface`).
-- **Primary Brand:** `#416448` (`primary`), hover `#56705B` (`primary-hover`), container `#597D60`.
-- **Accent Amber:** `#D9A441` (Warm Amber) for 5-star ratings and trust badges.
+- **Mobile System Design:** [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) (MOB-UI-13) is the reference for every Mobile screen: tokens, components, screen patterns, copy rules, done checklist. The lines below are a summary.
+- **Primary Brand (Mobile palette, #479):** `#2F6B3F` (`primary`), pressed `#285C36`, leaf `#7FB77E` (`primaryContainer`), soft green `#D2E6D2` (`primaryFixed`). These deliberately differ from `DESIGN.md`.
+- **Accent Amber:** `#F7C85C` for ratings and highlights, cream `#FFF6C0` for warnings.
 - **Text:** `#2F3A34` (`text-primary`), `#6B7280` (`text-secondary`).
 - **Not in DESIGN.md yet** (kept as-is, awaiting a leader decision on issue #61): secondary accent `#6B8F71`, dark anchor `#1A2F25` / `#223B2F`, success `#2E7D32`, subtle surface `#F4F2EB`, body text `#4B5563`, border `#E5E7EB`.
 - **Typography:** Newsreader for the Home greeting and large numbers, Plus Jakarta Sans for everything else (MOB-UI-02, after `Mobile/ui-templates`). Both are bundled as static TTFs under `assets/fonts/` (Newsreader 500/600, Plus Jakarta Sans 400-700, SIL OFL 1.1, licences beside them) and declared in `pubspec.yaml`; no font package.
 - **Elevation & Shapes:**
   - Pill buttons (`rounded-full` / `StadiumBorder`).
-  - Double-bezel white cards with 1px hairline borders (`#E5E7EB`, no DESIGN.md token yet) and soft 16px corner radii.
+  - Flat white cards with 1px hairline borders (`#E5E7EB`, no DESIGN.md token yet) and 20px corners; fields 14px, sheets 28px (`NordicRadius`, `NordicSpace`).
 
 ### 2.1 Motion & interaction (MOB-UI-12)
 Apple fluid-interface principles (the local `apple-design` Agent Skill), applied first to the sign-in screens. Reuse these on every screen you redesign instead of hand-made durations and curves:

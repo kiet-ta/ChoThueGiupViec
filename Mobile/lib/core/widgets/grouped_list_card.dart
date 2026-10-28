@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/nordic_colors.dart';
+import '../theme/nordic_radius.dart';
 import '../theme/nordic_typography.dart';
 
 /// One row of a [GroupedListCard].
@@ -40,7 +41,7 @@ class GroupedListCard extends StatelessWidget {
       color: NordicColors.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: NordicRadius.cardAll,
         side: const BorderSide(color: NordicColors.border),
       ),
       child: Column(

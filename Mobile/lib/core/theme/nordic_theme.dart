@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../motion/nordic_page_transitions.dart';
 import 'nordic_colors.dart';
+import 'nordic_radius.dart';
 import 'nordic_typography.dart';
 
 /// Complete ThemeData setup for TỔ ẤM — Nordic Care.
@@ -137,9 +138,7 @@ class NordicTheme {
         backgroundColor: NordicColors.surface,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: NordicRadius.sheetTop),
       ),
       listTileTheme: const ListTileThemeData(
         iconColor: NordicColors.textSecondary,
@@ -159,7 +158,7 @@ class NordicTheme {
         color: NordicColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: NordicRadius.cardAll,
           side: const BorderSide(color: NordicColors.border, width: 1.0),
         ),
       ),
@@ -228,19 +227,19 @@ class NordicTheme {
           vertical: 14.0,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: NordicRadius.fieldAll,
           borderSide: const BorderSide(color: NordicColors.border, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: NordicRadius.fieldAll,
           borderSide: const BorderSide(color: NordicColors.border, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: NordicRadius.fieldAll,
           borderSide: const BorderSide(color: NordicColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: NordicRadius.fieldAll,
           borderSide: const BorderSide(color: NordicColors.error, width: 1.0),
         ),
         hintStyle: NordicTypography.bodyRegular.copyWith(

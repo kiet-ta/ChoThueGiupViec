@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../theme/nordic_colors.dart';
+import '../theme/nordic_radius.dart';
 import '../theme/nordic_typography.dart';
+import 'pressable.dart';
 
-/// ui-templates `.stat`: a KPI tile, one short label above one number.
+/// ui-templates `.stat`: a KPI tile, one short label above one number. Flat card with
+/// [NordicRadius.card] corners; shrinks on press when tappable (MOB-UI-13).
 class StatTile extends StatelessWidget {
   final String label;
   final String value;
@@ -24,15 +27,15 @@ class StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final tile = Material(
       color: NordicColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: NordicRadius.cardAll,
         side: const BorderSide(color: NordicColors.border),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: NordicRadius.cardAll,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -72,5 +75,6 @@ class StatTile extends StatelessWidget {
         ),
       ),
     );
+    return onTap == null ? tile : Pressable(child: tile);
   }
 }
