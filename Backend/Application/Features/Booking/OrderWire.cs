@@ -92,8 +92,15 @@ public sealed record PriceQuoteDto(
     decimal TotalAmount,
     string Currency);
 
-/// <summary>Body of POST /api/booking/orders (contract booking.md 3.3).</summary>
-public sealed record CreateOrderBody(int AddressId, string? ServiceTier, DateOnly? ScheduledDate, string? ShiftCode, string? CustomerNote, string? RequiredSkill);
+/// <summary>Body of POST /api/booking/orders (contract booking.md 3.3). <c>PreferredWorkerId</c>: one of the caller's favorite workers (ECONOMY only).</summary>
+public sealed record CreateOrderBody(
+    int AddressId,
+    string? ServiceTier,
+    DateOnly? ScheduledDate,
+    string? ShiftCode,
+    string? CustomerNote,
+    string? RequiredSkill,
+    int? PreferredWorkerId = null);
 
 /// <summary>JOB_ORDER -> the <c>Order</c> shape (shift times converted by IClock only, G-3).</summary>
 public static class OrderMapper

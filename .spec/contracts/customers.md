@@ -137,6 +137,17 @@ Default address rules: the customer's **first** address becomes default automati
 
 **`DELETE /api/customers/me/favorite-workers/{workerId}`** -> 200 `data: null`. Idempotent: removing a worker that is not in the list is still 200.
 
+**`GET /api/customers/me/favorite-workers/{workerId}/availability?from=yyyy-MM-dd&to=yyyy-MM-dd`** -> 200 `data: FreeShift[]`, ordered by date then shift:
+```json
+[{ "date": "2026-10-15", "shiftCode": "SHIFT_MORNING" }]
+```
+The shifts the favorite worker is free for: `BOOKING_SLOT` rows in `AVAILABLE` (blocked, held by an offer or booked = not free), read through the Workers port `IWorkerFreeShiftQuery`; Customers never reads `BOOKING_SLOT`. `from` defaults to today, `to` to today + `Booking.MaxDaysAhead` (the days the booking form offers). The booking form greys out the other shifts when the customer picks this worker (`booking.md` 3.3 `preferredWorkerId`).
+
+| Status | Condition |
+|---|---|
+| 400 | `to` before `from`, or a range longer than `Booking.MaxDaysAhead` days |
+| 404 | the worker is not in the caller's favorites (a customer does not browse other workers' calendars) |
+
 ## 3. Out of scope / owned elsewhere
 - Creating orders, price, slots: M2 (`booking.md`). The order screen reads addresses only through this module's endpoints; Booking never reads `CUSTOMER_ADDRESS` directly (modules talk through ports/events only, overview §3.5).
 - Worker profile data shown in the favorites list: M4 owns `WORKER` (C3).

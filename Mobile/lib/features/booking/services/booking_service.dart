@@ -1,7 +1,10 @@
 import '../../../core/network/api_client.dart';
 import '../../customers/models/customer_address.dart';
+import '../../customers/models/favorite_worker.dart';
 import '../../customers/services/customer_address_service.dart';
+import '../../customers/services/favorite_worker_service.dart';
 import '../../identity/services/api_error.dart' as identity;
+import '../logic/booking_logic.dart';
 import '../models/booking_models.dart';
 
 /// What the booking screens need from the server; a test or a preview can supply its own.
@@ -19,6 +22,14 @@ abstract class IBookingService {
 /// The customer's addresses, read through the Customers feature (its address book is the only owner of that data).
 abstract class IBookingAddressSource {
   Future<List<BookingAddress>> getAddresses();
+}
+
+/// The customer's favorite workers and when they are free, read through the Customers feature (customers.md 2.3).
+abstract class IBookingFavoriteSource {
+  Future<List<FavoriteWorker>> getFavorites();
+
+  /// The [freeShiftKey]s of the shifts the worker is free for over the booking window.
+  Future<Set<String>> getFreeShifts(int workerId);
 }
 
 /// booking.md 3.1 to 3.3 over the shared [ApiClient]. Failures are thrown as [ApiException] (with its business `code`).
@@ -97,5 +108,40 @@ class CustomerAddressBookSource implements IBookingAddressSource {
           isDefault: a.isDefault,
         ),
     ];
+  }
+}
+
+/// Default [IBookingFavoriteSource]: the Customers feature's own service (`/api/customers/me/favorite-workers`).
+class CustomerFavoriteSource implements IBookingFavoriteSource {
+  final FavoriteWorkerService _favorites;
+
+  CustomerFavoriteSource({FavoriteWorkerService? favorites})
+    : _favorites = favorites ?? FavoriteWorkerService();
+
+  /// The Customers service has its own exception type; the booking screens handle the shared one.
+  static ApiException _shared(identity.ApiException e) => ApiException(
+    e.statusCode,
+    e.message,
+    fieldErrors: e.fieldErrors,
+    retryAfterSeconds: e.retryAfterSeconds,
+  );
+
+  @override
+  Future<List<FavoriteWorker>> getFavorites() async {
+    try {
+      return await _favorites.getFavoriteWorkers();
+    } on identity.ApiException catch (e) {
+      throw _shared(e);
+    }
+  }
+
+  @override
+  Future<Set<String>> getFreeShifts(int workerId) async {
+    try {
+      final free = await _favorites.getFreeShifts(workerId);
+      return {for (final s in free) freeShiftKey(s.date, s.shiftCode)};
+    } on identity.ApiException catch (e) {
+      throw _shared(e);
+    }
   }
 }

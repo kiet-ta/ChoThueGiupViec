@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/favorite_worker.dart';
+import '../models/worker_free_shift.dart';
 import '../../../core/network/api_config.dart';
 
 /// Service managing customer favorite workers matching .spec/contracts/customers.md §2.3.
@@ -127,6 +128,36 @@ class FavoriteWorkerService {
     _mockStore.insert(0, newWorker);
     return newWorker;
   }
+
+  /// GET /api/customers/me/favorite-workers/{workerId}/availability: the shifts the worker is free for over the
+  /// booking window (the server's default range).
+  Future<List<WorkerFreeShift>> getFreeShifts(int workerId) async {
+    if (!isMock) {
+      final envelope = await _call(
+        'GET',
+        '/$workerId/availability',
+        'Không tải được lịch trống của người này.',
+      );
+      final data = envelope['data'] as List<dynamic>? ?? [];
+      return data
+          .map((item) => WorkerFreeShift.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    // Mock: free every morning and afternoon of the next two weeks.
+    final today = DateTime.now();
+    return [
+      for (var i = 0; i <= 14; i++)
+        for (final shift in const ['SHIFT_MORNING', 'SHIFT_AFTERNOON'])
+          WorkerFreeShift(
+            date: _dateKey(today.add(Duration(days: i))),
+            shiftCode: shift,
+          ),
+    ];
+  }
+
+  static String _dateKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   /// DELETE /api/customers/me/favorite-workers/{workerId} (Idempotent)
   Future<void> removeFavoriteWorker(int workerId) async {

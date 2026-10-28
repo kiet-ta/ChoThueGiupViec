@@ -103,14 +103,22 @@ public sealed class OrderCreationServiceTests
         public Fixture(decimal areaM2 = 50m) =>
             Addresses.Add(CustomerId, new CustomerAddressInfo(AddressId, areaM2, 10.76m, 106.66m));
 
-        public OrderCreationService Service() =>
-            new(Addresses, new StubPricing(), Orders, Capacity, Orders, new VietnamClock(NowUtc), Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        public OrderCreationService Service(ICustomerFavoriteQuery? favorites = null) =>
+            new(Addresses, new StubPricing(), Orders, Capacity, Orders, new VietnamClock(NowUtc), Microsoft.Extensions.Options.Options.Create(new BusinessRules()),
+                favorites);
+    }
+
+    /// <summary>The customer's favorites, as the Customers module would answer through the port.</summary>
+    private sealed class StubFavorites(params int[] workerIds) : ICustomerFavoriteQuery
+    {
+        public Task<bool> IsFavoriteAsync(int customerId, int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(customerId == CustomerId && workerIds.Contains(workerId));
     }
 
     private static CreateOrderRequest Request(
         ServiceTier tier = ServiceTier.Economy, DateOnly? date = null, string shift = BookingShifts.Morning,
-        string? note = null, string? skill = null, int addressId = AddressId) =>
-        new(CustomerId, addressId, tier, date ?? ShiftDate, shift, note, skill);
+        string? note = null, string? skill = null, int addressId = AddressId, int? preferredWorkerId = null) =>
+        new(CustomerId, addressId, tier, date ?? ShiftDate, shift, note, skill, preferredWorkerId);
 
     private static async Task<BusinessRuleViolationException> ConflictAsync(Task task) =>
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() => task);
@@ -325,4 +333,46 @@ public sealed class OrderCreationServiceTests
 
     [Fact]
     public void BookingRules_DefaultHorizonIs14Days() => Assert.Equal(14, new BusinessRules().Booking.MaxDaysAhead);
+
+    [Fact]
+    public async Task Economy_WithAFavoriteWorker_StoresThePreferredWorker()
+    {
+        var f = new Fixture();
+
+        await f.Service(new StubFavorites(42)).CreateAsync(Request(preferredWorkerId: 42));
+
+        Assert.Equal(42, Assert.Single(f.Orders.Saved).PreferredWorkerId);
+    }
+
+    [Fact]
+    public async Task PreferredWorker_NotAFavorite_IsNotFound_AndNothingIsWritten()
+    {
+        var f = new Fixture();
+
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service(new StubFavorites(42)).CreateAsync(Request(preferredWorkerId: 7)));
+
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task PreferredWorker_OnAPremiumOrder_IsAValidationError()
+    {
+        var f = new Fixture();
+
+        var error = await Assert.ThrowsAsync<ValidationException>(
+            () => f.Service(new StubFavorites(42)).CreateAsync(Request(ServiceTier.Premium, preferredWorkerId: 42)));
+
+        Assert.True(error.Errors.ContainsKey("preferredWorkerId"));
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task WithoutAPreferredWorker_NothingIsStored()
+    {
+        var f = new Fixture();
+
+        await f.Service().CreateAsync(Request());
+
+        Assert.Null(Assert.Single(f.Orders.Saved).PreferredWorkerId);
+    }
 }

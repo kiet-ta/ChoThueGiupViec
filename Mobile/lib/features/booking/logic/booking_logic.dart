@@ -78,6 +78,9 @@ List<DateTime> selectableDates(DateTime now) {
 String _two(int n) => n.toString().padLeft(2, '0');
 
 /// "yyyy-MM-dd", the `scheduledDate` of the contract.
+/// A shift of a day as one key ("2026-10-15|SHIFT_MORNING"), to look up a worker's free shifts.
+String freeShiftKey(String date, String shiftCode) => '$date|$shiftCode';
+
 String dateKey(DateTime day) =>
     '${day.year}-${_two(day.month)}-${_two(day.day)}';
 

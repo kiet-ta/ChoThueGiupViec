@@ -7,6 +7,7 @@ import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/screens/booking_screen.dart';
 import 'package:mobile/features/booking/services/booking_service.dart';
+import 'package:mobile/features/customers/models/favorite_worker.dart';
 
 const _options = BookingOptions(
   serviceTiers: ['ECONOMY', 'PREMIUM'],
@@ -124,12 +125,39 @@ class FakeAddresses implements IBookingAddressSource {
   }
 }
 
+/// The favorites and their free shifts; empty by default, so the section stays hidden and nothing goes to the network.
+class FakeFavorites implements IBookingFavoriteSource {
+  List<FavoriteWorker> list;
+  Set<String> free;
+  final freeAsked = <int>[];
+
+  FakeFavorites([this.list = const [], this.free = const {}]);
+
+  @override
+  Future<List<FavoriteWorker>> getFavorites() => Future.value(list);
+
+  @override
+  Future<Set<String>> getFreeShifts(int workerId) {
+    freeAsked.add(workerId);
+    return Future.value(free);
+  }
+}
+
+const _mai = FavoriteWorker(
+  workerId: 42,
+  fullName: 'Nguyễn Thị Mai',
+  ratingAvg: 4.9,
+  completedJobs: 142,
+  workStatus: 'IDLE',
+);
+
 Future<List<BookingOrder>> pumpBooking(
   WidgetTester tester,
   FakeBookingService service, {
   FakeAddresses? addresses,
   VoidCallback? onManageAddresses,
   BookingScreenArgs? args,
+  FakeFavorites? favorites,
 }) async {
   tester.view.physicalSize = const Size(390, 3200);
   tester.view.devicePixelRatio = 1.0;
@@ -148,6 +176,7 @@ Future<List<BookingOrder>> pumpBooking(
         onOrderCreated: opened.add,
         onManageAddresses: onManageAddresses,
         args: args,
+        favorites: favorites ?? FakeFavorites(),
       ),
     ),
   );
@@ -192,6 +221,103 @@ void main() {
         expect(find.text('08:00'), findsOneWidget);
         expect(find.text('→ 20:30'), findsOneWidget);
         expect(find.byKey(const Key('day-2026-10-14')), findsOneWidget);
+      },
+    );
+
+    testWidgets('Economy offers the favorite workers; Premium does not', (
+      tester,
+    ) async {
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        favorites: FakeFavorites([_mai]),
+      );
+      expect(find.byKey(const Key('favorite-42')), findsNothing);
+
+      await tapKey(tester, 'tier-ECONOMY');
+      expect(find.byKey(const Key('favorite-none')), findsOneWidget);
+      expect(find.byKey(const Key('favorite-42')), findsOneWidget);
+
+      await tapKey(tester, 'tier-PREMIUM');
+      expect(find.byKey(const Key('favorite-42')), findsNothing);
+    });
+
+    testWidgets(
+      'picking a favorite greys out the days and shifts they are busy, and sends them',
+      (tester) async {
+        final service = FakeBookingService();
+        final favorites = FakeFavorites([_mai], {'2026-10-15|SHIFT_MORNING'});
+        await pumpBooking(tester, service, favorites: favorites);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'favorite-42');
+        expect(favorites.freeAsked, [42]);
+        expect(find.byKey(const Key('favorite-note')), findsOneWidget);
+
+        // Pressable has its own Opacity (1.0 at rest): a busy tile is the faded one.
+        Finder faded(String key) => find.descendant(
+          of: find.byKey(Key(key)),
+          matching: find.byWidgetPredicate(
+            (w) => w is Opacity && w.opacity < 0.5,
+          ),
+        );
+        expect(faded('day-2026-10-14'), findsOneWidget);
+        expect(faded('day-2026-10-15'), findsNothing);
+
+        // A busy day cannot be chosen.
+        await tapKey(tester, 'day-2026-10-14');
+        await tapKey(tester, 'submit-order');
+        expect(textOf(tester, 'booking-hint'), contains('ngày'));
+
+        await tapKey(tester, 'day-2026-10-15');
+        expect(faded('shift-SHIFT_MORNING'), findsNothing);
+        expect(faded('shift-SHIFT_EVENING'), findsOneWidget);
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'submit-order');
+
+        expect(service.created.single.preferredWorkerId, 42);
+        expect(service.created.single.toJson()['preferredWorkerId'], 42);
+      },
+    );
+
+    testWidgets(
+      'opened from the favorites list, the worker and the Economy segment are ticked',
+      (tester) async {
+        final service = FakeBookingService();
+        final favorites = FakeFavorites([_mai], {'2026-10-15|SHIFT_MORNING'});
+        await pumpBooking(
+          tester,
+          service,
+          favorites: favorites,
+          args: const BookingScreenArgs(preferredWorkerId: 42),
+        );
+
+        expect(service.quotes.single.tier, 'ECONOMY');
+        expect(favorites.freeAsked, [42]);
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('favorite-42')),
+            matching: find.byIcon(Icons.radio_button_checked),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('favorite-note')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a preselected worker who is no longer a favorite is dropped',
+      (tester) async {
+        final favorites = FakeFavorites([_mai]);
+        await pumpBooking(
+          tester,
+          FakeBookingService(),
+          favorites: favorites,
+          args: const BookingScreenArgs(preferredWorkerId: 7),
+        );
+
+        expect(favorites.freeAsked, isEmpty);
+        expect(find.byKey(const Key('favorite-note')), findsNothing);
       },
     );
 
