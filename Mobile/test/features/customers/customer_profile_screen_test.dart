@@ -40,9 +40,9 @@ void main() {
       expect(find.text('Nguyễn Văn An'), findsWidgets);
       expect(find.text('0901234567'), findsWidgets);
       expect(find.text('Hoạt động'), findsOneWidget);
-      expect(find.textContaining('5.0 • Xuất sắc'), findsOneWidget);
-      expect(find.text('Lưu Thay Đổi'), findsOneWidget);
-      expect(find.text('Đăng Xuất'), findsOneWidget);
+      expect(find.textContaining('5,0 • Xuất sắc'), findsOneWidget);
+      expect(find.text('Lưu'), findsOneWidget);
+      expect(find.text('Đăng xuất'), findsOneWidget);
     });
 
     testWidgets('edits full name, submits, and shows success snackbar', (
@@ -77,7 +77,7 @@ void main() {
       await tester.tap(saveButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('Cập nhật hồ sơ thành công!'), findsOneWidget);
+      expect(find.text('Đã lưu hồ sơ'), findsOneWidget);
       expect(find.text('Nguyễn Kiệt Mới'), findsWidgets);
     });
 
@@ -113,7 +113,7 @@ void main() {
       await tester.tap(saveButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('Vui lòng nhập họ và tên'), findsOneWidget);
+      expect(find.text('Nhập họ và tên.'), findsOneWidget);
     });
 
     testWidgets('triggers logout dialog when tapping logout button', (
@@ -143,7 +143,7 @@ void main() {
       await tester.tap(logoutButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('Đăng xuất tài khoản'), findsOneWidget);
+      expect(find.text('Đăng xuất?'), findsOneWidget);
       expect(find.text('Huỷ'), findsOneWidget);
       expect(find.text('Đăng xuất'), findsWidgets);
     });

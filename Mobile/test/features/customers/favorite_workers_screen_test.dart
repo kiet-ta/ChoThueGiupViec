@@ -32,7 +32,7 @@ void main() {
 
       expect(find.text('Yêu thích'), findsOneWidget);
       expect(find.text('Lê Thị Cúc'), findsOneWidget);
-      expect(find.text('Đặt Ca Với Thợ'), findsWidgets);
+      expect(find.text('Đặt ca'), findsWidgets);
       expect(find.textContaining('ca hoàn thành'), findsWidgets);
     });
 
@@ -56,7 +56,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Chưa Có Thợ Quen Nào'), findsOneWidget);
+      expect(find.text('Chưa có ai trong danh sách'), findsOneWidget);
     });
 
     testWidgets('removes worker, shows undo snackbar, and restores on undo', (

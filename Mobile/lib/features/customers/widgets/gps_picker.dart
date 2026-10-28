@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/device/device_location.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 
@@ -106,11 +107,8 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
           backgroundColor: NordicColors.surface,
-          title: Text('Nhập Toạ Độ GPS', style: NordicTypography.h3),
+          title: Text('Nhập toạ độ', style: NordicTypography.h3),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -121,7 +119,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
                   signed: true,
                 ),
                 decoration: const InputDecoration(
-                  labelText: 'Vĩ độ (Latitude: -90 đến 90)',
+                  labelText: 'Vĩ độ (từ -90 đến 90)',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -133,7 +131,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
                   signed: true,
                 ),
                 decoration: const InputDecoration(
-                  labelText: 'Kinh độ (Longitude: -180 đến 180)',
+                  labelText: 'Kinh độ (từ -180 đến 180)',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -159,13 +157,13 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
                 final lng = double.tryParse(lngController.text);
                 if (lat == null || lat < -90 || lat > 90) {
                   setDialogState(
-                    () => localError = 'Vĩ độ không hợp lệ (-90 đến 90)',
+                    () => localError = 'Vĩ độ chưa đúng (từ -90 đến 90).',
                   );
                   return;
                 }
                 if (lng == null || lng < -180 || lng > 180) {
                   setDialogState(
-                    () => localError = 'Kinh độ không hợp lệ (-180 đến 180)',
+                    () => localError = 'Kinh độ chưa đúng (từ -180 đến 180).',
                   );
                   return;
                 }
@@ -176,7 +174,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
                 backgroundColor: NordicColors.primary,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Lưu Toạ Độ'),
+              child: const Text('Lưu toạ độ'),
             ),
           ],
         ),
@@ -203,7 +201,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
                   color: NordicColors.primary,
                 ),
                 const SizedBox(width: 6.0),
-                Text('Toạ Độ GPS', style: NordicTypography.labelSmall),
+                Text('Toạ độ', style: NordicTypography.labelSmall),
               ],
             ),
             TextButton(
@@ -214,7 +212,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
-                'Nhập số liệu',
+                'Nhập tay',
                 style: NordicTypography.bodySmall.copyWith(
                   color: NordicColors.primary,
                   fontWeight: FontWeight.w600,
@@ -228,7 +226,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
           decoration: BoxDecoration(
             color: NordicColors.surfaceSubtle,
-            borderRadius: BorderRadius.circular(10.0),
+            borderRadius: NordicRadius.tileAll,
             border: Border.all(color: NordicColors.border),
           ),
           child: Row(
@@ -251,7 +249,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
           ),
         ),
         const SizedBox(height: 10.0),
-        Text('Vị trí mẫu nhanh:', style: NordicTypography.labelSmall),
+        Text('Chọn nhanh', style: NordicTypography.labelSmall),
         const SizedBox(height: 6.0),
         Wrap(
           spacing: 6.0,
@@ -271,7 +269,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
               selectedColor: NordicColors.primary,
               backgroundColor: NordicColors.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: NordicRadius.pill,
                 side: BorderSide(
                   color: isSelected
                       ? NordicColors.primary
@@ -284,7 +282,7 @@ class _GpsCoordinatePickerState extends State<GpsCoordinatePicker> {
         ),
         const SizedBox(height: 8.0),
         NordicButton(
-          label: 'Lấy GPS Hiện Tại',
+          label: 'Dùng vị trí hiện tại',
           variant: NordicButtonVariant.secondary,
           icon: const Icon(
             Icons.gps_fixed,

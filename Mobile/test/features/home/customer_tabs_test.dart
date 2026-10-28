@@ -175,8 +175,8 @@ void main() {
         expect(find.text('Trần Thị Hà'), findsOneWidget);
         expect(find.text('260.000 đ'), findsOneWidget);
         expect(find.text('390.000 đ'), findsOneWidget);
-        await scrollTo(tester, find.text('Thợ yêu thích'));
-        expect(find.text('Thợ yêu thích'), findsOneWidget);
+        await scrollTo(tester, find.text('Người giúp việc yêu thích'));
+        expect(find.text('Người giúp việc yêu thích'), findsOneWidget);
       },
     );
 

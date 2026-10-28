@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_typography.dart';
 
 /// Interactive card explaining and displaying S_total = S_sàn x N_tầng calculation
@@ -25,7 +26,7 @@ class AreaCalculatorCard extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: NordicRadius.cardAll,
         border: Border.all(color: NordicColors.border),
       ),
       child: Row(
@@ -37,7 +38,7 @@ class AreaCalculatorCard extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.end,
               children: [
                 Text(
-                  '${floorAreaM2.toStringAsFixed(1)} m²',
+                  '${floorAreaM2.toStringAsFixed(1).replaceAll('.', ',')} m²',
                   style: NordicTypography.titleSmall,
                 ),
                 const Text('×', style: muted),
@@ -47,7 +48,7 @@ class AreaCalculatorCard extends StatelessWidget {
             ),
           ),
           Text(
-            '${totalAreaM2.toStringAsFixed(1)} m²',
+            '${totalAreaM2.toStringAsFixed(1).replaceAll('.', ',')} m²',
             key: const Key('area-total'),
             style: NordicTypography.numberLarge,
           ),

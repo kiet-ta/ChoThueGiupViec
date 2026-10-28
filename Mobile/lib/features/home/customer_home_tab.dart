@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/nordic_colors.dart';
+import '../../core/theme/nordic_radius.dart';
+import '../../core/theme/nordic_spacing.dart';
 import '../../core/theme/nordic_typography.dart';
 import '../../core/widgets/avatar_initials.dart';
+import '../../core/widgets/nordic_card.dart';
+import '../../core/widgets/pressable.dart';
 import '../../core/widgets/section_title.dart';
 import '../booking/logic/booking_logic.dart';
 import '../booking/logic/order_logic.dart';
@@ -16,7 +20,8 @@ import '../customers/services/favorite_worker_service.dart';
 
 /// The customer's Trang chủ tab (ui-templates `customer/home.html`): greeting, the next booking, quick
 /// booking with the server's prices for the default address, and favourite workers.
-/// Every section loads on its own; a failed call hides only its section. No spending chart: no API
+/// MOB-UI-14 (`Mobile/DESIGN-SYSTEM.md`): a photo card is the main action, every card presses,
+/// plain words. Every section loads on its own; a failed call hides only its section. No spending chart: no API
 /// returns a customer's spending (README "needs API").
 class CustomerHomeTab extends StatefulWidget {
   final IOrderService? orders;
@@ -196,20 +201,35 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
 
   @override
   Widget build(BuildContext context) {
+    // The shell's translucent bar sits over the bottom of this tab: keep the end clear of it.
+    final bottom = MediaQuery.paddingOf(context).bottom;
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          padding: EdgeInsets.fromLTRB(
+            NordicSpace.gutter,
+            NordicSpace.md,
+            NordicSpace.gutter,
+            NordicSpace.xl + bottom,
+          ),
           children: [
-            Text(_today, style: NordicTypography.bodySmall),
-            const SizedBox(height: 4),
+            Text(
+              _today,
+              style: NordicTypography.bodyRegular.copyWith(
+                color: NordicColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: NordicSpace.xxs),
             Text(
               _firstName == null ? 'Xin chào' : 'Chào $_firstName',
               key: const Key('home-greeting'),
               style: NordicTypography.greeting,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: NordicSpace.lg),
             _nextCard(),
+            const SizedBox(height: NordicSpace.sm),
+            _bookBanner(),
             if (_quotes != null) ..._quickBook(_quotes!),
             if (_favoriteList.isNotEmpty) ..._favoriteRow(),
           ],
@@ -218,47 +238,55 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     );
   }
 
+  /// The next booking: the one big time, its day, progress and helper, on the primary colour.
   Widget _nextCard() {
     if (!_nextLoaded) {
       return Container(
-        height: 150,
-        decoration: BoxDecoration(
+        height: 168,
+        decoration: const BoxDecoration(
           color: NordicColors.surfaceLow,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: NordicRadius.cardAll,
         ),
       );
     }
     final next = _next;
     if (next == null) {
-      return Material(
-        color: NordicColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: NordicColors.border),
-        ),
-        child: InkWell(
-          key: const Key('home-no-order'),
-          borderRadius: BorderRadius.circular(16),
-          onTap: _openBooking,
-          child: const Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.cleaning_services_outlined,
-                  color: NordicColors.primary,
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
+      return NordicCard(
+        key: const Key('home-no-order'),
+        onTap: _openBooking,
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: NordicColors.primaryFixed,
+                borderRadius: NordicRadius.tileAll,
+              ),
+              child: const Icon(
+                Icons.event_available_outlined,
+                color: NordicColors.primary,
+              ),
+            ),
+            const SizedBox(width: NordicSpace.sm),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     'Chưa có ca nào sắp tới',
                     style: NordicTypography.titleSmall,
                   ),
-                ),
-                Icon(Icons.chevron_right, color: NordicColors.borderVariant),
-              ],
+                  SizedBox(height: 2),
+                  Text(
+                    'Bấm để đặt ca dọn nhà.',
+                    style: NordicTypography.bodySmall,
+                  ),
+                ],
+              ),
             ),
-          ),
+            const Icon(Icons.chevron_right, color: NordicColors.borderVariant),
+          ],
         ),
       );
     }
@@ -266,18 +294,17 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     final order = next.order;
     final steps = orderTimeline(order.orderStatus);
     final worker = next.worker;
-    const muted = TextStyle(fontSize: 12, color: Color(0xB8FFFFFF));
-    return Material(
-      color: NordicColors.primary,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        key: const Key('home-next-order'),
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _openOrder(order.orderId),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: DefaultTextStyle(
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+    final soft = NordicColors.textInverse.withValues(alpha: 0.78);
+    return Pressable(
+      child: Material(
+        color: NordicColors.primary,
+        borderRadius: NordicRadius.cardAll,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: const Key('home-next-order'),
+          onTap: () => _openOrder(order.orderId),
+          child: Padding(
+            padding: const EdgeInsets.all(NordicSpace.gutter),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -285,58 +312,63 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                   children: [
                     Expanded(
                       child: Text(
-                        'CA SẮP TỚI',
-                        style: NordicTypography.caps.copyWith(
-                          color: const Color(0xBFFFFFFF),
+                        'Ca sắp tới',
+                        style: NordicTypography.titleSmall.copyWith(
+                          color: soft,
                         ),
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
-                        vertical: 4,
+                        vertical: NordicSpace.xxs,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0x29FFFFFF),
-                        borderRadius: BorderRadius.circular(999),
+                        color: NordicColors.textInverse.withValues(alpha: 0.16),
+                        borderRadius: NordicRadius.pill,
                       ),
                       child: Text(
                         orderStatusLabel(order.orderStatus),
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: NordicColors.textInverse,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: NordicSpace.sm),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       next.startLocal ?? shiftLabel(order.shiftCode),
                       style: NordicTypography.numberLarge.copyWith(
-                        color: Colors.white,
+                        color: NordicColors.textInverse,
                       ),
                     ),
                     if (next.endLocal != null) ...[
                       const SizedBox(width: 10),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
-                        child: Text('→ ${next.endLocal}', style: muted),
+                        child: Text(
+                          'đến ${next.endLocal}',
+                          style: NordicTypography.bodyRegular.copyWith(
+                            color: soft,
+                          ),
+                        ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: NordicSpace.xxs),
                 Text(
                   '${scheduleText(order.scheduledDate, order.shiftCode)} · ${tierLabel(order.serviceTier)}',
-                  style: muted,
+                  style: NordicTypography.bodyRegular.copyWith(color: soft),
                 ),
                 if (steps.length > 1) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: NordicSpace.md),
                   Row(
                     children: [
                       for (var i = 0; i < steps.length; i++) ...[
@@ -346,9 +378,11 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                             height: 4,
                             decoration: BoxDecoration(
                               color: steps[i].done || steps[i].current
-                                  ? Colors.white
-                                  : const Color(0x4DFFFFFF),
-                              borderRadius: BorderRadius.circular(2),
+                                  ? NordicColors.textInverse
+                                  : NordicColors.textInverse.withValues(
+                                      alpha: 0.3,
+                                    ),
+                              borderRadius: NordicRadius.pill,
                             ),
                           ),
                         ),
@@ -357,26 +391,27 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                   ),
                 ],
                 if (worker != null) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: NordicSpace.md),
                   Row(
                     children: [
                       AvatarInitials(
                         workerName(worker),
-                        size: 32,
-                        background: const Color(0x2EFFFFFF),
-                        foreground: Colors.white,
+                        size: 36,
+                        background: NordicColors.textInverse.withValues(
+                          alpha: 0.18,
+                        ),
+                        foreground: NordicColors.textInverse,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        workerName(worker),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                      const SizedBox(width: NordicSpace.sm),
+                      Expanded(
+                        child: Text(
+                          workerName(worker),
+                          style: NordicTypography.titleSmall.copyWith(
+                            color: NordicColors.textInverse,
+                          ),
                         ),
                       ),
                       if (ratingText(worker.workerRatingAvg).isNotEmpty) ...[
-                        const SizedBox(width: 8),
                         const Icon(
                           Icons.star,
                           size: 16,
@@ -386,8 +421,9 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                         Text(
                           ratingText(worker.workerRatingAvg),
                           style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: NordicColors.textInverse,
                           ),
                         ),
                       ],
@@ -395,6 +431,95 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                   ),
                 ],
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A photo card that opens the booking form: the one main action of the Home.
+  Widget _bookBanner() {
+    return Pressable(
+      child: Semantics(
+        button: true,
+        label: 'Đặt ca dọn nhà',
+        child: Material(
+          borderRadius: NordicRadius.cardAll,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const Key('home-book-banner'),
+            onTap: _openBooking,
+            child: SizedBox(
+              height: 128,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ExcludeSemantics(
+                    child: Image.asset(
+                      'assets/images/welcome/mop-living-room.jpg',
+                      fit: BoxFit.cover,
+                      alignment: const Alignment(0, -0.2),
+                    ),
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          NordicColors.contrastDark.withValues(alpha: 0.82),
+                          NordicColors.contrastDark.withValues(alpha: 0.1),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(NordicSpace.gutter),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ExcludeSemantics(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Đặt ca dọn nhà',
+                                  style: NordicTypography.titleMedium.copyWith(
+                                    color: NordicColors.textInverse,
+                                  ),
+                                ),
+                                const SizedBox(height: NordicSpace.xxs),
+                                Text(
+                                  'Chọn ngày, ca và gói phù hợp.',
+                                  style: NordicTypography.bodyRegular.copyWith(
+                                    color: NordicColors.textInverse.withValues(
+                                      alpha: 0.85,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            color: NordicColors.textInverse,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_forward,
+                            color: NordicColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -408,13 +533,14 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
       SectionTitle(
         'Đặt nhanh',
         trailing:
-            '${formatArea(q.address.totalAreaM2)} · ${any.requiredWorkers} thợ',
+            '${formatArea(q.address.totalAreaM2)} · ${any.requiredWorkers} người',
       ),
       Row(
         children: [
           for (final tier in [ServiceTier.economy, ServiceTier.premium])
             if (q.byTier[tier] != null) ...[
-              if (tier == ServiceTier.premium) const SizedBox(width: 12),
+              if (tier == ServiceTier.premium)
+                const SizedBox(width: NordicSpace.sm),
               Expanded(child: _quoteTile(tier, q.byTier[tier]!)),
             ],
         ],
@@ -425,68 +551,60 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   Widget _quoteTile(String tier, PriceQuote quote) {
     final price = formatVnd(quote.unitPrice);
     final number = price.substring(0, price.length - 2);
-    return Material(
-      color: NordicColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: NordicColors.border),
-      ),
-      child: InkWell(
-        key: Key('home-quote-$tier'),
-        borderRadius: BorderRadius.circular(16),
-        onTap: _openBooking,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(tierLabel(tier).toUpperCase(), style: NordicTypography.caps),
-              const SizedBox(height: 8),
-              Text.rich(
-                TextSpan(
-                  text: number,
-                  children: const [
-                    TextSpan(text: ' đ', style: TextStyle(fontSize: 14)),
-                  ],
-                ),
-                style: NordicTypography.numberSmall,
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '/ thợ / ca',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: NordicColors.textSecondary,
-                ),
-              ),
-            ],
+    return NordicCard(
+      key: Key('home-quote-$tier'),
+      onTap: _openBooking,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(tierLabel(tier), style: NordicTypography.titleSmall),
+          const SizedBox(height: NordicSpace.xs),
+          Text.rich(
+            TextSpan(
+              text: number,
+              children: const [
+                TextSpan(text: ' đ', style: TextStyle(fontSize: 14)),
+              ],
+            ),
+            style: NordicTypography.numberSmall,
           ),
-        ),
+          const SizedBox(height: NordicSpace.xxs),
+          const Text('mỗi người, mỗi ca', style: NordicTypography.bodySmall),
+        ],
       ),
     );
   }
 
   List<Widget> _favoriteRow() => [
     SectionTitle(
-      'Thợ yêu thích',
+      'Người giúp việc yêu thích',
       trailing: 'Tất cả',
       onAction: widget.onShowFavorites,
     ),
     SizedBox(
-      height: 72,
+      height: 84,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _favoriteList.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 16),
+        separatorBuilder: (_, _) => const SizedBox(width: NordicSpace.md),
         itemBuilder: (_, i) {
           final w = _favoriteList[i];
           final words = w.fullName.trim().split(RegExp(r'\s+'));
-          return Column(
-            children: [
-              AvatarInitials(w.fullName),
-              const SizedBox(height: 4),
-              Text(words.last, style: const TextStyle(fontSize: 11)),
-            ],
+          return Pressable(
+            child: InkWell(
+              borderRadius: NordicRadius.tileAll,
+              onTap: widget.onShowFavorites,
+              child: Padding(
+                padding: const EdgeInsets.all(NordicSpace.xxs),
+                child: Column(
+                  children: [
+                    AvatarInitials(w.fullName, size: 52),
+                    const SizedBox(height: NordicSpace.xxs),
+                    Text(words.last, style: NordicTypography.bodySmall),
+                  ],
+                ),
+              ),
+            ),
           );
         },
       ),

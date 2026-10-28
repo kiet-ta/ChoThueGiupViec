@@ -65,8 +65,12 @@ class NordicPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasActions = actions != null && actions!.isNotEmpty;
+    // Under a translucent bottom bar (the shells extend their body) or the home indicator, the
+    // last item must still scroll clear of it; the action bar handles its own safe area.
+    final inset = hasActions ? 0.0 : MediaQuery.paddingOf(context).bottom;
     Widget list = ListView(
-      padding: padding,
+      padding: padding.add(EdgeInsets.only(bottom: inset)),
       physics: const AlwaysScrollableScrollPhysics(),
       children: [if (large) _largeTitle(), ...children],
     );
@@ -80,8 +84,7 @@ class NordicPage extends StatelessWidget {
     final body = Column(
       children: [
         Expanded(child: list),
-        if (actions != null && actions!.isNotEmpty)
-          BottomActionBar(children: actions!),
+        if (hasActions) BottomActionBar(children: actions!),
       ],
     );
     if (large) {
