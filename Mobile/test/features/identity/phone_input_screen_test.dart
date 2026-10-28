@@ -31,6 +31,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Nhập số điện thoại'), findsOneWidget);
+      expect(find.byKey(const Key('phone-flag')), findsOneWidget);
       expect(find.text('Nhận mã'), findsOneWidget);
 
       // Tap submit with empty phone -> shows error
