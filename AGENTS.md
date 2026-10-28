@@ -2,6 +2,7 @@
 
 Monorepo: `Backend/` (.NET 10 API), `Frontend/` (React + Vite + shadcn/ui) and `Mobile/` (Flutter; read [Mobile/ARCHITECTURE.md](Mobile/ARCHITECTURE.md), run commands inside `Mobile/`).
 - Every machine that runs `verify` (including the pre-push hook) needs Flutter stable on PATH (Dart >= 3.13.3): Mobile checks are mandatory everywhere (owner decision 2026-10-13).
+- **Mobile UI (all agents, mandatory):** every Mobile screen or widget you write or change MUST follow [Mobile/DESIGN-SYSTEM.md](Mobile/DESIGN-SYSTEM.md) (tokens, components, patterns, copy) and [Mobile/DESIGN-SYSTEM-WORKER.md](Mobile/DESIGN-SYSTEM-WORKER.md) (how to apply it to the Worker side; visual reference `Mobile/design-system/components.html`). Build screens with `NordicPage`, `NordicCard`, `NordicButton`, `Pressable`, `ErrorShake` and the `Nordic*` tokens; no hand-written colours, radii, spacings or page transitions. Read both files before writing Mobile UI (owner decision 2026-10-28).
 
 - Backend: read [Backend/ARCHITECTURE.md](Backend/ARCHITECTURE.md). Run commands inside `Backend/`.
 - Frontend: read [Frontend/ARCHITECTURE.md](Frontend/ARCHITECTURE.md). Run commands inside `Frontend/`.

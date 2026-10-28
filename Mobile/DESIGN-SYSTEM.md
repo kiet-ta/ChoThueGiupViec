@@ -1,6 +1,7 @@
 # TỔ ẤM Mobile — System Design
 
 The design system of the Flutter app (`Mobile/`). It distils the local `apple-design` Agent Skill (Apple's fluid-interface and design principles) and the owner's decisions of 2026-10-28 (PRs #477, #480, #482, #486). **Mobile only**: the team `DESIGN.md` and the Web keep their own values.
+Worker-side hand-off: [DESIGN-SYSTEM-WORKER.md](DESIGN-SYSTEM-WORKER.md). Visual component template: [design-system/components.html](design-system/components.html).
 
 Every screen redesign follows this file. When code and this file disagree, fix one of them in the same PR.
 
