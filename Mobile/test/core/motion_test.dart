@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/motion/error_shake.dart';
 import 'package:mobile/core/motion/nordic_motion.dart';
+import 'package:mobile/core/motion/nordic_page_transitions.dart';
+import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/core/widgets/nordic_button.dart';
 import 'package:mobile/core/widgets/pressable.dart';
 
@@ -224,6 +226,103 @@ void main() {
       await tester.pump(const Duration(milliseconds: 20));
       expect(_shakeOffset(tester), 0.0);
       expect(haptics, ['HapticFeedbackType.heavyImpact']);
+    });
+  });
+
+  group('Page transitions', () {
+    /// A themed app: a first page with a button that pushes a second page.
+    Widget pages({bool reduced = false}) => MaterialApp(
+      theme: NordicTheme.lightTheme,
+      builder: (context, page) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(disableAnimations: reduced),
+        child: page!,
+      ),
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      const Scaffold(body: Center(child: Text('second'))),
+                ),
+              ),
+              child: const Text('first'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('the theme uses them on every platform', (tester) async {
+      final builders = NordicTheme.lightTheme.pageTransitionsTheme.builders;
+      for (final platform in TargetPlatform.values) {
+        expect(builders[platform], isA<NordicPageTransitionsBuilder>());
+      }
+    });
+
+    testWidgets('a new page slides in from the right, the page below moves '
+        'back', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(pages());
+
+      await tester.tap(find.text('first'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(tester.getCenter(find.text('second')).dx, greaterThan(195 + 20));
+      expect(tester.getCenter(find.text('first')).dx, lessThan(195));
+
+      await tester.pumpAndSettle();
+      expect(tester.getCenter(find.text('second')).dx, closeTo(195, 0.5));
+    });
+
+    testWidgets('dragging from the left edge takes the page back', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(pages());
+      await tester.tap(find.text('first'));
+      await tester.pumpAndSettle();
+
+      // Halfway: the page follows the finger.
+      final drag = await tester.startGesture(const Offset(5, 400));
+      await drag.moveBy(const Offset(20, 0));
+      await drag.moveBy(const Offset(100, 0));
+      await tester.pump();
+      expect(tester.getCenter(find.text('second')).dx, greaterThan(195 + 90));
+
+      await drag.moveBy(const Offset(120, 0));
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(find.text('second'), findsNothing);
+      expect(find.text('first'), findsOneWidget);
+    });
+
+    testWidgets('only fades under reduced motion', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(pages(reduced: true));
+
+      await tester.tap(find.text('first'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(tester.getCenter(find.text('second')).dx, closeTo(195, 0.5));
+      expect(tester.getCenter(find.text('first')).dx, closeTo(195, 0.5));
+      final fade = tester.widget<FadeTransition>(
+        find
+            .ancestor(
+              of: find.text('second'),
+              matching: find.byType(FadeTransition),
+            )
+            .first,
+      );
+      expect(fade.opacity.value, inExclusiveRange(0.0, 1.0));
+      await tester.pumpAndSettle();
     });
   });
 }

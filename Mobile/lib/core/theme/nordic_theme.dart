@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../motion/nordic_page_transitions.dart';
 import 'nordic_colors.dart';
 import 'nordic_typography.dart';
 
@@ -10,6 +11,14 @@ class NordicTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      // MOB-UI-12: every page slides in from the right and can be dragged back from the left
+      // edge, on every platform (only fades under reduced motion).
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {
+          for (final platform in TargetPlatform.values)
+            platform: const NordicPageTransitionsBuilder(),
+        },
+      ),
       fontFamily: NordicTypography.fontFamily,
       scaffoldBackgroundColor: NordicColors.canvas,
       colorScheme: const ColorScheme(

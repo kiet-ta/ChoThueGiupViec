@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/models/user_role.dart';
+import '../../core/motion/nordic_motion.dart';
 import '../../core/theme/nordic_colors.dart';
 import '../../core/theme/nordic_typography.dart';
 import '../identity/screens/phone_input_screen.dart';
@@ -175,6 +176,7 @@ class _WelcomeHero extends StatefulWidget {
 
 class _WelcomeHeroState extends State<_WelcomeHero> {
   static const _interval = Duration(milliseconds: 3500);
+  static final _slideCurve = SpringCurve(NordicMotion.standard);
 
   final _pages = PageController();
   Timer? _timer;
@@ -204,13 +206,14 @@ class _WelcomeHeroState extends State<_WelcomeHero> {
   void _next() {
     if (!mounted || !_pages.hasClients) return;
     final target = (_pages.page?.round() ?? _page) + 1;
-    if (MediaQuery.of(context).disableAnimations) {
+    if (NordicMotion.reduced(context)) {
       _pages.jumpToPage(target);
     } else {
+      // The standard spring (MOB-UI-12): starts gently, settles without overshoot.
       _pages.animateToPage(
         target,
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeInOut,
+        duration: NordicMotion.standard.settleDuration,
+        curve: _slideCurve,
       );
     }
   }
