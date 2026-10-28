@@ -7,6 +7,7 @@ import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../services/auth_service.dart';
+import '../widgets/auth_photo_header.dart';
 import '../widgets/phone_input_field.dart';
 import 'otp_verify_screen.dart';
 
@@ -97,43 +98,58 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
         ? 'Chuyên Viên / Thợ'
         : 'Khách Hàng';
 
-    // ui-templates `shared/phone.html`: big title, one line, the number; the button sits at the bottom.
+    // MOB-UI-10: the welcome look. A housework photo with the title on top, the form on a
+    // sheet over its bottom edge; the button sits at the bottom.
     return Scaffold(
-      appBar: AppBar(),
+      backgroundColor: NordicColors.canvas,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 390.0),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
+            padding: EdgeInsets.zero,
             children: [
-              const Text(
-                'Số điện thoại',
-                key: Key('phone-input-title'),
-                style: NordicTypography.screenTitle,
+              AuthPhotoHeader(
+                role: widget.role,
+                title: 'Số điện thoại',
+                titleKey: const Key('phone-input-title'),
+                subtitle: 'Mã 6 số sẽ gửi qua SMS.',
               ),
-              const SizedBox(height: 4.0),
-              const Text(
-                'Mã 6 số sẽ gửi qua SMS.',
-                style: TextStyle(
-                  fontSize: 14.0,
-                  color: NordicColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 12.0),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: StatusPill('Vai trò: $roleLabel', tone: PillTone.ok),
-              ),
-              const SizedBox(height: 24.0),
-              PhoneInputField(
-                controller: _phoneController,
-                enabled: !_isLoading,
-                errorText: _errorMessage,
-                onChanged: (_) {
-                  if (_errorMessage != null) {
-                    setState(() => _errorMessage = null);
-                  }
-                },
+              AuthFormSheet(
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: StatusPill('Vai trò: $roleLabel', tone: PillTone.ok),
+                  ),
+                  const SizedBox(height: 20.0),
+                  PhoneInputField(
+                    controller: _phoneController,
+                    enabled: !_isLoading,
+                    errorText: _errorMessage,
+                    onChanged: (_) {
+                      if (_errorMessage != null) {
+                        setState(() => _errorMessage = null);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16.0),
+                  const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        size: 14.0,
+                        color: NordicColors.textSecondary,
+                      ),
+                      SizedBox(width: 6.0),
+                      Expanded(
+                        child: Text(
+                          'Không cần mật khẩu: số điện thoại là tài khoản của bạn.',
+                          style: NordicTypography.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),

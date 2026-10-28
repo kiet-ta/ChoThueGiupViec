@@ -73,5 +73,93 @@ void main() {
 
       expect(find.text('Vai trò: Chuyên Viên / Thợ'), findsOneWidget);
     });
+
+    String photoOf(WidgetTester tester) {
+      final image = tester.widget<Image>(find.byKey(const Key('auth-photo')));
+      return (image.image as AssetImage).assetName;
+    }
+
+    testWidgets('the header shows the welcome photo of the role', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: const PhoneInputScreen(role: AppRole.customer),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(photoOf(tester), 'assets/images/welcome/mop-living-room.jpg');
+      expect(find.byKey(const Key('phone-input-title')), findsOneWidget);
+      expect(find.text('Mã 6 số sẽ gửi qua SMS.'), findsOneWidget);
+      // First screen of the app: nothing to go back to.
+      expect(find.byKey(const Key('auth-back')), findsNothing);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: const PhoneInputScreen(
+            key: Key('worker'),
+            role: AppRole.worker,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(photoOf(tester), 'assets/images/welcome/caddy-stairs.jpg');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the back button returns to the screen before', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PhoneInputScreen()),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PhoneInputScreen), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('auth-back')));
+      await tester.pumpAndSettle();
+      expect(find.byType(PhoneInputScreen), findsNothing);
+      expect(find.text('open'), findsOneWidget);
+    });
+
+    testWidgets('fits a short screen with the keyboard open', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: const PhoneInputScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.byType(TextField));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField).hitTestable(), findsOneWidget);
+    });
   });
 }
