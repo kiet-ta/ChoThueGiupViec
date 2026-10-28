@@ -12,12 +12,22 @@ import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../customers/routes.dart';
+import '../../customers/screens/address_list_screen.dart';
 import '../../payments/models/payment_models.dart';
 import '../../payments/routes.dart';
 import '../logic/booking_logic.dart';
 import '../models/booking_models.dart';
 import '../routes.dart';
 import '../services/booking_service.dart';
+
+/// What the booking form opens with: the segment and address the customer already picked elsewhere
+/// (the Home's "Đặt nhanh" tiles), so they are ticked without a second tap.
+class BookingScreenArgs {
+  final String? serviceTier;
+  final int? addressId;
+
+  const BookingScreenArgs({this.serviceTier, this.addressId});
+}
 
 /// Booking flow of a customer (MOB-M2-01 choose the segment, MOB-M2-02 address -> day and shift -> note -> fixed price -> order);
 /// contract booking.md 3.1 to 3.3. The price is the server's quote, shown before the order exists; the device computes no money.
@@ -34,8 +44,12 @@ class BookingScreen extends StatefulWidget {
   /// What "Thêm địa chỉ" does; by default the Customers feature's address book opens.
   final VoidCallback? onManageAddresses;
 
+  /// The preselected choices; when null they are read from the route arguments.
+  final BookingScreenArgs? args;
+
   const BookingScreen({
     super.key,
+    this.args,
     this.service,
     this.addresses,
     this.now,
@@ -69,6 +83,8 @@ class _BookingScreenState extends State<BookingScreen> {
   bool _quoteLoading = false;
   int _quoteRequest = 0; // an older quote must not overwrite a newer choice
 
+  bool _argsRead = false;
+
   bool _submitting = false; // one order per tap
   CreateOrderFailure? _failure;
   String? _hint;
@@ -80,6 +96,19 @@ class _BookingScreenState extends State<BookingScreen> {
     _addressSource = widget.addresses ?? CustomerAddressBookSource();
     _days = selectableDates((widget.now ?? DateTime.now)());
     _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_argsRead) return;
+    _argsRead = true;
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    final args =
+        widget.args ?? (routeArgs is BookingScreenArgs ? routeArgs : null);
+    // Checked against the server's options and the address book once they are loaded.
+    _tier ??= args?.serviceTier;
+    _addressId ??= args?.addressId;
   }
 
   @override
@@ -100,9 +129,18 @@ class _BookingScreenState extends State<BookingScreen> {
       ]);
       if (!mounted) return;
       final addresses = results[1] as List<BookingAddress>;
+      final options = results[0] as BookingOptions;
       setState(() {
-        _options = results[0] as BookingOptions;
+        _options = options;
         _addresses = addresses;
+        // A preselected segment or address the server does not offer (any more) is dropped.
+        if (_tier != null && !options.serviceTiers.contains(_tier)) {
+          _tier = null;
+        }
+        if (_addressId != null &&
+            !addresses.any((a) => a.addressId == _addressId)) {
+          _addressId = null;
+        }
         // The default address is preselected; the customer can change it.
         _addressId ??= addresses
             .where((a) => a.isDefault)
@@ -246,8 +284,15 @@ class _BookingScreenState extends State<BookingScreen> {
 
   void _manageAddresses() {
     if (widget.onManageAddresses != null) return widget.onManageAddresses!();
-    Navigator.of(context).pushNamed(CustomerRoutes.addressList).then((_) {
-      if (mounted) _load(); // the address book may have changed
+    final picked = Navigator.of(context).pushNamed(
+      CustomerRoutes.addressList,
+      arguments: AddressListArgs(selectedAddressId: _addressId),
+    );
+    picked.then((addressId) {
+      if (!mounted) return;
+      // A tapped address card is the address of this booking.
+      if (addressId is int) _addressId = addressId;
+      _load(); // the address book may have changed
     });
   }
 

@@ -331,4 +331,42 @@ void main() {
       );
     });
   });
+
+  group('cancelReasonView', () {
+    test('the no-worker reason reads kindly and offers another time', () {
+      final view = cancelReasonView(
+        'Quá bán kính 10 km không tìm được thợ phù hợp (BR-03).',
+      );
+      expect(view.text, noWorkerNearbyText);
+      expect(view.text, contains('trong bán kính 10 km'));
+      expect(view.suggestRebook, isTrue);
+    });
+
+    test('a BR-10 rescue on a Premium order is not read as an agency gap', () {
+      final view = cancelReasonView(
+        'Cứu hộ khẩn cấp thất bại cho đơn Premium 12.',
+      );
+      expect(view.text, contains('người thay thế'));
+    });
+
+    test('a customer who refused a new worker is not told none was found', () {
+      final view = cancelReasonView(
+        'Khách hàng từ chối đổi thợ sau sự cố hiện trường (BR-10). Hoàn tiền 100%.',
+      );
+      expect(view.text, contains('Bạn đã chọn không đổi người làm'));
+    });
+
+    test('a payment that expired says no money was taken', () {
+      expect(
+        cancelReasonView('PAYMENT_EXPIRED').text,
+        contains('không bị trừ tiền'),
+      );
+    });
+
+    test("the customer's own reason is shown as typed, no rebook", () {
+      final view = cancelReasonView('bận việc');
+      expect(view.text, 'Lý do huỷ: bận việc');
+      expect(view.suggestRebook, isFalse);
+    });
+  });
 }

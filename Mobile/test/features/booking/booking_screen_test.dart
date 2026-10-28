@@ -129,6 +129,7 @@ Future<List<BookingOrder>> pumpBooking(
   FakeBookingService service, {
   FakeAddresses? addresses,
   VoidCallback? onManageAddresses,
+  BookingScreenArgs? args,
 }) async {
   tester.view.physicalSize = const Size(390, 3200);
   tester.view.devicePixelRatio = 1.0;
@@ -146,6 +147,7 @@ Future<List<BookingOrder>> pumpBooking(
         now: () => DateTime.utc(2026, 10, 14, 3),
         onOrderCreated: opened.add,
         onManageAddresses: onManageAddresses,
+        args: args,
       ),
     ),
   );
@@ -190,6 +192,40 @@ void main() {
         expect(find.text('08:00'), findsOneWidget);
         expect(find.text('→ 20:30'), findsOneWidget);
         expect(find.byKey(const Key('day-2026-10-14')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'opened from a quick-booking tile, the segment and address are ticked',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(
+          tester,
+          service,
+          args: const BookingScreenArgs(
+            serviceTier: ServiceTier.premium,
+            addressId: 2,
+          ),
+        );
+
+        expect(service.quotes.single, (addressId: 2, tier: 'PREMIUM'));
+        expect(find.byKey(const Key('quote-total')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a preselected segment or address that does not exist is dropped',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(
+          tester,
+          service,
+          args: const BookingScreenArgs(serviceTier: 'GOLD', addressId: 99),
+        );
+
+        expect(service.quotes, isEmpty);
+        await tapKey(tester, 'tier-ECONOMY');
+        expect(service.quotes.single, (addressId: 1, tier: 'ECONOMY'));
       },
     );
 
