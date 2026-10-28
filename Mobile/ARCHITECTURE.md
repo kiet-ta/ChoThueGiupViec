@@ -1,4 +1,5 @@
 # Mobile Architecture: TỔ ẤM — Nordic Care
+> **UI rule:** all Mobile UI follows [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) and, for the Worker side, [DESIGN-SYSTEM-WORKER.md](DESIGN-SYSTEM-WORKER.md) (visual reference: `design-system/components.html`). Agents read them before writing UI.
 
 ## 1. Overview
 The Mobile application is built with Flutter for cross-platform iOS and Android deployment.

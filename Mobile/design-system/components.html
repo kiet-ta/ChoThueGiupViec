@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TỔ ẤM Mobile — Component template</title>
+<!--
+  Static visual reference of Mobile/DESIGN-SYSTEM.md (MOB-UI-19). No script, no network.
+  Fonts come from ../assets/fonts. The values below are the real tokens of
+  lib/core/theme/nordic_colors.dart, nordic_typography.dart, nordic_spacing.dart, nordic_radius.dart.
+  Copy a block as a starting point when you design a screen; build it in Flutter with the named widget.
+-->
+<style>
+@font-face{font-family:"Plus Jakarta Sans";font-weight:400;src:url("../assets/fonts/PlusJakartaSans-Regular.ttf")}
+@font-face{font-family:"Plus Jakarta Sans";font-weight:500;src:url("../assets/fonts/PlusJakartaSans-Medium.ttf")}
+@font-face{font-family:"Plus Jakarta Sans";font-weight:600;src:url("../assets/fonts/PlusJakartaSans-SemiBold.ttf")}
+@font-face{font-family:"Plus Jakarta Sans";font-weight:700;src:url("../assets/fonts/PlusJakartaSans-Bold.ttf")}
+@font-face{font-family:"Newsreader";font-weight:500;src:url("../assets/fonts/Newsreader-Medium.ttf")}
+@font-face{font-family:"Newsreader";font-weight:600;src:url("../assets/fonts/Newsreader-SemiBold.ttf")}
+
+:root{
+  --primary:#2F6B3F; --primary-hover:#285C36; --leaf:#7FB77E; --soft:#D2E6D2; --secondary:#467F49;
+  --amber:#F7C85C; --cream:#FFF6C0; --on-cream:#5F4100;
+  --canvas:#FAF8F3; --surface:#FFFFFF; --surface-low:#F5F3EE;
+  --title:#2F3A34; --body:#4B5563; --muted:#6B7280;
+  --border:#E5E7EB; --error:#BA1A1A; --error-bg:#FFDAD6; --dark:#1A2F25;
+  --r-card:20px; --r-field:14px; --r-tile:12px; --r-sheet:28px; --r-pill:999px;
+  --gutter:20px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#EEEBE3;color:var(--title);font:400 14px/1.5 "Plus Jakarta Sans",system-ui,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+h1{font:700 30px/1.1 "Plus Jakarta Sans";letter-spacing:-.6px;margin:0 0 4px}
+h2{font:700 18px/1.3 "Plus Jakarta Sans";margin:40px 0 4px}
+p.lead{color:var(--muted);margin:0 0 8px}
+code{background:#fff;border:1px solid var(--border);border-radius:6px;padding:1px 6px;font-size:12px}
+.grid{display:grid;gap:12px}
+.swatches{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.sw{border-radius:var(--r-tile);overflow:hidden;background:#fff;border:1px solid var(--border)}
+.sw i{display:block;height:48px}.sw b{display:block;padding:8px 10px 0;font-size:12px}.sw span{display:block;padding:0 10px 8px;font-size:11px;color:var(--muted)}
+.panel{background:var(--canvas);border:1px solid var(--border);border-radius:var(--r-card);padding:20px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.cap{font:600 11px/1.3 "Plus Jakarta Sans";color:var(--muted);margin:14px 0 6px}
+
+/* type */
+.t-display{font:700 30px/1.1 "Plus Jakarta Sans";letter-spacing:-.6px}
+.t-greeting{font:600 30px/1.15 "Newsreader"}
+.t-num-l{font:600 34px/1 "Newsreader"}.t-num-m{font:600 26px/1 "Newsreader"}.t-num-s{font:600 20px/1 "Newsreader"}
+.t-title-m{font:700 18px/1.3 "Plus Jakarta Sans"}.t-title-s{font:600 15px/1.35 "Plus Jakarta Sans"}
+.t-body{font:400 14px/1.5 "Plus Jakarta Sans";color:var(--body)}.t-small{font:500 12px/1.4 "Plus Jakarta Sans";color:var(--muted)}
+
+/* buttons: pill, press = scale .97 on pointer-down */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:14px 24px;border-radius:var(--r-pill);
+  font:600 15px/1 "Plus Jakarta Sans";border:1px solid transparent;cursor:pointer;transition:transform 100ms ease-out}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.secondary{background:var(--surface);color:var(--title);border-color:var(--border)}
+.btn.ghost{background:transparent;color:var(--title)}
+.btn.danger{background:transparent;color:var(--error)}
+.btn[disabled]{background:#DBDAD5;color:var(--muted);cursor:default}
+.btn.block{width:100%}
+
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--r-pill);font:600 12px/1.3 "Plus Jakarta Sans"}
+.pill.ok{background:var(--soft);color:var(--primary)}.pill.warn{background:var(--cream);color:var(--on-cream)}
+.pill.bad{background:var(--error-bg);color:var(--error)}.pill.neutral{background:#EDEBE5;color:var(--body)}
+.pill.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* card: flat, hairline, 20px */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);padding:16px}
+.card.tap{cursor:pointer;transition:transform 100ms ease-out}.card.tap:active{transform:scale(.97)}
+.card.hl{border:2px solid var(--primary)}
+.hero-card{background:var(--primary);color:#fff;border-radius:var(--r-card);padding:20px}
+.hero-card .soft{color:rgba(255,255,255,.78)}
+.avatar{width:44px;height:44px;border-radius:50%;background:#EFEDE8;color:var(--primary);display:grid;place-items:center;font:600 15px "Plus Jakarta Sans"}
+.tile{background:var(--surface-low);border-radius:var(--r-tile);padding:10px 12px}
+
+/* grouped list */
+.list{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden}
+.list .li{display:flex;align-items:center;gap:12px;min-height:56px;padding:12px 16px;border-top:1px solid var(--border)}
+.list .li:first-child{border-top:0}.list .li .ic{color:var(--muted);width:24px;text-align:center}
+.list .li .grow{flex:1;font:500 15px "Plus Jakarta Sans"}.list .li .chev{color:#C2C8BF}
+.list .li.danger{color:var(--error)}.list .li.danger .ic{color:var(--error)}
+
+/* fields */
+.field label{display:block;font:600 12px "Plus Jakarta Sans";color:var(--muted);margin:0 0 6px}
+.field .input{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-field);padding:14px 16px;font-size:15px;min-height:52px}
+.field .input.focus{border:1.5px solid var(--primary)}
+.field .input.err{border-color:var(--error)}.field .msg{color:var(--error);font:500 12px "Plus Jakarta Sans";margin-top:6px}
+.field .input.ro{background:var(--surface-low)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:8px 14px;border-radius:var(--r-pill);border:1px solid var(--border);background:#fff;font:500 13px "Plus Jakarta Sans"}
+.chip.sel{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600}
+
+/* phone frames */
+.phones{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;margin-top:12px}
+.phone{width:390px;height:844px;background:var(--canvas);border:1px solid #D8D4C9;border-radius:36px;box-shadow:0 10px 30px rgba(0,0,0,.12);position:relative;overflow:hidden;display:flex;flex-direction:column}
+.phone .scroll{flex:1;overflow:hidden;padding:16px var(--gutter) 24px}
+.phone .appbar{height:56px;display:flex;align-items:center;padding:0 8px;font:600 17px "Plus Jakarta Sans"}
+.phone .appbar .back{width:48px;text-align:center;font-size:22px}.phone .appbar .ttl{flex:1;text-align:center;margin-right:48px}
+.phone .bar{padding:12px var(--gutter);background:var(--canvas);border-top:0}
+.phone .tabbar{height:72px;display:flex;align-items:center;background:rgba(255,255,255,.86);border-top:1px solid var(--border);position:relative}
+.tabbar .t{flex:1;text-align:center;font:500 11px "Plus Jakarta Sans";color:var(--muted)}
+.tabbar .t b{display:block;margin:0 auto 3px;width:fit-content;padding:2px 14px;border-radius:var(--r-pill);font-size:18px;font-weight:400}
+.tabbar .t.on{color:var(--primary);font-weight:700}.tabbar .t.on b{background:var(--soft)}
+.tabbar .fab{width:58px;height:58px;border-radius:50%;background:var(--primary);color:#fff;font-size:28px;display:grid;place-items:center;position:absolute;left:50%;top:-24px;transform:translateX(-50%);box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.section{font:600 15px "Plus Jakarta Sans";margin:24px 0 10px;display:flex;justify-content:space-between}
+.section a{font:600 13px "Plus Jakarta Sans";color:var(--primary)}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<main>
+<h1>TỔ ẤM Mobile — Component template</h1>
+<p class="lead">Bản xem trực quan của <code>Mobile/DESIGN-SYSTEM.md</code>. Mỗi khối ghi tên widget Flutter tương ứng. Phía Worker dùng đúng những khối này.</p>
+
+<h2>1. Màu · <code>NordicColors</code></h2>
+<div class="grid swatches">
+  <div class="sw"><i style="background:var(--primary)"></i><b>primary</b><span>#2F6B3F · nút, brand</span></div>
+  <div class="sw"><i style="background:var(--primary-hover)"></i><b>primaryHover</b><span>#285C36 · nhấn</span></div>
+  <div class="sw"><i style="background:var(--leaf)"></i><b>primaryContainer</b><span>#7FB77E · điểm nhấn</span></div>
+  <div class="sw"><i style="background:var(--soft)"></i><b>primaryFixed</b><span>#D2E6D2 · nền nhạt, pill ok</span></div>
+  <div class="sw"><i style="background:var(--secondary)"></i><b>secondaryAccent</b><span>#467F49 · snackbar</span></div>
+  <div class="sw"><i style="background:var(--amber)"></i><b>accentAmber</b><span>#F7C85C · sao</span></div>
+  <div class="sw"><i style="background:var(--cream)"></i><b>amberSoft</b><span>#FFF6C0 · cảnh báo</span></div>
+  <div class="sw"><i style="background:var(--canvas)"></i><b>canvas</b><span>#FAF8F3 · nền màn</span></div>
+  <div class="sw"><i style="background:var(--surface);border-bottom:1px solid var(--border)"></i><b>surface</b><span>#FFFFFF · thẻ, ô nhập</span></div>
+  <div class="sw"><i style="background:var(--title)"></i><b>textTitle</b><span>#2F3A34</span></div>
+  <div class="sw"><i style="background:var(--muted)"></i><b>textSecondary</b><span>#6B7280</span></div>
+  <div class="sw"><i style="background:var(--error)"></i><b>error</b><span>#BA1A1A</span></div>
+</div>
+
+<h2>2. Chữ · <code>NordicTypography</code></h2>
+<div class="panel">
+  <div class="t-display">display 30 · −0,02 em</div>
+  <div class="t-greeting">greeting — Nhà sạch, lòng nhẹ.</div>
+  <div class="row"><span class="t-num-l">13:00</span><span class="t-num-m">260.000 đ</span><span class="t-num-s">4,8</span><span class="t-small">numberLarge / Medium / Small</span></div>
+  <div class="t-title-m">titleMedium 18 — Tiêu đề mục</div>
+  <div class="t-title-s">titleSmall 15 — Tiêu đề thẻ</div>
+  <div class="t-body">bodyRegular 14 — Nội dung chính, dễ đọc.</div>
+  <div class="t-small">bodySmall 12 — Ghi chú, thông tin phụ.</div>
+</div>
+
+<h2>3. Khoảng cách và bo góc · <code>NordicSpace</code>, <code>NordicRadius</code></h2>
+<div class="panel">
+  <div class="row">
+    <span class="tile">xxs 4</span><span class="tile">xs 8</span><span class="tile">sm 12</span><span class="tile">md 16</span>
+    <span class="tile">gutter 20</span><span class="tile">lg 24</span><span class="tile">section 28</span><span class="tile">xl 32</span>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <div class="card" style="width:130px">card 20</div>
+    <div class="field"><div class="input" style="width:130px">field 14</div></div>
+    <div class="tile" style="width:130px">tile 12</div>
+    <div class="btn secondary" style="min-height:44px">pill</div>
+  </div>
+</div>
+
+<h2>4. Nút · <code>NordicButton</code> (nhấn: co về 0,97 ngay khi chạm)</h2>
+<div class="panel row">
+  <button class="btn primary">Nhận việc</button>
+  <button class="btn secondary">Để sau</button>
+  <button class="btn ghost">Bỏ qua</button>
+  <button class="btn danger">Đăng xuất</button>
+  <button class="btn primary" disabled>Chưa chọn</button>
+</div>
+
+<h2>5. Trạng thái · <code>StatusPill</code></h2>
+<div class="panel row">
+  <span class="pill ok dot">Đang rảnh</span><span class="pill warn">Chờ nghiệm thu</span>
+  <span class="pill bad">Đã huỷ</span><span class="pill neutral">Đang tìm người</span>
+</div>
+
+<h2>6. Thẻ · <code>NordicCard</code>, thẻ chính, người</h2>
+<div class="panel grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+  <div class="card"><div class="t-title-s">Thẻ thường</div><div class="t-small">Phẳng, viền mảnh, bo 20.</div></div>
+  <div class="card tap hl"><div class="t-title-s">Thẻ chọn / nhấn được</div><div class="t-small">Nhấn: co nhẹ. Đang chọn: viền xanh.</div></div>
+  <div class="hero-card"><div class="soft">Ca sắp tới</div><div class="t-num-l" style="color:#fff;margin:8px 0">13:00 <span class="soft" style="font:400 14px 'Plus Jakarta Sans'">đến 17:00</span></div><div class="soft">27/10/2026 · Ca chiều</div></div>
+  <div class="card row"><div class="avatar">TH</div><div><div class="t-title-s">Trần Thị Hà</div><div class="t-small">★ 4,9 · 126 ca</div></div></div>
+</div>
+
+<h2>7. Danh sách · <code>GroupedListCard</code></h2>
+<div class="panel"><div class="list">
+  <div class="li"><span class="ic">📍</span><span class="grow">Địa chỉ của tôi</span><span class="chev">›</span></div>
+  <div class="li"><span class="ic">🧾</span><span class="grow">Đơn đã đặt</span><span class="chev">›</span></div>
+  <div class="li danger"><span class="ic">↩</span><span class="grow">Đăng xuất</span></div>
+</div></div>
+
+<h2>8. Ô nhập · theme <code>inputDecorationTheme</code></h2>
+<div class="panel grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+  <div class="field"><label>Họ và tên</label><div class="input">Nguyễn Lan</div></div>
+  <div class="field"><label>Đang nhập</label><div class="input focus">0987 000 555</div></div>
+  <div class="field"><label>Có lỗi</label><div class="input err">0912</div><div class="msg">Số điện thoại chưa đúng. Ví dụ: 0912 345 678</div></div>
+  <div class="field"><label>Chỉ xem</label><div class="input ro">0987000555 🔒</div></div>
+  <div class="field"><label>Chọn một</label><div class="chips"><span class="chip sel">Nhà phố</span><span class="chip">Căn hộ</span><span class="chip">Phòng trọ</span></div></div>
+</div>
+<div class="note">Form sai: ô rung nhẹ + rung máy (<code>ErrorShake</code>) và câu báo lỗi dưới ô.</div>
+
+<h2>9. Hai mẫu màn · <code>NordicPage.tab</code> và <code>NordicPage.pushed</code></h2>
+<div class="phones">
+
+  <div class="phone">
+    <div class="scroll">
+      <div class="t-small" style="font-size:14px;color:var(--muted)">Thứ Tư, 28/10</div>
+      <div class="t-display" style="font:600 30px/1.15 Newsreader;margin:2px 0 16px">Chào Lan</div>
+      <div class="hero-card">
+        <div class="row" style="justify-content:space-between"><span class="soft t-title-s" style="color:rgba(255,255,255,.78)">Ca sắp tới</span><span class="pill" style="background:rgba(255,255,255,.16);color:#fff">Đã có người làm</span></div>
+        <div class="t-num-l" style="color:#fff;margin:10px 0 4px">13:00</div>
+        <div class="soft">27/10/2026 · Ca chiều · Cơ bản</div>
+      </div>
+      <div class="section">Đặt nhanh <a>Tất cả</a></div>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="card tap"><div class="t-title-s">Cơ bản</div><div class="t-num-s" style="margin:8px 0 4px">260.000 đ</div><div class="t-small">mỗi người, mỗi ca</div></div>
+        <div class="card tap"><div class="t-title-s">Cao cấp</div><div class="t-num-s" style="margin:8px 0 4px">390.000 đ</div><div class="t-small">mỗi người, mỗi ca</div></div>
+      </div>
+    </div>
+    <div class="tabbar">
+      <div class="t on"><b>⌂</b>Trang chủ</div><div class="t"><b>▤</b>Đơn</div><div style="width:70px"></div><div class="t"><b>♡</b>Yêu thích</div><div class="t"><b>☺</b>Tài khoản</div>
+      <div class="fab">+</div>
+    </div>
+  </div>
+
+  <div class="phone">
+    <div class="appbar"><span class="back">←</span><span class="ttl">Thêm địa chỉ</span></div>
+    <div class="scroll">
+      <div class="field"><label>Tên gợi nhớ</label><div class="input err">&nbsp;</div><div class="msg">Nhập tên gợi nhớ.</div></div>
+      <div class="field" style="margin-top:16px"><label>Số nhà, đường</label><div class="input">123 Nguyễn Thị Minh Khai</div></div>
+      <div class="section" style="margin-top:24px">Loại nhà</div>
+      <div class="chips"><span class="chip">Căn hộ</span><span class="chip sel">Nhà riêng</span><span class="chip">Phòng trọ</span></div>
+      <div class="section">Diện tích</div>
+      <div class="card row" style="justify-content:space-between"><span class="t-body">60,0 m² × 1 tầng</span><span class="t-num-m">60,0 m²</span></div>
+    </div>
+    <div class="bar"><button class="btn primary block">Lưu địa chỉ</button></div>
+  </div>
+
+</div>
+<div class="note" style="text-align:center">Trái: màn tab (tiêu đề lớn, thanh tab mờ, nút giữa). Phải: màn đẩy vào (app bar có nút quay lại, nút chính nằm sát đáy, trên bàn phím).</div>
+
+<h2>10. Trống · lỗi · tải</h2>
+<div class="panel grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+  <div class="card" style="text-align:center"><div style="font-size:30px">♡</div><div class="t-title-s">Chưa có ai trong danh sách</div><div class="t-small">Lưu người giúp việc sau một ca ưng ý để đặt lại nhanh.</div></div>
+  <div class="card" style="text-align:center"><div style="font-size:30px;color:var(--error)">!</div><div class="t-title-s">Chưa tải được</div><div class="t-small">Kiểm tra mạng rồi thử lại.</div><p><button class="btn secondary" style="min-height:40px;padding:10px 20px">Thử lại</button></p></div>
+  <div class="card" style="text-align:center"><div class="t-small">Đang tải…</div></div>
+</div>
+</main>
+</body>
+</html>
