@@ -172,7 +172,7 @@ void main() {
             builder: (context) => TextButton(
               key: const Key('open-list'),
               onPressed: () async {
-                picked = await Navigator.of(context).push(
+                picked = await Navigator.of(context).push<Object?>(
                   MaterialPageRoute<Object?>(
                     builder: (_) => AddressListScreen(
                       addressService: service,
