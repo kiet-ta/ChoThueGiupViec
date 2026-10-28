@@ -89,8 +89,8 @@ void main() {
     test(
       'worker name falls back, rating and hours use the Vietnamese comma',
       () {
-        expect(workerName(_assignment(1, 'ASSIGNED', name: null)), 'Thợ');
-        expect(workerName(_assignment(1, 'ASSIGNED', name: '  ')), 'Thợ');
+        expect(workerName(_assignment(1, 'ASSIGNED', name: null)), 'Người làm');
+        expect(workerName(_assignment(1, 'ASSIGNED', name: '  ')), 'Người làm');
         expect(workerName(_assignment(1, 'ASSIGNED')), 'Lan');
         expect(ratingText(4.8), '4,8');
         expect(ratingText(0), '');
@@ -121,14 +121,14 @@ void main() {
     test('walks pay, find, assigned, done', () {
       expect(current('PENDING_PAYMENT'), ['Thanh toán']);
       expect(done('PENDING_PAYMENT'), isEmpty);
-      expect(current('DISPATCHING'), ['Tìm thợ']);
+      expect(current('DISPATCHING'), ['Tìm người']);
       expect(done('DISPATCHING'), ['Thanh toán']);
-      expect(current('ASSIGNED'), ['Có thợ']);
-      expect(done('ASSIGNED'), ['Thanh toán', 'Tìm thợ']);
+      expect(current('ASSIGNED'), ['Có người làm']);
+      expect(done('ASSIGNED'), ['Thanh toán', 'Tìm người']);
     });
 
     test('PAID is shown as finding a worker', () {
-      expect(current('PAID'), ['Tìm thợ']);
+      expect(current('PAID'), ['Tìm người']);
     });
 
     test('a completed order has every step done and none current', () {
@@ -292,7 +292,7 @@ void main() {
         extensionFailure(
           const ApiException(409, 'server text', code: 'INVALID_STATE'),
         ),
-        contains('đang làm việc'),
+        contains('đang ở nhà bạn'),
       );
       expect(
         extensionFailure(const ApiException(409, 'server text')),

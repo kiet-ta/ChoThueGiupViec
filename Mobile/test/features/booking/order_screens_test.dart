@@ -230,7 +230,7 @@ void main() {
       final service = FakeOrderService()..status = OrderStatus.awaitingFallback;
       await pumpDetail(tester, service, fallback: fallback);
 
-      expect(textOf(tester, 'order-status'), 'Chờ bạn chọn: 1 thợ làm 2 ca');
+      expect(textOf(tester, 'order-status'), 'Chờ bạn chọn: 1 người làm 2 ca');
       expect(find.byKey(const Key('fallback-accept')), findsOneWidget);
     });
 
@@ -263,12 +263,16 @@ void main() {
       (tester) async {
         await pumpDetail(tester, FakeOrderService());
 
-        expect(find.text('GV261014ABC123'), findsOneWidget);
-        expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
+        expect(find.text('Chi tiết đơn'), findsOneWidget);
+        expect(textOf(tester, 'order-code'), 'Mã đơn GV261014ABC123');
+        expect(textOf(tester, 'order-status'), 'Đang tìm người làm');
         expect(textOf(tester, 'order-schedule'), '15/10/2026 · Ca sáng');
         expect(textOf(tester, 'order-amount'), '260.000 đ');
         expect(find.byKey(const Key('order-timeline')), findsOneWidget);
-        expect(textOf(tester, 'no-assignments'), contains('Đang tìm thợ'));
+        expect(
+          textOf(tester, 'no-assignments'),
+          contains('Đang tìm người làm'),
+        );
         expect(find.byKey(const Key('pay-order')), findsNothing);
       },
     );
@@ -298,9 +302,9 @@ void main() {
           ..workers = [_worker(7, AssignmentStatus.assigned)];
         await pumpDetail(tester, service);
 
-        expect(textOf(tester, 'order-status'), 'Đã có thợ');
+        expect(textOf(tester, 'order-status'), 'Đã có người làm');
         expect(textOf(tester, 'assignment-status-7'), 'Đã nhận ca');
-        expect(find.text('Đang tìm thợ'), findsNothing);
+        expect(find.text('Đang tìm người làm'), findsNothing);
       },
     );
 
@@ -309,7 +313,7 @@ void main() {
       matching: find.byIcon(Icons.check),
     );
 
-    testWidgets('an assigned order ticks "Có thợ"', (tester) async {
+    testWidgets('an assigned order ticks "Có người làm"', (tester) async {
       final assigned = FakeOrderService()
         ..status = OrderStatus.assigned
         ..workers = [_worker(7, AssignmentStatus.assigned)];
@@ -318,7 +322,9 @@ void main() {
       expect(timelineTicks(), findsNWidgets(3)); // Thanh toán, Tìm thợ, Có thợ
     });
 
-    testWidgets('a dispatching order leaves "Tìm thợ" open', (tester) async {
+    testWidgets('a dispatching order leaves "Tìm người làm" open', (
+      tester,
+    ) async {
       await pumpDetail(tester, FakeOrderService());
 
       expect(timelineTicks(), findsNWidgets(1)); // only Thanh toán
@@ -349,7 +355,7 @@ void main() {
       await tester.pump();
 
       expect(service.orderReads, 2);
-      expect(textOf(tester, 'order-status'), 'Đã có thợ');
+      expect(textOf(tester, 'order-status'), 'Đã có người làm');
       expect(textOf(tester, 'assignment-status-7'), 'Đã nhận ca');
     });
 
@@ -380,14 +386,14 @@ void main() {
         );
         await tester.pump(_poll);
         await tester.pump();
-        expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
+        expect(textOf(tester, 'order-status'), 'Đang tìm người làm');
 
         service
           ..loadError = null
           ..status = OrderStatus.assigned;
         await tester.pump(_poll);
         await tester.pump();
-        expect(textOf(tester, 'order-status'), 'Đã có thợ');
+        expect(textOf(tester, 'order-status'), 'Đã có người làm');
       },
     );
 
@@ -403,7 +409,7 @@ void main() {
       service.loadError = null;
       await tester.tap(find.text('Thử lại'));
       await tester.pumpAndSettle();
-      expect(textOf(tester, 'order-status'), 'Đang tìm thợ');
+      expect(textOf(tester, 'order-status'), 'Đang tìm người làm');
     });
 
     testWidgets('without an order it says how to get here and asks nothing', (
@@ -412,7 +418,7 @@ void main() {
       final service = FakeOrderService();
       await pumpDetail(tester, service, withArgs: false);
 
-      expect(find.textContaining('lịch sử đơn'), findsOneWidget);
+      expect(find.textContaining('tab Đơn'), findsOneWidget);
       expect(service.orderReads, 0);
     });
   });
@@ -502,7 +508,7 @@ void main() {
 
       expect(textOf(tester, 'cancel-error'), contains('không huỷ được'));
       expect(find.textContaining('can no longer'), findsNothing);
-      expect(textOf(tester, 'order-status'), 'Đã có thợ');
+      expect(textOf(tester, 'order-status'), 'Đã có người làm');
     });
   });
 
@@ -675,13 +681,13 @@ void main() {
         ];
       await pumpHistory(tester, service);
 
-      expect(find.text('GV1'), findsOneWidget);
-      expect(textOf(tester, 'order-status-1'), 'Đã có thợ');
+      expect(find.text('Mã GV1'), findsOneWidget);
+      expect(textOf(tester, 'order-status-1'), 'Đã có người làm');
       expect(textOf(tester, 'order-status-2'), 'Đã huỷ');
-      expect(find.text('Economy · Ca sáng'), findsNWidgets(2));
-      expect(find.text('1 thợ · 260.000 đ'), findsNWidgets(2));
-      expect(find.text('THÁNG 10/2026'), findsOneWidget);
-      expect(textOf(tester, 'history-count'), '2 / 2 đơn');
+      expect(find.text('Ca sáng · Cơ bản'), findsNWidgets(2));
+      expect(find.text('1 người · 260.000 đ'), findsNWidgets(2));
+      expect(find.text('Tháng 10/2026'), findsOneWidget);
+      expect(textOf(tester, 'history-count'), '2 đơn');
       expect(find.byKey(const Key('history-more')), findsNothing);
     });
 
@@ -713,7 +719,7 @@ void main() {
       await tapKey(tester, 'history-more');
 
       expect(service.pagesAsked, [1, 2]);
-      expect(textOf(tester, 'history-count'), '25 / 25 đơn');
+      expect(textOf(tester, 'history-count'), '25 đơn');
       expect(find.byKey(const Key('order-25')), findsOneWidget);
       expect(find.byKey(const Key('history-more')), findsNothing);
     });
@@ -734,7 +740,7 @@ void main() {
 
       service.listError = null;
       await tapKey(tester, 'history-more');
-      expect(textOf(tester, 'history-count'), '25 / 25 đơn');
+      expect(textOf(tester, 'history-count'), '25 đơn');
     });
 
     testWidgets('without any order it offers to book', (tester) async {
@@ -742,7 +748,7 @@ void main() {
       await pumpHistory(tester, FakeOrderService(), onBook: () => booked++);
 
       expect(find.text('Bạn chưa có đơn nào'), findsOneWidget);
-      await tester.tap(find.text('Đặt đơn'));
+      await tester.tap(find.text('Đặt ca'));
       await tester.pumpAndSettle();
       expect(booked, 1);
     });

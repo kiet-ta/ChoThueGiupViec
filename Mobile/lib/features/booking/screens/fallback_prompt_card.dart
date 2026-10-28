@@ -80,7 +80,7 @@ class _FallbackPromptCardState extends State<FallbackPromptCard> {
       setState(() {
         _submitting = false;
         _notice = asked
-            ? 'Đã gửi đề nghị. Thợ có 2 phút để xác nhận ca thứ hai.'
+            ? 'Đã gửi đề nghị. Người làm có 2 phút để xác nhận ca thứ hai.'
             : 'Đơn đã được huỷ và hoàn tiền 100 %.';
         _status = FallbackStatus(
           orderId: widget.orderId,
@@ -144,13 +144,13 @@ class _FallbackPromptCardState extends State<FallbackPromptCard> {
       FallbackState.awaitingWorker => _card(
         children: [
           const Text(
-            'Đang chờ thợ xác nhận ca thứ hai',
+            'Đang chờ người làm xác nhận ca thứ hai',
             key: Key('fallback-waiting-worker'),
             style: NordicTypography.h3,
           ),
           const SizedBox(height: 8.0),
           Text(
-            _notice ?? 'Bạn đã đồng ý. Thợ có 2 phút để xác nhận; nếu không, đơn sẽ được huỷ và hoàn tiền.',
+            _notice ?? 'Bạn đã đồng ý. Người làm có 2 phút để xác nhận; nếu không, đơn sẽ được huỷ và hoàn tiền.',
             style: NordicTypography.bodyRegular,
           ),
         ],
@@ -173,13 +173,13 @@ class _FallbackPromptCardState extends State<FallbackPromptCard> {
   Widget _question(FallbackStatus status) => _card(
     children: [
       const Text(
-        'Chỉ có 1 thợ nhận đơn của bạn',
+        'Chỉ có 1 người nhận đơn của bạn',
         key: Key('fallback-title'),
         style: NordicTypography.h3,
       ),
       const SizedBox(height: 8.0),
       Text(
-        'Thợ này làm luôn ${_secondShift(status)} ngay sau ca đã nhận (2 ca liên tiếp cùng ngày)? Nếu không đồng ý, đơn sẽ được huỷ và hoàn tiền 100 %.',
+        'Người này làm luôn ${_secondShift(status)} ngay sau ca đã nhận (2 ca liên tiếp cùng ngày)? Nếu không đồng ý, đơn sẽ được huỷ và hoàn tiền 100 %.',
         key: const Key('fallback-question'),
         style: NordicTypography.bodyRegular,
       ),
@@ -202,7 +202,7 @@ class _FallbackPromptCardState extends State<FallbackPromptCard> {
       const SizedBox(height: 16.0),
       NordicButton(
         key: const Key('fallback-accept'),
-        label: 'Đồng ý, thợ làm 2 ca liên tiếp',
+        label: 'Đồng ý, làm 2 ca liên tiếp',
         isLoading: _submitting,
         onPressed: _submitting ? null : () => _answer(true),
       ),

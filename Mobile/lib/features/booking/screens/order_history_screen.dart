@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
+import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../logic/booking_logic.dart';
 import '../logic/order_logic.dart';
@@ -126,141 +130,146 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ui-templates `customer/orders.html`: a tab of the customer shell (large title) or a pushed screen.
+    // A tab of the customer shell (large title) or a pushed screen (MOB-UI-15, DESIGN-SYSTEM §5).
     final pushed = ModalRoute.of(context)?.canPop ?? false;
-    return Scaffold(
-      appBar: pushed ? AppBar(title: const Text('Lịch sử đơn')) : null,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 390.0),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 32.0),
-              children: [
-                if (!pushed)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0, bottom: 16.0),
-                    child: Text('Đơn', style: NordicTypography.screenTitle),
-                  ),
-                ..._body(),
-              ],
+    final ready = !_loading && _error == null && _items.isNotEmpty;
+    final count = ready
+        ? Text(
+            _items.length == _total
+                ? '$_total đơn'
+                : '${_items.length} / $_total đơn',
+            key: const Key('history-count'),
+            style: NordicTypography.bodyRegular.copyWith(
+              color: NordicColors.textSecondary,
             ),
-          ),
-        ),
-      ),
+          )
+        : null;
+    if (pushed) {
+      return NordicPage.pushed(
+        title: 'Đơn đã đặt',
+        onRefresh: _load,
+        children: [
+          if (count != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+              child: count,
+            ),
+          ..._body(),
+        ],
+      );
+    }
+    return NordicPage.tab(
+      title: 'Đơn',
+      headerAction: count,
+      onRefresh: _load,
+      children: _body(),
     );
   }
 
   static const _weekdays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-  /// The orders grouped by the month of their day, in the server's order.
+  /// The orders grouped by the month of their day, in the server's order; one card per order.
   List<Widget> _rows() {
     final widgets = <Widget>[];
     String? month;
-    var group = <Widget>[];
-    void flush() {
-      if (group.isEmpty) return;
-      widgets.add(
-        Material(
-          color: NordicColors.surface,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-            side: const BorderSide(color: NordicColors.border),
-          ),
-          child: Column(children: group),
-        ),
-      );
-      group = <Widget>[];
-    }
-
     for (final order in _items) {
       final day = DateTime.tryParse(order.scheduledDate);
       final key = day == null ? '' : 'Tháng ${day.month}/${day.year}';
       if (key != month) {
-        flush();
         month = key;
         if (key.isNotEmpty) {
           widgets.add(
             Padding(
               padding: EdgeInsets.only(
-                top: widgets.isEmpty ? 16.0 : 24.0,
-                bottom: 8.0,
+                top: widgets.isEmpty ? 0 : NordicSpace.lg,
+                bottom: NordicSpace.xs,
               ),
-              child: Text(key.toUpperCase(), style: NordicTypography.caps),
+              child: Text(key, style: NordicTypography.titleSmall),
             ),
           );
         }
+      } else {
+        widgets.add(const SizedBox(height: NordicSpace.sm));
       }
-      if (group.isNotEmpty) group.add(const Divider(height: 1, thickness: 1));
-      group.add(_row(order, day));
+      widgets.add(_row(order, day));
     }
-    flush();
     return widgets;
   }
 
   Widget _row(OrderSummary order, DateTime? day) {
-    return InkWell(
+    return NordicCard(
       key: Key('order-${order.orderId}'),
       onTap: () => _open(order),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 40.0,
-              child: Column(
-                children: [
-                  Text(
-                    day == null ? '–' : day.day.toString().padLeft(2, '0'),
-                    style: NordicTypography.numberSmall,
-                  ),
-                  if (day != null)
-                    Text(
-                      _weekdays[day.weekday - 1],
-                      style: const TextStyle(
-                        fontSize: 11.0,
-                        color: NordicColors.textSecondary,
-                      ),
-                    ),
-                ],
-              ),
+      padding: const EdgeInsets.all(NordicSpace.sm),
+      child: Row(
+        children: [
+          Container(
+            width: 52.0,
+            padding: const EdgeInsets.symmetric(vertical: NordicSpace.xs),
+            decoration: const BoxDecoration(
+              color: NordicColors.surfaceLow,
+              borderRadius: NordicRadius.tileAll,
             ),
-            const SizedBox(width: 12.0),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: Column(
+              children: [
+                Text(
+                  day == null ? '–' : day.day.toString().padLeft(2, '0'),
+                  style: NordicTypography.numberSmall,
+                ),
+                if (day != null)
                   Text(
-                    '${tierLabel(order.serviceTier)} · ${shiftLabel(order.shiftCode)}',
-                    style: NordicTypography.titleSmall,
-                  ),
-                  const SizedBox(height: 2.0),
-                  Text(order.orderCode, style: NordicTypography.bodySmall),
-                  Text(
-                    '${order.requiredWorkers} thợ · ${formatVnd(order.totalAmount)}',
+                    _weekdays[day.weekday - 1],
                     style: NordicTypography.bodySmall,
                   ),
-                ],
-              ),
+              ],
             ),
-            const SizedBox(width: 8.0),
-            OrderStatusPill(
-              order.orderStatus,
-              textKey: Key('order-status-${order.orderId}'),
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${shiftLabel(order.shiftCode)} · ${tierLabel(order.serviceTier)}',
+                  style: NordicTypography.titleSmall,
+                ),
+                const SizedBox(height: 2.0),
+                Text(
+                  '${order.requiredWorkers} người · ${formatVnd(order.totalAmount)}',
+                  style: NordicTypography.bodyRegular.copyWith(
+                    color: NordicColors.textBody,
+                  ),
+                ),
+                Text(
+                  'Mã ${order.orderCode}',
+                  style: NordicTypography.bodySmall.copyWith(fontSize: 11),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: NordicSpace.xs),
+          OrderStatusPill(
+            order.orderStatus,
+            textKey: Key('order-status-${order.orderId}'),
+          ),
+        ],
       ),
     );
   }
 
   List<Widget> _body() {
-    if (_loading) return const [LoadingStateWidget(message: 'Đang tải đơn…')];
+    if (_loading) {
+      return const [
+        SizedBox(
+          height: 320,
+          child: LoadingStateWidget(message: 'Đang tải đơn…'),
+        ),
+      ];
+    }
     if (_error != null) {
       return [
         ErrorStateWidget(
-          title: 'Chưa tải được lịch sử đơn',
+          title: 'Chưa tải được đơn',
           message: _error!,
           onRetry: _load,
         ),
@@ -271,18 +280,13 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         EmptyStateWidget(
           title: 'Bạn chưa có đơn nào',
           subtitle: 'Đơn bạn đặt sẽ hiện ở đây.',
-          action: NordicButton(label: 'Đặt đơn', onPressed: _book),
+          action: NordicButton(label: 'Đặt ca', onPressed: _book),
         ),
       ];
     }
     return [
-      Text(
-        '${_items.length} / $_total đơn',
-        key: const Key('history-count'),
-        style: NordicTypography.bodySmall,
-      ),
       ..._rows(),
-      const SizedBox(height: 16.0),
+      const SizedBox(height: NordicSpace.md),
       if (_moreError != null)
         Text(
           _moreError!,

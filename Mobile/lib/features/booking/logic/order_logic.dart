@@ -20,9 +20,9 @@ const Duration defaultProgressPollInterval = Duration(seconds: 5);
 String orderStatusLabel(String status) => switch (status) {
   OrderStatus.pendingPayment => 'Chờ thanh toán',
   OrderStatus.paid => 'Đã thanh toán',
-  OrderStatus.dispatching => 'Đang tìm thợ',
-  OrderStatus.assigned => 'Đã có thợ',
-  OrderStatus.awaitingFallback => 'Chờ bạn chọn: 1 thợ làm 2 ca',
+  OrderStatus.dispatching => 'Đang tìm người làm',
+  OrderStatus.assigned => 'Đã có người làm',
+  OrderStatus.awaitingFallback => 'Chờ bạn chọn: 1 người làm 2 ca',
   OrderStatus.completed => 'Hoàn thành',
   OrderStatus.cancelled => 'Đã huỷ',
   _ => status,
@@ -55,7 +55,7 @@ String assignmentStatusLabel(String status) => switch (status) {
   AssignmentStatus.inProgress => 'Đang làm việc',
   AssignmentStatus.awaitingAcceptance => 'Chờ bạn nghiệm thu',
   AssignmentStatus.completed => 'Đã xong',
-  AssignmentStatus.cancelledByWorker => 'Thợ đã huỷ',
+  AssignmentStatus.cancelledByWorker => 'Người làm đã huỷ',
   AssignmentStatus.absent => 'Vắng mặt',
   AssignmentStatus.incident => 'Có sự cố',
   _ => status,
@@ -63,17 +63,17 @@ String assignmentStatusLabel(String status) => switch (status) {
 
 String extensionStatusLabel(String status) => switch (status) {
   ExtensionStatus.pendingPayment => 'Chờ thanh toán',
-  ExtensionStatus.paid => 'Đã thanh toán, chờ thợ trả lời',
-  ExtensionStatus.accepted => 'Thợ đã đồng ý',
-  ExtensionStatus.declined => 'Thợ từ chối, tiền được hoàn lại',
+  ExtensionStatus.paid => 'Đã thanh toán, chờ người làm trả lời',
+  ExtensionStatus.accepted => 'Người làm đã đồng ý',
+  ExtensionStatus.declined => 'Người làm từ chối, tiền được hoàn lại',
   ExtensionStatus.expired => 'Hết hạn thanh toán',
   _ => status,
 };
 
-/// `Thợ` when the server has no name for the worker (the Workers port did not know it).
+/// `Người làm` when the server has no name for the worker (the Workers port did not know it).
 String workerName(ProgressAssignment a) =>
     (a.workerName == null || a.workerName!.trim().isEmpty)
-    ? 'Thợ'
+    ? 'Người làm'
     : a.workerName!;
 
 /// `4,8` (one decimal, Vietnamese comma); empty when there is no rating yet.
@@ -113,7 +113,7 @@ class TimelineStep {
 /// The steps a customer follows: pay, find a worker, worker assigned, done. A cancelled order shows where it stopped as cancelled.
 /// `PAID` exists only for a moment on the server (decision Q24 / B4), so it is shown as "finding a worker".
 List<TimelineStep> orderTimeline(String status) {
-  const labels = ['Thanh toán', 'Tìm thợ', 'Có thợ', 'Hoàn thành'];
+  const labels = ['Thanh toán', 'Tìm người', 'Có người làm', 'Hoàn thành'];
   if (status == OrderStatus.cancelled) {
     return const [TimelineStep(label: 'Đã huỷ', done: true, current: true)];
   }
@@ -222,7 +222,7 @@ String cancelFailure(ApiException e) {
     return e.fieldErrors?['reason']?.firstOrNull ?? 'Lý do huỷ không hợp lệ.';
   }
   if (e.statusCode == 409) {
-    return 'Đơn này không huỷ được nữa: đã hoàn thành, đã huỷ, hoặc đã có thợ và còn chưa tới 2 giờ trước ca.';
+    return 'Đơn này không huỷ được nữa: đã hoàn thành, đã huỷ, hoặc đã có người làm và còn chưa tới 2 giờ trước ca.';
   }
   return _common(
     e,
@@ -242,7 +242,7 @@ String extensionFailure(ApiException e) {
       OrderErrorCode.extensionExists =>
         'Đơn này đã có một yêu cầu làm thêm giờ.',
       OrderErrorCode.invalidState =>
-        'Chỉ yêu cầu làm thêm được khi thợ đang làm việc tại nhà bạn.',
+        'Chỉ xin làm thêm được khi người làm đang ở nhà bạn.',
       _ => 'Chưa gửi được yêu cầu làm thêm giờ.',
     };
   }

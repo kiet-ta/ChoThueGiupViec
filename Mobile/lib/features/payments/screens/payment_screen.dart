@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/progress_ring.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
@@ -226,29 +229,22 @@ class _PaymentScreenState extends State<PaymentScreen>
   @override
   Widget build(BuildContext context) {
     final args = _args;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Thanh toán')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 32.0),
-            children: [
-              const _SandboxBanner(),
-              if (args?.orderCode != null) ...[
-                const SizedBox(height: 24.0),
-                Text(
-                  'Đơn ${args!.orderCode}',
-                  textAlign: TextAlign.center,
-                  style: NordicTypography.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 16.0),
-              ..._body(args),
-            ],
+    // MOB-UI-15: a pushed `NordicPage`; the amount is the one big number (DESIGN-SYSTEM §5 Detail).
+    return NordicPage.pushed(
+      title: 'Thanh toán',
+      children: [
+        const _SandboxBanner(),
+        if (args?.orderCode != null) ...[
+          const SizedBox(height: NordicSpace.lg),
+          Text(
+            'Mã đơn ${args!.orderCode}',
+            textAlign: TextAlign.center,
+            style: NordicTypography.bodySmall,
           ),
-        ),
-      ),
+        ],
+        const SizedBox(height: NordicSpace.md),
+        ..._body(args),
+      ],
     );
   }
 
@@ -257,7 +253,7 @@ class _PaymentScreenState extends State<PaymentScreen>
       return const [
         NordicCard(
           child: Text(
-            'Màn hình này mở từ một đơn cần thanh toán. Hãy đặt đơn hoặc mở đơn đang chờ thanh toán.',
+            'Hãy mở một đơn đang chờ thanh toán trong tab Đơn.',
             style: NordicTypography.bodyRegular,
           ),
         ),
@@ -306,14 +302,14 @@ class _PaymentScreenState extends State<PaymentScreen>
         textAlign: TextAlign.center,
         style: NordicTypography.bodySmall,
       ),
-      const SizedBox(height: 8.0),
+      const SizedBox(height: NordicSpace.xs),
       Text(
         amount,
         key: const Key('payment-amount'),
         textAlign: TextAlign.center,
         style: NordicTypography.numberLarge.copyWith(fontSize: 44.0),
       ),
-      const SizedBox(height: 24.0),
+      const SizedBox(height: NordicSpace.lg),
       NordicCard(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -330,13 +326,13 @@ class _PaymentScreenState extends State<PaymentScreen>
                 Text('Nội dung mã QR', style: NordicTypography.bodySmall),
               ],
             ),
-            const SizedBox(height: 12.0),
+            const SizedBox(height: NordicSpace.sm),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12.0),
               decoration: BoxDecoration(
                 color: NordicColors.surfaceLow,
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: NordicRadius.tileAll,
               ),
               child: SelectableText(
                 payment.qrPayload ?? '—',
@@ -345,12 +341,12 @@ class _PaymentScreenState extends State<PaymentScreen>
               ),
             ),
             if (payment.payUrl != null) ...[
-              const SizedBox(height: 12.0),
+              const SizedBox(height: NordicSpace.sm),
               const Text(
                 'Trang thanh toán sandbox',
-                style: NordicTypography.caps,
+                style: NordicTypography.titleSmall,
               ),
-              const SizedBox(height: 4.0),
+              const SizedBox(height: NordicSpace.xxs),
               SelectableText(
                 payment.payUrl!,
                 key: const Key('payment-pay-url'),
@@ -358,7 +354,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                 style: NordicTypography.bodySmall,
               ),
             ],
-            const SizedBox(height: 12.0),
+            const SizedBox(height: NordicSpace.sm),
             const Text(
               'Ứng dụng chưa vẽ được mã QR dạng hình: sao chép nội dung trên để thanh toán thử.',
               textAlign: TextAlign.center,
@@ -367,7 +363,7 @@ class _PaymentScreenState extends State<PaymentScreen>
           ],
         ),
       ),
-      const SizedBox(height: 16.0),
+      const SizedBox(height: NordicSpace.md),
       Row(
         children: [
           Expanded(
@@ -381,7 +377,7 @@ class _PaymentScreenState extends State<PaymentScreen>
               ),
             ),
           ),
-          const SizedBox(width: 12.0),
+          const SizedBox(width: NordicSpace.sm),
           Expanded(
             child: _statBox(
               icon: Icons.sync,
@@ -395,9 +391,9 @@ class _PaymentScreenState extends State<PaymentScreen>
           ),
         ],
       ),
-      const SizedBox(height: 16.0),
+      const SizedBox(height: NordicSpace.md),
       ClipRRect(
-        borderRadius: BorderRadius.circular(3.0),
+        borderRadius: NordicRadius.pill,
         child: LinearProgressIndicator(
           value: _lifeLeft(payment, now),
           minHeight: 6.0,
@@ -405,7 +401,7 @@ class _PaymentScreenState extends State<PaymentScreen>
           color: NordicColors.primary,
         ),
       ),
-      const SizedBox(height: 12.0),
+      const SizedBox(height: NordicSpace.sm),
       Text(
         _pollFailures >= 3
             ? pollTroubleMessage
@@ -425,7 +421,7 @@ class _PaymentScreenState extends State<PaymentScreen>
     padding: const EdgeInsets.all(14.0),
     decoration: BoxDecoration(
       color: NordicColors.surface,
-      borderRadius: BorderRadius.circular(16.0),
+      borderRadius: NordicRadius.cardAll,
       border: Border.all(color: NordicColors.border),
     ),
     child: Column(
@@ -446,14 +442,14 @@ class _PaymentScreenState extends State<PaymentScreen>
             ),
           ],
         ),
-        const SizedBox(height: 8.0),
+        const SizedBox(height: NordicSpace.xs),
         child,
       ],
     ),
   );
 
   List<Widget> _paid(Payment payment) => [
-    const SizedBox(height: 16.0),
+    const SizedBox(height: NordicSpace.md),
     const Center(
       child: ProgressRing(
         value: 1.0,
@@ -461,20 +457,20 @@ class _PaymentScreenState extends State<PaymentScreen>
         child: Icon(Icons.check, size: 48.0, color: NordicColors.primary),
       ),
     ),
-    const SizedBox(height: 16.0),
+    const SizedBox(height: NordicSpace.md),
     const Text(
       'Đã thanh toán',
       key: Key('payment-paid'),
       textAlign: TextAlign.center,
       style: NordicTypography.titleMedium,
     ),
-    const SizedBox(height: 4.0),
+    const SizedBox(height: NordicSpace.xxs),
     Text(
       'Đã nhận ${formatVnd(payment.amount)}.',
       textAlign: TextAlign.center,
       style: NordicTypography.bodyRegular,
     ),
-    const SizedBox(height: 24.0),
+    const SizedBox(height: NordicSpace.lg),
     NordicButton(
       label: 'Xem đơn',
       width: double.infinity,
@@ -490,7 +486,7 @@ class _PaymentScreenState extends State<PaymentScreen>
           Row(
             children: [
               Icon(Icons.timer_outlined, color: NordicColors.error),
-              SizedBox(width: 8.0),
+              SizedBox(width: NordicSpace.xs),
               Expanded(
                 child: Text(
                   'Đã hết hạn thanh toán',
@@ -500,7 +496,7 @@ class _PaymentScreenState extends State<PaymentScreen>
               ),
             ],
           ),
-          SizedBox(height: 8.0),
+          SizedBox(height: NordicSpace.xs),
           Text(
             'Mã thanh toán không còn hiệu lực. Bạn không bị trừ tiền; đơn chưa thanh toán sẽ được huỷ.',
             style: NordicTypography.bodySmall,
@@ -508,7 +504,7 @@ class _PaymentScreenState extends State<PaymentScreen>
         ],
       ),
     ),
-    const SizedBox(height: 16.0),
+    const SizedBox(height: NordicSpace.md),
     NordicButton(
       label: 'Quay lại',
       width: double.infinity,
@@ -527,7 +523,7 @@ class _PaymentScreenState extends State<PaymentScreen>
             key: Key('payment-refunded'),
             style: NordicTypography.titleSmall,
           ),
-          const SizedBox(height: 8.0),
+          const SizedBox(height: NordicSpace.xs),
           Text(
             'Khoản ${formatVnd(payment.amount)} đã được hoàn lại.',
             style: NordicTypography.bodyRegular,
@@ -550,7 +546,7 @@ class _SandboxBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
       decoration: BoxDecoration(
         color: NordicColors.amberSoft,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: NordicRadius.tileAll,
       ),
       child: const Row(
         children: [
@@ -559,7 +555,7 @@ class _SandboxBanner extends StatelessWidget {
             color: NordicColors.onAmberSoft,
             size: 18.0,
           ),
-          SizedBox(width: 8.0),
+          SizedBox(width: NordicSpace.xs),
           Expanded(
             child: Text(
               sandboxBannerText,
