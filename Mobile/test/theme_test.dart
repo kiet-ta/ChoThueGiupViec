@@ -8,14 +8,13 @@ import 'package:mobile/core/theme/nordic_typography.dart';
 
 /// Every NordicColors constant that has a DESIGN.md YAML token, as
 /// `YAML token name -> (constant, DESIGN.md hex)`.
+/// `primary`, `primary-hover` and `primary-container` are left out on purpose: the Mobile app
+/// uses its own palette for them (MOB-UI-09, owner decision 2026-10-28, see [_mobilePalette]).
 const Map<String, (Color, String)> _tokenColors = {
   'canvas-background': (NordicColors.canvas, 'FAF8F3'),
   'card-surface': (NordicColors.surface, 'FFFFFF'),
   'surface-container': (NordicColors.surfaceContainer, 'F0EEE9'),
   'surface-dim': (NordicColors.surfaceDim, 'DBDAD5'),
-  'primary': (NordicColors.primary, '416448'),
-  'primary-hover': (NordicColors.primaryHover, '56705B'),
-  'primary-container': (NordicColors.primaryContainer, '597D60'),
   'text-primary': (NordicColors.textTitle, '2F3A34'),
   'text-secondary': (NordicColors.textSecondary, '6B7280'),
   'on-primary': (NordicColors.textInverse, 'FFFFFF'),
@@ -23,6 +22,25 @@ const Map<String, (Color, String)> _tokenColors = {
   'error': (NordicColors.error, 'BA1A1A'),
   'error-container': (NordicColors.errorContainer, 'FFDAD6'),
 };
+
+/// The Mobile palette (#2F6B3F / #7FB77E / #F7C85C / #FFF6C0) and the values derived from it.
+const Map<String, (Color, int)> _mobilePalette = {
+  'primary': (NordicColors.primary, 0xFF2F6B3F),
+  'primaryHover': (NordicColors.primaryHover, 0xFF285C36),
+  'primaryContainer': (NordicColors.primaryContainer, 0xFF7FB77E),
+  'secondaryAccent': (NordicColors.secondaryAccent, 0xFF467F49),
+  'primaryFixed': (NordicColors.primaryFixed, 0xFFD2E6D2),
+  'accentAmber': (NordicColors.accentAmber, 0xFFF7C85C),
+  'amberSoft': (NordicColors.amberSoft, 0xFFFFF6C0),
+};
+
+/// WCAG 2 contrast ratio of two opaque colours.
+double _contrast(Color a, Color b) {
+  final la = a.computeLuminance();
+  final lb = b.computeLuminance();
+  final (light, dark) = la > lb ? (la, lb) : (lb, la);
+  return (light + 0.05) / (dark + 0.05);
+}
 
 const String _designMdPath =
     '../.agents/skills/project-team-design-template/DESIGN.md';
@@ -62,8 +80,33 @@ void main() {
       });
     });
 
-    test('the accent amber is the DESIGN.md Brand Accent', () {
-      expect(NordicColors.accentAmber, const Color(0xFFD9A441));
+    test('the brand colours follow the Mobile palette', () {
+      _mobilePalette.forEach((name, entry) {
+        expect(entry.$1, Color(entry.$2), reason: 'NordicColors.$name');
+      });
+    });
+
+    test('the palette pairs in use stay readable (WCAG AA 4.5:1)', () {
+      const white = NordicColors.textInverse;
+      // Buttons, cards and the snackbar carry white text.
+      expect(_contrast(white, NordicColors.primary), greaterThanOrEqualTo(4.5));
+      expect(
+        _contrast(white, NordicColors.primaryHover),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrast(white, NordicColors.secondaryAccent),
+        greaterThanOrEqualTo(4.5),
+      );
+      // The ok pill: primary text on primaryFixed; the warn pill: onAmberSoft on amberSoft.
+      expect(
+        _contrast(NordicColors.primary, NordicColors.primaryFixed),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrast(NordicColors.onAmberSoft, NordicColors.amberSoft),
+        greaterThanOrEqualTo(4.5),
+      );
     });
 
     test('NordicTheme configured with lightTheme properties', () {
