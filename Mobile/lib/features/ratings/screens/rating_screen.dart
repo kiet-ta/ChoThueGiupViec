@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/avatar_initials.dart';
 import '../../../core/widgets/bottom_action_bar.dart';
@@ -146,15 +147,13 @@ class _RatingScreenState extends State<RatingScreen> {
         : '${widget.role.title} ${widget.ratedName}';
     return Scaffold(
       appBar: AppBar(leading: const CloseButton(), title: Text(title)),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _body(),
-        ),
-      ),
-      // ui-templates `customer/rating.html`: "Gửi đánh giá" sits at the bottom while the form is open.
-      bottomNavigationBar: _phase == _Phase.form
-          ? BottomActionBar(
+      // MOB-UI-16: full width; "Gửi đánh giá" sits in the body's bar, above the keyboard
+      // while the comment is typed (DESIGN-SYSTEM §5 Form).
+      body: Column(
+        children: [
+          Expanded(child: _body()),
+          if (_phase == _Phase.form)
+            BottomActionBar(
               children: [
                 NordicButton(
                   key: const Key('rating-submit'),
@@ -163,17 +162,16 @@ class _RatingScreenState extends State<RatingScreen> {
                   onPressed: _complete && !_sending ? _submit : null,
                 ),
               ],
-            )
-          : null,
+            ),
+        ],
+      ),
     );
   }
 
   Widget _body() {
     switch (_phase) {
       case _Phase.loading:
-        return const LoadingStateWidget(
-          message: 'Đang kiểm tra cửa sổ đánh giá…',
-        );
+        return const LoadingStateWidget(message: 'Đang tải…');
       case _Phase.loadFailed:
         return ErrorStateWidget(
           message: _loadError ?? 'Không tải được.',
@@ -202,7 +200,7 @@ class _RatingScreenState extends State<RatingScreen> {
                 Icons.timer_outlined,
                 color: NordicColors.textSecondary,
               ),
-              const SizedBox(width: 12.0),
+              const SizedBox(width: NordicSpace.sm),
               Expanded(
                 child: Text(
                   message,
@@ -221,7 +219,7 @@ class _RatingScreenState extends State<RatingScreen> {
     return ListView(
       padding: const EdgeInsets.all(20.0),
       children: [
-        const SizedBox(height: 24.0),
+        const SizedBox(height: NordicSpace.lg),
         const Center(
           child: ProgressRing(
             value: 1.0,
@@ -229,18 +227,18 @@ class _RatingScreenState extends State<RatingScreen> {
             child: Icon(Icons.check, size: 44.0, color: NordicColors.primary),
           ),
         ),
-        const SizedBox(height: 16.0),
+        const SizedBox(height: NordicSpace.md),
         const Text(
           'Cảm ơn bạn đã đánh giá',
           key: Key('rating-thanks'),
           textAlign: TextAlign.center,
           style: NordicTypography.titleMedium,
         ),
-        const SizedBox(height: 8.0),
+        const SizedBox(height: NordicSpace.xs),
         Text(
           widget.role.isInternalOnly
               ? 'Đánh giá của bạn đã được lưu và chỉ dùng nội bộ để giữ chất lượng dịch vụ.'
-              : 'Đánh giá đã được lưu vĩnh viễn và góp vào điểm uy tín của thợ.',
+              : 'Đánh giá đã được lưu và góp vào điểm uy tín của người làm.',
           textAlign: TextAlign.center,
           style: NordicTypography.bodySmall,
         ),
@@ -255,7 +253,7 @@ class _RatingScreenState extends State<RatingScreen> {
       children: [
         if (widget.ratedName != null) ...[
           Center(child: AvatarInitials(widget.ratedName!, size: 72.0)),
-          const SizedBox(height: 12.0),
+          const SizedBox(height: NordicSpace.sm),
         ],
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -276,7 +274,7 @@ class _RatingScreenState extends State<RatingScreen> {
           ],
         ),
         if (widget.role.isInternalOnly) ...[
-          const SizedBox(height: 4.0),
+          const SizedBox(height: NordicSpace.xxs),
           const Text(
             'Đánh giá này chỉ dùng nội bộ, gia chủ không nhìn thấy.',
             key: Key('rating-internal'),
@@ -284,7 +282,7 @@ class _RatingScreenState extends State<RatingScreen> {
             style: NordicTypography.bodySmall,
           ),
         ],
-        const SizedBox(height: 24.0),
+        const SizedBox(height: NordicSpace.lg),
         Center(
           child: StarRow(
             keyPrefix: 'stars',
@@ -295,7 +293,7 @@ class _RatingScreenState extends State<RatingScreen> {
           ),
         ),
         Center(child: _fieldError(_errors.stars ?? _serverFields['stars'])),
-        const SizedBox(height: 24.0),
+        const SizedBox(height: NordicSpace.lg),
         NordicCard(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           child: Column(
@@ -308,7 +306,7 @@ class _RatingScreenState extends State<RatingScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 16.0),
+        const SizedBox(height: NordicSpace.md),
         TextField(
           key: const Key('rating-comment'),
           controller: _comment,
@@ -318,20 +316,20 @@ class _RatingScreenState extends State<RatingScreen> {
             hintText: 'Nhận xét (không bắt buộc)',
           ),
         ),
-        const SizedBox(height: 4.0),
+        const SizedBox(height: NordicSpace.xxs),
         Text(
           '${_comment.text.trim().length}/$maxCommentLength ký tự',
           textAlign: TextAlign.right,
           style: NordicTypography.bodySmall,
         ),
         _fieldError(_errors.comment ?? _serverFields['comment']),
-        const SizedBox(height: 12.0),
+        const SizedBox(height: NordicSpace.sm),
         const Text(
           'Đánh giá được lưu vĩnh viễn, không sửa hay gửi lại được sau khi bấm Gửi.',
           style: NordicTypography.bodySmall,
         ),
         if (_failure != null) ...[
-          const SizedBox(height: 12.0),
+          const SizedBox(height: NordicSpace.sm),
           Text(
             _failure!,
             key: const Key('rating-failure'),
@@ -357,7 +355,7 @@ class _RatingScreenState extends State<RatingScreen> {
               keyPrefix: 'criterion-${c.key}',
               label: c.label,
               value: _criteria[c.key],
-              size: 22.0,
+              size: 28.0,
               onChanged: (v) => setState(() => _criteria[c.key] = v),
             ),
           ],

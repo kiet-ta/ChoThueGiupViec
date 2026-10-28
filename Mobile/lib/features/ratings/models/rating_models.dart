@@ -32,7 +32,7 @@ extension RatingRoleX on RatingRole {
   bool get isInternalOnly => this == RatingRole.worker;
 
   String get title =>
-      this == RatingRole.customer ? 'Đánh giá thợ' : 'Đánh giá gia chủ';
+      this == RatingRole.customer ? 'Đánh giá người làm' : 'Đánh giá gia chủ';
 }
 
 /// `RatingWindow` of the contract: whether the assignment can be rated now and why not.
