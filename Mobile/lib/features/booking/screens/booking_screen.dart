@@ -150,6 +150,9 @@ class _BookingScreenState extends State<BookingScreen> {
     // Checked against the server's options and the address book once they are loaded.
     _tier ??= args?.serviceTier;
     _addressId ??= args?.addressId;
+    _preferredWorkerId ??= args?.preferredWorkerId;
+    // A favorite worker only works the freelancer segment.
+    if (_preferredWorkerId != null) _tier ??= ServiceTier.economy;
   }
 
   @override

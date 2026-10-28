@@ -41,7 +41,7 @@ public class FakePortTests
             .Where(t => t.IsInterface && t.Namespace == typeof(IClock).Namespace)
             .ToList();
 
-        Assert.Equal(18, ports.Count);
+        Assert.Equal(20, ports.Count);
         foreach (var port in ports)
         {
             var instance = provider.GetRequiredService(port);
@@ -420,6 +420,33 @@ public class FakePortTests
         await using var provider = services.BuildServiceProvider();
 
         Assert.IsType<FakeCustomerAddressQuery>(provider.GetRequiredService<ICustomerAddressQuery>());
+    }
+
+    // ---- Customer favorites (Booking 3.3) and worker free shifts (Customers 2.3) ------------------
+
+    [Fact]
+    public async Task CustomerFavoriteQuery_answers_only_for_the_customers_own_favorites()
+    {
+        var favorites = new FakeCustomerFavoriteQuery();
+        favorites.Add(7, 42);
+
+        Assert.True(await favorites.IsFavoriteAsync(7, 42));
+        Assert.False(await favorites.IsFavoriteAsync(8, 42));
+        Assert.False(await favorites.IsFavoriteAsync(7, 43));
+    }
+
+    [Fact]
+    public async Task WorkerFreeShiftQuery_returns_the_workers_shifts_inside_the_range_in_date_order()
+    {
+        var shifts = new FakeWorkerFreeShiftQuery();
+        shifts.Add(42, new WorkerFreeShift(new DateOnly(2026, 10, 16), "SHIFT_MORNING"));
+        shifts.Add(42, new WorkerFreeShift(new DateOnly(2026, 10, 15), "SHIFT_EVENING"));
+        shifts.Add(42, new WorkerFreeShift(new DateOnly(2026, 10, 30), "SHIFT_MORNING"));
+        shifts.Add(43, new WorkerFreeShift(new DateOnly(2026, 10, 15), "SHIFT_MORNING"));
+
+        var free = await shifts.GetFreeShiftsAsync(42, new DateOnly(2026, 10, 14), new DateOnly(2026, 10, 20));
+
+        Assert.Equal([new DateOnly(2026, 10, 15), new DateOnly(2026, 10, 16)], free.Select(s => s.Date));
     }
 
     // ---- eKYC / image quality ----------------------------------------------------------------
