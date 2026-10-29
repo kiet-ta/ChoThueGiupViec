@@ -47,4 +47,26 @@ public class PaymentIpnController(IIpnService ipn) : ControllerBase
             ? BadRequest(ApiResponse<object>.Fail("IPN rejected."))
             : NoContent();
     }
+
+    /// <summary>
+    /// Handles a VNPay (sandbox) callback: a GET whose query holds the <c>vnp_</c> fields. VNPay wants HTTP 200 with
+    /// <c>RspCode</c>: 00 accepted, 02 already processed (both end its retries), 99 rejected (it retries; the answer gives no reason).
+    /// </summary>
+    [HttpGet("vnpay")]
+    [ApiExplorerSettings(IgnoreApi = true)] // gateway-facing; not part of the client contract snapshot (.spec/contracts/openapi.json)
+    public async Task<IActionResult> VnPay(CancellationToken ct)
+    {
+        var payload = Request.Query.ToDictionary(q => q.Key, q => q.Value.ToString(), StringComparer.Ordinal);
+        var outcome = await ipn.HandleAsync(payload, Request.QueryString.Value ?? string.Empty, ct);
+        // A dictionary, not an anonymous object: the JSON naming policy would turn RspCode into rspCode, which VNPay does not read.
+        return outcome switch
+        {
+            IpnOutcome.Accepted => Ok(VnPayAnswer("00", "Confirm Success")),
+            IpnOutcome.AlreadyProcessed => Ok(VnPayAnswer("02", "Order already confirmed")),
+            _ => Ok(VnPayAnswer("99", "Rejected")),
+        };
+    }
+
+    private static Dictionary<string, string> VnPayAnswer(string code, string message) =>
+        new() { ["RspCode"] = code, ["Message"] = message };
 }

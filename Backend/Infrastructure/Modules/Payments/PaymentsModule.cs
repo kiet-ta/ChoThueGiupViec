@@ -3,6 +3,7 @@ using CommonService.Application.Features.Payments.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using CommonService.Infrastructure.Modules.Payments.MoMo;
+using CommonService.Infrastructure.Modules.Payments.VnPay;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,6 +28,30 @@ public class PaymentsModule : IModule
         services.AddScoped<DevPaymentService>();
         services.AddHostedService<PaymentReconciliationWorker>();
         AddMoMoGateway(services, configuration);
+        AddVnPayGateway(services, configuration);
+    }
+
+    /// <summary>
+    /// The VNPay sandbox adapter, same rules as MoMo: registered only with real-looking credentials (user-secrets / environment, G-6)
+    /// and sandbox URLs (G-1). Registered after MoMo, so when both are configured VNPay is the gateway.
+    /// </summary>
+    public static void AddVnPayGateway(IServiceCollection services, IConfiguration configuration)
+    {
+        var options = configuration.GetSection(VnPayOptions.SectionName).Get<VnPayOptions>() ?? new VnPayOptions();
+        if (!options.HasCredentials)
+        {
+            return;
+        }
+
+        if (!options.PointsAtSandbox)
+        {
+            throw new InvalidOperationException(
+                $"VnPay:PaymentUrl and VnPay:ApiUrl must be https URLs of the sandbox host {VnPayOptions.SandboxHost} (decisions G-1: sandbox only, no real money).");
+        }
+
+        services.AddSingleton(options);
+        services.AddHttpClient<VnPayPaymentGateway>(client => client.Timeout = TimeSpan.FromSeconds(30));
+        services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<VnPayPaymentGateway>());
     }
 
     /// <summary>
