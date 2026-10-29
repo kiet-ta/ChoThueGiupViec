@@ -418,9 +418,14 @@ class _BookingScreenState extends State<BookingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    quote == null
-                        ? 'Chưa có giá'
-                        : '${quote.requiredWorkers} người × ${formatVnd(quote.unitPrice)}',
+                    missingChoice(
+                          tier: _tier,
+                          addressId: _addressId,
+                          day: _day,
+                          shiftCode: _shiftCode,
+                          hasQuote: quote != null,
+                        ) ??
+                        '${quote?.requiredWorkers ?? 0} người × ${formatVnd(quote?.unitPrice ?? 0)}',
                     style: NordicTypography.bodySmall,
                   ),
                   Text(

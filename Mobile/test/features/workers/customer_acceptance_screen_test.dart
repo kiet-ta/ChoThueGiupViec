@@ -89,12 +89,14 @@ Future<void> pumpScreen(
   WidgetTester tester, {
   FakePhotosService? photos,
   FakeAcceptanceService? acceptance,
+  bool completed = false,
 }) async {
   useDesignFrame(tester);
   await tester.pumpWidget(
     MaterialApp(
       home: CustomerAcceptanceScreen(
         assignmentId: 55,
+        completed: completed,
         photosService: photos ?? FakePhotosService(),
         acceptanceService: acceptance ?? FakeAcceptanceService(),
       ),
@@ -108,6 +110,16 @@ void main() {
   setUp(() => TokenStorage().clear());
 
   group('CustomerAcceptanceScreen', () {
+    testWidgets('completed acceptance is read-only when reopened', (
+      tester,
+    ) async {
+      final acceptance = FakeAcceptanceService();
+      await pumpScreen(tester, acceptance: acceptance, completed: true);
+      expect(find.text('Đã nghiệm thu'), findsOneWidget);
+      expect(find.text('Nghiệm thu'), findsNothing);
+      expect(find.text('Dọn lại'), findsNothing);
+      expect(acceptance.accepted, isEmpty);
+    });
     testWidgets(
       'renders the title with the assignment id, the status chip, the photo boxes and the two actions',
       (tester) async {
@@ -132,6 +144,29 @@ void main() {
       expect(find.text('Chưa có ảnh'), findsNWidgets(2));
       expect(find.byType(Image), findsNothing);
       expect(find.textContaining('storage.giupviec.local'), findsNothing);
+    });
+
+    testWidgets('opens an available photo full-screen and returns', (
+      tester,
+    ) async {
+      TokenStorage().saveTokens(accessToken: 'tok', refreshToken: 'ref');
+      final photos = FakePhotosService()..photos = [photo('BEFORE', 1, 11)];
+      await pumpScreen(tester, photos: photos, completed: true);
+
+      await tapVisible(tester, find.byKey(const Key('open-photo-11')));
+      expect(find.text('Ảnh Trước'), findsOneWidget);
+      expect(find.byType(InteractiveViewer), findsOneWidget);
+      final fullPhoto =
+          tester.widget<Image>(find.byType(Image).last).image as NetworkImage;
+      expect(
+        fullPhoto.url,
+        'http://api.test/api/workers/assignments/55/photos/11/file',
+      );
+      expect(fullPhoto.headers?['Authorization'], 'Bearer tok');
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('So sánh ảnh trước và sau'), findsOneWidget);
     });
 
     testWidgets(
@@ -229,7 +264,8 @@ void main() {
         expect(find.text('Chi tiết nghiệm thu'), findsOneWidget);
         expect(find.text('Phí nền tảng (0%)'), findsOneWidget);
         expect(find.text('Người làm nhận (100%)'), findsOneWidget);
-        expect(find.text('300000 đ'), findsNWidgets(2));
+        expect(find.text('300.000 đ'), findsNWidgets(2));
+        expect(find.text('0 đ'), findsOneWidget);
       },
     );
 

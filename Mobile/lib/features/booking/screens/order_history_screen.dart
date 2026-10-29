@@ -240,6 +240,16 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                     color: NordicColors.textBody,
                   ),
                 ),
+                if (order.orderStatus == OrderStatus.pendingPayment ||
+                    order.orderStatus == OrderStatus.awaitingFallback)
+                  Text(
+                    order.orderStatus == OrderStatus.pendingPayment
+                        ? 'Cần thanh toán'
+                        : 'Cần bạn chọn lịch',
+                    style: NordicTypography.bodySmall.copyWith(
+                      color: NordicColors.primary,
+                    ),
+                  ),
                 Text(
                   'Mã ${order.orderCode}',
                   style: NordicTypography.bodySmall.copyWith(fontSize: 11),

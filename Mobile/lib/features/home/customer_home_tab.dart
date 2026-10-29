@@ -5,6 +5,7 @@ import '../../core/theme/nordic_radius.dart';
 import '../../core/theme/nordic_spacing.dart';
 import '../../core/theme/nordic_typography.dart';
 import '../../core/widgets/avatar_initials.dart';
+import '../../core/widgets/nordic_button.dart';
 import '../../core/widgets/nordic_card.dart';
 import '../../core/widgets/pressable.dart';
 import '../../core/widgets/section_title.dart';
@@ -80,6 +81,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   String? _firstName;
   _NextOrder? _next;
   bool _nextLoaded = false;
+  String? _nextError;
   _QuickQuotes? _quotes;
   List<FavoriteWorker> _favoriteList = const [];
 
@@ -104,41 +106,77 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   }
 
   Future<void> _loadNext() async {
+    if (mounted) {
+      setState(() {
+        _nextLoaded = false;
+        _nextError = null;
+        _next = null;
+      });
+    }
     try {
       final page = await _orders.listOrders();
-      final open = page.items.where(
-        (o) =>
-            o.orderStatus != OrderStatus.completed &&
-            o.orderStatus != OrderStatus.cancelled,
+      final options = await _booking.getOptions();
+      final now = (widget.clock ?? DateTime.now)().toUtc().add(
+        const Duration(hours: 7),
       );
+      final localNow = DateTime.utc(
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute,
+      );
+      final open = page.items.where((o) {
+        final startsAt = _startsAt(o, options);
+        return o.orderStatus != OrderStatus.completed &&
+            o.orderStatus != OrderStatus.cancelled &&
+            startsAt != null &&
+            !startsAt.isBefore(localNow);
+      }).toList();
       if (open.isEmpty) {
         if (mounted) setState(() => _nextLoaded = true);
         return;
       }
+      open.sort(
+        (a, b) => _startsAt(a, options)!.compareTo(_startsAt(b, options)!),
+      );
       final order = open.first;
-      String? start;
-      String? end;
+      final shift = options.shifts
+          .where((s) => s.shiftCode == order.shiftCode)
+          .firstOrNull;
       ProgressAssignment? worker;
-      try {
-        final options = await _booking.getOptions();
-        final shift = options.shifts
-            .where((s) => s.shiftCode == order.shiftCode)
-            .firstOrNull;
-        start = shift?.startLocal;
-        end = shift?.endLocal;
-      } catch (_) {}
       try {
         final progress = await _orders.getProgress(order.orderId);
         worker = progress.assignments.firstOrNull;
       } catch (_) {}
       if (!mounted) return;
       setState(() {
-        _next = _NextOrder(order, start, end, worker);
+        _next = _NextOrder(order, shift?.startLocal, shift?.endLocal, worker);
         _nextLoaded = true;
       });
     } catch (_) {
-      if (mounted) setState(() => _nextLoaded = true);
+      if (mounted) {
+        setState(() {
+          _nextLoaded = true;
+          _nextError = 'Chưa tải được lịch ca. Thử lại nhé.';
+        });
+      }
     }
+  }
+
+  /// A shift is a local Vietnam date plus the start time supplied by Booking.
+  /// Orders from an earlier shift must never be promoted as the next appointment.
+  static DateTime? _startsAt(OrderSummary order, BookingOptions options) {
+    final date = DateTime.tryParse(order.scheduledDate);
+    final shift = options.shifts
+        .where((s) => s.shiftCode == order.shiftCode)
+        .firstOrNull;
+    final parts = shift?.startLocal.split(':');
+    if (date == null || parts == null || parts.length != 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+    return DateTime.utc(date.year, date.month, date.day, hour, minute);
   }
 
   Future<void> _loadQuotes() async {
@@ -236,9 +274,9 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
               style: NordicTypography.greeting,
             ),
             const SizedBox(height: NordicSpace.lg),
-            _nextCard(),
-            const SizedBox(height: NordicSpace.sm),
             _bookBanner(),
+            const SectionTitle('Lịch của bạn'),
+            _nextCard(),
             if (_quotes != null) ..._quickBook(_quotes!),
             if (_favoriteList.isNotEmpty) ..._favoriteRow(),
           ],
@@ -259,6 +297,28 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
       );
     }
     final next = _next;
+    if (_nextError != null) {
+      return NordicCard(
+        key: const Key('home-next-error'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Lịch ca chưa sẵn sàng',
+              style: NordicTypography.titleSmall,
+            ),
+            const SizedBox(height: NordicSpace.xxs),
+            Text(_nextError!, style: NordicTypography.bodySmall),
+            const SizedBox(height: NordicSpace.sm),
+            NordicButton(
+              label: 'Thử lại',
+              variant: NordicButtonVariant.secondary,
+              onPressed: _loadNext,
+            ),
+          ],
+        ),
+      );
+    }
     if (next == null) {
       // A notice, not a button: booking has its own card right below.
       return Container(
@@ -457,7 +517,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
             key: const Key('home-book-banner'),
             onTap: _openBooking,
             child: SizedBox(
-              height: 128,
+              height: 224,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -471,11 +531,11 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
+                        begin: Alignment.bottomLeft,
+                        end: Alignment.topRight,
                         colors: [
                           NordicColors.contrastDark.withValues(alpha: 0.82),
-                          NordicColors.contrastDark.withValues(alpha: 0.1),
+                          NordicColors.contrastDark.withValues(alpha: 0.2),
                         ],
                       ),
                     ),
@@ -487,18 +547,18 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                         Expanded(
                           child: ExcludeSemantics(
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.end,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Đặt ca dọn nhà',
+                                  'Nhà sạch, lòng nhẹ.',
                                   style: NordicTypography.titleMedium.copyWith(
                                     color: NordicColors.textInverse,
                                   ),
                                 ),
-                                const SizedBox(height: NordicSpace.xxs),
+                                const SizedBox(height: NordicSpace.xs),
                                 Text(
-                                  'Chọn ngày, ca và gói phù hợp.',
+                                  'Đặt ca dọn nhà · Chọn lịch phù hợp',
                                   style: NordicTypography.bodyRegular.copyWith(
                                     color: NordicColors.textInverse.withValues(
                                       alpha: 0.85,
@@ -536,11 +596,15 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   List<Widget> _quickBook(_QuickQuotes q) {
     final any = q.byTier.values.first;
     return [
-      SectionTitle(
-        'Đặt nhanh',
-        trailing:
-            '${formatArea(q.address.totalAreaM2)} · ${any.requiredWorkers} người',
+      SectionTitle('Đặt nhanh', trailing: q.address.label),
+      Text(
+        '${q.address.addressLine} · ${formatArea(q.address.totalAreaM2)} · ${any.requiredWorkers} người',
+        key: const Key('quick-quote-address'),
+        style: NordicTypography.bodySmall.copyWith(
+          color: NordicColors.textSecondary,
+        ),
       ),
+      const SizedBox(height: NordicSpace.sm),
       Row(
         children: [
           for (final tier in [ServiceTier.economy, ServiceTier.premium])

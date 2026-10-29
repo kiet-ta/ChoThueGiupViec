@@ -10,18 +10,65 @@ import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
+import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/status_pill.dart';
+import '../../booking/logic/booking_logic.dart' show formatVnd;
 import '../models/customer_acceptance_models.dart';
 import '../models/job_photo_models.dart';
 import '../services/customer_acceptance_service.dart';
 import '../services/workers_photos_service.dart';
 import '../widgets/job_photo_image.dart';
 
+class _AcceptancePhotoViewer extends StatelessWidget {
+  final String label;
+  final String url;
+  final Map<String, String> headers;
+
+  const _AcceptancePhotoViewer({
+    required this.label,
+    required this.url,
+    required this.headers,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final height =
+        MediaQuery.sizeOf(context).height -
+        MediaQuery.paddingOf(context).top -
+        kToolbarHeight -
+        NordicSpace.xl;
+    return NordicPage.pushed(
+      title: 'Ảnh $label',
+      children: [
+        SizedBox(
+          height: height.clamp(0.0, double.infinity),
+          child: InteractiveViewer(
+            minScale: 1,
+            maxScale: 4,
+            child: Center(
+              child: Image.network(
+                url,
+                headers: headers,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Text('Không tải được ảnh'),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Arguments of the acceptance route: the assignment whose finished job the customer looks at. The order screen passes it.
 class CustomerAcceptanceArgs {
   final int assignmentId;
+  final bool completed;
 
-  const CustomerAcceptanceArgs({required this.assignmentId});
+  const CustomerAcceptanceArgs({
+    required this.assignmentId,
+    this.completed = false,
+  });
 }
 
 /// Screen for Customer to view Before/After photos and confirm acceptance or request redo (MOB-M4-05, contract workers.md §2.5).
@@ -29,12 +76,14 @@ class CustomerAcceptanceArgs {
 /// It shows the real photos and the real answer of the server: a failed call is an error with a retry, never a made-up success.
 class CustomerAcceptanceScreen extends StatefulWidget {
   final int assignmentId;
+  final bool completed;
   final CustomerAcceptanceService? acceptanceService;
   final WorkersPhotosService? photosService;
 
   const CustomerAcceptanceScreen({
     super.key,
     required this.assignmentId,
+    this.completed = false,
     this.acceptanceService,
     this.photosService,
   });
@@ -79,6 +128,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.completed) _status = 'COMPLETED';
     _acceptanceService =
         widget.acceptanceService ?? CustomerAcceptanceService();
     _photosService = widget.photosService ?? WorkersPhotosService();
@@ -330,6 +380,13 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
           _buildCompletionSummaryCard(),
           const SizedBox(height: NordicSpace.md),
         ],
+        if (widget.completed && _completionResult == null) ...[
+          const Text(
+            'Ca này đã được nghiệm thu. Chi tiết số tiền chưa có để xem lại.',
+            style: NordicTypography.bodySmall,
+          ),
+          const SizedBox(height: NordicSpace.md),
+        ],
 
         if (_status != 'COMPLETED') ...[
           if (_showRedoForm)
@@ -472,6 +529,9 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     double? volScore,
     required Color tint,
   }) {
+    final source = photo == null
+        ? null
+        : _photosService.photoImage(photo.photoUrl);
     return ClipRRect(
       borderRadius: NordicRadius.tileAll,
       child: Container(
@@ -495,13 +555,38 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                 ),
               ),
             ),
-            SizedBox(
-              height: 120.0,
-              child: JobPhotoImage(
-                service: _photosService,
-                photo: photo,
-                height: 120.0,
-                width: double.infinity,
+            Semantics(
+              button: source != null,
+              label: source == null
+                  ? '$label: không có ảnh để xem'
+                  : 'Xem ảnh $label toàn màn hình',
+              child: Pressable(
+                enabled: source != null,
+                child: GestureDetector(
+                  key: photo == null
+                      ? null
+                      : Key('open-photo-${photo.photoId}'),
+                  onTap: source == null
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _AcceptancePhotoViewer(
+                              label: label,
+                              url: source.url,
+                              headers: source.headers,
+                            ),
+                          ),
+                        ),
+                  child: SizedBox(
+                    height: 120.0,
+                    child: JobPhotoImage(
+                      service: _photosService,
+                      photo: photo,
+                      height: 120.0,
+                      width: double.infinity,
+                    ),
+                  ),
+                ),
               ),
             ),
             if (volScore != null)
@@ -549,15 +634,15 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
             ],
           ),
           const Divider(),
-          _buildDetailRow('Tổng tiền dịch vụ', '${gross.toString()} đ'),
+          _buildDetailRow('Tổng tiền dịch vụ', formatVnd(gross)),
           _buildDetailRow(
             'Phí nền tảng ($commissionPercent%)',
-            '${(gross - payout).toString()} đ',
+            formatVnd(gross - payout),
           ),
           const Divider(),
           _buildDetailRow(
             'Người làm nhận (${100 - commissionPercent}%)',
-            '${payout.toString()} đ',
+            formatVnd(payout),
             isBold: true,
           ),
         ],

@@ -142,6 +142,20 @@ void main() {
       },
     );
 
+    testWidgets('a completed job opens a read-only acceptance view', (
+      tester,
+    ) async {
+      final service = FakeOrderService()
+        ..status = OrderStatus.completed
+        ..workers = [_worker(8, AssignmentStatus.completed)];
+      final opened = await pump(tester, service);
+      await tap(tester, 'review-acceptance-8');
+      expect(opened.single.route, WorkerRoutes.customerAcceptance);
+      final args = opened.single.args as CustomerAcceptanceArgs;
+      expect(args.assignmentId, 8);
+      expect(args.completed, isTrue);
+    });
+
     testWidgets(
       'a completed job opens the rating with the customer role, the assignment and the worker name',
       (tester) async {

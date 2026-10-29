@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
-import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/avatar_initials.dart';
 import '../../../core/widgets/nordic_button.dart';
@@ -25,7 +25,7 @@ class FavoriteWorkerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final active = worker.workStatus.toUpperCase() == 'ACTIVE';
+    final status = worker.workStatus.toUpperCase();
     return NordicCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,8 +45,10 @@ class FavoriteWorkerCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4.0),
                     StatusPill(
-                      worker.statusDisplayName,
-                      tone: active ? PillTone.ok : PillTone.neutral,
+                      status == 'BUSY'
+                          ? 'Đang làm việc'
+                          : 'Xem lịch khi đặt ca',
+                      tone: PillTone.neutral,
                       dot: true,
                     ),
                   ],
@@ -59,39 +61,15 @@ class FavoriteWorkerCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16.0),
+          const SizedBox(height: NordicSpace.sm),
           Row(
             children: [
+              const Icon(Icons.star, color: NordicColors.accentAmber),
+              const SizedBox(width: NordicSpace.xxs),
               Expanded(
-                child: _metric(
-                  value: worker.ratingAvg
-                      .toStringAsFixed(1)
-                      .replaceAll('.', ','),
-                  below: Row(
-                    children: [
-                      for (var i = 1; i <= 5; i++)
-                        Icon(
-                          i <= worker.ratingAvg.round()
-                              ? Icons.star
-                              : Icons.star_outline,
-                          size: 16.0,
-                          color: NordicColors.accentAmber,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12.0),
-              Expanded(
-                child: _metric(
-                  value: '${worker.completedJobs}',
-                  below: const Text(
-                    'ca hoàn thành',
-                    style: TextStyle(
-                      fontSize: 11.0,
-                      color: NordicColors.textSecondary,
-                    ),
-                  ),
+                child: Text(
+                  '${worker.ratingAvg.toStringAsFixed(1).replaceAll('.', ',')} · ${worker.completedJobs} ca hoàn thành',
+                  style: NordicTypography.bodyRegular,
                 ),
               ),
             ],
@@ -108,20 +86,4 @@ class FavoriteWorkerCard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _metric({required String value, required Widget below}) => Container(
-    padding: const EdgeInsets.all(12.0),
-    decoration: BoxDecoration(
-      color: NordicColors.surfaceLow,
-      borderRadius: NordicRadius.tileAll,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(value, style: NordicTypography.numberMedium),
-        const SizedBox(height: 8.0),
-        below,
-      ],
-    ),
-  );
 }

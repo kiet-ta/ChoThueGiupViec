@@ -249,16 +249,24 @@ void main() {
       },
     );
 
-    testWidgets('a failed order list hides only that section', (tester) async {
-      useDesignFrame(tester);
-      final orders = _Orders([])
-        ..error = const ApiException(0, 'Không kết nối được máy chủ.');
-      await tester.pumpWidget(_app(_homeTab(orders), <String>[]));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'a failed order list offers retry instead of showing no orders',
+      (tester) async {
+        useDesignFrame(tester);
+        final orders = _Orders([])
+          ..error = const ApiException(0, 'Không kết nối được máy chủ.');
+        await tester.pumpWidget(_app(_homeTab(orders), <String>[]));
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('home-no-order')), findsOneWidget);
-      expect(find.text('Đặt nhanh'), findsOneWidget);
-    });
+        expect(find.byKey(const Key('home-no-order')), findsNothing);
+        expect(find.byKey(const Key('home-next-error')), findsOneWidget);
+        expect(find.text('Đặt nhanh'), findsOneWidget);
+        orders.error = null;
+        await tester.tap(find.text('Thử lại'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('home-no-order')), findsOneWidget);
+      },
+    );
   });
 
   group('CustomerAccountTab (ui-templates customer/account.html)', () {
