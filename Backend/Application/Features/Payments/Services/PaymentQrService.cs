@@ -127,10 +127,16 @@ public sealed class PaymentQrService(
     }
 
     /// <summary>
-    /// PAYMENT_TRANSACTION.gateway is MOMO for the real adapter and FAKE for a Fake (contract 1.3, column VARCHAR(10)).
-    /// The port has no name, so a Fake is recognised by its type name until BE-M2-06 brings the real adapter.
+    /// PAYMENT_TRANSACTION.gateway is MOMO or VNPAY for a real adapter and FAKE for a Fake (contract 1.3, column VARCHAR(10)).
+    /// The port has no name, so the adapter is recognised by its type name.
     /// </summary>
-    private string GatewayName() => gateway.GetType().Name.StartsWith("Fake", StringComparison.Ordinal) ? "FAKE" : "MOMO";
+    private string GatewayName()
+    {
+        var type = gateway.GetType().Name;
+        return type.StartsWith("Fake", StringComparison.Ordinal) ? "FAKE"
+            : type.StartsWith("VnPay", StringComparison.Ordinal) ? "VNPAY"
+            : "MOMO";
+    }
 
     private static PaymentDto ToDto(PaymentTransaction t, DateTime expiresAt, string? payUrl) => new(
         t.PaymentId, t.Purpose.ToString().ToUpperInvariant(), t.OrderId, t.ExtensionId, t.Gateway, t.Amount,
