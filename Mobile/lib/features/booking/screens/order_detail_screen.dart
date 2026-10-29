@@ -373,6 +373,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final actions = _actions(order, progress);
     return [
       _summary(order, displayStatus),
+      if (canPay(order.orderStatus)) ...[
+        const SizedBox(height: NordicSpace.sm),
+        const NordicCard(
+          child: Text(
+            'Thanh toán để hệ thống bắt đầu tìm người giúp việc cho bạn.',
+            style: NordicTypography.bodyRegular,
+          ),
+        ),
+      ],
       if (_notice != null) ...[
         const SizedBox(height: NordicSpace.sm),
         Text(
@@ -638,6 +647,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           onTap: _openExtension,
         ),
       for (final a in progress.assignments)
+        if (a.assignmentStatus == AssignmentStatus.completed)
+          GroupedListItem(
+            key: Key('review-acceptance-${a.assignmentId}'),
+            icon: Icons.photo_library_outlined,
+            title: 'Xem lại nghiệm thu',
+            subtitle: named ? workerName(a) : null,
+            onTap: () => _open(
+              WorkerRoutes.customerAcceptance,
+              CustomerAcceptanceArgs(
+                assignmentId: a.assignmentId,
+                completed: true,
+              ),
+            ),
+          ),
+      for (final a in progress.assignments)
         for (final action in assignmentActions(a.assignmentStatus))
           switch (action) {
             AssignmentAction.reviewAndAccept => GroupedListItem(
@@ -813,17 +837,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _cancelSection() {
     if (!_cancelOpen) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          key: const Key('open-cancel'),
-          style: OutlinedButton.styleFrom(foregroundColor: NordicColors.error),
-          onPressed: () => setState(() {
-            _cancelOpen = true;
-            _cancelError = null;
-          }),
-          child: const Text('Huỷ đơn'),
-        ),
+      return NordicButton(
+        key: const Key('open-cancel'),
+        label: 'Huỷ đơn',
+        variant: NordicButtonVariant.ghost,
+        onPressed: () => setState(() {
+          _cancelOpen = true;
+          _cancelError = null;
+        }),
       );
     }
     return NordicCard(

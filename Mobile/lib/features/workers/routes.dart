@@ -53,7 +53,10 @@ class WorkersFeatureModule extends FeatureModule {
     WorkerRoutes.customerAcceptance: (context) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is CustomerAcceptanceArgs) {
-        return CustomerAcceptanceScreen(assignmentId: args.assignmentId);
+        return CustomerAcceptanceScreen(
+          assignmentId: args.assignmentId,
+          completed: args.completed,
+        );
       }
       return const Scaffold(
         body: Center(
