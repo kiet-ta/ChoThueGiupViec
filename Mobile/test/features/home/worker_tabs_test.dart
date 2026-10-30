@@ -63,6 +63,22 @@ class _Profile extends WorkersProfileService {
   Future<String?> getFullName() async => 'Nguyễn Văn Thợi';
 }
 
+class _SummaryProfile extends WorkersProfileService {
+  final String? name;
+  final bool agency;
+
+  _SummaryProfile({this.name, this.agency = false});
+
+  @override
+  Future<WorkerSummary> getSummary() async =>
+      (fullName: name, agencyWorker: agency);
+}
+
+class _FailingProfile extends WorkersProfileService {
+  @override
+  Future<WorkerSummary> getSummary() async => throw Exception('offline');
+}
+
 void main() {
   testWidgets('Today tab shows the month earnings and the active slots', (
     tester,
@@ -191,6 +207,84 @@ void main() {
     }
   });
 
+  for (final (name, make, shown)
+      in <(String, WorkersProfileService Function(), bool)>[
+        (
+          'an agency worker does not see the eKYC row',
+          () => _SummaryProfile(agency: true),
+          false,
+        ),
+        ('a freelancer sees the eKYC row', () => _SummaryProfile(), true),
+        (
+          'a profile that cannot be read keeps the eKYC row',
+          () => _FailingProfile(),
+          true,
+        ),
+      ]) {
+    testWidgets('Account tab: $name', (tester) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: WorkerScreen(workerId: 12, profile: make(), onSignOut: () {}),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('worker-account-ekyc')),
+        shown ? findsOneWidget : findsNothing,
+      );
+      // The company roster is for agency workers only; the other rows are never affected.
+      expect(
+        find.byKey(const Key('worker-account-roster')),
+        shown ? findsNothing : findsOneWidget,
+      );
+      expect(find.byKey(const Key('worker-account-disputes')), findsOneWidget);
+      expect(find.byKey(const Key('home-sign-out')), findsOneWidget);
+    });
+  }
+
+  for (final agency in [false, true]) {
+    testWidgets(
+      'Account tab shows the worker name, not the id (${agency ? "agency worker" : "freelancer"})',
+      (tester) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: WorkerScreen(
+              workerId: 12,
+              profile: _SummaryProfile(name: 'Nguyễn Văn Thợi', agency: agency),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('worker-account-name')))
+              .data,
+          'Nguyễn Văn Thợi',
+        );
+        expect(find.textContaining('Thợ #'), findsNothing);
+      },
+    );
+  }
+
+  testWidgets(
+    'Account tab keeps the placeholder when the profile has no name',
+    (tester) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: WorkerScreen(workerId: 12, profile: _FailingProfile()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Thợ #12'), findsOneWidget);
+    },
+  );
+
   testWidgets('Account tab shows the worker and the links, sign-out last', (
     tester,
   ) async {
@@ -201,9 +295,11 @@ void main() {
     );
 
     expect(find.byKey(const Key('worker-account-name')), findsOneWidget);
-    for (final k in ['ekyc', 'roster', 'disputes']) {
+    for (final k in ['ekyc', 'disputes']) {
       expect(find.byKey(Key('worker-account-$k')), findsOneWidget);
     }
+    // No agency flag from the profile (it cannot be read in this test): the company roster stays hidden.
+    expect(find.byKey(const Key('worker-account-roster')), findsNothing);
     await tapVisible(tester, find.byKey(const Key('home-sign-out')));
     expect(out, 1);
   });
