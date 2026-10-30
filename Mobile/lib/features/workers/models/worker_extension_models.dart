@@ -1,4 +1,4 @@
-/// Models for Worker Extension ("Làm lần 2", BR-08, contract workers.md §2.6).
+// Models for Worker Extension ("Làm lần 2", BR-08, contract workers.md §2.6).
 
 /// Response payload from worker responding to an extension request (contract workers.md §2.6.1).
 class WorkerExtensionResponseDto {
