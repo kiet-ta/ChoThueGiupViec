@@ -189,7 +189,7 @@ void main() {
             ],
         );
 
-        expect(find.text('Lỗi thuộc về thợ'), findsOneWidget);
+        expect(find.text('Lỗi thuộc về người làm'), findsOneWidget);
         expect(find.text('Bồi thường: 150.000 đ'), findsOneWidget);
       },
     );

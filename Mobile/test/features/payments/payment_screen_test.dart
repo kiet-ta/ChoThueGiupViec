@@ -367,7 +367,7 @@ void main() {
         );
         expect(textOf(tester, 'payment-countdown'), '15:00');
         expect(
-          find.textContaining('chưa vẽ được mã QR dạng hình'),
+          find.textContaining('Sao chép nội dung trên để thanh toán thử'),
           findsOneWidget,
         );
         await close(tester);
