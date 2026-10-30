@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/nordic_colors.dart';
+import '../theme/nordic_elevation.dart';
+import '../theme/nordic_radius.dart';
 import 'pressable.dart';
 
 enum NordicButtonVariant { primary, secondary, ghost }
@@ -96,6 +98,19 @@ class NordicButton extends StatelessWidget {
     }
 
     button = Pressable(enabled: !isLoading && onPressed != null, child: button);
+
+    // The dark main button floats on the soft green `cta` shadow (DESIGN-SYSTEM §3.5); a disabled one lies flat.
+    if (variant == NordicButtonVariant.primary &&
+        !isLoading &&
+        onPressed != null) {
+      button = DecoratedBox(
+        decoration: const BoxDecoration(
+          borderRadius: NordicRadius.pill,
+          boxShadow: NordicElevation.cta,
+        ),
+        child: button,
+      );
+    }
 
     if (width != null) {
       return SizedBox(width: width, child: button);

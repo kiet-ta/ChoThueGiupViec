@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_page.dart';
@@ -127,10 +128,41 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
           if (i > 0) const SizedBox(height: NordicSpace.sm),
           FavoriteWorkerCard(
             worker: _workers[i],
+            tintIndex: i,
             onBookJob: () => _onBookWithWorker(_workers[i]),
             onRemove: () => _removeWorker(_workers[i]),
           ),
         ],
+      if (!_isLoading && _errorMessage == null && _workers.isNotEmpty) ...[
+        const SizedBox(height: NordicSpace.md),
+        Container(
+          key: const Key('favorites-note'),
+          padding: const EdgeInsets.all(NordicSpace.sm),
+          decoration: const BoxDecoration(
+            color: NordicColors.primaryFixed,
+            borderRadius: NordicRadius.fieldAll,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.info_outline,
+                size: 18,
+                color: NordicColors.primary,
+              ),
+              const SizedBox(width: NordicSpace.xs),
+              Expanded(
+                child: Text(
+                  'Đặt với người quen áp dụng cho gói Cơ bản.',
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     ];
     if (pushed) {
       return NordicPage.pushed(
@@ -142,16 +174,20 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
     return NordicPage.tab(
       title: 'Yêu thích',
       onRefresh: _loadFavorites,
-      headerAction: !_isLoading && _errorMessage == null
-          ? Text(
-              '${_workers.length} người',
+      children: [
+        if (!_isLoading && _errorMessage == null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: NordicSpace.sm),
+            child: Text(
+              '${_workers.length} người giúp việc quen',
               key: const Key('favorites-count'),
               style: NordicTypography.bodyRegular.copyWith(
                 color: NordicColors.textSecondary,
               ),
-            )
-          : null,
-      children: children,
+            ),
+          ),
+        ...children,
+      ],
     );
   }
 }

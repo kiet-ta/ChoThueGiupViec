@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/booking/screens/booking_screen.dart';
+import 'package:mobile/features/booking/routes.dart';
+import 'package:mobile/features/customers/services/favorite_worker_service.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/booking/logic/order_logic.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
@@ -92,8 +95,9 @@ void main() {
   group('OrderDetailScreen: acceptance, rating and dispute', () {
     Future<List<({String route, Object args})>> pump(
       WidgetTester tester,
-      FakeOrderService service,
-    ) async {
+      FakeOrderService service, {
+      FavoriteWorkerService? favorites,
+    }) async {
       tester.view.physicalSize = const Size(390, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -107,6 +111,7 @@ void main() {
           home: OrderDetailScreen(
             args: const OrderDetailArgs(orderId: 100),
             service: service,
+            favorites: favorites,
             pollInterval: const Duration(seconds: 5),
             onOpen: (route, args) => opened.add((route: route, args: args)),
           ),
@@ -172,6 +177,31 @@ void main() {
         expect(args.role, RatingRole.customer);
         expect(args.assignmentId, 8);
         expect(args.ratedName, 'Nguyễn Thị Lan');
+      },
+    );
+
+    testWidgets(
+      '"Đặt lại với" adds the worker to the favourites first, then opens the form with them picked',
+      (tester) async {
+        final favorites = FavoriteWorkerService(isMock: true);
+        final before = (await favorites.getFavoriteWorkers()).length;
+        final service = FakeOrderService()
+          ..status = OrderStatus.completed
+          ..workers = [_worker(8, AssignmentStatus.completed)];
+        final opened = await pump(tester, service, favorites: favorites);
+
+        await tap(tester, 'rebook-8');
+
+        final saved = await favorites.getFavoriteWorkers();
+        expect(saved.length, before + 1);
+        expect(
+          saved.any((w) => w.workerId == 58),
+          isTrue,
+        ); // workerId = assignment id + 50
+        expect(opened.single.route, BookingRoutes.booking);
+        final args = opened.single.args as BookingScreenArgs;
+        expect(args.preferredWorkerId, 58);
+        expect(args.serviceTier, ServiceTier.economy);
       },
     );
 

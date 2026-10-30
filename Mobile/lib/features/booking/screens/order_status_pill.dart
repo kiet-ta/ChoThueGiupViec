@@ -15,12 +15,11 @@ class OrderStatusPill extends StatelessWidget {
   Widget build(BuildContext context) => StatusPill(
     orderStatusLabel(status),
     textKey: textKey,
+    // Owner rule (2026-10-30): done is green, every step in between is amber, cancelled is red.
     tone: switch (status) {
-      OrderStatus.completed || OrderStatus.assigned => PillTone.ok,
-      OrderStatus.pendingPayment ||
-      OrderStatus.awaitingFallback => PillTone.warn,
+      OrderStatus.completed => PillTone.ok,
       OrderStatus.cancelled => PillTone.bad,
-      _ => PillTone.neutral,
+      _ => PillTone.warn,
     },
   );
 }
