@@ -153,6 +153,7 @@ public class ResponseWrapperMiddleware
     private static bool ShouldBypass(PathString path)
     {
         return path.StartsWithSegments("/swagger") ||
+               path.StartsWithSegments("/api/payments/ipn") ||
                path.StartsWithSegments("/api-docs") ||
                path.StartsWithSegments("/health") ||
                path.StartsWithSegments("/healthz") ||
