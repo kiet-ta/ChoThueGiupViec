@@ -78,7 +78,7 @@ export function DisputeQueuePage() {
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">SLA 24–48H · BR-32</div>
+        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">SLA 24–48H · PRD 4.3</div>
         <h1 className="text-2xl font-semibold">Xử lý khiếu nại tranh chấp dịch vụ</h1>
         <p className="mt-1 text-sm text-muted-foreground">Hàng đợi sắp theo hạn SLA; ưu tiên tính từ thời gian còn lại (dưới 6 giờ là cao, dưới 24 giờ là trung bình).</p>
       </header>

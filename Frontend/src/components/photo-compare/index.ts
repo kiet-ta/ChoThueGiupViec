@@ -1,3 +1,5 @@
+export { AuthImage } from './AuthImage'
+export type { AuthImageProps } from './AuthImage'
 export { BeforeAfterViewer } from './BeforeAfterViewer'
 export type { BeforeAfterViewerProps } from './BeforeAfterViewer'
 export { pairPhotos } from './pair-photos'
