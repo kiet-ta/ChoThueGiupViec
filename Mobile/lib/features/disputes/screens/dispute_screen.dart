@@ -217,13 +217,22 @@ class _DisputeScreenState extends State<DisputeScreen> {
     );
   }
 
+  /// The customer reads the verdict in their own words (MOB-UI-17); the worker keeps the shared labels.
+  String _verdict(String? faultParty) => widget.role == DisputeRole.customer
+      ? switch (faultParty) {
+          'FREELANCER' => 'Lỗi thuộc về người làm',
+          'AGENCY' => 'Lỗi thuộc về công ty đối tác',
+          _ => faultLabel(faultParty),
+        }
+      : faultLabel(faultParty);
+
   /// The party sees the verdict only once it exists (contract 2.1).
   List<Widget> _outcome(Dispute d) {
     if (d.disputeStatus == Dispute.resolved) {
       return [
         const Divider(height: 32.0),
         Text(
-          faultLabel(d.faultParty),
+          _verdict(d.faultParty),
           key: Key('dispute-fault-${d.disputeId}'),
           style: NordicTypography.titleSmall,
         ),

@@ -520,7 +520,7 @@ class _PaymentScreenState extends State<PaymentScreen>
             if (payment.payUrl != null) ...[
               const SizedBox(height: NordicSpace.sm),
               const Text(
-                'Trang thanh toán sandbox',
+                'Trang thanh toán thử',
                 style: NordicTypography.titleSmall,
               ),
               const SizedBox(height: NordicSpace.xxs),
@@ -533,7 +533,7 @@ class _PaymentScreenState extends State<PaymentScreen>
             ],
             const SizedBox(height: NordicSpace.sm),
             const Text(
-              'Ứng dụng chưa vẽ được mã QR dạng hình: sao chép nội dung trên để thanh toán thử.',
+              'Sao chép nội dung trên để thanh toán thử.',
               textAlign: TextAlign.center,
               style: NordicTypography.bodySmall,
             ),
