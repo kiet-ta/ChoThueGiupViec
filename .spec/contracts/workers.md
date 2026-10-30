@@ -299,6 +299,37 @@ Enables or disables an availability slot for a given date and shift.
 - Operation is idempotent (double clicks / concurrent requests return existing slot state safely without duplicate row errors).
 - The toggle only moves `AVAILABLE <-> BLOCKED`. A slot owned by Dispatch (`HELD` by an offer or agency hold, `BOOKED` by an assignment) is refused with **409 `SLOT_IN_USE`** and keeps its status (#398).
 
+#### 2.3.3 `GET /api/workers/me/assignments` (WorkerOnly)
+The jobs booked for the signed-in worker, so the app can show them in the schedule next to the slots (#550). Reads `JOB_ASSIGNMENT` -> `BOOKING_SLOT` (date, shift, times) -> `JOB_ORDER` -> `CUSTOMER_ADDRESS` (district only). No table change.
+
+**Query:** `startDate` (default: today, Vietnam date), `endDate` (default: `startDate + 13`). The range is by the **slot date** and may be at most **31 days** (`endDate - startDate + 1 <= 31`).
+
+**Response 200 `data` (`WorkerAssignmentResponse[]`)**
+```json
+[
+  {
+    "assignmentId": 10002,
+    "orderId": 6,
+    "orderCode": "GV-UAT-0796-01",
+    "slotDate": "2026-10-31",
+    "shiftCode": "SHIFT_MORNING",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "status": "ASSIGNED",
+    "serviceTier": "ECONOMY",
+    "district": "Quận 1",
+    "payoutAmount": 128000.00
+  }
+]
+```
+
+**Rules:**
+- Only the signed-in worker's own assignments; another worker's are never returned.
+- Only booked jobs: `status` is `ASSIGNED`, `CHECKED_IN`, `IN_PROGRESS`, `AWAITING_ACCEPTANCE` or `COMPLETED`. An offer (`OFFERED`) and every assignment that ended without the job being done (`CANCELLED`, `CANCELLED_BY_WORKER`, `ABSENT`, `INCIDENT`, `REASSIGNED`) are not listed.
+- Ordered by `slotDate`, then shift start time.
+- Privacy: the street address, the coordinates and the customer's name or phone are **not** returned, only the `district`. The detail of a job (full address, pending extension) is a separate read (#442).
+- `endDate < startDate` or a range over 31 days is **400** with a field error on `endDate`.
+
 ---
 
 ### 2.3A Location and payout account (ECON-FLOW-FIX, decisions D19)

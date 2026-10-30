@@ -17,6 +17,7 @@ public class WorkersController(
     IWorkerProfileService profiles,
     IWorkerEkycService ekyc,
     IWorkerBookingSlotService slots,
+    IWorkerAssignmentService assignments,
     IJobPhotoService photos,
     IJobCompletionService completions,
     IWorkerExtensionService extensions) : ControllerBase
@@ -134,6 +135,21 @@ public class WorkersController(
         CancellationToken ct)
     {
         var result = await slots.GetSlotsAsync(startDate, endDate, ct);
+        return Ok(result);
+    }
+
+    /// <summary>Returns the jobs booked for the signed-in worker in a date range: date, shift, status and district, never the street address (contract §2.3.3).</summary>
+    [HttpGet("me/assignments")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkerAssignmentResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetAssignments(
+        [FromQuery] DateOnly? startDate,
+        [FromQuery] DateOnly? endDate,
+        CancellationToken ct)
+    {
+        var result = await assignments.GetAsync(startDate, endDate, ct);
         return Ok(result);
     }
 
