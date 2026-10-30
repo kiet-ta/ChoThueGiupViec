@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
+  assessmentText,
   confidenceInfo,
   ekycQueueRow,
+  isUnderThreshold,
+  scoreBadgeText,
+  NO_SCORE_LABEL,
   parseActionError,
   validateRejectionReason,
   TABS,
@@ -57,6 +61,51 @@ describe('confidenceInfo', () => {
     assert.equal(info.tone, 'danger')
     assert.match(info.label, /65\.2%/)
     assert.match(info.label, /Nghi vấn thấp/)
+  })
+})
+
+describe('a worker without a score (ADMIN-UAT-09: ekyc_confidence is NULL until eKYC is submitted)', () => {
+  it('confidenceInfo(null) is neutral, says there is no score and does not throw', () => {
+    const info = confidenceInfo(null)
+    assert.equal(info.tone, 'neutral')
+    assert.equal(info.label, NO_SCORE_LABEL)
+    assert.doesNotMatch(info.label, /\d/)
+  })
+
+  it('an undefined score (field missing in the answer) is handled like null', () => {
+    assert.equal(confidenceInfo(undefined as unknown as null).label, NO_SCORE_LABEL)
+  })
+
+  it('a missing score is never shown as 0% or as a low score', () => {
+    assert.notEqual(confidenceInfo(null).tone, 'danger')
+    assert.doesNotMatch(scoreBadgeText(null), /%/)
+    assert.doesNotMatch(assessmentText(null), /%/)
+  })
+
+  it('needs a manual look: under the threshold when the score is missing', () => {
+    assert.equal(isUnderThreshold(null), true)
+    assert.equal(isUnderThreshold(84.9), true)
+    assert.equal(isUnderThreshold(85), false)
+  })
+
+  it('the badge and the assessment keep their wording for a real score', () => {
+    assert.equal(scoreBadgeText(92), 'Điểm tin cậy: 92.0%')
+    assert.match(assessmentText(78.5), /78\.5%.*thấp hơn ngưỡng tự động \(85%\)/)
+    assert.match(assessmentText(92), /đạt 92\.0%/)
+  })
+
+  it('ekycQueueRow does not throw and keeps the null', () => {
+    const row = ekycQueueRow(item({ confidenceScore: null }))
+    assert.equal(row.confidenceScore, null)
+    assert.equal(row.confidenceText, NO_SCORE_LABEL)
+    assert.equal(row.confidenceTone, 'neutral')
+  })
+
+  it('a page with one scored and one unscored worker maps every row (one null row used to break the whole page)', () => {
+    const rows = [item({ workerId: 1, confidenceScore: 91 }), item({ workerId: 2, confidenceScore: null })].map(ekycQueueRow)
+    assert.deepEqual(rows.map((r) => r.workerId), [1, 2])
+    assert.equal(rows[0].confidenceTone, 'success')
+    assert.equal(rows[1].confidenceTone, 'neutral')
   })
 })
 

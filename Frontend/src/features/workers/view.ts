@@ -12,7 +12,7 @@ export interface EkycRow {
   fullName: string
   phoneNumber: string
   nationalId: string
-  confidenceScore: number
+  confidenceScore: number | null
   confidenceText: string
   confidenceTone: StatusTone
   submittedAtFormatted: string
@@ -37,7 +37,13 @@ export const TABS: { status: EkycFilterStatus; label: string }[] = [
   { status: 'REJECTED', label: 'Từ chối' },
 ]
 
-export function confidenceInfo(score: number): { label: string; tone: StatusTone } {
+/** A worker who has not been scored (no eKYC submitted yet) has a null score: never shown as a number. */
+export const NO_SCORE_LABEL = 'Chưa có điểm'
+
+export function confidenceInfo(score: number | null): { label: string; tone: StatusTone } {
+  if (score == null) {
+    return { label: NO_SCORE_LABEL, tone: 'neutral' }
+  }
   if (score >= AUTO_APPROVE_THRESHOLD) {
     return { label: `${score.toFixed(1)}% (Tự động duyệt)`, tone: 'success' }
   }
@@ -45,6 +51,24 @@ export function confidenceInfo(score: number): { label: string; tone: StatusTone
     return { label: `${score.toFixed(1)}% (Cần xem xét)`, tone: 'warning' }
   }
   return { label: `${score.toFixed(1)}% (Nghi vấn thấp)`, tone: 'danger' }
+}
+
+/** True when the score is missing or below the automatic threshold: the Admin has to compare the photos by hand. */
+export function isUnderThreshold(score: number | null): boolean {
+  return score == null || score < AUTO_APPROVE_THRESHOLD
+}
+
+export function scoreBadgeText(score: number | null): string {
+  return score == null ? 'Điểm tin cậy: chưa có' : `Điểm tin cậy: ${score.toFixed(1)}%`
+}
+
+export function assessmentText(score: number | null): string {
+  if (score == null) {
+    return 'Chưa có điểm tin cậy eKYC (thợ chưa nộp hồ sơ hoặc hệ thống chưa chấm). Cần Admin đối chiếu thủ công.'
+  }
+  return isUnderThreshold(score)
+    ? `Điểm tin cậy (${score.toFixed(1)}%) thấp hơn ngưỡng tự động (${AUTO_APPROVE_THRESHOLD}%). Cần Admin đối chiếu khuôn mặt trên selfie với ảnh trên CCCD.`
+    : `Điểm tin cậy đạt ${score.toFixed(1)}%. Hồ sơ hợp lệ.`
 }
 
 export function ekycQueueRow(item: EkycQueueItemResponse): EkycRow {
