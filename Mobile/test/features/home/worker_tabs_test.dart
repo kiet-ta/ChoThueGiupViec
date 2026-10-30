@@ -234,10 +234,12 @@ void main() {
         find.byKey(const Key('worker-account-ekyc')),
         shown ? findsOneWidget : findsNothing,
       );
-      // The other rows are never affected.
-      for (final k in ['roster', 'disputes']) {
-        expect(find.byKey(Key('worker-account-$k')), findsOneWidget);
-      }
+      // The company roster is for agency workers only; the other rows are never affected.
+      expect(
+        find.byKey(const Key('worker-account-roster')),
+        shown ? findsNothing : findsOneWidget,
+      );
+      expect(find.byKey(const Key('worker-account-disputes')), findsOneWidget);
       expect(find.byKey(const Key('home-sign-out')), findsOneWidget);
     });
   }
@@ -293,9 +295,11 @@ void main() {
     );
 
     expect(find.byKey(const Key('worker-account-name')), findsOneWidget);
-    for (final k in ['ekyc', 'roster', 'disputes']) {
+    for (final k in ['ekyc', 'disputes']) {
       expect(find.byKey(Key('worker-account-$k')), findsOneWidget);
     }
+    // No agency flag from the profile (it cannot be read in this test): the company roster stays hidden.
+    expect(find.byKey(const Key('worker-account-roster')), findsNothing);
     await tapVisible(tester, find.byKey(const Key('home-sign-out')));
     expect(out, 1);
   });
