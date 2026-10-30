@@ -60,7 +60,7 @@ void main() {
         await tester.pumpWidget(createScreen());
         await tester.pumpAndSettle();
 
-        expect(find.text('Check-in'), findsOneWidget);
+        expect(find.text('Đến nơi'), findsOneWidget);
         expect(find.text('Đã đến địa chỉ ca làm việc?'), findsOneWidget);
         expect(find.text('123 Đường Cầu Giấy, Hà Nội'), findsOneWidget);
         expect(find.byKey(const Key('check_in_gps_button')), findsOneWidget);
@@ -84,11 +84,8 @@ void main() {
         await tester.tap(find.byKey(const Key('check_in_gps_button')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Đã Đến Nơi Thành Công'), findsOneWidget);
-        expect(
-          find.text('Check-in thành công bằng định vị GPS!'),
-          findsOneWidget,
-        );
+        expect(find.text('Bạn đã đến nơi'), findsOneWidget);
+        expect(find.text('Đã xác nhận bằng vị trí của bạn.'), findsOneWidget);
         expect(find.byKey(const Key('continue_to_job_button')), findsOneWidget);
       },
     );
@@ -138,11 +135,8 @@ void main() {
         await tester.tap(find.byKey(const Key('take_plate_photo_button')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Đã Đến Nơi Thành Công'), findsOneWidget);
-        expect(
-          find.text('Check-in thành công bằng ảnh chụp biển số nhà!'),
-          findsOneWidget,
-        );
+        expect(find.text('Bạn đã đến nơi'), findsOneWidget);
+        expect(find.text('Đã xác nhận bằng ảnh biển số nhà.'), findsOneWidget);
       },
     );
   });
