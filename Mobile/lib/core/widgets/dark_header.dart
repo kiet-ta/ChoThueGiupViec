@@ -15,6 +15,7 @@ class DarkHeader extends StatelessWidget {
   final Widget child;
   final double overlap;
   final String? appBarTitle;
+  final Key? titleKey;
   final VoidCallback? onBack;
 
   const DarkHeader({
@@ -22,6 +23,7 @@ class DarkHeader extends StatelessWidget {
     required this.child,
     this.overlap = 64.0,
     this.appBarTitle,
+    this.titleKey,
     this.onBack,
   });
 
@@ -58,7 +60,11 @@ class DarkHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (appBarTitle != null) ...[
-                  _AppBar(title: appBarTitle!, onBack: onBack),
+                  _AppBar(
+                    title: appBarTitle!,
+                    titleKey: titleKey,
+                    onBack: onBack,
+                  ),
                   const SizedBox(height: NordicSpace.md),
                 ],
                 child,
@@ -73,9 +79,10 @@ class DarkHeader extends StatelessWidget {
 
 class _AppBar extends StatelessWidget {
   final String title;
+  final Key? titleKey;
   final VoidCallback? onBack;
 
-  const _AppBar({required this.title, this.onBack});
+  const _AppBar({required this.title, this.titleKey, this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +121,7 @@ class _AppBar extends StatelessWidget {
           ),
           Text(
             title,
+            key: titleKey,
             style: NordicTypography.appBarTitle.copyWith(
               color: NordicColors.textInverse,
             ),

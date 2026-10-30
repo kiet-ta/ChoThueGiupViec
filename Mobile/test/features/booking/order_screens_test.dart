@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
@@ -468,6 +469,60 @@ void main() {
         expect(find.byKey(const Key('cancel-form')), findsNothing);
       },
     );
+
+    testWidgets(
+      'a cancelled order shows one red cross line, never a tick, and hides the workers section',
+      (tester) async {
+        final service = FakeOrderService()..status = OrderStatus.cancelled;
+        await pumpDetail(tester, service);
+
+        expect(find.byKey(const Key('order-timeline')), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('order-timeline')),
+            matching: find.byIcon(Icons.close_rounded),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('order-timeline')),
+            matching: find.byIcon(Icons.check),
+          ),
+          findsNothing,
+        );
+        expect(find.text('Đơn đã huỷ'), findsWidgets);
+        expect(find.byKey(const Key('no-assignments')), findsNothing);
+        expect(find.byKey(const Key('order-paid-pill')), findsNothing);
+        expect(find.byKey(const Key('order-rebook')), findsOneWidget);
+        expect(find.byKey(const Key('order-back-to-list')), findsOneWidget);
+      },
+    );
+
+    testWidgets('the order code can be copied', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final service = FakeOrderService();
+      await pumpDetail(tester, service);
+
+      await tapKey(tester, 'order-code-copy');
+
+      expect(copied, 'GV261014ABC123');
+    });
 
     testWidgets('a second tap while cancelling sends nothing more', (
       tester,
