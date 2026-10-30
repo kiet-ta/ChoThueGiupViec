@@ -90,7 +90,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Check snackbar with undo
-      expect(find.textContaining('Đã bỏ yêu thích'), findsOneWidget);
+      expect(find.textContaining('khỏi yêu thích'), findsOneWidget);
       expect(find.text('Hoàn tác'), findsOneWidget);
 
       // Tap undo

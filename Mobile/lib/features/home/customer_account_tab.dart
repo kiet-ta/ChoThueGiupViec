@@ -11,6 +11,7 @@ import '../../core/widgets/raised_panel.dart';
 import '../../core/widgets/section_title.dart';
 import '../booking/services/order_service.dart';
 import '../customers/models/customer_profile.dart';
+import '../customers/models/customer_address.dart';
 import '../customers/routes.dart';
 import '../customers/services/customer_address_service.dart';
 import '../customers/services/customer_profile_service.dart';
@@ -57,6 +58,7 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
   CustomerProfile? _profile;
   int? _orderCount;
   int? _addressCount;
+  CustomerAddress? _defaultAddress;
 
   @override
   void initState() {
@@ -80,7 +82,18 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
     _addressService
         .getAddresses()
         .then((list) {
-          if (mounted) setState(() => _addressCount = list.length);
+          if (mounted) {
+            setState(() {
+              _addressCount = list.length;
+              _defaultAddress = null;
+              for (final address in list) {
+                if (address.isDefault) {
+                  _defaultAddress = address;
+                  break;
+                }
+              }
+            });
+          }
         })
         .catchError((_) {});
   }
@@ -224,7 +237,7 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
                           child: _count(
                             profile?.createdAt == null
                                 ? '—'
-                                : profile!.formattedCreatedAt,
+                                : '${profile!.createdAt!.month.toString().padLeft(2, '0')}/${profile.createdAt!.year}',
                             'Ngày tham gia',
                           ),
                         ),
@@ -246,6 +259,9 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
                             key: const Key('account-addresses'),
                             icon: Icons.location_on_outlined,
                             title: 'Địa chỉ của tôi',
+                            subtitle: _defaultAddress == null
+                                ? null
+                                : 'Mặc định: ${_defaultAddress!.fullAddress} · ${_defaultAddress!.totalAreaM2} m²',
                             onTap: () => _open(CustomerRoutes.addressList),
                           ),
                           GroupedListItem(
