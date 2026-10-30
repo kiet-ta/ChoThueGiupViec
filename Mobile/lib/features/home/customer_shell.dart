@@ -62,6 +62,7 @@ class _CustomerShellState extends State<CustomerShell> {
           key: ValueKey('account-${_generation[3]}'),
           onSignOut: widget.onSignOut,
           onShowOrders: () => _select(1),
+          onShowFavorites: () => _select(2),
         ),
       ];
 
