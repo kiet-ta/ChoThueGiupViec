@@ -61,7 +61,7 @@ void main() {
       expect(find.byKey(const Key('consecutive_shift_notice')), findsOneWidget);
       expect(find.textContaining('120 giây'), findsOneWidget);
       expect(find.textContaining('Xác nhận ca thứ hai'), findsWidgets);
-      expect(find.text('CA THỨ HAI LIÊN TIẾP'), findsOneWidget);
+      expect(find.text('Ca thứ hai liên tiếp'), findsOneWidget);
     });
 
     testWidgets('a normal offer keeps its 30 second card', (tester) async {

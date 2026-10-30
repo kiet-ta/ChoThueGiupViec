@@ -104,15 +104,15 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Ảnh Before/After #2001'), findsOneWidget);
-        expect(find.text('BEFORE (Trước)'), findsOneWidget);
-        expect(find.text('AFTER (Sau)'), findsOneWidget);
+        expect(find.text('Ảnh trước và sau'), findsOneWidget);
+        expect(find.text('Trước'), findsWidgets);
+        expect(find.text('Sau'), findsWidgets);
         expect(find.text('Góc 1'), findsOneWidget);
         expect(find.text('Góc 1: Toàn cảnh'), findsOneWidget);
         await scrollTo(tester, find.text('Chụp ảnh'));
         expect(find.text('Chụp ảnh'), findsOneWidget);
         expect(find.text('Chọn từ thư viện'), findsOneWidget);
-        expect(find.text('Gửi Ảnh Chụp'), findsOneWidget);
+        expect(find.text('Gửi ảnh'), findsOneWidget);
       },
     );
 
@@ -159,7 +159,7 @@ void main() {
       await tapVisible(tester, find.byKey(const Key('photo-cell-AFTER-4')));
 
       expect(find.text('Góc 4: Sàn nhà'), findsOneWidget);
-      expect(find.text('Đã Tải Ảnh (AFTER)'), findsOneWidget);
+      expect(find.text('Ảnh đã tải (sau)'), findsOneWidget);
     });
 
     testWidgets('Sending without a photo asks for one and uploads nothing', (
@@ -170,7 +170,7 @@ void main() {
       await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
       await tester.pumpAndSettle();
 
-      await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+      await tapVisible(tester, find.text('Gửi ảnh'));
       await scrollTo(tester, find.textContaining('chụp hoặc chọn ảnh'));
 
       expect(find.textContaining('chụp hoặc chọn ảnh'), findsOneWidget);
@@ -188,8 +188,8 @@ void main() {
 
         await tapVisible(tester, find.text('Góc 3'));
         await tapVisible(tester, find.text('Chụp ảnh'));
-        await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
-        await scrollTo(tester, find.textContaining('Tải ảnh thành công'));
+        await tapVisible(tester, find.text('Gửi ảnh'));
+        await scrollTo(tester, find.textContaining('Đã tải ảnh lên'));
 
         expect(camera.cameraCalls, 1);
         expect(service.uploads, hasLength(1));
@@ -198,9 +198,9 @@ void main() {
         expect(upload.angleNo, 3);
         expect(upload.bytes, jpeg);
         expect(upload.contentType, 'image/jpeg');
-        expect(find.textContaining('Tải ảnh thành công'), findsOneWidget);
+        expect(find.textContaining('Đã tải ảnh lên'), findsOneWidget);
         expect(find.textContaining('142.5'), findsWidgets);
-        expect(find.textContaining('ĐẠT CHUẨN'), findsOneWidget);
+        expect(find.textContaining('(đạt)'), findsOneWidget);
       },
     );
 
@@ -214,7 +214,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tapVisible(tester, find.text('Chọn từ thư viện'));
-      await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+      await tapVisible(tester, find.text('Gửi ảnh'));
 
       expect(camera.libraryCalls, 1);
       expect(service.uploads, hasLength(1));
@@ -238,15 +238,15 @@ void main() {
         await tester.pumpAndSettle();
 
         await tapVisible(tester, find.text('Chụp ảnh'));
-        await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+        await tapVisible(tester, find.text('Gửi ảnh'));
         await scrollTo(tester, find.textContaining('Ảnh bị mờ'));
 
         expect(find.textContaining('Ảnh bị mờ (độ nét 45.2'), findsOneWidget);
-        expect(find.textContaining('Tải ảnh thành công'), findsNothing);
+        expect(find.textContaining('Đã tải ảnh lên'), findsNothing);
         expect(find.textContaining('0/5 đạt'), findsOneWidget);
 
         // the blurry photo is gone: sending again needs a new one
-        await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+        await tapVisible(tester, find.text('Gửi ảnh'));
         expect(service.uploads, hasLength(1));
       },
     );
@@ -266,7 +266,7 @@ void main() {
         await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
         await tester.pumpAndSettle();
         await tapVisible(tester, find.text('Chụp ảnh'));
-        await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+        await tapVisible(tester, find.text('Gửi ảnh'));
         await scrollTo(tester, find.textContaining('JPEG, PNG hoặc WebP'));
         expect(
           find.textContaining('Chỉ nhận ảnh JPEG, PNG hoặc WebP'),
@@ -280,7 +280,7 @@ void main() {
             'file': ['The file is too large'],
           },
         );
-        await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+        await tapVisible(tester, find.text('Gửi ảnh'));
         await scrollTo(tester, find.textContaining('lớn hơn 5 MB'));
         expect(find.textContaining('lớn hơn 5 MB'), findsOneWidget);
       },
@@ -299,11 +299,11 @@ void main() {
       await tester.pumpAndSettle();
 
       await tapVisible(tester, find.text('Chụp ảnh'));
-      await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+      await tapVisible(tester, find.text('Gửi ảnh'));
       await scrollTo(tester, find.textContaining('Không kết nối được máy chủ'));
 
       expect(find.textContaining('Không kết nối được máy chủ'), findsOneWidget);
-      expect(find.textContaining('Tải ảnh thành công'), findsNothing);
+      expect(find.textContaining('Đã tải ảnh lên'), findsNothing);
       expect(find.textContaining('Đã tải ảnh lên'), findsNothing);
       expect(find.textContaining('0/5 đạt'), findsOneWidget);
     });
@@ -328,7 +328,7 @@ void main() {
           findsOneWidget,
         );
 
-        await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+        await tapVisible(tester, find.text('Gửi ảnh'));
         expect(service.uploads, isEmpty);
       },
     );
@@ -347,7 +347,7 @@ void main() {
       await scrollTo(tester, find.textContaining('lớn hơn 5 MB'));
 
       expect(find.textContaining('Ảnh lớn hơn 5 MB'), findsOneWidget);
-      await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+      await tapVisible(tester, find.text('Gửi ảnh'));
       expect(service.uploads, isEmpty);
     });
 
@@ -379,7 +379,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tapVisible(tester, find.text('Chụp ảnh'));
-      await tapVisible(tester, find.text('Gửi Ảnh Chụp'));
+      await tapVisible(tester, find.text('Gửi ảnh'));
 
       expect(service.uploads, isEmpty);
     });

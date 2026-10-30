@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/location_wrapper.dart';
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/grouped_list_card.dart';
 import '../../../core/widgets/mini_map_widget.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/status_pill.dart';
@@ -17,6 +20,8 @@ import '../services/dispatch_service.dart';
 import '../../workers/routes.dart';
 
 /// Screen for field arrival check-in with GPS tolerance <=100m and alternative fallback verification (MOB-M3-02).
+/// MOB-UI-21 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage.pushed`, the main button in `actions`, tokens only,
+/// a failed step shakes its message.
 class CheckInScreen extends StatefulWidget {
   final int assignmentId;
   final double destinationLatitude;
@@ -47,6 +52,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
   bool _isSubmittingPhoto = false;
   bool _isRequestingCustomerConfirmation = false;
 
+  /// Bumped on every failure so the message shakes.
+  int _errors = 0;
+
   @override
   void initState() {
     super.initState();
@@ -64,7 +72,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Không lấy được toạ độ GPS: $e';
+        _errors++;
+        _errorMessage = 'Chưa lấy được vị trí của bạn: $e';
       });
     }
   }
@@ -96,7 +105,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Check-in thất bại: $e';
+        _errors++;
+        _errorMessage = 'Chưa xác nhận được vị trí: $e';
       });
     }
   }
@@ -129,7 +139,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
       if (!mounted) return;
       setState(() {
         _isSubmittingPhoto = false;
-        _errorMessage = 'Gửi ảnh biển số thất bại: $e';
+        _errors++;
+        _errorMessage = 'Chưa gửi được ảnh biển số: $e';
       });
     }
   }
@@ -154,22 +165,18 @@ class _CheckInScreenState extends State<CheckInScreen> {
       if (!mounted) return;
       setState(() {
         _isRequestingCustomerConfirmation = false;
-        _errorMessage = 'Xác nhận từ khách hàng thất bại: $e';
+        _errors++;
+        _errorMessage = 'Chưa nhờ được gia chủ xác nhận: $e';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Check-in')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _buildContent(),
-        ),
-      ),
-      bottomNavigationBar: _buildActionBar(),
+    return NordicPage.pushed(
+      title: 'Đến nơi',
+      actions: _buildActions(),
+      children: _buildContent(),
     );
   }
 
@@ -178,51 +185,50 @@ class _CheckInScreenState extends State<CheckInScreen> {
       (_checkInResult!.isGpsVerified ||
           !_checkInResult!.requiresAlternativeVerification);
 
-  /// `.btn-bar`: the one main button of the state on screen.
-  Widget? _buildActionBar() {
+  /// The one main button of the state on screen, above the home indicator.
+  List<Widget>? _buildActions() {
     if (_isLoading) return null;
     if (_verified) {
-      return BottomActionBar(
-        children: [
-          NordicButton(
-            key: const Key('continue_to_job_button'),
-            label: 'Bắt đầu ca làm',
-            onPressed: () => Navigator.of(context).pushReplacementNamed(
-              WorkerRoutes.execution,
-              arguments: widget.assignmentId,
-            ),
+      return [
+        NordicButton(
+          key: const Key('continue_to_job_button'),
+          label: 'Bắt đầu ca làm',
+          onPressed: () => Navigator.of(context).pushReplacementNamed(
+            WorkerRoutes.execution,
+            arguments: widget.assignmentId,
           ),
-        ],
-      );
+        ),
+      ];
     }
     if (_checkInResult != null) {
-      return BottomActionBar(
-        children: [
-          NordicButton(
-            label: 'Thử quét lại GPS',
-            variant: NordicButtonVariant.secondary,
-            onPressed: _handleGpsCheckIn,
-          ),
-        ],
-      );
-    }
-    return BottomActionBar(
-      children: [
+      return [
         NordicButton(
-          key: const Key('check_in_gps_button'),
-          label: 'Đã Đến Nơi (GPS)',
-          icon: const Icon(Icons.gps_fixed, color: Colors.white, size: 20.0),
+          label: 'Quét lại vị trí',
+          variant: NordicButtonVariant.secondary,
           onPressed: _handleGpsCheckIn,
         ),
-      ],
-    );
+      ];
+    }
+    return [
+      NordicButton(
+        key: const Key('check_in_gps_button'),
+        label: 'Tôi đã đến nơi',
+        icon: const Icon(
+          Icons.gps_fixed,
+          color: NordicColors.textInverse,
+          size: 20.0,
+        ),
+        onPressed: _handleGpsCheckIn,
+      ),
+    ];
   }
 
-  Widget _buildContent() {
+  List<Widget> _buildContent() {
     if (_isLoading) {
-      return const LoadingStateWidget(
-        message: 'Đang xác thực vị trí GPS tại hiện trường...',
-      );
+      return const [
+        SizedBox(height: NordicSpace.xl),
+        LoadingStateWidget(message: 'Đang xác nhận vị trí của bạn...'),
+      ];
     }
 
     // Success view when verified (GPS or fallback)
@@ -240,193 +246,181 @@ class _CheckInScreenState extends State<CheckInScreen> {
     return _buildInitialCheckInView();
   }
 
-  Widget _errorBanner() => Container(
-    padding: const EdgeInsets.all(12.0),
-    margin: const EdgeInsets.only(bottom: 16.0),
-    decoration: BoxDecoration(
-      color: NordicColors.errorContainer,
-      borderRadius: BorderRadius.circular(12.0),
-    ),
-    child: Text(
-      _errorMessage!,
-      style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+  Widget _errorBanner() => ErrorShake(
+    errors: _errors,
+    child: Container(
+      padding: const EdgeInsets.all(NordicSpace.sm),
+      decoration: const BoxDecoration(
+        color: NordicColors.errorContainer,
+        borderRadius: NordicRadius.tileAll,
+      ),
+      child: Text(
+        _errorMessage!,
+        style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+      ),
     ),
   );
 
-  Widget _buildInitialCheckInView() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
-      children: [
-        const Text('Đã đến địa chỉ ca làm việc?', style: NordicTypography.h2),
-        const SizedBox(height: 4.0),
-        const Text(
-          'Bấm nút bên dưới để kiểm tra toạ độ hiện tại. Dung sai cho phép ≤ 100 mét.',
-          style: NordicTypography.bodySmall,
-        ),
-        const SizedBox(height: 16.0),
-        MiniMapWidget(
-          targetLatitude: widget.destinationLatitude,
-          targetLongitude: widget.destinationLongitude,
-          workerLatitude: _currentGps?.latitude,
-          workerLongitude: _currentGps?.longitude,
-          addressLabel: 'Vị trí khách',
-          radiusMeters: 100.0,
-        ),
-        const SizedBox(height: 16.0),
-        NordicCard(
-          child: Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                color: NordicColors.primary,
-                size: 22.0,
-              ),
-              const SizedBox(width: 8.0),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Địa chỉ đơn hàng #${widget.assignmentId}',
-                      style: NordicTypography.titleSmall,
-                    ),
-                    const SizedBox(height: 2.0),
-                    Text(
-                      widget.destinationAddress,
-                      style: NordicTypography.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (_errorMessage != null) ...[
-          const SizedBox(height: 16.0),
-          _errorBanner(),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildAlternativeVerificationView() {
-    final distance = _checkInResult?.distanceMeters ?? 0.0;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
-      children: [
-        const Text('Vị trí chưa khớp', style: NordicTypography.h2),
-        const SizedBox(height: 8.0),
-        Text(
-          'Toạ độ GPS của bạn cách địa chỉ đơn ${distance.toStringAsFixed(0)} mét (vượt mức cho phép ≤ 100m).',
-          style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
-        ),
-        const SizedBox(height: 16.0),
-        Row(
-          children: [
-            Expanded(
-              child: StatTile(
-                icon: Icons.straighten,
-                label: 'Khoảng cách',
-                value: distance.toStringAsFixed(0),
-                unit: 'm',
-              ),
-            ),
-            const SizedBox(width: 12.0),
-            const Expanded(
-              child: NordicCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Kết quả', style: NordicTypography.bodySmall),
-                    SizedBox(height: 8.0),
-                    StatusPill('Ngoài vùng', tone: PillTone.bad, dot: true),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24.0),
-        const Text(
-          'Chọn phương thức xác nhận thay thế',
-          style: NordicTypography.titleSmall,
-        ),
-        const SizedBox(height: 8.0),
-        GroupedListCard(
-          items: [
-            GroupedListItem(
-              key: const Key('take_plate_photo_button'),
-              icon: Icons.camera_alt_outlined,
-              title: _isSubmittingPhoto
-                  ? 'Đang tải ảnh...'
-                  : 'Chụp ảnh biển số nhà / số phòng',
-              onTap: _isSubmittingPhoto ? null : _handleCapturePlatePhoto,
-            ),
-            GroupedListItem(
-              key: const Key('request_customer_confirmation_button'),
-              icon: Icons.person_pin_circle_outlined,
-              title: _isRequestingCustomerConfirmation
-                  ? 'Đang gửi yêu cầu...'
-                  : 'Nhờ khách xác nhận trên ứng dụng',
-              onTap: _isRequestingCustomerConfirmation
-                  ? null
-                  : _handleCustomerConfirmation,
-            ),
-          ],
-        ),
-        if (_capturedPlatePhoto != null) ...[
-          const SizedBox(height: 8.0),
-          Text(
-            'Đã chụp: ${_capturedPlatePhoto!.path}',
-            style: NordicTypography.bodySmall,
-          ),
-        ],
-        if (_errorMessage != null) ...[
-          const SizedBox(height: 16.0),
-          _errorBanner(),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildSuccessView() {
-    final method = _checkInResult?.verificationMethod ?? 'GPS';
-    String message = 'Check-in thành công bằng định vị GPS!';
-    if (method == 'PLATE_PHOTO') {
-      message = 'Check-in thành công bằng ảnh chụp biển số nhà!';
-    } else if (method == 'CUSTOMER_CONFIRMATION') {
-      message = 'Check-in thành công do khách hàng đã xác nhận!';
-    }
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+  List<Widget> _buildInitialCheckInView() {
+    return [
+      const Text('Đã đến địa chỉ ca làm việc?', style: NordicTypography.h2),
+      const SizedBox(height: NordicSpace.xxs),
+      const Text(
+        'Bấm nút bên dưới để kiểm tra vị trí của bạn. Cho phép lệch tối đa 100 mét.',
+        style: NordicTypography.bodySmall,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      MiniMapWidget(
+        targetLatitude: widget.destinationLatitude,
+        targetLongitude: widget.destinationLongitude,
+        workerLatitude: _currentGps?.latitude,
+        workerLongitude: _currentGps?.longitude,
+        addressLabel: 'Vị trí gia chủ',
+        radiusMeters: 100.0,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      NordicCard(
+        child: Row(
           children: [
             const Icon(
-              Icons.check_circle_rounded,
-              size: 72.0,
-              color: NordicColors.success,
+              Icons.location_on_outlined,
+              color: NordicColors.primary,
+              size: 22.0,
             ),
-            const SizedBox(height: 16.0),
-            Text(
-              'Đã Đến Nơi Thành Công',
-              textAlign: TextAlign.center,
-              style: NordicTypography.h2.copyWith(color: NordicColors.primary),
+            const SizedBox(width: NordicSpace.xs),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Địa chỉ ca làm',
+                    style: NordicTypography.titleSmall,
+                  ),
+                  const SizedBox(height: NordicSpace.xxs),
+                  Text(
+                    widget.destinationAddress,
+                    style: NordicTypography.bodySmall,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8.0),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: NordicTypography.bodyRegular,
-            ),
-            const SizedBox(height: 12.0),
-            const StatusPill('Đã xác nhận', tone: PillTone.ok, dot: true),
           ],
         ),
       ),
-    );
+      if (_errorMessage != null) ...[
+        const SizedBox(height: NordicSpace.md),
+        _errorBanner(),
+      ],
+    ];
+  }
+
+  List<Widget> _buildAlternativeVerificationView() {
+    final distance = _checkInResult?.distanceMeters ?? 0.0;
+
+    return [
+      const Text('Vị trí chưa khớp', style: NordicTypography.h2),
+      const SizedBox(height: NordicSpace.xs),
+      Text(
+        'Vị trí của bạn cách địa chỉ ca làm ${distance.toStringAsFixed(0)} mét, vượt mức cho phép 100 mét.',
+        style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
+      ),
+      const SizedBox(height: NordicSpace.md),
+      Row(
+        children: [
+          Expanded(
+            child: StatTile(
+              icon: Icons.straighten,
+              label: 'Khoảng cách',
+              value: distance.toStringAsFixed(0),
+              unit: 'm',
+            ),
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          const Expanded(
+            child: NordicCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Kết quả', style: NordicTypography.bodySmall),
+                  SizedBox(height: NordicSpace.xs),
+                  StatusPill('Ngoài vùng', tone: PillTone.bad, dot: true),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: NordicSpace.lg),
+      const Text('Chọn cách xác nhận khác', style: NordicTypography.titleSmall),
+      const SizedBox(height: NordicSpace.xs),
+      GroupedListCard(
+        items: [
+          GroupedListItem(
+            key: const Key('take_plate_photo_button'),
+            icon: Icons.camera_alt_outlined,
+            title: _isSubmittingPhoto
+                ? 'Đang tải ảnh...'
+                : 'Chụp ảnh biển số nhà hoặc số phòng',
+            onTap: _isSubmittingPhoto ? null : _handleCapturePlatePhoto,
+          ),
+          GroupedListItem(
+            key: const Key('request_customer_confirmation_button'),
+            icon: Icons.person_pin_circle_outlined,
+            title: _isRequestingCustomerConfirmation
+                ? 'Đang gửi yêu cầu...'
+                : 'Nhờ gia chủ xác nhận trên ứng dụng',
+            onTap: _isRequestingCustomerConfirmation
+                ? null
+                : _handleCustomerConfirmation,
+          ),
+        ],
+      ),
+      if (_capturedPlatePhoto != null) ...[
+        const SizedBox(height: NordicSpace.xs),
+        Text(
+          'Đã chụp: ${_capturedPlatePhoto!.path}',
+          style: NordicTypography.bodySmall,
+        ),
+      ],
+      if (_errorMessage != null) ...[
+        const SizedBox(height: NordicSpace.md),
+        _errorBanner(),
+      ],
+    ];
+  }
+
+  List<Widget> _buildSuccessView() {
+    final method = _checkInResult?.verificationMethod ?? 'GPS';
+    String message = 'Đã xác nhận bằng vị trí của bạn.';
+    if (method == 'PLATE_PHOTO') {
+      message = 'Đã xác nhận bằng ảnh biển số nhà.';
+    } else if (method == 'CUSTOMER_CONFIRMATION') {
+      message = 'Gia chủ đã xác nhận bạn đến nơi.';
+    }
+
+    return [
+      const SizedBox(height: NordicSpace.xl),
+      const Icon(
+        Icons.check_circle_rounded,
+        size: 72.0,
+        color: NordicColors.success,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      Text(
+        'Bạn đã đến nơi',
+        textAlign: TextAlign.center,
+        style: NordicTypography.h2.copyWith(color: NordicColors.primary),
+      ),
+      const SizedBox(height: NordicSpace.xs),
+      Text(
+        message,
+        textAlign: TextAlign.center,
+        style: NordicTypography.bodyRegular,
+      ),
+      const SizedBox(height: NordicSpace.sm),
+      const Center(
+        child: StatusPill('Đã xác nhận', tone: PillTone.ok, dot: true),
+      ),
+    ];
   }
 }
