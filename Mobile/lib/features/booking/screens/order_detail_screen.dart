@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_elevation.dart';
+import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/avatar_initials.dart';
@@ -475,51 +477,78 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     ),
   );
 
+  /// The big figure first (DESIGN-SYSTEM §5 Detail): a dark raised block with the time and the amount,
+  /// then the facts and the timeline in a white card.
   Widget _summary(BookingOrder order, String displayStatus) {
     final start = _localTime(order.shiftStartAt);
     final end = _localTime(order.shiftEndAt);
-    return NordicCard(
+    final hero = DecoratedBox(
+      decoration: const BoxDecoration(
+        color: NordicColors.contrastDark,
+        borderRadius: NordicRadius.cardAll,
+        boxShadow: NordicElevation.raised,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(NordicSpace.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        start ?? shiftLabel(order.shiftCode),
+                        style: NordicTypography.numberLarge.copyWith(
+                          color: NordicColors.textInverse,
+                        ),
+                      ),
+                      const SizedBox(height: NordicSpace.xxs),
+                      Text(
+                        scheduleText(order.scheduledDate, order.shiftCode),
+                        key: const Key('order-schedule'),
+                        style: NordicTypography.bodySmall.copyWith(
+                          color: NordicColors.onDarkMuted,
+                        ),
+                      ),
+                      if (end != null)
+                        Text(
+                          'đến $end',
+                          style: NordicTypography.bodySmall.copyWith(
+                            color: NordicColors.onDarkMuted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Text(
+                  formatVnd(order.totalAmount),
+                  key: const Key('order-amount'),
+                  style: NordicTypography.numberSmall.copyWith(
+                    color: NordicColors.textInverse,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: NordicSpace.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OrderStatusPill(
+                displayStatus,
+                textKey: const Key('order-status'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    final facts = NordicCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      start ?? shiftLabel(order.shiftCode),
-                      style: NordicTypography.numberLarge,
-                    ),
-                    const SizedBox(height: NordicSpace.xxs),
-                    Text(
-                      scheduleText(order.scheduledDate, order.shiftCode),
-                      key: const Key('order-schedule'),
-                      style: NordicTypography.bodySmall,
-                    ),
-                    if (end != null)
-                      Text('đến $end', style: NordicTypography.bodySmall),
-                  ],
-                ),
-              ),
-              Text(
-                formatVnd(order.totalAmount),
-                key: const Key('order-amount'),
-                style: NordicTypography.numberSmall,
-              ),
-            ],
-          ),
-          const SizedBox(height: NordicSpace.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OrderStatusPill(
-              displayStatus,
-              textKey: const Key('order-status'),
-            ),
-          ),
-          const SizedBox(height: NordicSpace.xs),
           Text(
             '${tierLabel(order.serviceTier)} · ${formatArea(order.areaSnapshotM2)} · ${order.requiredWorkers} người',
             style: NordicTypography.bodySmall,
@@ -541,6 +570,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           _timeline(displayStatus),
         ],
       ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        hero,
+        const SizedBox(height: NordicSpace.sm),
+        facts,
+      ],
     );
   }
 

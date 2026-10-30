@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_elevation.dart';
 import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -474,17 +475,40 @@ class _PaymentScreenState extends State<PaymentScreen>
   List<Widget> _waiting(Payment payment, DateTime now) {
     final amount = formatVnd(payment.amount);
     return [
-      Text(
-        purposeLabel(payment),
-        textAlign: TextAlign.center,
-        style: NordicTypography.bodySmall,
-      ),
-      const SizedBox(height: NordicSpace.xs),
-      Text(
-        amount,
-        key: const Key('payment-amount'),
-        textAlign: TextAlign.center,
-        style: NordicTypography.numberLarge.copyWith(fontSize: 44.0),
+      // The one raised block of the screen: what is paid and how much (DESIGN-SYSTEM §5 Detail).
+      DecoratedBox(
+        decoration: const BoxDecoration(
+          color: NordicColors.contrastDark,
+          borderRadius: NordicRadius.cardAll,
+          boxShadow: NordicElevation.raised,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: NordicSpace.md,
+            vertical: NordicSpace.lg,
+          ),
+          child: Column(
+            children: [
+              Text(
+                purposeLabel(payment),
+                textAlign: TextAlign.center,
+                style: NordicTypography.bodySmall.copyWith(
+                  color: NordicColors.onDarkMuted,
+                ),
+              ),
+              const SizedBox(height: NordicSpace.xs),
+              Text(
+                amount,
+                key: const Key('payment-amount'),
+                textAlign: TextAlign.center,
+                style: NordicTypography.numberLarge.copyWith(
+                  fontSize: 44.0,
+                  color: NordicColors.textInverse,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       const SizedBox(height: NordicSpace.lg),
       NordicCard(

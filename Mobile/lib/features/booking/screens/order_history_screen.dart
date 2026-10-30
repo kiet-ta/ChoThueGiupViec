@@ -207,19 +207,23 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             width: 52.0,
             padding: const EdgeInsets.symmetric(vertical: NordicSpace.xs),
             decoration: const BoxDecoration(
-              color: NordicColors.surfaceLow,
+              color: NordicColors.primaryFixed,
               borderRadius: NordicRadius.tileAll,
             ),
             child: Column(
               children: [
                 Text(
                   day == null ? '–' : day.day.toString().padLeft(2, '0'),
-                  style: NordicTypography.numberSmall,
+                  style: NordicTypography.numberSmall.copyWith(
+                    color: NordicColors.primary,
+                  ),
                 ),
                 if (day != null)
                   Text(
                     _weekdays[day.weekday - 1],
-                    style: NordicTypography.bodySmall,
+                    style: NordicTypography.bodySmall.copyWith(
+                      color: NordicColors.primaryContainer,
+                    ),
                   ),
               ],
             ),
