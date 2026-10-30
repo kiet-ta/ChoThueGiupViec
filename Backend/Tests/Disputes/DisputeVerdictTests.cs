@@ -304,6 +304,7 @@ public class DisputeVerdictTests
     public async Task Lock_worker_with_a_freelancer_verdict_locks_the_worker_and_writes_one_audit_row_for_the_request_and_one_per_worker()
     {
         var h = new Harness().Freelancers((1, 260000m));
+        h.Repo.PreviousStatus = WorkStatus.Busy;
 
         var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 50000m, lockWorker: true));
 
@@ -313,6 +314,8 @@ public class DisputeVerdictTests
         Assert.Equal("true", h.Audit.Entries.ElementAt(1).NewValue);
         var workerRow = h.Audit.Entries.Last();
         Assert.Equal(("WORKER", "41", "LOCKED"), (workerRow.EntityType, workerRow.EntityId, workerRow.NewValue));
+        // ADMIN-UAT-10: the row says what the worker was (it used to be null), so the audit page shows BUSY -> LOCKED.
+        Assert.Equal("BUSY", workerRow.OldValue);
     }
 
     [Fact]
@@ -543,6 +546,7 @@ public class DisputeVerdictTests
             var workerAudit = await verify.AdminAuditLogs.AsNoTracking()
                 .SingleAsync(a => a.EntityType == "WORKER" && a.EntityId == s.WorkerId.ToString());
             Assert.Equal(("work_status", "LOCKED"), (workerAudit.FieldName, workerAudit.NewValue));
+            Assert.False(string.IsNullOrEmpty(workerAudit.OldValue), "the audit row records the status the worker had before the lock");
             Assert.Equal(100000m, Assert.Single(refunds.Requests).Amount);
 
             var published = Assert.Single(publisher.Events);
@@ -594,7 +598,9 @@ public class DisputeVerdictTests
             await using var db = new AppDbContext(DisputeEndpointTests.Options());
             var repo = new EfDisputeRepository(db);
 
-            Assert.Equal([s.WorkerId], await repo.LockFreelancersAsync([s.WorkerId, s.WorkerId]));
+            var lockedNow = Assert.Single(await repo.LockFreelancersAsync([s.WorkerId, s.WorkerId]));
+            Assert.Equal(s.WorkerId, lockedNow.WorkerId);
+            Assert.NotEqual(WorkStatus.Locked, lockedNow.PreviousStatus);
             Assert.Empty(await repo.LockFreelancersAsync([s.WorkerId]));
             Assert.Empty(await repo.LockFreelancersAsync([]));
 

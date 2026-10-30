@@ -96,10 +96,14 @@ public class DisputeServiceTests
         public List<int[]> LockRequests { get; } = [];
         public HashSet<int> AlreadyLocked { get; } = [];
 
-        public Task<IReadOnlyList<int>> LockFreelancersAsync(IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default)
+        /// <summary>What the worker was before the lock (the audit row records it); IDLE unless a test says otherwise.</summary>
+        public WorkStatus PreviousStatus { get; set; } = WorkStatus.Idle;
+
+        public Task<IReadOnlyList<LockedWorker>> LockFreelancersAsync(IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default)
         {
             LockRequests.Add(workerIds.ToArray());
-            return Task.FromResult<IReadOnlyList<int>>(workerIds.Where(id => !AlreadyLocked.Contains(id)).ToList());
+            return Task.FromResult<IReadOnlyList<LockedWorker>>(
+                workerIds.Where(id => !AlreadyLocked.Contains(id)).Select(id => new LockedWorker(id, PreviousStatus)).ToList());
         }
 
         public Task<IReadOnlyList<DisputeVerdictAssignment>> GetVerdictAssignmentsAsync(long orderId, CancellationToken cancellationToken = default) =>
@@ -244,6 +248,37 @@ public class DisputeServiceTests
         late.Repo.Tickets.Clear();
         late.Clock.UtcNow = new DateTime(2026, 10, 8, 9, 1, 0, DateTimeKind.Utc);
         Assert.Equal(409, (await late.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+    }
+
+    [Fact]
+    public async Task ADMIN_UAT_10_an_absence_fee_dispute_uses_Absence_CustomerDisputeHours_and_the_others_keep_the_24h_of_the_dispute_options()
+    {
+        var rules = Microsoft.Extensions.Options.Options.Create(new CommonService.Application.Common.Options.BusinessRules
+        {
+            Absence = new CommonService.Application.Common.Options.AbsenceRules { CustomerDisputeHours = 36 },
+        });
+        var disputeOptions = Microsoft.Extensions.Options.Options.Create(new DisputeOptions());
+        var shiftEndUtc = new DateTime(2026, 10, 7, 5, 0, 0, DateTimeKind.Utc);
+
+        // ABSENT only: 36 h after the shift end, not 24 h
+        var absent = new Harness(JobAssignmentStatus.Absent);
+        var absentFiling = new DisputeFilingService(absent.Repo, absent.Clock, disputeOptions, rules);
+        absent.Clock.UtcNow = shiftEndUtc.AddHours(36);
+        Assert.Equal(201, (await absentFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        absent.Repo.Tickets.Clear();
+        absent.Clock.UtcNow = shiftEndUtc.AddHours(36).AddTicks(1);
+        Assert.Equal(409, (await absentFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+
+        // a COMPLETED assignment is not an absence fee: still 24 h, whatever the absence rule says
+        var completed = new Harness();
+        var completedFiling = new DisputeFilingService(completed.Repo, completed.Clock, disputeOptions, rules);
+        completed.Clock.UtcNow = Now.AddHours(1).AddHours(24).AddTicks(1);
+        Assert.Equal(409, (await completedFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+
+        // without the rules (an older caller) the default 24 h of Q10 applies, the same number as before
+        var plain = new Harness(JobAssignmentStatus.Absent);
+        plain.Clock.UtcNow = shiftEndUtc.AddHours(24).AddTicks(1);
+        Assert.Equal(409, (await plain.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
     }
 
     // ---- filing: ownership, uniqueness, validation ---------------------------------------------
@@ -579,6 +614,26 @@ public class DisputeServiceTests
         Assert.Contains("50.5 m", file.ShiftTimeline[0].Detail); // invariant culture, never "50,5"
         Assert.Equal(40, file.ShiftTimeline[1].VolScore);
         Assert.Equal(["AFTER/1", "AFTER/2", "BEFORE/1"], file.Photos.Select(p => $"{p.Phase}/{p.AngleNo}").ToArray());
+    }
+
+    [Fact]
+    public async Task ADMIN_UAT_11_a_photo_stored_as_a_file_is_answered_as_the_address_of_its_file_and_a_given_address_stays()
+    {
+        var h = await WithTicketsAsync(("OPEN", 20));
+        h.Repo.Case = new DisputeCaseData(
+            [],
+            [
+                new DisputePhotoData(1, "BEFORE", 1, "job-photos/4377e8cb_6_before_1.png", 120, true, Now.AddHours(-5), PhotoId: 29),
+                new DisputePhotoData(1, "AFTER", 1, "https://storage.example/jobs/after_1.jpg", 110, true, Now.AddHours(-3), PhotoId: 32),
+                new DisputePhotoData(1, "AFTER", 2, "/uploads/after_2.jpg", 110, true, Now.AddHours(-3), PhotoId: 33),
+            ],
+            []);
+
+        var photos = (await h.Admin.GetAsync(1)).Data!.Photos;
+
+        Assert.Equal("/api/workers/assignments/1/photos/29/file", photos.Single(p => p.Phase == "BEFORE").Url); // the raw "job-photos/..." path is no address
+        Assert.Equal("https://storage.example/jobs/after_1.jpg", photos.Single(p => p.Phase == "AFTER" && p.AngleNo == 1).Url);
+        Assert.Equal("/uploads/after_2.jpg", photos.Single(p => p.Phase == "AFTER" && p.AngleNo == 2).Url);
     }
 
     [Fact]
