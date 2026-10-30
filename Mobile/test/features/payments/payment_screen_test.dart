@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
@@ -16,12 +17,13 @@ Payment _payment({
   String? payUrl = 'https://sandbox.invalid/pay/FAKE-1',
   String purpose = 'ORDER',
   int amount = 260000,
+  String gateway = 'FAKE',
 }) => Payment(
   paymentId: 5,
   purpose: purpose,
   orderId: purpose == 'ORDER' ? 42 : null,
   extensionId: purpose == 'EXTENSION' ? 9 : null,
-  gateway: 'FAKE',
+  gateway: gateway,
   amount: amount,
   txnStatus: status,
   qrPayload: status == 'PENDING' ? qr : null,
@@ -144,6 +146,96 @@ String textOf(WidgetTester tester, String key) =>
 
 void main() {
   group('PaymentScreen (MOB-M2-03)', () {
+    testWidgets('SePay polling opens the paid order once', (tester) async {
+      const qr = 'https://vietqr.app/img?des=TA0123456789';
+      final service = FakePaymentsService()
+        ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: qr)
+        ..polls.add(
+          _payment(gateway: 'SEPAY', status: 'SUCCESS', payUrl: null),
+        );
+      final clock = TestClock();
+      final done = await pumpPayment(tester, service, clock);
+      await elapse(tester, clock, const Duration(seconds: 3));
+      await tester.pump();
+      expect(done, hasLength(1));
+      expect(done.single.isPaid, isTrue);
+      await close(tester);
+    });
+    testWidgets(
+      'SePay shows QR details and copies the transfer content and amount',
+      (tester) async {
+        const qr =
+            'https://vietqr.app/img?acc=fake123&bank=fake%20bank&amount=260000&des=TA0123456789&template=compact';
+        final clipboard = <String>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') {
+                clipboard.add((call.arguments as Map)['text'] as String);
+              }
+              return null;
+            });
+        addTearDown(
+          () => TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .setMockMethodCallHandler(SystemChannels.platform, null),
+        );
+        final service = FakePaymentsService()
+          ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: qr);
+        await pumpPayment(tester, service, TestClock());
+        expect(find.byKey(const Key('sandbox-banner')), findsOneWidget);
+        expect(find.byKey(const Key('sepay-qr')), findsOneWidget);
+        expect(find.text('Thông tin chuyển khoản'), findsOneWidget);
+        expect(find.text('TA0123456789'), findsOneWidget);
+        expect(find.text('260.000 đ'), findsOneWidget);
+        expect(find.text('Ngân hàng'), findsOneWidget);
+        expect(find.text('fake bank'), findsOneWidget);
+        expect(find.text('Số tài khoản'), findsOneWidget);
+        expect(find.text('fake123'), findsOneWidget);
+        expect(find.byKey(const Key('payment-countdown')), findsOneWidget);
+        await tester.tap(find.byKey(const Key('copy-content')));
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('copy-amount')));
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('copy-bank')));
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('copy-account')));
+        await tester.pump();
+        expect(clipboard, ['TA0123456789', '260000', 'fake bank', 'fake123']);
+        await close(tester);
+      },
+    );
+
+    testWidgets('SePay hides bank and account when absent', (tester) async {
+      const qr = 'https://vietqr.app/img?des=TA0123456789';
+      final service = FakePaymentsService()
+        ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: qr);
+      await pumpPayment(tester, service, TestClock());
+      expect(find.text('Ngân hàng'), findsNothing);
+      expect(find.text('Số tài khoản'), findsNothing);
+      expect(find.byKey(const Key('copy-bank')), findsNothing);
+      expect(find.byKey(const Key('copy-account')), findsNothing);
+      await close(tester);
+    });
+
+    testWidgets('SePay keeps transfer details when the QR image cannot load', (
+      tester,
+    ) async {
+      const qr =
+          'https://vietqr.app/img?acc=fake&bank=fake&amount=260000&des=TA0123456789';
+      final service = FakePaymentsService()
+        ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: null);
+      await pumpPayment(tester, service, TestClock());
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('sepay-qr-unavailable')), findsOneWidget);
+      expect(find.text('TA0123456789'), findsOneWidget);
+      expect(find.byKey(const Key('copy-content')), findsOneWidget);
+      await close(tester);
+    });
+
     testWidgets(
       'a Fake-gateway payment confirms itself after 5 seconds, without an admin',
       (tester) async {
