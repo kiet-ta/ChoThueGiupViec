@@ -79,6 +79,10 @@ To prevent merge conflicts across the 6 team members:
 - Catalogue: `models/vn_admin_units.dart`, generated from `https://provinces.open-api.vn/api/v2/?depth=2` (downloaded 2026-10-20): the 34 provinces and 3,321 wards / communes / special zones in force since 2025-07-01 (no district level any more). Embedded as a constant: no package, no network call. Regenerate it from the same source when the units change.
 - The API is unchanged (contract `customers.md`: `city` and `district`, 1-100 chars): `city` carries the province, `district` the ward, both with their full official names. An address saved before (e.g. `Quận 1`, `TP. Hồ Chí Minh`) shows its old text and must be chosen again before it can be saved.
 
+### Customer rebooking from an order
+
+The order detail passes the completed worker and previous order to the Economy booking form. Booking reads availability from `GET /api/booking/orders/{orderId}/workers/{workerId}/availability` and sends `previousOrderId` with `preferredWorkerId` when creating the order. The server checks ownership and the completed assignment; the flow does not change the customer's favorites. The worker remains a preference, subject to the normal dispatch eligibility rules.
+
 ### Worker income (`features/payouts`, MOB-M6-04)
 - `/payouts` (`PayoutScreen`): month selector (default month and "today" are read in Asia/Ho_Chi_Minh, UTC+7; the next button stops at the current month because the server answers 400 for a future month; the previous button stops at January 2024) and `GET /api/workers/me/earnings?month=YYYY-MM`. It shows "Thu nhập tháng này" (net), gross, commission, penalty, the payout status (`NOT_BUILT`, `PENDING`, `TRANSFERRED`) with a hint, and the jobs; an approved absence fee carries a "Phí vắng mặt" tag. There is no wallet or "số dư khả dụng" (open question P6). A 403 (agency staff: the agency is paid) is explained and has no retry. A slow answer of an older month never overwrites a newer choice.
 - `/payouts/history` (`PayoutHistoryScreen`): `GET /api/workers/me/payouts?page=&pageSize=`, "Xem thêm" loads the next page; a failure on a later page keeps what is shown.
