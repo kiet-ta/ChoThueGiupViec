@@ -48,6 +48,51 @@ public class PaymentIpnController(IIpnService ipn) : ControllerBase
             : NoContent();
     }
 
+    /// <summary>Receives the SePay sandbox callback, preserving the signed request body.</summary>
+    [HttpPost("sepay")]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<IActionResult> SePay(CancellationToken ct)
+    {
+        using var reader = new StreamReader(Request.Body, leaveOpen: true);
+        var rawBody = await reader.ReadToEndAsync(ct);
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(rawBody);
+        }
+        catch (JsonException)
+        {
+            return BadRequest(SePayAnswer(false));
+        }
+
+        using (document)
+        {
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return BadRequest(SePayAnswer(false));
+            }
+
+            var payload = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                payload[property.Name] = property.Value.ValueKind switch
+                {
+                    JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                    JsonValueKind.Null or JsonValueKind.Undefined => string.Empty,
+                    _ => property.Value.GetRawText(),
+                };
+            }
+
+            payload["x-sepay-signature"] = Request.Headers["X-SePay-Signature"].ToString();
+            payload["x-sepay-timestamp"] = Request.Headers["X-SePay-Timestamp"].ToString();
+            payload["x-sepay-raw-body"] = rawBody;
+            var outcome = await ipn.HandleAsync(payload, rawBody, ct);
+            return outcome == IpnOutcome.Rejected ? BadRequest(SePayAnswer(false)) : Ok(SePayAnswer(true));
+        }
+    }
+
+    private static Dictionary<string, bool> SePayAnswer(bool success) => new() { ["success"] = success };
+
     /// <summary>
     /// Handles a VNPay (sandbox) callback: a GET whose query holds the <c>vnp_</c> fields. VNPay wants HTTP 200 with
     /// <c>RspCode</c>: 00 accepted, 02 already processed (both end its retries), 99 rejected (it retries; the answer gives no reason).

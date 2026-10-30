@@ -249,8 +249,14 @@ The leader's instruction was "if not affected, just implement", so these are the
 - When every future job moved to a replacement and no job is in progress, the worker becomes `Retired` in the same call (no wait for the sweep).
 - **Claude defaults, NOT confirmed by the owner (veto before merge):** (e) a `HELD` future slot (customer in checkout) blocks the call with `409 SLOT_HELD` unless the replacement is a new worker (its slots are taken over); (f) the `AVAILABLE` future slots of the retiring worker are deleted unless an assignment still points to the slot (foreign key); (g) a `Pending` worker answers `409 WORKER_NOT_RETIRABLE`; (h) the quota is checked only when the retiring worker was `Locked` (not counted) and a new worker (counted) replaces it.
 
+### D23 SePay Test mode bank transfers (BE-PAY-SEPAY-02, #523; owner request 2026-10-30)
+
+SePay Test mode bank-transfer QR is in scope for the Mobile Customer demo (order and extension payments); the shared gateway also applies to other payment purposes, but partner Web changes are outside scope. `PAYMENT_TRANSACTION.gateway` is `SEPAY` and `gateway_txn_ref` is payment code `TA` plus 10 random digits. The adapter is registered after MoMo and VNPay, so the last configured gateway wins; only HTTPS host `userapi-sandbox.sepay.vn` is allowed. `POST /api/payments/ipn/sepay` authenticates the raw body with HMAC-SHA256 and a timestamp; accepted and repeated callbacks answer HTTP 200 `{"success":true}`, rejected callbacks HTTP 400 `{"success":false}`. Reconciliation queries the sandbox API; SePay has no refund API, so refunds are recorded in the database. SePay must reach the webhook through an owner-operated tunnel to the backend. No real-money host or credentials are committed.
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery. Escrow withdrawal by an agency (D16: an Admin settles outside the system).
+
+SePay Test mode bank-transfer QR is in scope for the demo (owner request 2026-10-30; D23).
 
 ## 3. Schema changes (authoritative until `Backend/GiupViec_Physical_DB_MVP5.drawio` is updated; BASE-06 must update the drawio or record the delta in `Backend/ARCHITECTURE.md`)
 - **SC-1** `PARTNER_AGENCY`: add `password_hash VARCHAR(255) NULL`, `guarantee_signed_at DATETIME2 NULL`, `guarantee_file_url NVARCHAR(500) NULL`.
