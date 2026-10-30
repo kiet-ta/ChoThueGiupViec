@@ -251,6 +251,17 @@ code{background:#fff;border:1px solid var(--border);border-radius:6px;padding:1p
   <div class="card" style="border:2px solid var(--leaf)"><div class="t-title-s">Ô chọn · đang chọn</div><div class="t-small">Viền primaryContainer và dấu check.</div><div style="color:var(--leaf);font-size:22px;margin-top:6px">✓</div></div>
   <div class="card"><div class="t-title-s">Nút chính</div><div class="btn primary" style="margin-top:10px;box-shadow:0 10px 22px -8px rgba(15,61,46,.55)">Đặt ca · 260.000 đ</div></div>
 </div>
+<h2>12. Widget dùng chung v2 · <code>DarkHeader</code>, <code>RaisedPanel</code>, <code>GlassPanel</code></h2>
+<p class="t-small"><b>DarkHeader</b>: nền xanh đậm tràn lên mép trên, bo đáy, ba vòng tròn trang trí, chừa chỗ cho <b>RaisedPanel</b> đè lên. <b>GlassPanel</b>: panel trên nền tối (trắng 8 %, viền trắng 14 %). Dùng ở Trang chủ, Chi tiết đơn, Tài khoản. Đơn huỷ: timeline chỉ một dòng với dấu ✕ đỏ, không có dấu tích.</p>
+<div class="panel grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+  <div style="background:var(--dark);color:#fff;border-radius:0 0 32px 32px;padding:20px 20px 60px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.08);display:grid;place-items:center">←</span><b>Chi tiết đơn</b></div>
+    <div class="t-num-l" style="color:#fff;margin-top:14px;font-size:44px">08:00</div>
+    <div style="color:#A9C7B8;font:500 13px 'Be Vietnam Pro'">Thứ Hai, 26/10/2026 · Ca sáng</div>
+  </div>
+  <div class="card" style="margin-top:-40px;box-shadow:0 1px 2px rgba(16,24,20,.06),0 10px 24px rgba(16,24,20,.08),0 28px 48px -16px rgba(15,61,46,.28);border-radius:28px;padding:20px"><div class="t-small">Tổng tiền</div><div class="t-num-m">260.000 đ</div><div class="t-small" style="margin-top:8px">RaisedPanel đè lên header</div></div>
+  <div class="card"><div style="display:flex;align-items:center;gap:10px"><span style="width:28px;height:28px;border-radius:50%;background:var(--error);color:#fff;display:grid;place-items:center">✕</span><b style="color:var(--error)">Đơn đã huỷ</b></div><div class="t-small" style="margin-top:8px">Timeline của đơn huỷ</div></div>
+</div>
 </main>
 </body>
 </html>
