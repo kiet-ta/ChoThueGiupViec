@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_elevation.dart';
 import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -643,31 +644,38 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
       );
     }
-    return NordicCard(
-      isHighlighted: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            formatVnd(quote.totalAmount),
-            key: const Key('quote-total'),
-            style: NordicTypography.numberMedium.copyWith(
-              color: NordicColors.primary,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        borderRadius: NordicRadius.cardAll,
+        boxShadow: NordicElevation.raised,
+      ),
+      child: NordicCard(
+        elevated: false,
+        isHighlighted: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              formatVnd(quote.totalAmount),
+              key: const Key('quote-total'),
+              style: NordicTypography.numberMedium.copyWith(
+                color: NordicColors.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: NordicSpace.xs),
-          Text(
-            '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}',
-            key: const Key('quote-breakdown'),
-            style: NordicTypography.bodyRegular,
-          ),
-          const SizedBox(height: 2.0),
-          Text(
-            workersNote(quote, options),
-            key: const Key('quote-workers-note'),
-            style: NordicTypography.bodySmall,
-          ),
-        ],
+            const SizedBox(height: NordicSpace.xs),
+            Text(
+              '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}',
+              key: const Key('quote-breakdown'),
+              style: NordicTypography.bodyRegular,
+            ),
+            const SizedBox(height: 2.0),
+            Text(
+              workersNote(quote, options),
+              key: const Key('quote-workers-note'),
+              style: NordicTypography.bodySmall,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -777,7 +785,7 @@ BoxDecoration _tileDecoration(bool selected) => BoxDecoration(
   color: NordicColors.surface,
   borderRadius: NordicRadius.cardAll,
   border: Border.all(
-    color: selected ? NordicColors.primary : NordicColors.border,
+    color: selected ? NordicColors.primaryContainer : NordicColors.border,
     width: selected ? 2.0 : 1.0,
   ),
 );
@@ -820,7 +828,7 @@ class _TierTile extends StatelessWidget {
                   ),
                   Icon(
                     selected
-                        ? Icons.radio_button_checked
+                        ? Icons.check_circle_rounded
                         : Icons.radio_button_unchecked,
                     color: selected
                         ? NordicColors.primary
@@ -1041,10 +1049,10 @@ class _ChoiceCard extends StatelessWidget {
               ),
               Icon(
                 selected
-                    ? Icons.radio_button_checked
+                    ? Icons.check_circle_rounded
                     : Icons.radio_button_unchecked,
                 color: selected
-                    ? NordicColors.primary
+                    ? NordicColors.primaryContainer
                     : NordicColors.borderVariant,
               ),
             ],

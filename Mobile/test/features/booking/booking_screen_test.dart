@@ -158,8 +158,10 @@ Future<List<BookingOrder>> pumpBooking(
   VoidCallback? onManageAddresses,
   BookingScreenArgs? args,
   FakeFavorites? favorites,
+  double width = 390,
+  double textScale = 1.0,
 }) async {
-  tester.view.physicalSize = const Size(390, 3200);
+  tester.view.physicalSize = Size(width, 3200);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(() {
     tester.view.resetPhysicalSize();
@@ -169,6 +171,11 @@ Future<List<BookingOrder>> pumpBooking(
   await tester.pumpWidget(
     MaterialApp(
       theme: NordicTheme.lightTheme,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       home: BookingScreen(
         service: service,
         addresses: addresses ?? FakeAddresses(),
@@ -197,6 +204,22 @@ String textOf(WidgetTester tester, String key) =>
 
 void main() {
   group('BookingScreen (MOB-M2-01, MOB-M2-02)', () {
+    for (final width in [360.0, 428.0]) {
+      testWidgets(
+        'lays out without overflow at ${width.toInt()} px with text scale 1.3',
+        (tester) async {
+          await pumpBooking(
+            tester,
+            FakeBookingService(),
+            width: width,
+            textScale: 1.3,
+          );
+
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
     testWidgets(
       'offers both segments, explained, with the lead time from the options',
       (tester) async {
@@ -297,7 +320,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byKey(const Key('favorite-42')),
-            matching: find.byIcon(Icons.radio_button_checked),
+            matching: find.byIcon(Icons.check_circle_rounded),
           ),
           findsOneWidget,
         );

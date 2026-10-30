@@ -743,19 +743,13 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
             ),
             const SizedBox(height: NordicSpace.md),
           ],
-          DecoratedBox(
-            decoration: const BoxDecoration(
-              borderRadius: NordicRadius.pill,
-              boxShadow: NordicElevation.cta,
-            ),
-            child: NordicButton(
-              key: const Key('home-book'),
-              label: selected == null
-                  ? 'Đặt ca'
-                  : 'Đặt ca · ${formatVnd(selected.unitPrice)}',
-              icon: const Icon(Icons.arrow_forward, size: 20),
-              onPressed: _openBooking,
-            ),
+          NordicButton(
+            key: const Key('home-book'),
+            label: selected == null
+                ? 'Đặt ca'
+                : 'Đặt ca · ${formatVnd(selected.unitPrice)}',
+            icon: const Icon(Icons.arrow_forward, size: 20),
+            onPressed: _openBooking,
           ),
         ],
       ),
