@@ -6,6 +6,8 @@ import '../../core/theme/nordic_radius.dart';
 import '../../core/theme/nordic_spacing.dart';
 import '../../core/theme/nordic_typography.dart';
 import '../../core/widgets/avatar_initials.dart';
+import '../../core/widgets/dark_header.dart';
+import '../../core/widgets/glass_panel.dart';
 import '../../core/widgets/nordic_button.dart';
 import '../../core/widgets/nordic_card.dart';
 import '../../core/widgets/pressable.dart';
@@ -317,127 +319,78 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   // ---------------------------------------------------------------- header
 
   Widget _header(BuildContext context) {
-    final top = MediaQuery.paddingOf(context).top;
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(
-        color: NordicColors.contrastDark,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(NordicRadius.sheet + 4),
-        ),
-      ),
-      child: Stack(
+    return DarkHeader(
+      overlap: _overlap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Positioned(
-            right: -110,
-            top: -90,
-            child: IgnorePointer(
-              child: ExcludeSemantics(
-                child: CustomPaint(size: Size(300, 300), painter: _Rings()),
-              ),
+          Text(
+            _today,
+            style: NordicTypography.bodyRegular.copyWith(
+              color: NordicColors.onDarkMuted,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              NordicSpace.gutter,
-              top + NordicSpace.lg,
-              NordicSpace.gutter,
-              _overlap + NordicSpace.section,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _today,
-                  style: NordicTypography.bodyRegular.copyWith(
-                    color: NordicColors.onDarkMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: NordicSpace.xxs),
-                Text(
-                  _firstName == null ? 'Xin chào' : 'Chào $_firstName',
-                  key: const Key('home-greeting'),
-                  style: NordicTypography.greeting.copyWith(
-                    color: NordicColors.textInverse,
-                  ),
-                ),
-                if (_quotes != null) ...[
-                  const SizedBox(height: NordicSpace.md),
-                  _addressPill(_quotes!.address),
-                ],
-                const SizedBox(height: NordicSpace.gutter),
-                _nextSection(),
-              ],
+          const SizedBox(height: NordicSpace.xxs),
+          Text(
+            _firstName == null ? 'Xin chào' : 'Chào $_firstName',
+            key: const Key('home-greeting'),
+            style: NordicTypography.greeting.copyWith(
+              color: NordicColors.textInverse,
             ),
           ),
+          if (_quotes != null) ...[
+            const SizedBox(height: NordicSpace.md),
+            _addressPill(_quotes!.address),
+          ],
+          const SizedBox(height: NordicSpace.gutter),
+          _nextSection(),
         ],
       ),
     );
   }
 
-  /// A translucent white panel on the dark header.
-  static BoxDecoration get _glass => BoxDecoration(
-    color: NordicColors.textInverse.withValues(alpha: 0.08),
-    borderRadius: NordicRadius.cardAll,
-    border: Border.all(color: NordicColors.textInverse.withValues(alpha: 0.14)),
-  );
-
   Widget _addressPill(BookingAddress address) {
-    return Pressable(
-      child: Semantics(
-        button: true,
-        label: 'Địa chỉ: ${address.addressLine}. Đổi địa chỉ',
-        child: Material(
-          color: NordicColors.textInverse.withValues(alpha: 0.08),
-          shape: StadiumBorder(
-            side: BorderSide(
-              color: NordicColors.textInverse.withValues(alpha: 0.14),
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            key: const Key('home-address'),
-            onTap: _openAddresses,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 44),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  NordicSpace.sm,
-                  0,
-                  NordicSpace.sm,
-                  0,
-                ),
-                child: ExcludeSemantics(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        size: 18,
-                        color: NordicColors.onDarkMuted,
-                      ),
-                      const SizedBox(width: NordicSpace.xs),
-                      Flexible(
-                        child: Text(
-                          '${address.addressLine} · ${formatArea(address.totalAreaM2)}',
-                          key: const Key('quick-quote-address'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: NordicTypography.labelMedium.copyWith(
-                            color: NordicColors.textInverse,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: NordicSpace.xxs),
-                      const Icon(
-                        Icons.expand_more,
-                        size: 18,
+    return Semantics(
+      button: true,
+      label: 'Địa chỉ: ${address.addressLine}. Đổi địa chỉ',
+      child: GlassPanel(
+        key: const Key('home-address'),
+        pill: true,
+        onTap: _openAddresses,
+        padding: EdgeInsets.zero,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: NordicSpace.sm),
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 18,
+                    color: NordicColors.onDarkMuted,
+                  ),
+                  const SizedBox(width: NordicSpace.xs),
+                  Flexible(
+                    child: Text(
+                      '${address.addressLine} · ${formatArea(address.totalAreaM2)}',
+                      key: const Key('quick-quote-address'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: NordicTypography.labelMedium.copyWith(
                         color: NordicColors.textInverse,
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: NordicSpace.xxs),
+                  const Icon(
+                    Icons.expand_more,
+                    size: 18,
+                    color: NordicColors.textInverse,
+                  ),
+                ],
               ),
             ),
           ),
@@ -450,7 +403,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   /// notice when there is none, or the booking itself.
   Widget _nextSection() {
     if (!_nextLoaded) {
-      return Container(height: 120, decoration: _glass);
+      return Container(height: 120, decoration: GlassPanel.decoration());
     }
     if (_nextError != null) {
       return NordicCard(
@@ -484,7 +437,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
           horizontal: NordicSpace.md,
           vertical: NordicSpace.sm,
         ),
-        decoration: _glass,
+        decoration: GlassPanel.decoration(),
         child: Row(
           children: [
             const Icon(
@@ -951,24 +904,4 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
       ),
     );
   }
-}
-
-/// Three thin rings in the corner of the header: depth without a gradient.
-class _Rings extends CustomPainter {
-  const _Rings();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = NordicColors.textInverse.withValues(alpha: 0.07);
-    final center = size.center(Offset.zero);
-    for (final r in const [60.0, 100.0, 140.0]) {
-      canvas.drawCircle(center, r, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
