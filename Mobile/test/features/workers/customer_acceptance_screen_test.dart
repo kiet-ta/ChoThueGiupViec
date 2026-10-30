@@ -116,8 +116,8 @@ void main() {
       final acceptance = FakeAcceptanceService();
       await pumpScreen(tester, acceptance: acceptance, completed: true);
       expect(find.text('Đã nghiệm thu'), findsOneWidget);
-      expect(find.text('Nghiệm thu'), findsNothing);
-      expect(find.text('Dọn lại'), findsNothing);
+      expect(find.text('Xác nhận nghiệm thu'), findsNothing);
+      expect(find.text('Yêu cầu dọn lại'), findsNothing);
       expect(acceptance.accepted, isEmpty);
     });
     testWidgets(
@@ -131,8 +131,8 @@ void main() {
         expect(find.text('Góc 1: Toàn cảnh phòng'), findsOneWidget);
         expect(find.text('Trước'), findsOneWidget);
         expect(find.text('Sau'), findsOneWidget);
-        expect(find.text('Nghiệm thu'), findsOneWidget);
-        expect(find.text('Dọn lại'), findsOneWidget);
+        expect(find.text('Xác nhận nghiệm thu'), findsOneWidget);
+        expect(find.text('Yêu cầu dọn lại'), findsOneWidget);
       },
     );
 
@@ -243,31 +243,29 @@ void main() {
       },
     );
 
-    testWidgets(
-      'accepting shows the amounts the server answered, with its commission rate',
-      (tester) async {
-        final acceptance = FakeAcceptanceService()
-          ..completion = AssignmentCompletionDto(
-            assignmentId: 55,
-            status: 'COMPLETED',
-            grossAmount: 300000,
-            commissionRate: 0.0,
-            payoutAmount: 300000,
-            completedAt: DateTime(2026, 10, 21, 16),
-          );
-        await pumpScreen(tester, acceptance: acceptance);
+    testWidgets('accepting shows the amounts the server answered', (
+      tester,
+    ) async {
+      final acceptance = FakeAcceptanceService()
+        ..completion = AssignmentCompletionDto(
+          assignmentId: 55,
+          status: 'COMPLETED',
+          grossAmount: 300000,
+          commissionRate: 0.0,
+          payoutAmount: 300000,
+          completedAt: DateTime(2026, 10, 21, 16),
+        );
+      await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Nghiệm thu'));
+      await tapVisible(tester, find.text('Xác nhận nghiệm thu'));
 
-        expect(acceptance.accepted.single.id, 55);
-        expect(find.text('Đã nghiệm thu'), findsOneWidget);
-        expect(find.text('Chi tiết nghiệm thu'), findsOneWidget);
-        expect(find.text('Phí nền tảng (0%)'), findsOneWidget);
-        expect(find.text('Người làm nhận (100%)'), findsOneWidget);
-        expect(find.text('300.000 đ'), findsNWidgets(2));
-        expect(find.text('0 đ'), findsOneWidget);
-      },
-    );
+      expect(acceptance.accepted.single.id, 55);
+      expect(find.text('Đã nghiệm thu'), findsOneWidget);
+      expect(find.text('Chi tiết nghiệm thu'), findsOneWidget);
+      expect(find.text('Tổng tiền dịch vụ'), findsOneWidget);
+      expect(find.text('Người làm nhận'), findsOneWidget);
+      expect(find.text('300.000 đ'), findsNWidgets(2));
+    });
 
     testWidgets('a 409 is explained and nothing is shown as accepted', (
       tester,
@@ -276,7 +274,7 @@ void main() {
         ..failure = const ApiException(409, 'Invalid state');
       await pumpScreen(tester, acceptance: acceptance);
 
-      await tapVisible(tester, find.text('Nghiệm thu'));
+      await tapVisible(tester, find.text('Xác nhận nghiệm thu'));
       await scrollTo(tester, find.textContaining('không còn chờ nghiệm thu'));
 
       expect(
@@ -300,7 +298,7 @@ void main() {
           );
         await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Nghiệm thu'));
+        await tapVisible(tester, find.text('Xác nhận nghiệm thu'));
         await scrollTo(
           tester,
           find.textContaining('Không kết nối được máy chủ'),
@@ -323,7 +321,7 @@ void main() {
       final acceptance = FakeAcceptanceService()..emptyAnswer = true;
       await pumpScreen(tester, acceptance: acceptance);
 
-      await tapVisible(tester, find.text('Nghiệm thu'));
+      await tapVisible(tester, find.text('Xác nhận nghiệm thu'));
       await scrollTo(
         tester,
         find.textContaining('không trả kết quả nghiệm thu'),
@@ -346,7 +344,7 @@ void main() {
           );
         await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Dọn lại'));
+        await tapVisible(tester, find.text('Yêu cầu dọn lại'));
         expect(find.text('Yêu cầu dọn lại (15–30 phút)'), findsOneWidget);
 
         await tapVisible(tester, find.text('Gửi yêu cầu'));
@@ -375,7 +373,7 @@ void main() {
           ..failure = const ApiException(409, 'Invalid state');
         await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Dọn lại'));
+        await tapVisible(tester, find.text('Yêu cầu dọn lại'));
         final reasonField = find.descendant(
           of: find.widgetWithText(NordicTextInput, 'Chỗ cần làm lại'),
           matching: find.byType(TextField),
@@ -417,7 +415,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.textContaining('2001'), findsNothing);
-        expect(find.text('Nghiệm thu'), findsNothing);
+        expect(find.text('Xác nhận nghiệm thu'), findsNothing);
       },
     );
 

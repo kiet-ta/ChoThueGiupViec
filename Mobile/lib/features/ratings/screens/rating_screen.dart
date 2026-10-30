@@ -5,9 +5,9 @@ import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/avatar_initials.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/progress_ring.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../logic/rating_logic.dart';
@@ -145,26 +145,21 @@ class _RatingScreenState extends State<RatingScreen> {
     final title = widget.ratedName == null
         ? widget.role.title
         : '${widget.role.title} ${widget.ratedName}';
-    return Scaffold(
-      appBar: AppBar(leading: const CloseButton(), title: Text(title)),
-      // MOB-UI-16: full width; "Gửi đánh giá" sits in the body's bar, above the keyboard
-      // while the comment is typed (DESIGN-SYSTEM §5 Form).
-      body: Column(
-        children: [
-          Expanded(child: _body()),
-          if (_phase == _Phase.form)
-            BottomActionBar(
-              children: [
-                NordicButton(
-                  key: const Key('rating-submit'),
-                  label: 'Gửi đánh giá',
-                  isLoading: _sending,
-                  onPressed: _complete && !_sending ? _submit : null,
-                ),
-              ],
-            ),
-        ],
-      ),
+    return NordicPage.pushed(
+      title: title,
+      leading: const CloseButton(),
+      bodyOverride: _body(),
+      actions: _phase == _Phase.form
+          ? [
+              NordicButton(
+                key: const Key('rating-submit'),
+                label: 'Gửi đánh giá',
+                isLoading: _sending,
+                onPressed: _complete && !_sending ? _submit : null,
+              ),
+            ]
+          : null,
+      children: const [],
     );
   }
 

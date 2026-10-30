@@ -294,7 +294,13 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       actions: awaiting
           ? [
               NordicButton(
-                label: 'Dọn lại',
+                label: 'Xác nhận nghiệm thu',
+                variant: NordicButtonVariant.primary,
+                isLoading: _isLoading,
+                onPressed: _handleAcceptCompletion,
+              ),
+              NordicButton(
+                label: 'Yêu cầu dọn lại',
                 variant: NordicButtonVariant.secondary,
                 onPressed: () {
                   setState(() {
@@ -302,12 +308,6 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                     _errorMessage = null;
                   });
                 },
-              ),
-              NordicButton(
-                label: 'Nghiệm thu',
-                variant: NordicButtonVariant.primary,
-                isLoading: _isLoading,
-                onPressed: _handleAcceptCompletion,
               ),
             ]
           : null,
@@ -490,36 +490,35 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
       orElse: () => {'name': 'Góc $_selectedAngle'},
     )['name'];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title!,
-          style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6.0),
-        Row(
-          children: [
-            Expanded(
-              child: _buildPhotoBox(
-                label: 'Trước',
-                photo: beforePhoto,
-                volScore: beforePhoto?.volScore,
-                tint: NordicColors.surfaceDim,
+    return NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title!, style: NordicTypography.bodySmall),
+          const SizedBox(height: NordicSpace.xs),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPhotoBox(
+                  label: 'Trước',
+                  photo: beforePhoto,
+                  volScore: beforePhoto?.volScore,
+                  tint: NordicColors.surfaceDim,
+                ),
               ),
-            ),
-            const SizedBox(width: NordicSpace.xs),
-            Expanded(
-              child: _buildPhotoBox(
-                label: 'Sau',
-                photo: afterPhoto,
-                volScore: afterPhoto?.volScore,
-                tint: NordicColors.primaryFixed,
+              const SizedBox(width: NordicSpace.xs),
+              Expanded(
+                child: _buildPhotoBox(
+                  label: 'Sau',
+                  photo: afterPhoto,
+                  volScore: afterPhoto?.volScore,
+                  tint: NordicColors.primaryFixed,
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -615,7 +614,6 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     if (result == null) return const SizedBox.shrink();
     final gross = result.grossAmount;
     final payout = result.payoutAmount;
-    final commissionPercent = (result.commissionRate * 100).round();
 
     return NordicCard(
       child: Column(
@@ -634,48 +632,31 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
             ],
           ),
           const Divider(),
-          _buildDetailRow('Tổng tiền dịch vụ', formatVnd(gross)),
-          _buildDetailRow(
-            'Phí nền tảng ($commissionPercent%)',
-            formatVnd(gross - payout),
-          ),
-          const Divider(),
-          _buildDetailRow(
-            'Người làm nhận (${100 - commissionPercent}%)',
-            formatVnd(payout),
-            isBold: true,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildAmount('Tổng tiền dịch vụ', formatVnd(gross)),
+              ),
+              const SizedBox(width: NordicSpace.sm),
+              Expanded(
+                child: _buildAmount('Người làm nhận', formatVnd(payout)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String title, String val, {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: isBold
-                  ? NordicTypography.labelMedium
-                  : NordicTypography.bodySmall,
-            ),
-          ),
-          const SizedBox(width: NordicSpace.xs),
-          Flexible(
-            child: Text(
-              val,
-              textAlign: TextAlign.end,
-              style: isBold
-                  ? NordicTypography.titleSmall
-                  : NordicTypography.labelMedium,
-            ),
-          ),
-        ],
-      ),
+  Widget _buildAmount(String title, String val) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: NordicTypography.bodySmall),
+        const SizedBox(height: NordicSpace.xs),
+        Text(val, style: NordicTypography.titleSmall),
+      ],
     );
   }
 
