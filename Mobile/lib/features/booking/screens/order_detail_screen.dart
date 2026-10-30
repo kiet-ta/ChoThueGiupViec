@@ -21,6 +21,7 @@ import '../../../core/widgets/section_title.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../../core/widgets/step_dots.dart';
+import '../../customers/services/favorite_worker_service.dart';
 import '../../disputes/models/dispute_models.dart';
 import '../../disputes/routes.dart';
 import '../../disputes/screens/dispute_screen.dart';
@@ -54,6 +55,9 @@ class OrderDetailScreen extends StatefulWidget {
   /// The BR-02 fallback question (an order with one worker and no second one); by default the real server.
   final IFallbackService? fallbackService;
 
+  /// Adds the worker to the favourites before "Đặt lại với" (booking.md 3.3: only a favourite can be asked for).
+  final FavoriteWorkerService? favorites;
+
   /// How often the order is asked again.
   final Duration pollInterval;
 
@@ -69,6 +73,7 @@ class OrderDetailScreen extends StatefulWidget {
     this.args,
     this.service,
     this.fallbackService,
+    this.favorites,
     this.pollInterval = defaultProgressPollInterval,
     this.onPay,
     this.onOpen,
@@ -81,6 +86,8 @@ class OrderDetailScreen extends StatefulWidget {
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   late final IOrderService _service;
   late final IFallbackService _fallbackService;
+  late final FavoriteWorkerService _favoriteService;
+  bool _rebooking = false; // one request per tap
   int? _orderId;
   bool _started = false;
 
@@ -112,6 +119,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     super.initState();
     _service = widget.service ?? OrderService();
     _fallbackService = widget.fallbackService ?? FallbackService();
+    _favoriteService = widget.favorites ?? FavoriteWorkerService();
   }
 
   @override
@@ -719,6 +727,35 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     ];
   }
 
+  /// Only a favourite worker can be asked for (the server answers 404 otherwise, and the form lists favourites only),
+  /// so the worker is added first (the PUT is idempotent: one already there stays), then the form opens with them picked.
+  Future<void> _rebook(BookingOrder order, ProgressAssignment a) async {
+    if (_rebooking) return;
+    _rebooking = true;
+    try {
+      await _favoriteService.addFavoriteWorker(a.workerId);
+    } catch (_) {
+      _rebooking = false;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chưa thêm vào yêu thích được. Thử lại nhé.'),
+        ),
+      );
+      return;
+    }
+    _rebooking = false;
+    if (!mounted) return;
+    _open(
+      BookingRoutes.booking,
+      BookingScreenArgs(
+        serviceTier: order.serviceTier,
+        addressId: order.addressId,
+        preferredWorkerId: a.workerId,
+      ),
+    );
+  }
+
   /// The one main button of the state, in the bottom bar; null when the screen has none.
   Widget? _bar(BookingOrder order) {
     if (canPay(order.orderStatus)) {
@@ -931,15 +968,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               key: Key('rebook-${a.assignmentId}'),
               icon: Icons.replay_rounded,
               title: 'Đặt lại với ${workerName(a)}',
-              subtitle: 'Cùng gói, cùng địa chỉ',
-              onTap: () => Navigator.of(context).pushNamed(
-                BookingRoutes.booking,
-                arguments: BookingScreenArgs(
-                  serviceTier: order.serviceTier,
-                  addressId: order.addressId,
-                  preferredWorkerId: a.workerId,
-                ),
-              ),
+              subtitle: 'Thêm vào yêu thích · cùng gói, cùng địa chỉ',
+              onTap: () => _rebook(order, a),
             ),
       if (canDispute(progress))
         GroupedListItem(
