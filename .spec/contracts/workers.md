@@ -332,6 +332,35 @@ The jobs booked for the signed-in worker, so the app can show them in the schedu
 
 ---
 
+### 2.3B Work area (WORKERS-AREA-01, #555, decisions D24)
+Where a freelancer works. The dispatch search matches on it (see below). Registering is mandatory to be offered jobs.
+
+#### 2.3B.1 `GET /api/workers/me/work-area` (WorkerOnly)
+**Response 200 `data` (`WorkerWorkAreaResponse`)**
+```json
+{
+  "isSet": true,
+  "latitude": 10.7769,
+  "longitude": 106.7009,
+  "radiusKm": 10,
+  "districts": ["Quận 1", "Quận 3"],
+  "setAt": "2026-10-31T03:00:00Z"
+}
+```
+Nothing registered yet: **200** with `isSet: false`, `latitude`, `longitude`, `radiusKm` and `setAt` null and `districts: []` (never 404).
+
+#### 2.3B.2 `PUT /api/workers/me/work-area` (WorkerOnly)
+**Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009, "radiusKm": 10, "districts": ["Quận 1", "Quận 3"] }`
+
+**Response 200 `data`:** the same `WorkerWorkAreaResponse` as the GET.
+
+**Rules:**
+- `latitude` -90..90, `longitude` -180..180 (rounded to 6 decimals, like `PUT /me/location`), `radiusKm` one of **5, 10, 15**, `districts` optional, at most **10**, each 1 to 100 characters after trimming and without `;`; duplicates (ignoring case) are dropped. Any failure is **400** with field errors (`latitude`, `longitude`, `radiusKm`, `districts`) and nothing is stored.
+- A new PUT replaces the previous area.
+- **Matching (decisions D24):** the dispatch search finds a freelancer only when they have a work area and the distance from the order's address to the base point is <= the search step radius (5, 7, then 10 km) **and** <= `radiusKm`. A freelancer with no work area is never offered a job. `PUT /me/location` and the check-in distance do not change.
+
+---
+
 ### 2.3A Location and payout account (ECON-FLOW-FIX, decisions D19)
 
 #### `PUT /api/workers/me/location` (WorkerOnly)

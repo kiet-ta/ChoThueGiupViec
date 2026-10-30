@@ -95,6 +95,24 @@ public class WorkerConfiguration : IEntityTypeConfiguration<Worker>
             .HasColumnName("current_lng")
             .HasColumnType("DECIMAL(9,6)");
 
+        builder.Property(x => x.WorkLat)
+            .HasColumnName("work_lat")
+            .HasColumnType("DECIMAL(9,6)");
+
+        builder.Property(x => x.WorkLng)
+            .HasColumnName("work_lng")
+            .HasColumnType("DECIMAL(9,6)");
+
+        builder.Property(x => x.WorkRadiusKm)
+            .HasColumnName("work_radius_km");
+
+        builder.Property(x => x.WorkDistricts)
+            .HasColumnName("work_districts")
+            .HasMaxLength(500);
+
+        builder.Property(x => x.WorkAreaSetAt)
+            .HasColumnName("work_area_set_at");
+
         builder.Property(x => x.BankAccountNo)
             .HasColumnName("bank_account_no")
             .HasMaxLength(30)
