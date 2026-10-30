@@ -85,14 +85,14 @@ void main() {
       (tester) async {
         await pumpScreen(tester, FakeExtensionService());
 
-        expect(find.text('Làm Lần 2 #2001'), findsOneWidget);
+        expect(find.text('Làm thêm giờ'), findsOneWidget);
         expect(find.text('Nguyễn Văn An'), findsOneWidget);
         expect(find.text('Phòng khách & Bếp - Căn hộ 402'), findsOneWidget);
         expect(find.text('2 giờ'), findsOneWidget);
         expect(find.text('17:00 ➔ 19:00'), findsOneWidget);
         expect(find.text('+130.000 đ'), findsOneWidget);
-        expect(find.text('Đồng Ý Nối Ca (+130.000 đ)'), findsOneWidget);
-        expect(find.text('Từ Chối Làm Thêm'), findsOneWidget);
+        expect(find.text('Đồng ý nối ca (+130.000 đ)'), findsOneWidget);
+        expect(find.text('Từ chối làm thêm'), findsOneWidget);
       },
     );
 
@@ -123,11 +123,11 @@ void main() {
         WorkerExtensionResponseDto? seen;
         await pumpScreen(tester, service, onResponded: (r) => seen = r);
 
-        await tapVisible(tester, find.text('Đồng Ý Nối Ca (+130.000 đ)'));
+        await tapVisible(tester, find.text('Đồng ý nối ca (+130.000 đ)'));
 
         expect(service.asked.single, (assignmentId: 2001, accept: true));
-        expect(find.text('Đã Đồng Ý Nối Ca!'), findsOneWidget);
-        expect(find.text('ACCEPTED'), findsOneWidget);
+        expect(find.text('Đã đồng ý nối ca'), findsOneWidget);
+        expect(find.text('Đã đồng ý'), findsOneWidget);
         expect(find.text('13:30'), findsOneWidget);
         expect(find.textContaining('thêm 1,5h đến 13:30'), findsOneWidget);
         expect(seen?.status, 'ACCEPTED');
@@ -140,11 +140,11 @@ void main() {
       WorkerExtensionResponseDto? seen;
       await pumpScreen(tester, service, onResponded: (r) => seen = r);
 
-      await tapVisible(tester, find.text('Từ Chối Làm Thêm'));
+      await tapVisible(tester, find.text('Từ chối làm thêm'));
 
       expect(service.asked.single, (assignmentId: 2001, accept: false));
-      expect(find.text('Đã Từ Chối Yêu Cầu'), findsOneWidget);
-      expect(find.text('DECLINED'), findsOneWidget);
+      expect(find.text('Đã từ chối yêu cầu'), findsOneWidget);
+      expect(find.text('Đã từ chối'), findsOneWidget);
       expect(seen?.status, 'DECLINED');
     });
 
@@ -172,19 +172,19 @@ void main() {
           WorkerExtensionResponseDto? seen;
           await pumpScreen(tester, service, onResponded: (r) => seen = r);
 
-          await tapVisible(tester, find.text('Đồng Ý Nối Ca (+130.000 đ)'));
+          await tapVisible(tester, find.text('Đồng ý nối ca (+130.000 đ)'));
 
           expect(find.textContaining(c.$2), findsOneWidget);
-          expect(find.text('Đã Đồng Ý Nối Ca!'), findsNothing);
-          expect(find.text('ACCEPTED'), findsNothing);
+          expect(find.text('Đã đồng ý nối ca'), findsNothing);
+          expect(find.text('Đã đồng ý'), findsNothing);
           expect(
             seen,
             isNull,
             reason: 'the caller is not told it was answered',
           );
-          await scrollTo(tester, find.text('Từ Chối Làm Thêm'));
+          await scrollTo(tester, find.text('Từ chối làm thêm'));
           expect(
-            find.text('Từ Chối Làm Thêm'),
+            find.text('Từ chối làm thêm'),
             findsOneWidget,
             reason: 'the buttons are usable again',
           );
@@ -198,10 +198,10 @@ void main() {
       final service = FakeExtensionService()..emptyAnswer = true;
       await pumpScreen(tester, service);
 
-      await tapVisible(tester, find.text('Từ Chối Làm Thêm'));
+      await tapVisible(tester, find.text('Từ chối làm thêm'));
 
       expect(find.textContaining('Máy chủ không trả kết quả'), findsOneWidget);
-      expect(find.text('Đã Từ Chối Yêu Cầu'), findsNothing);
+      expect(find.text('Đã từ chối yêu cầu'), findsNothing);
     });
   });
 
@@ -275,7 +275,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Làm Lần 2 #2001'), findsOneWidget);
+      expect(find.text('Làm thêm giờ'), findsOneWidget);
     });
   });
 }
