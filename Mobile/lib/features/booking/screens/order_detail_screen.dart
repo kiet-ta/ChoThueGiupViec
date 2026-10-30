@@ -30,6 +30,7 @@ import '../../payments/routes.dart';
 import '../../ratings/models/rating_models.dart';
 import '../../ratings/routes.dart';
 import '../../ratings/screens/rating_screen.dart';
+import '../../ratings/services/ratings_service.dart';
 import '../../workers/routes.dart';
 import '../../workers/screens/customer_acceptance_screen.dart';
 import '../logic/booking_logic.dart';
@@ -55,8 +56,9 @@ class OrderDetailScreen extends StatefulWidget {
   /// The BR-02 fallback question (an order with one worker and no second one); by default the real server.
   final IFallbackService? fallbackService;
 
-  /// Adds the worker to the favourites before "Đặt lại với" (booking.md 3.3: only a favourite can be asked for).
+  /// Retained for callers using the previous constructor.
   final FavoriteWorkerService? favorites;
+  final IRatingsService? ratings;
 
   /// How often the order is asked again.
   final Duration pollInterval;
@@ -74,6 +76,7 @@ class OrderDetailScreen extends StatefulWidget {
     this.service,
     this.fallbackService,
     this.favorites,
+    this.ratings,
     this.pollInterval = defaultProgressPollInterval,
     this.onPay,
     this.onOpen,
@@ -86,8 +89,10 @@ class OrderDetailScreen extends StatefulWidget {
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   late final IOrderService _service;
   late final IFallbackService _fallbackService;
-  late final FavoriteWorkerService _favoriteService;
-  bool _rebooking = false; // one request per tap
+  late final IRatingsService _ratingsService;
+  Map<int, bool> _ratingEligibility = {};
+  bool _ratingCheckFailed = false;
+  int _ratingRequest = 0;
   int? _orderId;
   bool _started = false;
 
@@ -119,7 +124,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     super.initState();
     _service = widget.service ?? OrderService();
     _fallbackService = widget.fallbackService ?? FallbackService();
-    _favoriteService = widget.favorites ?? FavoriteWorkerService();
+    _ratingsService = widget.ratings ?? RatingsService();
   }
 
   @override
@@ -165,6 +170,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _progress = progress;
         _loading = false;
       });
+      unawaited(_loadRatingEligibility(order, progress));
       _watch();
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -173,6 +179,47 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _loadRatingEligibility(
+    BookingOrder order,
+    OrderProgress progress,
+  ) async {
+    final request = ++_ratingRequest;
+    final completed = progress.assignments.where(
+      (a) => a.assignmentStatus == AssignmentStatus.completed,
+    );
+    if (completed.isEmpty || order.orderStatus == OrderStatus.cancelled) {
+      if (mounted) {
+        setState(() {
+          _ratingEligibility = {};
+          _ratingCheckFailed = false;
+        });
+      }
+      return;
+    }
+    var failed = false;
+    final results = await Future.wait(
+      completed.map((assignment) async {
+        try {
+          final window = await _ratingsService.getWindow(
+            RatingRole.customer,
+            assignment.assignmentId,
+          );
+          return (assignment.assignmentId, window.canRate);
+        } catch (_) {
+          failed = true;
+          return (assignment.assignmentId, false);
+        }
+      }),
+    );
+    if (!mounted || request != _ratingRequest) return;
+    setState(() {
+      _ratingCheckFailed = failed;
+      _ratingEligibility = Map.fromEntries(
+        results.map((result) => MapEntry(result.$1, result.$2)),
+      );
+    });
   }
 
   /// Keeps asking while the order can still change.
@@ -196,6 +243,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _order = order;
         _progress = progress;
       });
+      unawaited(_loadRatingEligibility(order, progress));
       if (!shouldPollOrder(order.orderStatus)) {
         _pollTimer?.cancel();
         _pollTimer = null;
@@ -248,7 +296,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _order = cancelled;
         _cancelOpen = false;
         _extOpen = false;
-        _notice = 'Đã huỷ đơn. Khoản đã thanh toán (nếu có) sẽ được hoàn lại.';
+        _notice = 'Đã huỷ đơn.';
       });
       _watch();
     } on ApiException catch (e) {
@@ -413,7 +461,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       order.orderStatus,
       progress.assignments,
     );
-    final bar = _bar(order);
+    final bar = _bar(order, progress);
     return Scaffold(
       backgroundColor: NordicColors.canvas,
       body: Column(
@@ -455,7 +503,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             ),
           ),
-          if (bar != null) bar,
+          ?bar,
         ],
       ),
     );
@@ -687,6 +735,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         const SizedBox(height: NordicSpace.sm),
       ],
+      if (_ratingCheckFailed)
+        ErrorStateWidget(
+          title: 'Chưa kiểm tra được đánh giá',
+          message: 'Thử lại để xem bạn có thể đánh giá người làm không.',
+          onRetry: () => _loadRatingEligibility(order, progress),
+        ),
       if (order.orderStatus == OrderStatus.awaitingFallback) ...[
         FallbackPromptCard(
           key: ValueKey('fallback-${order.orderId}'),
@@ -727,37 +781,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     ];
   }
 
-  /// Only a favourite worker can be asked for (the server answers 404 otherwise, and the form lists favourites only),
-  /// so the worker is added first (the PUT is idempotent: one already there stays), then the form opens with them picked.
-  Future<void> _rebook(BookingOrder order, ProgressAssignment a) async {
-    if (_rebooking) return;
-    _rebooking = true;
-    try {
-      await _favoriteService.addFavoriteWorker(a.workerId);
-    } catch (_) {
-      _rebooking = false;
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chưa thêm vào yêu thích được. Thử lại nhé.'),
-        ),
-      );
-      return;
-    }
-    _rebooking = false;
-    if (!mounted) return;
+  void _rebook(BookingOrder order, ProgressAssignment a) {
     _open(
       BookingRoutes.booking,
       BookingScreenArgs(
         serviceTier: order.serviceTier,
         addressId: order.addressId,
         preferredWorkerId: a.workerId,
+        previousOrderId: order.orderId,
+        previousWorkerName: workerName(a),
       ),
     );
   }
 
   /// The one main button of the state, in the bottom bar; null when the screen has none.
-  Widget? _bar(BookingOrder order) {
+  Widget? _bar(BookingOrder order, OrderProgress progress) {
     if (canPay(order.orderStatus)) {
       return BottomActionBar(
         children: [
@@ -772,17 +810,100 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (order.orderStatus == OrderStatus.cancelled) {
       return BottomActionBar(
         children: [
-          NordicButton(
-            key: const Key('order-rebook'),
-            label: 'Chọn lịch khác',
-            onPressed: () =>
-                Navigator.of(context).pushNamed(BookingRoutes.booking),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              NordicButton(
+                key: const Key('order-rebook'),
+                label: 'Chọn lịch khác',
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(BookingRoutes.booking),
+              ),
+              NordicButton(
+                key: const Key('order-back-to-list'),
+                label: 'Về danh sách đơn',
+                variant: NordicButtonVariant.ghost,
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ],
           ),
+        ],
+      );
+    }
+    if (order.orderStatus == OrderStatus.completed) {
+      final eligible = progress.assignments.where(
+        (a) => _ratingEligibility[a.assignmentId] == true,
+      );
+      if (eligible.isNotEmpty) {
+        final assignment = eligible.first;
+        return BottomActionBar(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Bạn có 48 giờ sau khi xong ca để đánh giá.',
+                  style: NordicTypography.bodySmall,
+                ),
+                NordicButton(
+                  key: Key('rate-${assignment.assignmentId}'),
+                  label: 'Đánh giá người làm',
+                  onPressed: () => _open(
+                    RatingRoutes.ratings,
+                    RatingScreenArgs(
+                      role: RatingRole.customer,
+                      assignmentId: assignment.assignmentId,
+                      ratedName: workerName(assignment),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      }
+    }
+    final awaiting = progress.assignments.where(
+      (a) => a.assignmentStatus == AssignmentStatus.awaitingAcceptance,
+    );
+    if (awaiting.isNotEmpty) {
+      final assignment = awaiting.first;
+      return BottomActionBar(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              NordicButton(
+                key: Key('accept-${assignment.assignmentId}'),
+                label: 'Xác nhận nghiệm thu',
+                onPressed: () => _open(
+                  WorkerRoutes.customerAcceptance,
+                  CustomerAcceptanceArgs(assignmentId: assignment.assignmentId),
+                ),
+              ),
+              NordicButton(
+                key: Key('view-photos-${assignment.assignmentId}'),
+                label: 'Xem ảnh',
+                variant: NordicButtonVariant.ghost,
+                onPressed: () => _open(
+                  WorkerRoutes.customerAcceptance,
+                  CustomerAcceptanceArgs(assignmentId: assignment.assignmentId),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+    if (order.orderStatus == OrderStatus.assigned &&
+        canExtend(progress) &&
+        !_extOpen) {
+      return BottomActionBar(
+        children: [
           NordicButton(
-            key: const Key('order-back-to-list'),
-            label: 'Về danh sách đơn',
-            variant: NordicButtonVariant.ghost,
-            onPressed: () => Navigator.of(context).maybePop(),
+            key: const Key('open-extension'),
+            label: 'Làm lần 2',
+            onPressed: _openExtension,
           ),
         ],
       );
@@ -908,14 +1029,28 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   /// The rows of ui-templates "Khi thợ đang làm": what the customer can do now, each opening its screen.
   List<GroupedListItem> _actions(BookingOrder order, OrderProgress progress) {
     final named = progress.assignments.length > 1;
+    final awaiting = progress.assignments.where(
+      (a) => a.assignmentStatus == AssignmentStatus.awaitingAcceptance,
+    );
+    final primaryAcceptance = awaiting.isEmpty
+        ? null
+        : awaiting.first.assignmentId;
+    final eligibleRatings = progress.assignments.where(
+      (a) => _ratingEligibility[a.assignmentId] == true,
+    );
+    final primaryRating =
+        order.orderStatus == OrderStatus.completed && eligibleRatings.isNotEmpty
+        ? eligibleRatings.first.assignmentId
+        : null;
     return [
-      if (canExtend(progress) &&
+      if (primaryAcceptance != null &&
+          canExtend(progress) &&
           order.orderStatus == OrderStatus.assigned &&
           !_extOpen)
         GroupedListItem(
           key: const Key('open-extension'),
           icon: Icons.more_time_outlined,
-          title: 'Xin làm thêm giờ',
+          title: 'Làm lần 2',
           onTap: _openExtension,
         ),
       for (final a in progress.assignments)
@@ -935,32 +1070,37 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
       for (final a in progress.assignments)
         for (final action in assignmentActions(a.assignmentStatus))
-          switch (action) {
-            AssignmentAction.reviewAndAccept => GroupedListItem(
-              key: Key('accept-${a.assignmentId}'),
-              icon: Icons.photo_library_outlined,
-              title: 'Xem ảnh & nghiệm thu',
-              subtitle: named ? workerName(a) : null,
-              onTap: () => _open(
-                WorkerRoutes.customerAcceptance,
-                CustomerAcceptanceArgs(assignmentId: a.assignmentId),
-              ),
-            ),
-            AssignmentAction.rate => GroupedListItem(
-              key: Key('rate-${a.assignmentId}'),
-              icon: Icons.star_outline,
-              title: 'Đánh giá người làm',
-              subtitle: named ? workerName(a) : null,
-              onTap: () => _open(
-                RatingRoutes.ratings,
-                RatingScreenArgs(
-                  role: RatingRole.customer,
-                  assignmentId: a.assignmentId,
-                  ratedName: workerName(a),
+          if ((action != AssignmentAction.reviewAndAccept ||
+                  a.assignmentId != primaryAcceptance) &&
+              (action != AssignmentAction.rate ||
+                  (a.assignmentId != primaryRating &&
+                      _ratingEligibility[a.assignmentId] == true)))
+            switch (action) {
+              AssignmentAction.reviewAndAccept => GroupedListItem(
+                key: Key('accept-${a.assignmentId}'),
+                icon: Icons.photo_library_outlined,
+                title: 'Xem ảnh & nghiệm thu',
+                subtitle: named ? workerName(a) : null,
+                onTap: () => _open(
+                  WorkerRoutes.customerAcceptance,
+                  CustomerAcceptanceArgs(assignmentId: a.assignmentId),
                 ),
               ),
-            ),
-          },
+              AssignmentAction.rate => GroupedListItem(
+                key: Key('rate-${a.assignmentId}'),
+                icon: Icons.star_outline,
+                title: 'Đánh giá người làm',
+                subtitle: named ? workerName(a) : null,
+                onTap: () => _open(
+                  RatingRoutes.ratings,
+                  RatingScreenArgs(
+                    role: RatingRole.customer,
+                    assignmentId: a.assignmentId,
+                    ratedName: workerName(a),
+                  ),
+                ),
+              ),
+            },
       if (order.serviceTier == ServiceTier.economy)
         for (final a in progress.assignments)
           if (a.assignmentStatus == AssignmentStatus.completed)
@@ -968,7 +1108,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               key: Key('rebook-${a.assignmentId}'),
               icon: Icons.replay_rounded,
               title: 'Đặt lại với ${workerName(a)}',
-              subtitle: 'Thêm vào yêu thích · cùng gói, cùng địa chỉ',
+              subtitle: 'Cùng gói, cùng địa chỉ',
               onTap: () => _rebook(order, a),
             ),
       if (canDispute(progress))

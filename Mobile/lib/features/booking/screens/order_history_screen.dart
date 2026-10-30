@@ -405,8 +405,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     );
     final widgets = <Widget>[];
     for (final group in groups) {
-      if (widgets.isNotEmpty)
+      if (widgets.isNotEmpty) {
         widgets.add(const SizedBox(height: NordicSpace.lg));
+      }
       if (group.key.isNotEmpty) {
         widgets.add(
           Padding(

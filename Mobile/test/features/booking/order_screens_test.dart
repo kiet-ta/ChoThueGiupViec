@@ -465,6 +465,7 @@ void main() {
         expect(textOf(tester, 'order-status'), 'Đã huỷ');
         expect(textOf(tester, 'order-cancel-reason'), 'Lý do huỷ: bận việc');
         expect(find.byKey(const Key('order-notice')), findsOneWidget);
+        expect(textOf(tester, 'order-notice'), 'Đã huỷ đơn.');
         expect(find.byKey(const Key('open-cancel')), findsNothing);
         expect(find.byKey(const Key('cancel-form')), findsNothing);
       },

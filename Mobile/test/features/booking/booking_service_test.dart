@@ -91,6 +91,26 @@ void main() {
       expect(options.sandbox, isTrue);
     });
 
+    test('reads availability of a worker from a previous order', () async {
+      await answer(200, {
+        'success': true,
+        'data': [
+          {'date': '2026-10-15', 'shiftCode': 'SHIFT_MORNING'},
+        ],
+      });
+      final source = RebookAvailabilitySource(
+        client: ApiClient(
+          baseUrl: 'http://${server.address.host}:${server.port}',
+        ),
+      );
+      final shifts = await source.getFreeShifts(100, 42);
+      expect(
+        seen.single.path,
+        '/api/booking/orders/100/workers/42/availability',
+      );
+      expect(shifts, {'2026-10-15|SHIFT_MORNING'});
+    });
+
     test(
       'asks the price quote with the address and the tier in the query',
       () async {

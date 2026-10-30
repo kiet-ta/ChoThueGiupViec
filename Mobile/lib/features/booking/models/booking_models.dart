@@ -188,8 +188,9 @@ class CreateOrderInput {
   final String shiftCode;
   final String? customerNote;
 
-  /// One of the customer's favorite workers, offered the job first (ECONOMY only, booking.md 3.3).
+  /// A favorite or a worker from a completed previous assignment (ECONOMY only).
   final int? preferredWorkerId;
+  final int? previousOrderId;
 
   const CreateOrderInput({
     required this.addressId,
@@ -198,6 +199,7 @@ class CreateOrderInput {
     required this.shiftCode,
     this.customerNote,
     this.preferredWorkerId,
+    this.previousOrderId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -207,6 +209,7 @@ class CreateOrderInput {
     'shiftCode': shiftCode,
     'customerNote': customerNote,
     'preferredWorkerId': ?preferredWorkerId,
+    'previousOrderId': ?previousOrderId,
   };
 }
 
