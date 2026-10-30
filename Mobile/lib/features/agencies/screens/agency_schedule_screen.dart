@@ -7,6 +7,7 @@ import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/stat_tile.dart';
 import '../../workers/models/booking_slot_models.dart';
 import '../../workers/services/workers_slots_service.dart';
@@ -218,6 +219,67 @@ class _AgencyScheduleScreenState extends State<AgencyScheduleScreen> {
     ];
   }
 
+  /// The schedule of one day in a bottom sheet, from the 14 days already loaded (no new request). A day with no
+  /// rostered shift (or a day before today, which the read does not cover) says so.
+  void _openDay(DateTime date) {
+    final key = isoDate(date);
+    final day = _days.where((d) => d.slotDate == key).firstOrNull;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: NordicColors.canvas,
+      shape: const RoundedRectangleBorder(borderRadius: NordicRadius.sheetTop),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            NordicSpace.gutter,
+            NordicSpace.md,
+            NordicSpace.gutter,
+            NordicSpace.lg,
+          ),
+          child: Column(
+            key: Key('roster-day-$key'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(dayTitle(key), style: NordicTypography.titleMedium),
+              const SizedBox(height: NordicSpace.sm),
+              if (day == null || day.slots.isEmpty)
+                const NordicCard(
+                  child: Text(
+                    'Chưa có ca nào được xếp trong ngày này.',
+                    key: Key('roster-day-empty'),
+                    style: NordicTypography.bodyRegular,
+                  ),
+                )
+              else
+                for (final slot in day.slots)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+                    child: NordicCard(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              scheduleShiftName(slot.shiftCode),
+                              style: NordicTypography.titleSmall,
+                            ),
+                          ),
+                          Text(
+                            timeRange(slot.startTime, slot.endTime),
+                            style: NordicTypography.bodyRegular,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Sáng / Chiều / Tối by weekday of this week; a filled cell is a shift the agency put the worker on.
   Widget _weekGrid(DateTime weekStart) {
     const shifts = [
@@ -254,14 +316,21 @@ class _AgencyScheduleScreenState extends State<AgencyScheduleScreen> {
                         padding: const EdgeInsets.symmetric(
                           horizontal: NordicSpace.xxs / 2,
                         ),
-                        child: Container(
-                          key: Key('roster-cell-${isoDate(d)}-$code'),
-                          height: 34.0,
-                          decoration: BoxDecoration(
-                            color: rostered.contains('${isoDate(d)}:$code')
-                                ? NordicColors.primary
-                                : NordicColors.surfaceContainer,
+                        child: Pressable(
+                          child: InkWell(
+                            key: Key('roster-tap-${isoDate(d)}-$code'),
                             borderRadius: NordicRadius.tileAll,
+                            onTap: () => _openDay(d),
+                            child: Container(
+                              key: Key('roster-cell-${isoDate(d)}-$code'),
+                              height: 34.0,
+                              decoration: BoxDecoration(
+                                color: rostered.contains('${isoDate(d)}:$code')
+                                    ? NordicColors.primary
+                                    : NordicColors.surfaceContainer,
+                                borderRadius: NordicRadius.tileAll,
+                              ),
+                            ),
                           ),
                         ),
                       ),
