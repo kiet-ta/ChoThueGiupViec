@@ -11,6 +11,7 @@ export const ENTITY_TYPES: { value: string; label: string }[] = [
   { value: 'DISPUTE_TICKET', label: 'Khiếu nại tranh chấp' },
   { value: 'JOB_ASSIGNMENT', label: 'Ca làm (vắng mặt)' },
   { value: 'WORKER', label: 'Thợ' },
+  { value: 'CUSTOMER', label: 'Khách hàng' }, // the Q14 low-rating flag of ADMIN-UAT-10
   { value: 'PAYOUT_BATCH', label: 'Kỳ payout' },
   { value: 'PRICE_RULE', label: 'Bảng giá' },
   { value: 'SUBSCRIPTION_PACKAGE', label: 'Gói thuê bao' },
@@ -19,6 +20,15 @@ export const ENTITY_TYPES: { value: string; label: string }[] = [
 
 export function entityLabel(entityType: string): string {
   return ENTITY_TYPES.find((e) => e.value === entityType)?.label ?? entityType
+}
+
+/** A field an Admin cannot read from its column name; every other field is shown as the backend wrote it. */
+const FIELD_LABELS: Record<string, string> = {
+  low_rating_flag: 'Cờ đánh giá thấp',
+}
+
+export function fieldLabel(fieldName: string): string {
+  return FIELD_LABELS[fieldName] ?? fieldName
 }
 
 /** Who did it: an Admin by number, or the system. */
@@ -52,7 +62,7 @@ export function auditRow(e: AuditLogEntry): AuditRow {
     actor: actorText(e),
     entity: entityLabel(e.entityType),
     entityId: e.entityId,
-    field: e.fieldName,
+    field: fieldLabel(e.fieldName),
     change: changeText(e.oldValue, e.newValue),
     reason: e.reason && e.reason.trim() !== '' ? e.reason : '—',
     link: e.entityType === 'DISPUTE_TICKET' && /^\d+$/.test(e.entityId) ? `/admin/disputes/${e.entityId}` : null,

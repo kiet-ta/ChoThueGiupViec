@@ -8,6 +8,7 @@ import {
   EMPTY_FILTER,
   ENTITY_TYPES,
   entityLabel,
+  fieldLabel,
   rangeError,
   vietnamDayStartUtc,
 } from '../src/features/admin/audit/view.ts'
@@ -29,8 +30,9 @@ const entry = (over: Partial<AuditLogEntry> = {}): AuditLogEntry => ({
 
 describe('labels', () => {
   it('names the seven entity types the backend writes and shows an unknown one as it is', () => {
-    assert.equal(ENTITY_TYPES.length, 7)
+    assert.equal(ENTITY_TYPES.length, 8)
     assert.equal(entityLabel('WORKER'), 'Thợ')
+    assert.equal(entityLabel('CUSTOMER'), 'Khách hàng') // the Q14 flag on a customer (ADMIN-UAT-10)
     assert.equal(entityLabel('PAYOUT_BATCH'), 'Kỳ payout')
     assert.equal(entityLabel('SOMETHING_NEW'), 'SOMETHING_NEW')
   })
@@ -45,6 +47,20 @@ describe('labels', () => {
     assert.equal(changeText('IN_REVIEW', 'RESOLVED'), 'IN_REVIEW → RESOLVED')
     assert.equal(changeText(null, 'LOCKED'), '— → LOCKED')
     assert.equal(changeText('true', null), 'true → —')
+  })
+})
+
+describe('the Q14 flag rows of ADMIN-UAT-10', () => {
+  it('reads low_rating_flag as a name and shows every other field as the backend wrote it', () => {
+    assert.equal(fieldLabel('low_rating_flag'), 'Cờ đánh giá thấp')
+    assert.equal(fieldLabel('dispute_status'), 'dispute_status')
+  })
+
+  it('a system row about a customer reads "Hệ thống · Khách hàng · Cờ đánh giá thấp · false → true"', () => {
+    const row = auditRow(entry({ actorType: 'SYSTEM', adminId: null, entityType: 'CUSTOMER', entityId: '9', fieldName: 'low_rating_flag', oldValue: 'false', newValue: 'true' }))
+
+    assert.deepEqual([row.actor, row.entity, row.field, row.change], ['Hệ thống', 'Khách hàng', 'Cờ đánh giá thấp', 'false → true'])
+    assert.equal(row.link, null)
   })
 })
 
