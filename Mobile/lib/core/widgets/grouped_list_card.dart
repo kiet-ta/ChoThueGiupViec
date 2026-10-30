@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../theme/nordic_colors.dart';
+import '../theme/nordic_elevation.dart';
 import '../theme/nordic_radius.dart';
+import '../theme/nordic_spacing.dart';
 import '../theme/nordic_typography.dart';
+import 'pressable.dart';
 
 /// One row of a [GroupedListCard].
 class GroupedListItem {
@@ -32,81 +35,106 @@ class GroupedListItem {
 /// ui-templates `.list`: rows in one white card separated by hairlines.
 class GroupedListCard extends StatelessWidget {
   final List<GroupedListItem> items;
+  final List<Widget>? children;
 
-  const GroupedListCard({super.key, required this.items});
+  const GroupedListCard({super.key, required this.items}) : children = null;
+
+  const GroupedListCard.custom({super.key, required this.children})
+    : items = const [];
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: NordicColors.surface,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
+    final rows = children ?? [for (final item in items) _row(item)];
+    return DecoratedBox(
+      decoration: const BoxDecoration(
         borderRadius: NordicRadius.cardAll,
-        side: const BorderSide(color: NordicColors.border),
+        boxShadow: NordicElevation.card,
       ),
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            if (i > 0) const Divider(height: 1, thickness: 1),
-            _row(items[i]),
+      child: Material(
+        color: NordicColors.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: NordicRadius.cardAll,
+          side: const BorderSide(color: NordicColors.border),
+        ),
+        child: Column(
+          children: [
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0)
+                const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: NordicColors.surfaceContainer,
+                ),
+              rows[i],
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _row(GroupedListItem item) {
     final color = item.danger ? NordicColors.error : NordicColors.textTitle;
-    return InkWell(
-      key: item.key,
-      onTap: item.onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 56),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
-                item.icon,
-                color: item.danger
-                    ? NordicColors.error
-                    : NordicColors.textSecondary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: color,
-                      ),
-                    ),
-                    if (item.subtitle != null)
-                      Text(item.subtitle!, style: NordicTypography.bodySmall),
-                  ],
-                ),
-              ),
-              if (item.trailing != null)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(
-                    item.trailing!,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: NordicColors.textSecondary,
-                    ),
+    return Pressable(
+      enabled: item.onTap != null,
+      child: InkWell(
+        key: item.key,
+        onTap: item.onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: NordicSpace.md,
+              vertical: NordicSpace.sm,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: NordicColors.surfaceSubtle,
+                    borderRadius: NordicRadius.tileAll,
+                  ),
+                  child: Icon(
+                    item.icon,
+                    color: item.danger
+                        ? NordicColors.error
+                        : NordicColors.textSecondary,
                   ),
                 ),
-              if (!item.danger)
-                const Icon(
-                  Icons.chevron_right,
-                  color: NordicColors.borderVariant,
+                const SizedBox(width: NordicSpace.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: NordicTypography.titleSmall.copyWith(
+                          color: color,
+                        ),
+                      ),
+                      if (item.subtitle != null)
+                        Text(item.subtitle!, style: NordicTypography.bodySmall),
+                    ],
+                  ),
                 ),
-            ],
+                if (item.trailing != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: NordicSpace.xs),
+                    child: Text(
+                      item.trailing!,
+                      style: NordicTypography.bodySmall,
+                    ),
+                  ),
+                if (!item.danger)
+                  const Icon(
+                    Icons.chevron_right,
+                    color: NordicColors.borderVariant,
+                  ),
+              ],
+            ),
           ),
         ),
       ),

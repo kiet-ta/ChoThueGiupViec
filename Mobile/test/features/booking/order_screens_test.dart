@@ -477,6 +477,11 @@ void main() {
         final service = FakeOrderService()..status = OrderStatus.cancelled;
         await pumpDetail(tester, service);
 
+        expect(
+          tester.getSize(find.byKey(const Key('order-amount'))).height,
+          lessThan(40),
+        );
+
         expect(find.byKey(const Key('order-timeline')), findsOneWidget);
         expect(
           find.descendant(
@@ -842,6 +847,15 @@ void main() {
 
         expect(find.text('Sắp tới'), findsOneWidget);
         expect(find.byKey(const Key('history-upcoming-1')), findsOneWidget);
+        final start = find.descendant(
+          of: find.byKey(const Key('history-upcoming-1')),
+          matching: find.text('08:00'),
+        );
+        expect(start, findsOneWidget);
+        expect(
+          tester.widget<Text>(start).overflow,
+          isNot(TextOverflow.ellipsis),
+        );
         expect(find.byKey(const Key('history-upcoming-2')), findsNothing);
         expect(
           find.byKey(const Key('order-1')),

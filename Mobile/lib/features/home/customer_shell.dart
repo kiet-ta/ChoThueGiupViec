@@ -24,8 +24,14 @@ class CustomerShell extends StatefulWidget {
 
   /// Tab contents, replaceable in tests (index 0..3).
   final List<Widget>? tabs;
+  final int initialTab;
 
-  const CustomerShell({super.key, required this.onSignOut, this.tabs});
+  const CustomerShell({
+    super.key,
+    required this.onSignOut,
+    this.tabs,
+    this.initialTab = 0,
+  }) : assert(initialTab >= 0 && initialTab < 4);
 
   @override
   State<CustomerShell> createState() => _CustomerShellState();
@@ -33,6 +39,12 @@ class CustomerShell extends StatefulWidget {
 
 class _CustomerShellState extends State<CustomerShell> {
   int _tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = widget.initialTab;
+  }
 
   /// A counter per tab: pushing a new key rebuilds (reloads) the tab when the customer comes back to it.
   final _generation = [0, 0, 0, 0];
@@ -183,12 +195,17 @@ class _CustomerShellState extends State<CustomerShell> {
               ),
             ),
             const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: color,
+            // One line that shrinks instead of wrapping when the text is scaled up.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: color,
+                ),
               ),
             ),
           ],

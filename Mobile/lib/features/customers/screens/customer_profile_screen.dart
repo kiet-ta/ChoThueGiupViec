@@ -118,7 +118,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             content: Text(
               'Đã lưu hồ sơ',
               style: TextStyle(
-                color: Colors.white,
+                color: NordicColors.textInverse,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -138,7 +138,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               e is ArgumentError
                   ? e.message.toString()
                   : 'Chưa lưu được hồ sơ. Thử lại nhé.',
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: NordicColors.textInverse),
             ),
           ),
         );
@@ -320,8 +320,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   Expanded(
                     child: Text(
                       profile.phoneNumber,
-                      style: const TextStyle(
-                        fontSize: 15.0,
+                      style: NordicTypography.titleSmall.copyWith(
                         color: NordicColors.textTitle,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),

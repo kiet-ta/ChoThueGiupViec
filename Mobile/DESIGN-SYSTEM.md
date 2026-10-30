@@ -114,7 +114,7 @@ Controllers: `animateWith(spring.simulate(from: value, velocity: velocity))`. Im
 | `DarkHeader` | `core/widgets/dark_header.dart` | deep-green header that bleeds to the top edge, rounded bottom, three rings; keeps `overlap` free for a `RaisedPanel`; optional app bar (back 44x44 + centred title) |
 | `RaisedPanel` | `core/widgets/raised_panel.dart` | the one floating white panel of a screen (`raised` shadow, sheet radius); put it in `Transform.translate(Offset(0, -overlap))` over a `DarkHeader` |
 | `GlassPanel` | `core/widgets/glass_panel.dart` | white 8 % panel with a 14 % border on a dark surface, no shadow; `pill` and `onTap` options |
-| `GroupedListCard` | `core/widgets/grouped_list_card.dart` | settings-like rows in one card |
+| `GroupedListCard` | `core/widgets/grouped_list_card.dart` | settings-like rows in one elevated card; `GroupedListCard.custom` groups interactive rows such as address entries while retaining their controls |
 | `SectionTitle` | `core/widgets/section_title.dart` | section heading + optional link |
 | `StatTile` | `core/widgets/stat_tile.dart` | one label, one number |
 | `StatusPill` | `core/widgets/status_pill.dart` | a status in words, tone ok / warn / bad / neutral |

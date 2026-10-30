@@ -159,6 +159,15 @@ void main() {
       expect(find.byKey(const Key('dispute-new')), findsNothing);
     });
 
+    testWidgets('worker retains the existing dispute title', (tester) async {
+      await pumpList(
+        tester,
+        FakeDisputesService()..mine = [dispute(1, 'OPEN')],
+        role: DisputeRole.worker,
+      );
+      expect(find.text('Đơn #41 · Chất lượng kém'), findsOneWidget);
+    });
+
     testWidgets(
       'an open dispute shows its status and the SLA due time in Ho Chi Minh time',
       (tester) async {
@@ -167,7 +176,8 @@ void main() {
           FakeDisputesService()..mine = [dispute(1, 'OPEN')],
         );
 
-        expect(find.text('Đơn #41 · Chất lượng kém'), findsOneWidget);
+        expect(find.text('Chất lượng kém'), findsOneWidget);
+        expect(find.textContaining('Đơn #41'), findsOneWidget);
         expect(find.byKey(const Key('dispute-status-1')), findsOneWidget);
         expect(find.text('Chờ tiếp nhận'), findsOneWidget);
         expect(
@@ -221,7 +231,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(service.listCalls, 2);
-      expect(find.text('Đơn #41 · Chất lượng kém'), findsOneWidget);
+      expect(find.text('Chất lượng kém'), findsOneWidget);
     });
 
     testWidgets(
@@ -242,7 +252,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(service.listCalls, 2);
-        expect(find.text('Đơn #139 · Chất lượng kém'), findsOneWidget);
+        expect(find.text('Chất lượng kém'), findsOneWidget);
+        expect(find.textContaining('Đơn #139'), findsOneWidget);
       },
     );
   });

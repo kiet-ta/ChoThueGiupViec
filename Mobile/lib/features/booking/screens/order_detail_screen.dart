@@ -635,7 +635,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
               ),
               const SizedBox(width: NordicSpace.xs),
-              amount,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: amount,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: NordicSpace.md),
@@ -647,7 +653,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             cell('Diện tích', text(formatArea(order.areaSnapshotM2))),
             cell(
               cancelled ? 'Số tiền' : 'Người làm',
-              cancelled ? amount : text('${order.requiredWorkers} người'),
+              cancelled
+                  ? FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: amount,
+                    )
+                  : text('${order.requiredWorkers} người'),
             ),
           ],
         ),
@@ -1003,9 +1015,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                 color: NordicColors.accentAmber,
                               ),
                               const SizedBox(width: 2.0),
-                              Text(
-                                ratingText(a.workerRatingAvg),
-                                style: NordicTypography.bodySmall,
+                              Flexible(
+                                child: Text(
+                                  ratingText(a.workerRatingAvg),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: NordicTypography.bodySmall,
+                                ),
                               ),
                             ],
                           ),
