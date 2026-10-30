@@ -9,7 +9,7 @@ public sealed class SePayOptions
     public string WebhookSecret { get; set; } = string.Empty;
     public string ApiToken { get; set; } = string.Empty;
     public string ApiBaseUrl { get; set; } = "https://userapi-sandbox.sepay.vn/v2";
-    public string QrBaseUrl { get; set; } = "https://vietqr.app/img";
+    public string QrBaseUrl { get; set; } = "https://qr.sepay.vn/img";
     public string CodePrefix { get; set; } = "TA";
 
     public bool HasCredentials => IsReal(AccountNumber) && IsReal(BankName) && IsReal(WebhookSecret) && IsReal(ApiToken);
