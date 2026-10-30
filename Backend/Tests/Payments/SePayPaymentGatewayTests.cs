@@ -71,6 +71,10 @@ public sealed class SePayPaymentGatewayTests
         Assert.Equal(0, handler.Calls);
     }
 
+    [Fact]
+    public void Options_DefaultQrHostIsTheSePayImageService() =>
+        Assert.Equal("https://qr.sepay.vn/img", new SePayOptions().QrBaseUrl);
+
     [Theory]
     [InlineData(0)]
     [InlineData(999)]
