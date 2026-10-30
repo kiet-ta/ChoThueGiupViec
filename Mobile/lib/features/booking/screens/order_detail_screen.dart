@@ -970,54 +970,98 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
       ];
     }
+    final firstAcceptance = progress.assignments
+        .where((a) => a.assignmentStatus == AssignmentStatus.awaitingAcceptance)
+        .firstOrNull;
+    final firstRating = order.orderStatus == OrderStatus.completed
+        ? progress.assignments
+              .where((a) => _ratingEligibility[a.assignmentId] == true)
+              .firstOrNull
+        : null;
     return [
       for (final a in progress.assignments) ...[
         NordicCard(
           key: Key('assignment-${a.assignmentId}'),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AvatarInitials(workerName(a)),
-              const SizedBox(width: NordicSpace.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(workerName(a), style: NordicTypography.titleSmall),
-                    if (ratingText(a.workerRatingAvg).isNotEmpty)
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star,
-                            size: 16.0,
-                            color: NordicColors.accentAmber,
+              Row(
+                children: [
+                  AvatarInitials(workerName(a)),
+                  const SizedBox(width: NordicSpace.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(workerName(a), style: NordicTypography.titleSmall),
+                        if (ratingText(a.workerRatingAvg).isNotEmpty)
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 16.0,
+                                color: NordicColors.accentAmber,
+                              ),
+                              const SizedBox(width: 2.0),
+                              Text(
+                                ratingText(a.workerRatingAvg),
+                                style: NordicTypography.bodySmall,
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 2.0),
-                          Text(
-                            ratingText(a.workerRatingAvg),
-                            style: NordicTypography.bodySmall,
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: NordicSpace.xs),
+                  // Full label width ("Chờ bạn nghiệm thu"); the name column gives way first.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 180.0),
+                    child: StatusPill(
+                      assignmentStatusLabel(a.assignmentStatus),
+                      textKey: Key('assignment-status-${a.assignmentId}'),
+                      dot: true,
+                      tone: switch (a.assignmentStatus) {
+                        AssignmentStatus.awaitingAcceptance => PillTone.warn,
+                        AssignmentStatus.cancelledByWorker ||
+                        AssignmentStatus.absent ||
+                        AssignmentStatus.incident => PillTone.bad,
+                        _ => PillTone.ok,
+                      },
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: NordicSpace.xs),
-              // Full label width ("Chờ bạn nghiệm thu"); the name column gives way first.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 180.0),
-                child: StatusPill(
-                  assignmentStatusLabel(a.assignmentStatus),
-                  textKey: Key('assignment-status-${a.assignmentId}'),
-                  dot: true,
-                  tone: switch (a.assignmentStatus) {
-                    AssignmentStatus.awaitingAcceptance => PillTone.warn,
-                    AssignmentStatus.cancelledByWorker ||
-                    AssignmentStatus.absent ||
-                    AssignmentStatus.incident => PillTone.bad,
-                    _ => PillTone.ok,
-                  },
+              if (a.assignmentStatus == AssignmentStatus.awaitingAcceptance &&
+                  a.assignmentId != firstAcceptance?.assignmentId) ...[
+                const SizedBox(height: NordicSpace.sm),
+                NordicButton(
+                  key: Key('accept-${a.assignmentId}'),
+                  label: 'Xác nhận nghiệm thu',
+                  variant: NordicButtonVariant.secondary,
+                  onPressed: () => _open(
+                    WorkerRoutes.customerAcceptance,
+                    CustomerAcceptanceArgs(assignmentId: a.assignmentId),
+                  ),
                 ),
-              ),
+              ],
+              if (a.assignmentStatus == AssignmentStatus.completed &&
+                  _ratingEligibility[a.assignmentId] == true &&
+                  a.assignmentId != firstRating?.assignmentId) ...[
+                const SizedBox(height: NordicSpace.sm),
+                NordicButton(
+                  key: Key('rate-${a.assignmentId}'),
+                  label: 'Đánh giá người làm',
+                  variant: NordicButtonVariant.secondary,
+                  onPressed: () => _open(
+                    RatingRoutes.ratings,
+                    RatingScreenArgs(
+                      role: RatingRole.customer,
+                      assignmentId: a.assignmentId,
+                      ratedName: workerName(a),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1035,13 +1079,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final primaryAcceptance = awaiting.isEmpty
         ? null
         : awaiting.first.assignmentId;
-    final eligibleRatings = progress.assignments.where(
-      (a) => _ratingEligibility[a.assignmentId] == true,
-    );
-    final primaryRating =
-        order.orderStatus == OrderStatus.completed && eligibleRatings.isNotEmpty
-        ? eligibleRatings.first.assignmentId
-        : null;
     return [
       if (primaryAcceptance != null &&
           canExtend(progress) &&
@@ -1068,39 +1105,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             ),
           ),
-      for (final a in progress.assignments)
-        for (final action in assignmentActions(a.assignmentStatus))
-          if ((action != AssignmentAction.reviewAndAccept ||
-                  a.assignmentId != primaryAcceptance) &&
-              (action != AssignmentAction.rate ||
-                  (a.assignmentId != primaryRating &&
-                      _ratingEligibility[a.assignmentId] == true)))
-            switch (action) {
-              AssignmentAction.reviewAndAccept => GroupedListItem(
-                key: Key('accept-${a.assignmentId}'),
-                icon: Icons.photo_library_outlined,
-                title: 'Xem ảnh & nghiệm thu',
-                subtitle: named ? workerName(a) : null,
-                onTap: () => _open(
-                  WorkerRoutes.customerAcceptance,
-                  CustomerAcceptanceArgs(assignmentId: a.assignmentId),
-                ),
-              ),
-              AssignmentAction.rate => GroupedListItem(
-                key: Key('rate-${a.assignmentId}'),
-                icon: Icons.star_outline,
-                title: 'Đánh giá người làm',
-                subtitle: named ? workerName(a) : null,
-                onTap: () => _open(
-                  RatingRoutes.ratings,
-                  RatingScreenArgs(
-                    role: RatingRole.customer,
-                    assignmentId: a.assignmentId,
-                    ratedName: workerName(a),
-                  ),
-                ),
-              ),
-            },
       if (order.serviceTier == ServiceTier.economy)
         for (final a in progress.assignments)
           if (a.assignmentStatus == AssignmentStatus.completed)

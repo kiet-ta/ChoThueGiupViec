@@ -279,6 +279,14 @@ void main() {
           ];
         final opened = await pump(tester, service);
 
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('assignment-7')),
+            matching: find.byKey(const Key('rate-7')),
+          ),
+          findsOneWidget,
+        );
+
         await tap(tester, 'accept-8');
         await tap(tester, 'rate-7');
 
