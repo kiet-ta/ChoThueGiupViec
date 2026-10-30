@@ -5,6 +5,17 @@ public class RequestResponseLoggingMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestResponseLoggingMiddleware> _logger;
 
+    private const string Redacted = "[redacted]";
+
+    // Header values that authenticate a caller or a payment webhook never go to the log.
+    private static readonly HashSet<string> SecretHeaders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Authorization", "Cookie", "Set-Cookie", "X-SePay-Signature",
+    };
+
+    private static Dictionary<string, string> LoggableHeaders(IHeaderDictionary headers) =>
+        headers.ToDictionary(h => h.Key, h => SecretHeaders.Contains(h.Key) ? Redacted : h.Value.ToString());
+
     public RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<RequestResponseLoggingMiddleware> logger)
     {
         _next = next;
@@ -17,7 +28,7 @@ public class RequestResponseLoggingMiddleware
         _logger.LogInformation("Incoming Request: {method} {url} {headers}",
             context.Request.Method,
             context.Request.Path,
-            context.Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
+            LoggableHeaders(context.Request.Headers));
 
         //Copy response body to log it
         var originalBodyStream = context.Response.Body;
@@ -38,7 +49,7 @@ public class RequestResponseLoggingMiddleware
             // Log response details, if not log, log will empty
             _logger.LogInformation("Outgoing Response: {statusCode} {headers} {body}",
                 context.Response.StatusCode,
-                context.Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()),
+                LoggableHeaders(context.Response.Headers),
                 responseText);
 
             // Copy the contents of the new memory stream (which contains the response) to the original stream, which is then returned to the client.
