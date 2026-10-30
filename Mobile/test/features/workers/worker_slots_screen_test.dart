@@ -46,6 +46,21 @@ class MockWorkersSlotsService extends WorkersSlotsService {
   }
 }
 
+class FailingSlotsService extends MockWorkersSlotsService {
+  int calls = 0;
+
+  @override
+  Future<ApiResponse<List<BookingSlotDto>>> getSlots({
+    required String startDate,
+    required String endDate,
+  }) {
+    calls++;
+    return calls == 1
+        ? Future.error(Exception('Mất kết nối'))
+        : super.getSlots(startDate: startDate, endDate: endDate);
+  }
+}
+
 class MockWorkersLocationService extends WorkersLocationService {
   int shareCount = 0;
   bool failing = false;
@@ -198,6 +213,31 @@ void main() {
       expect(mockLocation.shareCount, 2);
       expect(find.textContaining('Không thể thay đổi lịch rảnh'), findsNothing);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('A week that cannot be loaded shows a retry that reloads it', (
+      tester,
+    ) async {
+      final failing = FailingSlotsService();
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: WorkerSlotsScreen(
+            slotsService: failing,
+            locationService: mockLocation,
+            initialDate: fixedDate,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Mất kết nối'), findsOneWidget);
+      expect(find.byType(Switch), findsNothing);
+
+      await tapVisible(tester, find.text('Thử lại'));
+
+      expect(failing.calls, 2);
+      expect(find.byType(Switch), findsNWidgets(3));
     });
 
     testWidgets('Navigating week updates week date range', (tester) async {
