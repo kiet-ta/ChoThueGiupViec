@@ -16,6 +16,7 @@ import '../booking/logic/booking_logic.dart';
 import '../booking/logic/order_logic.dart';
 import '../booking/models/booking_models.dart';
 import '../booking/routes.dart';
+import '../booking/screens/order_status_pill.dart';
 import '../booking/screens/booking_screen.dart';
 import '../booking/services/booking_service.dart';
 import '../booking/services/order_service.dart';
@@ -475,23 +476,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                         ),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: NordicSpace.xxs,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: NordicColors.primaryFixed,
-                        borderRadius: NordicRadius.pill,
-                      ),
-                      child: Text(
-                        orderStatusLabel(order.orderStatus),
-                        style: NordicTypography.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: NordicColors.primary,
-                        ),
-                      ),
-                    ),
+                    OrderStatusPill(order.orderStatus),
                   ],
                 ),
                 const SizedBox(height: NordicSpace.sm),

@@ -83,16 +83,15 @@ Nếu cần màu chưa có token (ví dụ đường kẻ trong card `#E6EBE7`):
 
 ### 2.3 Pill trạng thái đơn — dùng `StatusPill` với tone, chữ lấy từ `orderStatusLabel`
 
+Quy tắc của owner (2026-10-30): **hoàn thành = xanh lá, mọi giai đoạn ở giữa = vàng, huỷ = đỏ.**
+
 | `orderStatus` | Chữ (đã có) | Tone |
 |---|---|---|
-| `PENDING_PAYMENT` | Chờ thanh toán | warn (kem) |
-| `PAID`, `DISPATCHING` | Đã thanh toán / Đang tìm người làm | neutral |
-| `AWAITING_FALLBACK` | Chờ bạn chọn: 1 người làm 2 ca | warn |
-| `ASSIGNED` | Đã có người làm | ok (xanh nhạt) |
-| `COMPLETED` | Hoàn thành | ok |
-| `CANCELLED` | Đã huỷ | **neutral** (không dùng đỏ: huỷ là trạng thái kết thúc, không phải lỗi) |
+| `PENDING_PAYMENT`, `PAID`, `DISPATCHING`, `AWAITING_FALLBACK`, `ASSIGNED` | Chờ thanh toán / Đã thanh toán / Đang tìm người làm / Chờ bạn chọn / Đã có người làm | warn (vàng) |
+| `COMPLETED` | Hoàn thành | ok (xanh lá) |
+| `CANCELLED` | Đã huỷ | bad (đỏ) |
 
-Trên nền tối: pill ok giữ `primaryFixed` + chữ `primary`; pill neutral dùng `surfaceContainer` + `textBody`.
+Pill trên nền tối giữ màu của tone (nền sáng, chữ đậm), không đổi theo nền.
 
 ### 2.4 Thanh điều hướng và thanh hành động
 - Thanh tab customer: nền trắng (mờ như hiện tại cũng được), viền trên `border`. Tab đang chọn có pill `primaryFixed`, chữ 12/700 `primary`; tab khác 12/500 `textSecondary`. Nút giữa 60×60 `primary`, viền 4 px màu `canvas`, bóng `cta`, nhãn "Đặt ca" bên dưới.
