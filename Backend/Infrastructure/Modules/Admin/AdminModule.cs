@@ -34,6 +34,10 @@ public sealed class AdminModule : IModule
         services.AddScoped<ISuperFreelancerRepository, EfSuperFreelancerRepository>();
         services.AddScoped<ISuperFreelancerService, SuperFreelancerService>();
 
+        // Admin unlock of a locked freelancer (ADMIN-UAT-10, decisions Q15).
+        services.AddScoped<IWorkerLockRepository, EfWorkerLockRepository>();
+        services.AddScoped<IWorkerUnlockService, WorkerUnlockService>();
+
         services.AddScoped<IAbsenceRepository, EfAbsenceRepository>();
         services.AddScoped<IAbsenceReportService, AbsenceReportService>();
     }

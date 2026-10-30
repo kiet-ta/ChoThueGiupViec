@@ -128,11 +128,11 @@ public sealed class DisputeVerdictService(
                     // The request is real: lock the freelancers of the order in the same transaction, one audit row per worker changed.
                     var locked = await disputes.LockFreelancersAsync(
                         responsible.Select(a => a.WorkerId).Distinct().ToList(), cancellationToken);
-                    foreach (var workerId in locked)
+                    foreach (var worker in locked)
                     {
                         await audit.WriteAsync(
-                            new AuditEntry(AuditActorType.Admin, adminId, AuditWorkerEntityType, workerId.ToString(), AuditWorkStatusField,
-                                null, "LOCKED", $"Dispute {disputeId}: {note}"),
+                            new AuditEntry(AuditActorType.Admin, adminId, AuditWorkerEntityType, worker.WorkerId.ToString(), AuditWorkStatusField,
+                                DbEnum.ToDb(worker.PreviousStatus), "LOCKED", $"Dispute {disputeId}: {note}"),
                             cancellationToken);
                     }
                 }

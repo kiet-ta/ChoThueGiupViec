@@ -95,8 +95,23 @@ Q12: allowed only if `rating_avg >= 4.80`, `completed_jobs >= 50`, KYC approved,
 
 **Automatic revoke** (Q12): when a `RatingSubmitted` event leaves `rating_avg < 4.70`, the Admin module sets `is_super_freelancer = false` and writes an audit row with `actor_type = SYSTEM`, `admin_id = null`, `reason = "rating below 4.70"`.
 
+### 2.6 Unlock a worker (ADMIN-UAT-10, decisions Q15 "Admin can unlock")
+
+**`POST /api/admin/workers/{workerId}/unlock`** -> 200 `data: { workerId, workStatus: "IDLE" }`
+```json
+{ "reason": "string" }
+```
+A freelancer that is `LOCKED` (dispute verdict, three worker cancellations, rejected eKYC) goes back to `IDLE`. `reason` is required, 1-255 characters (400 `errors.reason`); 404 if the worker does not exist. **409** with `data.blockReasons` (all that apply): `NOT_FREELANCER` (an agency worker is locked by the agency quota and unlocked by the agency), `NOT_LOCKED`, `KYC_NOT_APPROVED` (the unlock is never a way around eKYC: such a worker goes through the eKYC review of `workers.md` 2.2.3). Writes one audit row (`entity_type = WORKER`, `field_name = work_status`, `old_value = LOCKED`, `new_value = IDLE`, `reason`) in the same transaction as the status. Policy `AdminOnly`.
+
+### 2.7 Flags written for the Admin (ADMIN-UAT-10, decisions Q14)
+
+No endpoint: they are `ADMIN_AUDIT_LOG` rows with `actor_type = SYSTEM`, `admin_id = null`, `field_name = low_rating_flag`, `old_value = false`, `new_value = true`, read in the audit page (2.4). They never block anybody.
+- `entity_type = WORKER`: a freelancer with `>= Rating.MinAvgAfterJobs.Jobs` (10) completed jobs whose `rating_avg` fell from `>= Rating.MinAvgAfterJobs.Rating` (4.00) to below it after a customer rating. Written once, when it crosses.
+- `entity_type = CUSTOMER`: the customer's latest `Rating.ConsecutiveLowToFlag` (3) ratings from workers are all `<= Rating.LowStarThreshold` (2) stars and come from 3 different workers. Written by the rating that completes the streak, not by the ones after it. The customer can still book (Q14).
+- **Not done (needs a stored marker, i.e. a schema decision of M1):** releasing a freelancer from the matching exclusion "until an Admin reviews" (Q14). Matching still excludes a freelancer with `rating_avg < 4.00` after 10 jobs until the average rises again.
+
 ## 3. Events
-- **Handles** `CustomerAbsentReported` (M3): notifies every active Admin through `INotificationService` (BE-M6-03b, topic `absence.reported`, `data { assignmentId, orderId }`); the queue itself is derived from data (2.2). **Handles** `RatingSubmitted` (Ratings) for the auto-revoke above.
+- **Handles** `CustomerAbsentReported` (M3): notifies every active Admin through `INotificationService` (BE-M6-03b, topic `absence.reported`, `data { assignmentId, orderId }`); the queue itself is derived from data (2.2). **Handles** `RatingSubmitted` (Ratings) for the auto-revoke above; the Ratings module handles the same event to write `WORKER.rating_avg` and the flags of 2.7 (`ratings.md` section 3).
 - **Publishes** `CustomerAbsentApproved` (consumers M2 refund bookkeeping, M3, M4, M6 Disputes notification).
 
 ## 4. Open questions (not covered by PRD or decisions; recommended default in bold)

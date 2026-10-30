@@ -96,10 +96,14 @@ public class DisputeServiceTests
         public List<int[]> LockRequests { get; } = [];
         public HashSet<int> AlreadyLocked { get; } = [];
 
-        public Task<IReadOnlyList<int>> LockFreelancersAsync(IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default)
+        /// <summary>What the worker was before the lock (the audit row records it); IDLE unless a test says otherwise.</summary>
+        public WorkStatus PreviousStatus { get; set; } = WorkStatus.Idle;
+
+        public Task<IReadOnlyList<LockedWorker>> LockFreelancersAsync(IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default)
         {
             LockRequests.Add(workerIds.ToArray());
-            return Task.FromResult<IReadOnlyList<int>>(workerIds.Where(id => !AlreadyLocked.Contains(id)).ToList());
+            return Task.FromResult<IReadOnlyList<LockedWorker>>(
+                workerIds.Where(id => !AlreadyLocked.Contains(id)).Select(id => new LockedWorker(id, PreviousStatus)).ToList());
         }
 
         public Task<IReadOnlyList<DisputeVerdictAssignment>> GetVerdictAssignmentsAsync(long orderId, CancellationToken cancellationToken = default) =>
@@ -244,6 +248,37 @@ public class DisputeServiceTests
         late.Repo.Tickets.Clear();
         late.Clock.UtcNow = new DateTime(2026, 10, 8, 9, 1, 0, DateTimeKind.Utc);
         Assert.Equal(409, (await late.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+    }
+
+    [Fact]
+    public async Task ADMIN_UAT_10_an_absence_fee_dispute_uses_Absence_CustomerDisputeHours_and_the_others_keep_the_24h_of_the_dispute_options()
+    {
+        var rules = Microsoft.Extensions.Options.Options.Create(new CommonService.Application.Common.Options.BusinessRules
+        {
+            Absence = new CommonService.Application.Common.Options.AbsenceRules { CustomerDisputeHours = 36 },
+        });
+        var disputeOptions = Microsoft.Extensions.Options.Options.Create(new DisputeOptions());
+        var shiftEndUtc = new DateTime(2026, 10, 7, 5, 0, 0, DateTimeKind.Utc);
+
+        // ABSENT only: 36 h after the shift end, not 24 h
+        var absent = new Harness(JobAssignmentStatus.Absent);
+        var absentFiling = new DisputeFilingService(absent.Repo, absent.Clock, disputeOptions, rules);
+        absent.Clock.UtcNow = shiftEndUtc.AddHours(36);
+        Assert.Equal(201, (await absentFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        absent.Repo.Tickets.Clear();
+        absent.Clock.UtcNow = shiftEndUtc.AddHours(36).AddTicks(1);
+        Assert.Equal(409, (await absentFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+
+        // a COMPLETED assignment is not an absence fee: still 24 h, whatever the absence rule says
+        var completed = new Harness();
+        var completedFiling = new DisputeFilingService(completed.Repo, completed.Clock, disputeOptions, rules);
+        completed.Clock.UtcNow = Now.AddHours(1).AddHours(24).AddTicks(1);
+        Assert.Equal(409, (await completedFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+
+        // without the rules (an older caller) the default 24 h of Q10 applies, the same number as before
+        var plain = new Harness(JobAssignmentStatus.Absent);
+        plain.Clock.UtcNow = shiftEndUtc.AddHours(24).AddTicks(1);
+        Assert.Equal(409, (await plain.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
     }
 
     // ---- filing: ownership, uniqueness, validation ---------------------------------------------
