@@ -128,7 +128,8 @@ Controllers: `animateWith(spring.simulate(from: value, velocity: velocity))`. Im
 - **Pushed screen** (`NordicPage.pushed`): app bar with back and a short title (a noun: "Chi tiết đơn", "Địa chỉ"), never an internal code.
 - **Form**: fields with labels above; validate inline while typing where possible; on submit, an error message under the field + `ErrorShake`; the submit button in `actions` (above the keyboard); a field never hidden by the keyboard.
 - **List**: cards with `sm` gaps, newest first, grouped by month when long; each row: title (what), one meta line (when · how much), a status pill on the right; the whole card is the tap target.
-- **Detail**: the one big number first (time or amount), then status, then the facts in a card, then people, then actions at the bottom.
+- **Detail** (order detail, payment): the one big number first (time or amount) in a dark `contrastDark` block with the `raised` shadow (figure in `textInverse`, secondary text in `onDarkMuted`, the status pill below it), then the facts and the timeline in a white card, then people, then actions at the bottom. One `raised` block per screen; panels on the dark block are white at 8 % with a 14 % white border and no shadow. List and form screens stay on the light `canvas`.
+- **Choice tile** (booking tier, day, shift, address): a white tile with a `primaryContainer` border and a check mark when chosen. The main `NordicButton` (primary) carries the `cta` shadow by itself; a disabled or loading one lies flat.
 - **States**: loading = `LoadingStateWidget`; error = `ErrorStateWidget` with "Thử lại"; empty = `EmptyStateWidget` with one sentence and, when it helps, one action.
 - **Full width**: no width cap on phones; content keeps the 20 px gutter, photos and headers bleed to the edges.
 

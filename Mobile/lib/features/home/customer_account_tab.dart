@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/nordic_colors.dart';
+import '../../core/theme/nordic_radius.dart';
+import '../../core/theme/nordic_elevation.dart';
 import '../../core/theme/nordic_spacing.dart';
 import '../../core/theme/nordic_typography.dart';
 import '../../core/widgets/avatar_initials.dart';
@@ -107,49 +109,56 @@ class _CustomerAccountTabState extends State<CustomerAccountTab> {
     return NordicPage.tab(
       title: 'Tài khoản',
       children: [
-        NordicCard(
-          key: const Key('account-profile'),
-          onTap: () => _open(CustomerRoutes.customerProfile),
-          child: Row(
-            children: [
-              AvatarInitials(profile?.fullName ?? '', size: 64),
-              const SizedBox(width: NordicSpace.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      (profile == null || profile.fullName.trim().isEmpty)
-                          ? 'Khách hàng'
-                          : profile.fullName,
-                      style: NordicTypography.titleMedium,
-                    ),
-                    if (profile != null) ...[
+        // The one raised block of the screen: who is signed in.
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            borderRadius: NordicRadius.cardAll,
+            boxShadow: NordicElevation.raised,
+          ),
+          child: NordicCard(
+            elevated: false,
+            key: const Key('account-profile'),
+            onTap: () => _open(CustomerRoutes.customerProfile),
+            child: Row(
+              children: [
+                AvatarInitials(profile?.fullName ?? '', size: 64),
+                const SizedBox(width: NordicSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (profile == null || profile.fullName.trim().isEmpty)
+                            ? 'Khách hàng'
+                            : profile.fullName,
+                        style: NordicTypography.titleMedium,
+                      ),
+                      if (profile != null) ...[
+                        const SizedBox(height: NordicSpace.xxs),
+                        Text(
+                          _phone(profile.phoneNumber),
+                          style: NordicTypography.bodyRegular.copyWith(
+                            color: NordicColors.textSecondary,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: NordicSpace.xxs),
                       Text(
-                        _phone(profile.phoneNumber),
-                        style: NordicTypography.bodyRegular.copyWith(
-                          color: NordicColors.textSecondary,
+                        'Xem và sửa hồ sơ',
+                        style: NordicTypography.bodySmall.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: NordicColors.primaryContainer,
                         ),
                       ),
                     ],
-                    const SizedBox(height: NordicSpace.xxs),
-                    const Text(
-                      'Xem và sửa hồ sơ',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: NordicColors.primary,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: NordicColors.borderVariant,
-              ),
-            ],
+                const Icon(
+                  Icons.chevron_right,
+                  color: NordicColors.borderVariant,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: NordicSpace.sm),
