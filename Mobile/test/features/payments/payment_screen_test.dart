@@ -165,7 +165,7 @@ void main() {
       'SePay shows QR details and copies the transfer content and amount',
       (tester) async {
         const qr =
-            'https://vietqr.app/img?acc=fake&bank=fake&amount=260000&des=TA0123456789&template=compact';
+            'https://vietqr.app/img?acc=fake123&bank=fake%20bank&amount=260000&des=TA0123456789&template=compact';
         final clipboard = <String>[];
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(SystemChannels.platform, (call) async {
@@ -188,15 +188,35 @@ void main() {
         expect(find.text('Thông tin chuyển khoản'), findsOneWidget);
         expect(find.text('TA0123456789'), findsOneWidget);
         expect(find.text('260.000 đ'), findsOneWidget);
+        expect(find.text('Ngân hàng'), findsOneWidget);
+        expect(find.text('fake bank'), findsOneWidget);
+        expect(find.text('Số tài khoản'), findsOneWidget);
+        expect(find.text('fake123'), findsOneWidget);
         expect(find.byKey(const Key('payment-countdown')), findsOneWidget);
         await tester.tap(find.byKey(const Key('copy-content')));
         await tester.pump();
         await tester.tap(find.byKey(const Key('copy-amount')));
         await tester.pump();
-        expect(clipboard, ['TA0123456789', '260000']);
+        await tester.tap(find.byKey(const Key('copy-bank')));
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('copy-account')));
+        await tester.pump();
+        expect(clipboard, ['TA0123456789', '260000', 'fake bank', 'fake123']);
         await close(tester);
       },
     );
+
+    testWidgets('SePay hides bank and account when absent', (tester) async {
+      const qr = 'https://vietqr.app/img?des=TA0123456789';
+      final service = FakePaymentsService()
+        ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: qr);
+      await pumpPayment(tester, service, TestClock());
+      expect(find.text('Ngân hàng'), findsNothing);
+      expect(find.text('Số tài khoản'), findsNothing);
+      expect(find.byKey(const Key('copy-bank')), findsNothing);
+      expect(find.byKey(const Key('copy-account')), findsNothing);
+      await close(tester);
+    });
 
     testWidgets('SePay keeps transfer details when the QR image cannot load', (
       tester,

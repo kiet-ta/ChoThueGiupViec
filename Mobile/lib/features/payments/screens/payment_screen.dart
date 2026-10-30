@@ -342,6 +342,8 @@ class _PaymentScreenState extends State<PaymentScreen>
     final qrUrl = payment.payUrl ?? payment.qrPayload;
     final uri = Uri.tryParse(payment.qrPayload ?? '');
     final code = uri?.queryParameters['des'];
+    final bank = uri?.queryParameters['bank'];
+    final account = uri?.queryParameters['acc'];
     return [
       NordicCard(
         child: qrUrl == null || qrUrl.isEmpty
@@ -375,6 +377,14 @@ class _PaymentScreenState extends State<PaymentScreen>
               style: NordicTypography.titleMedium,
             ),
             const SizedBox(height: NordicSpace.md),
+            if (bank != null && bank.isNotEmpty) ...[
+              _transferDetail('Ngân hàng', bank, bank, 'copy-bank'),
+              const SizedBox(height: NordicSpace.sm),
+            ],
+            if (account != null && account.isNotEmpty) ...[
+              _transferDetail('Số tài khoản', account, account, 'copy-account'),
+              const SizedBox(height: NordicSpace.sm),
+            ],
             _transferDetail(
               'Số tiền',
               formatVnd(payment.amount),
