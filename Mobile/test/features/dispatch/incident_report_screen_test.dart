@@ -72,7 +72,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Verify title & disclaimer
-        expect(find.text('Báo Cáo Sự Cố Bất Khả Kháng'), findsOneWidget);
+        expect(find.text('Báo sự cố'), findsOneWidget);
 
         // Try tapping submit without capturing photo
         final submitButton = find.byKey(const Key('submit_incident_button'));
@@ -89,10 +89,7 @@ void main() {
 
         // Expect validation error for photo evidence
         expect(
-          find.textContaining(
-            'Vui lòng chụp ảnh bằng chứng',
-            skipOffstage: false,
-          ),
+          find.textContaining('Hãy chụp ảnh bằng chứng', skipOffstage: false),
           findsOneWidget,
         );
       },
@@ -142,9 +139,9 @@ void main() {
         await tester.pumpAndSettle();
 
         // Check success state UI
-        expect(find.text('Đã Ghi Nhận Sự Cố Bất Khả Kháng'), findsOneWidget);
+        expect(find.text('Đã ghi nhận sự cố'), findsOneWidget);
         expect(
-          find.textContaining('MIỄN PHẠT theo chính sách BR-10'),
+          find.textContaining('miễn phạt theo chính sách'),
           findsOneWidget,
         );
         expect(find.text('Đang tìm thợ'), findsOneWidget);
