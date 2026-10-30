@@ -103,19 +103,31 @@ class TimelineStep {
   /// This is where the order is now.
   final bool current;
 
+  /// The order stopped here as cancelled: drawn as a red cross, never as a tick.
+  final bool cancelled;
+
   const TimelineStep({
     required this.label,
     required this.done,
     required this.current,
+    this.cancelled = false,
   });
 }
 
-/// The steps a customer follows: pay, find a worker, worker assigned, done. A cancelled order shows where it stopped as cancelled.
+/// The steps a customer follows: pay, find a worker, worker assigned, done. A cancelled order is a single cancelled step.
 /// `PAID` exists only for a moment on the server (decision Q24 / B4), so it is shown as "finding a worker".
 List<TimelineStep> orderTimeline(String status) {
   const labels = ['Thanh toán', 'Tìm người', 'Có người làm', 'Hoàn thành'];
   if (status == OrderStatus.cancelled) {
-    return const [TimelineStep(label: 'Đã huỷ', done: true, current: true)];
+    // The order carries no time or step of the cancel, so only one line is shown: no guess where it stopped.
+    return const [
+      TimelineStep(
+        label: 'Đơn đã huỷ',
+        done: false,
+        current: true,
+        cancelled: true,
+      ),
+    ];
   }
   final index = switch (status) {
     OrderStatus.pendingPayment => 0,
@@ -316,4 +328,94 @@ String extensionFailure(ApiException e) {
     };
   }
   return _common(e, notFound: 'Không tìm thấy đơn hoặc ca làm này.');
+}
+
+/// One month of the order list: [key] is `yyyy-MM` (empty for orders without a readable date).
+class OrderMonthGroup {
+  final String key;
+  final int year;
+  final int month;
+  final List<OrderSummary> orders;
+
+  const OrderMonthGroup(this.key, this.year, this.month, this.orders);
+}
+
+/// Groups all loaded orders by the month of their `scheduledDate`, whatever order the server sent them in
+/// (it sends the newest created first, so the months are not contiguous). Months run newest first; inside a month the
+/// day runs newest first, then the shift start ([startOf] gives `HH:mm` for a shift code), then the order id.
+/// Orders without a readable date form a last group with an empty key.
+List<OrderMonthGroup> groupOrdersByMonth(
+  Iterable<OrderSummary> orders, {
+  String? Function(String shiftCode)? startOf,
+}) {
+  final byMonth = <String, List<OrderSummary>>{};
+  for (final order in orders) {
+    final day = DateTime.tryParse(order.scheduledDate);
+    final key = day == null
+        ? ''
+        : '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}';
+    byMonth.putIfAbsent(key, () => []).add(order);
+  }
+  int compareInMonth(OrderSummary a, OrderSummary b) {
+    final byDay = b.scheduledDate.compareTo(a.scheduledDate);
+    if (byDay != 0) return byDay;
+    final byStart = (startOf?.call(b.shiftCode) ?? '').compareTo(
+      startOf?.call(a.shiftCode) ?? '',
+    );
+    if (byStart != 0) return byStart;
+    return b.orderId.compareTo(a.orderId);
+  }
+
+  final keys = byMonth.keys.toList()
+    ..sort((a, b) {
+      if (a.isEmpty) return b.isEmpty ? 0 : 1;
+      if (b.isEmpty) return -1;
+      return b.compareTo(a);
+    });
+  return [
+    for (final key in keys)
+      OrderMonthGroup(
+        key,
+        key.isEmpty ? 0 : int.parse(key.substring(0, 4)),
+        key.isEmpty ? 0 : int.parse(key.substring(5)),
+        (byMonth[key]!..sort(compareInMonth)),
+      ),
+  ];
+}
+
+/// When the shift of [order] starts, as a local Vietnam date and time held in a UTC [DateTime] (the Home and the
+/// order list compare it with [vietnamNow]); null when the date or the shift start is unknown.
+DateTime? orderStartsAt(OrderSummary order, BookingOptions options) {
+  final date = DateTime.tryParse(order.scheduledDate);
+  final shift = options.shifts
+      .where((s) => s.shiftCode == order.shiftCode)
+      .firstOrNull;
+  final parts = shift?.startLocal.split(':');
+  if (date == null || parts == null || parts.length != 2) return null;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  return DateTime.utc(date.year, date.month, date.day, hour, minute);
+}
+
+/// [instant] as a local Vietnam date and time held in a UTC [DateTime], minute precision.
+DateTime vietnamNow(DateTime instant) {
+  final t = instant.toUtc().add(const Duration(hours: 7));
+  return DateTime.utc(t.year, t.month, t.day, t.hour, t.minute);
+}
+
+/// The orders still open (not completed or cancelled) whose shift has not started, soonest first.
+List<OrderSummary> upcomingOrders(
+  Iterable<OrderSummary> orders,
+  BookingOptions options,
+  DateTime localNow,
+) {
+  final open = [
+    for (final o in orders)
+      if (o.orderStatus != OrderStatus.completed &&
+          o.orderStatus != OrderStatus.cancelled)
+        if (orderStartsAt(o, options) case final startsAt?)
+          if (!startsAt.isBefore(localNow)) (o, startsAt),
+  ]..sort((a, b) => a.$2.compareTo(b.$2));
+  return [for (final e in open) e.$1];
 }

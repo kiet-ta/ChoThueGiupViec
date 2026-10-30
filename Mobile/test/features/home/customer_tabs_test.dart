@@ -51,8 +51,11 @@ class _Orders implements IOrderService {
   _Orders(this.items, {int? total}) : total = total ?? items.length;
 
   @override
-  Future<OrderPage> listOrders({int page = 1, int pageSize = 20}) =>
-      error != null
+  Future<OrderPage> listOrders({
+    int page = 1,
+    int pageSize = 20,
+    String? status,
+  }) => error != null
       ? Future.error(error!)
       : Future.value(
           OrderPage(items: items, page: page, pageSize: pageSize, total: total),

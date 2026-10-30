@@ -3,7 +3,12 @@ import '../models/booking_models.dart';
 
 /// What the order screens (history, tracking, cancel, "Làm lần 2") need from the server; a test can supply its own.
 abstract class IOrderService {
-  Future<OrderPage> listOrders({int page = 1, int pageSize = 20});
+  /// [status] asks the server for one order status only (booking.md 3.4); null lists every status.
+  Future<OrderPage> listOrders({
+    int page = 1,
+    int pageSize = 20,
+    String? status,
+  });
 
   Future<BookingOrder> getOrder(int orderId);
 
@@ -36,10 +41,18 @@ class OrderService implements IOrderService {
       BookingOrder.fromJson(json as Map<String, dynamic>);
 
   @override
-  Future<OrderPage> listOrders({int page = 1, int pageSize = 20}) async {
+  Future<OrderPage> listOrders({
+    int page = 1,
+    int pageSize = 20,
+    String? status,
+  }) async {
     final response = await _client.get<OrderPage>(
       '/api/booking/orders',
-      queryParams: {'page': '$page', 'pageSize': '$pageSize'},
+      queryParams: {
+        'page': '$page',
+        'pageSize': '$pageSize',
+        if (status != null) 'status': status,
+      },
       fromJson: (json) => OrderPage.fromJson(json as Map<String, dynamic>),
     );
     return _require(response.data, 'danh sách đơn');

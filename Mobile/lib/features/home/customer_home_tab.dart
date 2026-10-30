@@ -128,30 +128,15 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
       final page = await _orders.listOrders();
       final options = await _booking.getOptions();
       if (mounted) setState(() => _options = options);
-      final now = (widget.clock ?? DateTime.now)().toUtc().add(
-        const Duration(hours: 7),
+      final open = upcomingOrders(
+        page.items,
+        options,
+        vietnamNow((widget.clock ?? DateTime.now)()),
       );
-      final localNow = DateTime.utc(
-        now.year,
-        now.month,
-        now.day,
-        now.hour,
-        now.minute,
-      );
-      final open = page.items.where((o) {
-        final startsAt = _startsAt(o, options);
-        return o.orderStatus != OrderStatus.completed &&
-            o.orderStatus != OrderStatus.cancelled &&
-            startsAt != null &&
-            !startsAt.isBefore(localNow);
-      }).toList();
       if (open.isEmpty) {
         if (mounted) setState(() => _nextLoaded = true);
         return;
       }
-      open.sort(
-        (a, b) => _startsAt(a, options)!.compareTo(_startsAt(b, options)!),
-      );
       final order = open.first;
       final shift = options.shifts
           .where((s) => s.shiftCode == order.shiftCode)
@@ -174,21 +159,6 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
         });
       }
     }
-  }
-
-  /// A shift is a local Vietnam date plus the start time supplied by Booking.
-  /// Orders from an earlier shift must never be promoted as the next appointment.
-  static DateTime? _startsAt(OrderSummary order, BookingOptions options) {
-    final date = DateTime.tryParse(order.scheduledDate);
-    final shift = options.shifts
-        .where((s) => s.shiftCode == order.shiftCode)
-        .firstOrNull;
-    final parts = shift?.startLocal.split(':');
-    if (date == null || parts == null || parts.length != 2) return null;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return null;
-    return DateTime.utc(date.year, date.month, date.day, hour, minute);
   }
 
   Future<void> _loadQuotes() async {

@@ -19,7 +19,8 @@ class OrderStatusPill extends StatelessWidget {
       OrderStatus.completed || OrderStatus.assigned => PillTone.ok,
       OrderStatus.pendingPayment ||
       OrderStatus.awaitingFallback => PillTone.warn,
-      OrderStatus.cancelled => PillTone.bad,
+      OrderStatus.cancelled =>
+        PillTone.neutral, // the end of an order, not a failure
       _ => PillTone.neutral,
     },
   );
