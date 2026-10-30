@@ -48,27 +48,27 @@ void main() {
         );
 
         // Initial state: Step 1 (Mặt Trước CCCD)
-        expect(find.text('Xác Thực eKYC'), findsOneWidget);
-        expect(find.text('Mặt Trước CCCD'), findsOneWidget);
+        expect(find.text('Xác minh danh tính'), findsOneWidget);
+        expect(find.text('Mặt trước CCCD'), findsOneWidget);
 
         // Tap 'Tiếp theo' -> Step 2 (Mặt Sau CCCD)
         await tapVisible(tester, find.text('Tiếp theo'));
         await tester.pumpAndSettle();
-        expect(find.text('Mặt Sau CCCD'), findsOneWidget);
+        expect(find.text('Mặt sau CCCD'), findsOneWidget);
 
         // Tap 'Tiếp theo' -> Step 3 (Selfie)
         await tapVisible(tester, find.text('Tiếp theo'));
         await tester.pumpAndSettle();
-        expect(find.text('Ảnh Chân Dung (Selfie)'), findsOneWidget);
+        expect(find.text('Ảnh chân dung'), findsOneWidget);
 
         // Tap 'Tiếp theo' -> Step 4 (Summary & Confirm)
         await tapVisible(tester, find.text('Tiếp theo'));
         await tester.pumpAndSettle();
         expect(
-          find.text('Xác Nhận Thông Tin Ảnh eKYC', skipOffstage: false),
+          find.text('Xác nhận ảnh sẽ gửi', skipOffstage: false),
           findsOneWidget,
         );
-        expect(find.text('Gửi Xác Thực eKYC'), findsOneWidget);
+        expect(find.text('Gửi xác minh'), findsOneWidget);
       },
     );
 
@@ -89,7 +89,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Submit eKYC
-      await tapVisible(tester, find.text('Gửi Xác Thực eKYC'));
+      await tapVisible(tester, find.text('Gửi xác minh'));
       await tester.pumpAndSettle();
 
       expect(mockService.lastRequest, isNotNull);
@@ -101,9 +101,9 @@ void main() {
       expect(mockService.lastRequest!.selfieUrl, contains('selfie_sample.jpg'));
 
       // Result screen rendered
-      expect(find.text('Xác Thực Thành Công!'), findsOneWidget);
+      expect(find.text('Xác minh thành công!'), findsOneWidget);
       expect(find.text('92.0%'), findsOneWidget);
-      expect(find.text('APPROVED'), findsOneWidget);
+      expect(find.text('Đã duyệt'), findsOneWidget);
     });
   });
 }
