@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/stat_tile.dart';
+import '../../../core/widgets/status_state_widget.dart';
 import '../models/booking_slot_models.dart';
 import '../services/workers_location_service.dart';
 import '../services/workers_slots_service.dart';
-import '../widgets/tinted_card.dart';
 
 /// Screen for managing Worker Weekly Availability Block Slots (contract workers.md §2.3).
 /// Implements MOB-M4-02: weekly grid toggle for Sáng/Chiều/Tối shifts.
+/// MOB-UI-20 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage` (tab, or pushed when it has a back route),
+/// tokens only, pressable day tiles, a retry state when the week cannot be loaded.
 class WorkerSlotsScreen extends StatefulWidget {
   final WorkersSlotsService? slotsService;
   final WorkersLocationService? locationService;
@@ -32,7 +39,12 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   late DateTime _weekStartDate;
 
   bool _isLoading = false;
-  String? _errorMessage;
+
+  /// The week could not be loaded: the whole list is replaced by a retry state.
+  String? _loadError;
+
+  /// A switch could not be saved: the switch is put back and this line explains why.
+  String? _toggleError;
   final Map<String, bool> _slotActiveState = {}; // Key: "yyyy-MM-dd:SHIFT_CODE"
 
   /// Index (0 = Monday) of the day whose shifts are listed.
@@ -88,7 +100,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
       'Thứ 5',
       'Thứ 6',
       'Thứ 7',
-      'Chủ Nhật',
+      'Chủ nhật',
     ];
     final dayName = days[dt.weekday - 1];
     return '$dayName, ${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
@@ -97,7 +109,8 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   Future<void> _loadWeeklySlots() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
+      _loadError = null;
+      _toggleError = null;
     });
 
     final startDateStr = _formatDate(_weekStartDate);
@@ -123,7 +136,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString();
+        _loadError = e.toString();
       });
     }
   }
@@ -139,6 +152,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     // Optimistic UI update
     setState(() {
       _slotActiveState[key] = newActive;
+      _toggleError = null;
     });
 
     try {
@@ -156,7 +170,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
       // Revert on error
       setState(() {
         _slotActiveState[key] = currentActive;
-        _errorMessage = 'Không thể thay đổi lịch rảnh: ${e.toString()}';
+        _toggleError = 'Không thể thay đổi lịch rảnh: ${e.toString()}';
       });
     }
   }
@@ -174,80 +188,66 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     final pushed = ModalRoute.of(context)?.canPop ?? false;
     final selected = _weekStartDate.add(Duration(days: _selectedDay));
 
-    return Scaffold(
-      appBar: pushed ? AppBar(title: const Text('Lịch rảnh')) : null,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 390.0),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-              children: [
-                if (!pushed)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8, bottom: 16),
-                    child: Text(
-                      'Lịch rảnh',
-                      style: NordicTypography.screenTitle,
-                    ),
-                  ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: StatTile(
-                        key: const Key('slots-on'),
-                        label: 'Ca bật',
-                        value: '$_activeInWeek',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: StatTile(
-                        key: const Key('slots-off'),
-                        label: 'Ca tắt',
-                        value: '${7 * _shifts.length - _activeInWeek}',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildWeekNavigator(endDate),
-                const SizedBox(height: 8),
-                _buildDayStrip(),
-                const SizedBox(height: 16),
-                if (_errorMessage != null) ...[
-                  TintedCard(
-                    backgroundColor: NordicColors.errorContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                          color: NordicColors.error,
-                          fontSize: 13.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-                ],
-                if (_isLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: CircularProgressIndicator(
-                        color: NordicColors.primary,
-                      ),
-                    ),
-                  )
-                else
-                  _buildShiftList(selected),
-              ],
+    final children = <Widget>[
+      Row(
+        children: [
+          Expanded(
+            child: StatTile(
+              key: const Key('slots-on'),
+              label: 'Ca bật',
+              value: '$_activeInWeek',
+            ),
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: StatTile(
+              key: const Key('slots-off'),
+              label: 'Ca tắt',
+              value: '${7 * _shifts.length - _activeInWeek}',
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: NordicSpace.gutter),
+      _buildWeekNavigator(endDate),
+      const SizedBox(height: NordicSpace.xs),
+      _buildDayStrip(),
+      const SizedBox(height: NordicSpace.md),
+      if (_toggleError != null) ...[
+        Container(
+          padding: const EdgeInsets.all(NordicSpace.sm),
+          decoration: const BoxDecoration(
+            color: NordicColors.errorContainer,
+            borderRadius: NordicRadius.fieldAll,
+          ),
+          child: Text(
+            _toggleError!,
+            style: NordicTypography.bodyRegular.copyWith(
+              color: NordicColors.error,
             ),
           ),
         ),
-      ),
-    );
+        const SizedBox(height: NordicSpace.md),
+      ],
+      if (_isLoading)
+        const LoadingStateWidget()
+      else if (_loadError != null)
+        ErrorStateWidget(message: _loadError!, onRetry: _loadWeeklySlots)
+      else
+        _buildShiftList(selected),
+    ];
+
+    return pushed
+        ? NordicPage.pushed(
+            title: 'Lịch rảnh',
+            onRefresh: _loadWeeklySlots,
+            children: children,
+          )
+        : NordicPage.tab(
+            title: 'Lịch rảnh',
+            onRefresh: _loadWeeklySlots,
+            children: children,
+          );
   }
 
   int get _activeInWeek => _slotActiveState.values.where((v) => v).length;
@@ -268,7 +268,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
           onPressed: () => _navigateWeek(-1),
           tooltip: 'Tuần trước',
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: NordicSpace.xxs),
         IconButton.outlined(
           icon: const Icon(Icons.chevron_right),
           onPressed: () => _navigateWeek(1),
@@ -278,7 +278,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     );
   }
 
-  /// `.days`: seven tiles, the chosen one filled; three dots show which shifts of that day are on.
+  /// Seven tiles, the chosen one filled; three dots show which shifts of that day are on.
   Widget _buildDayStrip() {
     const names = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
     return Row(
@@ -286,7 +286,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
         for (var i = 0; i < 7; i++)
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(right: i == 6 ? 0 : 6),
+              padding: EdgeInsets.only(right: i == 6 ? 0 : NordicSpace.xxs),
               child: _dayTile(i, names[i]),
             ),
           ),
@@ -298,84 +298,83 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     final date = _weekStartDate.add(Duration(days: index));
     final dateStr = _formatDate(date);
     final on = index == _selectedDay;
-    return InkWell(
-      key: Key('slots-day-$index'),
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => setState(() => _selectedDay = index),
-      child: Container(
-        height: 64,
-        decoration: BoxDecoration(
-          color: on ? NordicColors.primary : NordicColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: on ? NordicColors.primary : NordicColors.border,
+    final inverse = NordicColors.textInverse;
+    return Pressable(
+      child: InkWell(
+        key: Key('slots-day-$index'),
+        borderRadius: NordicRadius.tileAll,
+        onTap: () => setState(() => _selectedDay = index),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            color: on ? NordicColors.primary : NordicColors.surface,
+            borderRadius: NordicRadius.tileAll,
+            border: Border.all(
+              color: on ? NordicColors.primary : NordicColors.border,
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 10,
-                color: on ? Colors.white70 : NordicColors.textSecondary,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                name,
+                style: NordicTypography.bodySmall.copyWith(
+                  color: on
+                      ? inverse.withValues(alpha: 0.7)
+                      : NordicColors.textSecondary,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              date.day.toString().padLeft(2, '0'),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: on ? Colors.white : NordicColors.textTitle,
+              Text(
+                date.day.toString().padLeft(2, '0'),
+                style: NordicTypography.titleSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: on ? inverse : NordicColors.textTitle,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final shift in _shifts)
-                  Container(
-                    width: 4,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(horizontal: 1),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          (_slotActiveState['$dateStr:${shift['code']}'] ??
-                              false)
-                          ? (on ? Colors.white : NordicColors.primaryContainer)
-                          : (on ? Colors.white24 : NordicColors.surfaceDim),
+              const SizedBox(height: NordicSpace.xxs),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final shift in _shifts)
+                    Container(
+                      width: 4,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 1),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color:
+                            (_slotActiveState['$dateStr:${shift['code']}'] ??
+                                false)
+                            ? (on ? inverse : NordicColors.primaryContainer)
+                            : (on
+                                  ? inverse.withValues(alpha: 0.25)
+                                  : NordicColors.surfaceDim),
+                      ),
                     ),
-                  ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// `.list`: one row per shift of the chosen day with its switch.
+  /// One row per shift of the chosen day with its switch.
   Widget _buildShiftList(DateTime date) {
     final dateStr = _formatDate(date);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(bottom: NordicSpace.xs),
           child: Text(
             _formatDisplayDate(date),
             style: NordicTypography.titleSmall,
           ),
         ),
-        Material(
-          color: NordicColors.surface,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: NordicColors.border),
-          ),
+        NordicCard(
+          padding: EdgeInsets.zero,
           child: Column(
             children: [
               for (var i = 0; i < _shifts.length; i++) ...[
@@ -398,7 +397,10 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     final isActive = _slotActiveState['$dateStr:$shiftCode'] ?? false;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: NordicSpace.md,
+        vertical: NordicSpace.xs,
+      ),
       child: Row(
         children: [
           Container(
@@ -408,7 +410,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               color: isActive
                   ? NordicColors.primaryFixed
                   : NordicColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: NordicRadius.tileAll,
             ),
             child: Icon(
               icon,
@@ -418,7 +420,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                   : NordicColors.textSecondary,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: NordicSpace.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
