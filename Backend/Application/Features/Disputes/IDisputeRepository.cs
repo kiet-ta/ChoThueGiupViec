@@ -24,7 +24,10 @@ public sealed record LockedWorker(int WorkerId, WorkStatus PreviousStatus);
 
 public sealed record DisputeCheckInData(long AssignmentId, DateTime CheckedInAtUtc, bool GpsVerified, decimal DistanceM);
 
-public sealed record DisputePhotoData(long AssignmentId, string Phase, byte AngleNo, string Url, double VolScore, bool IsAccepted, DateTime CapturedAtUtc);
+/// <param name="Url">The <c>JOB_PHOTO.image_url</c> column as stored: an address the worker gave, or a stored file path (<c>job-photos/...</c>).</param>
+/// <param name="PhotoId">Needed to turn a stored path into the address of its file (<c>JobPhotoFileRules.FileAddress</c>).</param>
+public sealed record DisputePhotoData(
+    long AssignmentId, string Phase, byte AngleNo, string Url, double VolScore, bool IsAccepted, DateTime CapturedAtUtc, long PhotoId = 0);
 
 public sealed record DisputeCaseData(
     IReadOnlyList<DisputeCheckInData> CheckIns,

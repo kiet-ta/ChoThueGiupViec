@@ -89,6 +89,8 @@ JSON with base64 because the mobile `ApiClient` is JSON-only (M4's photo upload 
 ```
 `shiftTimeline`, `checklist` and `photos` are **read from other modules** (check-in log: M3, job photos: M4) and need a read port that does not exist yet: see **D6**. The admin sees the customer's description and `evidenceUrls` from this module directly.
 
+**`photos[].url` (ADMIN-UAT-11).** The address the console can load. A photo the worker uploaded as a file is stored as a path (`job-photos/...`, `JOB_PHOTO.image_url`), which is no address: it is answered as `/api/workers/assignments/{assignmentId}/photos/{photoId}/file` (the same rule as `workers.md` 2.4.2, `JobPhotoFileRules.FileAddress`), an address that needs the Admin's Bearer token (the console loads it through the API client, not through a bare `<img>`); an address the worker gave (`https://...`) is answered unchanged.
+
 ### 2.3 Admin handles a case (BE-M6-02)
 
 **`POST /api/admin/disputes/{disputeId}/take`** -> 200 `data: Dispute` (`OPEN -> IN_REVIEW`, records `resolved_by` = the admin as the handler). 409 if not `OPEN`.

@@ -617,6 +617,26 @@ public class DisputeServiceTests
     }
 
     [Fact]
+    public async Task ADMIN_UAT_11_a_photo_stored_as_a_file_is_answered_as_the_address_of_its_file_and_a_given_address_stays()
+    {
+        var h = await WithTicketsAsync(("OPEN", 20));
+        h.Repo.Case = new DisputeCaseData(
+            [],
+            [
+                new DisputePhotoData(1, "BEFORE", 1, "job-photos/4377e8cb_6_before_1.png", 120, true, Now.AddHours(-5), PhotoId: 29),
+                new DisputePhotoData(1, "AFTER", 1, "https://storage.example/jobs/after_1.jpg", 110, true, Now.AddHours(-3), PhotoId: 32),
+                new DisputePhotoData(1, "AFTER", 2, "/uploads/after_2.jpg", 110, true, Now.AddHours(-3), PhotoId: 33),
+            ],
+            []);
+
+        var photos = (await h.Admin.GetAsync(1)).Data!.Photos;
+
+        Assert.Equal("/api/workers/assignments/1/photos/29/file", photos.Single(p => p.Phase == "BEFORE").Url); // the raw "job-photos/..." path is no address
+        Assert.Equal("https://storage.example/jobs/after_1.jpg", photos.Single(p => p.Phase == "AFTER" && p.AngleNo == 1).Url);
+        Assert.Equal("/uploads/after_2.jpg", photos.Single(p => p.Phase == "AFTER" && p.AngleNo == 2).Url);
+    }
+
+    [Fact]
     public async Task An_unknown_ticket_has_no_case_file()
     {
         var h = await WithTicketsAsync(("OPEN", 1));

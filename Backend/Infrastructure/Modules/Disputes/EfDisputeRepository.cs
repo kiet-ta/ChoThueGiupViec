@@ -190,7 +190,7 @@ public sealed class EfDisputeRepository(AppDbContext db) : IDisputeRepository
 
         var photos = await db.JobPhotos.AsNoTracking()
             .Where(p => assignmentIds.Contains(p.AssignmentId))
-            .Select(p => new DisputePhotoData(p.AssignmentId, p.PhotoPhase, p.AngleNo, p.ImageUrl, p.VolScore, p.IsAccepted, p.CapturedAt))
+            .Select(p => new DisputePhotoData(p.AssignmentId, p.PhotoPhase, p.AngleNo, p.ImageUrl, p.VolScore, p.IsAccepted, p.CapturedAt, p.PhotoId))
             .ToListAsync(cancellationToken);
 
         var completions = (await db.JobAssignments.AsNoTracking()
