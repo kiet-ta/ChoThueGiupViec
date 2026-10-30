@@ -32,6 +32,35 @@ abstract class IBookingFavoriteSource {
   Future<Set<String>> getFreeShifts(int workerId);
 }
 
+abstract class IRebookAvailabilitySource {
+  Future<Set<String>> getFreeShifts(int orderId, int workerId);
+}
+
+class RebookAvailabilitySource implements IRebookAvailabilitySource {
+  final ApiClient _client;
+  RebookAvailabilitySource({ApiClient? client})
+    : _client = client ?? ApiClient();
+
+  @override
+  Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
+    final response = await _client.get<Set<String>>(
+      '/api/booking/orders/$orderId/workers/$workerId/availability',
+      fromJson: (json) => {
+        for (final item in json as List)
+          freeShiftKey(
+            (item as Map<String, dynamic>)['date'] as String,
+            item['shiftCode'] as String,
+          ),
+      },
+    );
+    final data = response.data;
+    if (data == null) {
+      throw const ApiException(0, 'Máy chủ không trả lịch trống.');
+    }
+    return data;
+  }
+}
+
 /// booking.md 3.1 to 3.3 over the shared [ApiClient]. Failures are thrown as [ApiException] (with its business `code`).
 class BookingService implements IBookingService {
   final ApiClient _client;

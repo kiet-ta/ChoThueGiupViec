@@ -134,6 +134,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
         EmptyStateWidget(
           key: Key('dispute-empty'),
           title: 'Chưa có khiếu nại nào',
+          subtitle: 'Các khiếu nại đã gửi sẽ hiện ở đây.',
           icon: Icons.flag_outlined,
         ),
       ];
@@ -181,7 +182,9 @@ class _DisputeScreenState extends State<DisputeScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Đơn #${d.orderId} · ${categoryLabel(d.category)}',
+                    widget.role == DisputeRole.customer
+                        ? categoryLabel(d.category)
+                        : 'Đơn #${d.orderId} · ${categoryLabel(d.category)}',
                     style: NordicTypography.titleSmall,
                   ),
                 ),
@@ -198,7 +201,9 @@ class _DisputeScreenState extends State<DisputeScreen> {
             ),
             const SizedBox(height: NordicSpace.xxs),
             Text(
-              'Gửi lúc ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh',
+              widget.role == DisputeRole.customer
+                  ? 'Đơn #${d.orderId} · ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh'
+                  : 'Gửi lúc ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh',
               style: NordicTypography.bodySmall,
             ),
             const SizedBox(height: NordicSpace.xs),

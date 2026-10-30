@@ -187,7 +187,7 @@ void main() {
         expect(find.byKey(const Key('sepay-qr')), findsOneWidget);
         expect(find.text('Thông tin chuyển khoản'), findsOneWidget);
         expect(find.text('TA0123456789'), findsOneWidget);
-        expect(find.text('260.000 đ'), findsOneWidget);
+        expect(find.text('260.000 đ'), findsNWidgets(2));
         expect(find.text('Ngân hàng'), findsOneWidget);
         expect(find.text('fake bank'), findsOneWidget);
         expect(find.text('Số tài khoản'), findsOneWidget);

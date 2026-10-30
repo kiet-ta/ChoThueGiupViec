@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
-import '../../../core/theme/nordic_elevation.dart';
 import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
@@ -11,6 +10,7 @@ import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/pressable.dart';
+import '../../../core/widgets/raised_panel.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../customers/routes.dart';
 import '../../customers/models/favorite_worker.dart';
@@ -28,13 +28,17 @@ class BookingScreenArgs {
   final String? serviceTier;
   final int? addressId;
 
-  /// A favorite worker (ECONOMY only): ticked, and their busy days and shifts greyed out.
+  /// A favorite or a worker from a completed previous order (ECONOMY only).
   final int? preferredWorkerId;
+  final int? previousOrderId;
+  final String? previousWorkerName;
 
   const BookingScreenArgs({
     this.serviceTier,
     this.addressId,
     this.preferredWorkerId,
+    this.previousOrderId,
+    this.previousWorkerName,
   });
 }
 
@@ -55,6 +59,7 @@ class BookingScreen extends StatefulWidget {
 
   /// The customer's favorite workers and their free shifts; by default the Customers feature.
   final IBookingFavoriteSource? favorites;
+  final IRebookAvailabilitySource? rebookAvailability;
 
   /// The preselected choices; when null they are read from the route arguments.
   final BookingScreenArgs? args;
@@ -68,6 +73,7 @@ class BookingScreen extends StatefulWidget {
     this.onOrderCreated,
     this.onManageAddresses,
     this.favorites,
+    this.rebookAvailability,
   });
 
   @override
@@ -78,6 +84,7 @@ class _BookingScreenState extends State<BookingScreen> {
   late final IBookingService _service;
   late final IBookingAddressSource _addressSource;
   late final IBookingFavoriteSource _favoriteSource;
+  late final IRebookAvailabilitySource _rebookAvailability;
   late final List<DateTime> _days;
 
   final _noteController = TextEditingController();
@@ -102,6 +109,9 @@ class _BookingScreenState extends State<BookingScreen> {
   /// Favorites of the customer; empty (section hidden) until loaded or when the call failed.
   List<FavoriteWorker> _favorites = const [];
   int? _preferredWorkerId;
+  int? _previousOrderId;
+  int? _previousWorkerId;
+  String? _previousWorkerName;
 
   /// The preferred worker's free shifts ([freeShiftKey]); null when nobody is picked or not known (nothing greyed out).
   Set<String>? _free;
@@ -119,6 +129,8 @@ class _BookingScreenState extends State<BookingScreen> {
     _service = widget.service ?? BookingService();
     _addressSource = widget.addresses ?? CustomerAddressBookSource();
     _favoriteSource = widget.favorites ?? CustomerFavoriteSource();
+    _rebookAvailability =
+        widget.rebookAvailability ?? RebookAvailabilitySource();
     _days = selectableDates((widget.now ?? DateTime.now)());
     _load();
     _loadFavorites();
@@ -136,6 +148,11 @@ class _BookingScreenState extends State<BookingScreen> {
     _tier ??= args?.serviceTier;
     _addressId ??= args?.addressId;
     _preferredWorkerId ??= args?.preferredWorkerId;
+    _previousOrderId = args?.previousOrderId;
+    _previousWorkerId = args?.previousOrderId == null
+        ? null
+        : args?.preferredWorkerId;
+    _previousWorkerName = args?.previousWorkerName;
     // A favorite worker only works the freelancer segment.
     if (_preferredWorkerId != null) _tier ??= ServiceTier.economy;
   }
@@ -241,14 +258,19 @@ class _BookingScreenState extends State<BookingScreen> {
       setState(() => _favorites = list);
       final preferred = _preferredWorkerId;
       if (preferred == null) return;
-      if (list.any((w) => w.workerId == preferred)) {
+      if (list.any((w) => w.workerId == preferred) ||
+          (_previousOrderId != null && preferred == _previousWorkerId)) {
         _choosePreferred(preferred); // opened from the Yêu thích list
       } else {
         setState(_clearPreferred);
       }
     } on ApiException {
-      // No favorites section; booking works as before.
-      if (mounted) setState(_clearPreferred);
+      if (!mounted) return;
+      if (_previousOrderId != null && _preferredWorkerId == _previousWorkerId) {
+        await _choosePreferred(_previousWorkerId);
+      } else {
+        setState(_clearPreferred);
+      }
     }
   }
 
@@ -272,7 +294,9 @@ class _BookingScreenState extends State<BookingScreen> {
     if (workerId == null) return;
     final id = _freeRequest;
     try {
-      final free = await _favoriteSource.getFreeShifts(workerId);
+      final free = _previousOrderId != null && workerId == _previousWorkerId
+          ? await _rebookAvailability.getFreeShifts(_previousOrderId!, workerId)
+          : await _favoriteSource.getFreeShifts(workerId);
       if (!mounted || id != _freeRequest) return;
       setState(() {
         _free = free;
@@ -345,6 +369,9 @@ class _BookingScreenState extends State<BookingScreen> {
       preferredWorkerId: _tier == ServiceTier.economy
           ? _preferredWorkerId
           : null,
+      previousOrderId: _preferredWorkerId == _previousWorkerId
+          ? _previousOrderId
+          : null,
     );
 
     setState(() {
@@ -416,7 +443,7 @@ class _BookingScreenState extends State<BookingScreen> {
           ? [
               Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
                     missingChoice(
@@ -429,18 +456,15 @@ class _BookingScreenState extends State<BookingScreen> {
                         '${quote?.requiredWorkers ?? 0} người × ${formatVnd(quote?.unitPrice ?? 0)}',
                     style: NordicTypography.bodySmall,
                   ),
-                  Text(
-                    quote == null ? '–' : formatVnd(quote.totalAmount),
-                    key: const Key('booking-total'),
-                    style: NordicTypography.numberSmall,
+                  NordicButton(
+                    key: const Key('submit-order'),
+                    label: quote == null
+                        ? 'Đặt ca'
+                        : 'Đặt ca · ${formatVnd(quote.totalAmount)}',
+                    isLoading: _submitting,
+                    onPressed: _submitting ? null : _submit,
                   ),
                 ],
-              ),
-              NordicButton(
-                key: const Key('submit-order'),
-                label: 'Đặt ca',
-                isLoading: _submitting,
-                onPressed: _submitting ? null : _submit,
               ),
             ]
           : null,
@@ -487,7 +511,8 @@ class _BookingScreenState extends State<BookingScreen> {
         ],
       ),
       _fieldError('serviceTier'),
-      if (_tier == ServiceTier.economy && _favorites.isNotEmpty)
+      if (_tier == ServiceTier.economy &&
+          (_favorites.isNotEmpty || _previousWorkerId != null))
         ..._favoriteSection(),
 
       _heading('Địa chỉ', top: NordicSpace.lg),
@@ -587,6 +612,7 @@ class _BookingScreenState extends State<BookingScreen> {
       _fieldError('customerNote'),
 
       _heading('Giá', top: NordicSpace.lg),
+      if (_quote == null) const Text('–', key: Key('booking-total')),
       _quoteCard(options),
       const SizedBox(height: NordicSpace.md),
 
@@ -644,38 +670,34 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
       );
     }
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        borderRadius: NordicRadius.cardAll,
-        boxShadow: NordicElevation.raised,
-      ),
-      child: NordicCard(
-        elevated: false,
-        isHighlighted: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
+    return RaisedPanel(
+      margin: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          KeyedSubtree(
+            key: const Key('booking-total'),
+            child: Text(
               formatVnd(quote.totalAmount),
               key: const Key('quote-total'),
               style: NordicTypography.numberMedium.copyWith(
                 color: NordicColors.primary,
               ),
             ),
-            const SizedBox(height: NordicSpace.xs),
-            Text(
-              '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}',
-              key: const Key('quote-breakdown'),
-              style: NordicTypography.bodyRegular,
-            ),
-            const SizedBox(height: 2.0),
-            Text(
-              workersNote(quote, options),
-              key: const Key('quote-workers-note'),
-              style: NordicTypography.bodySmall,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: NordicSpace.xs),
+          Text(
+            '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}',
+            key: const Key('quote-breakdown'),
+            style: NordicTypography.bodyRegular,
+          ),
+          const SizedBox(height: 2.0),
+          Text(
+            workersNote(quote, options),
+            key: const Key('quote-workers-note'),
+            style: NordicTypography.bodySmall,
+          ),
+        ],
       ),
     );
   }
@@ -698,7 +720,12 @@ class _BookingScreenState extends State<BookingScreen> {
       note = 'Ngày và ca bị làm mờ là lúc người này bận. Hệ thống mời người này trước; nếu họ không nhận, sẽ tìm người khác gần bạn.';
     }
     return [
-      _heading('Người giúp việc yêu thích', top: NordicSpace.lg),
+      _heading(
+        _previousWorkerId == null
+            ? 'Người giúp việc yêu thích'
+            : 'Chọn người giúp việc',
+        top: NordicSpace.lg,
+      ),
       _ChoiceCard(
         key: const Key('favorite-none'),
         selected: preferred == null,
@@ -707,6 +734,20 @@ class _BookingScreenState extends State<BookingScreen> {
         icon: Icons.auto_awesome_outlined,
         onTap: () => _choosePreferred(null),
       ),
+      if (_previousWorkerId != null &&
+          !_favorites.any(
+            (worker) => worker.workerId == _previousWorkerId,
+          )) ...[
+        const SizedBox(height: NordicSpace.xs),
+        _ChoiceCard(
+          key: Key('favorite-$_previousWorkerId'),
+          selected: preferred == _previousWorkerId,
+          title: _previousWorkerName ?? 'Người làm trước đây',
+          subtitle: 'Người đã hoàn thành ca của bạn',
+          icon: Icons.person_outline,
+          onTap: () => _choosePreferred(_previousWorkerId),
+        ),
+      ],
       for (final worker in _favorites) ...[
         const SizedBox(height: NordicSpace.xs),
         _ChoiceCard(

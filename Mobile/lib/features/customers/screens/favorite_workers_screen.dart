@@ -73,7 +73,7 @@ class _FavoriteWorkersScreenState extends State<FavoriteWorkersScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Đã bỏ yêu thích ${removed.fullName}.'),
+          content: Text('Đã bỏ ${removed.fullName} khỏi yêu thích'),
           backgroundColor: NordicColors.contrastDark,
           action: SnackBarAction(
             label: 'Hoàn tác',

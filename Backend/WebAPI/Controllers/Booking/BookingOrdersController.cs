@@ -70,6 +70,16 @@ public class BookingOrdersController(IOrderQueryService service, ICurrentUser cu
     public Task<IActionResult> Progress(long orderId, CancellationToken ct) =>
         AsCustomer(async id => Ok(ApiResponse<OrderProgressDto>.Ok(await service.GetProgressAsync(id, orderId, ct), "Order progress retrieved.")));
 
+    /// <summary>Free shifts of a worker from a completed assignment on the caller's order.</summary>
+    [HttpGet("orders/{orderId:long}/workers/{workerId:int}/availability")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkerFreeShift>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public Task<IActionResult> RebookAvailability(long orderId, int workerId, CancellationToken ct) =>
+        AsCustomer(async id => Ok(ApiResponse<IReadOnlyList<WorkerFreeShift>>.Ok(
+            await service.GetRebookAvailabilityAsync(id, orderId, workerId, ct), "Worker availability retrieved.")));
+
     private async Task<IActionResult> AsCustomer(Func<int, Task<IActionResult>> action) =>
         currentUser.UserId is int customerId
             ? await action(customerId)

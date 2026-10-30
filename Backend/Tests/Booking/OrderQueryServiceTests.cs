@@ -55,6 +55,12 @@ public sealed class OrderQueryServiceTests
         public Task<IReadOnlyList<CustomerAssignmentSummary>> GetCustomerHistoryAsync(int customerId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
+    private sealed class FreeShifts : IWorkerFreeShiftQuery
+    {
+        public Task<IReadOnlyList<WorkerFreeShift>> GetFreeShiftsAsync(int workerId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<WorkerFreeShift>>([new WorkerFreeShift(from, BookingShifts.Morning)]);
+    }
+
     private sealed class Extensions : IExtensionRepository
     {
         public JobOrderExtension? Extension { get; set; }
@@ -110,7 +116,7 @@ public sealed class OrderQueryServiceTests
 
         public OrderQueryService Service() => new(
             Db, Track, Ext, Addresses, new PricingService(new DefaultPrices()), Creation, Workers, new TestClock(),
-            Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+            Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new FreeShifts());
 
         public JobOrder AddOrder(long id, int customerId = CustomerId, JobOrderStatus status = JobOrderStatus.PendingPayment, int ageMinutes = 5)
         {
@@ -153,6 +159,21 @@ public sealed class OrderQueryServiceTests
             Db.Items.Add(order);
             return order;
         }
+    }
+
+    [Fact]
+    public async Task RebookAvailabilityRequiresOwnedOrderAndCompletedWorker()
+    {
+        var f = new Fixture();
+        f.AddOrder(42);
+        f.Track.Rows.Add(new AssignmentProgress(11, 1, 58, JobAssignmentStatus.Completed, null, null));
+        var shifts = await f.Service().GetRebookAvailabilityAsync(CustomerId, 42, 58);
+        Assert.Single(shifts);
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service().GetRebookAvailabilityAsync(CustomerId + 1, 42, 58));
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service().GetRebookAvailabilityAsync(CustomerId, 42, 59));
+        f.Track.Rows.Clear();
+        f.Track.Rows.Add(new AssignmentProgress(11, 1, 58, JobAssignmentStatus.InProgress, null, null));
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service().GetRebookAvailabilityAsync(CustomerId, 42, 58));
     }
 
     [Fact]
@@ -214,6 +235,16 @@ public sealed class OrderQueryServiceTests
         Assert.Equal("PENDING_PAYMENT", order.OrderStatus);
         Assert.Equal(100, order.OrderId);
         Assert.Equal(Now.AddMinutes(15), order.PaymentDeadlineAt);
+    }
+
+    [Fact]
+    public async Task Create_PassesPreviousOrderToTheCreationService()
+    {
+        var f = new Fixture();
+        var body = new CreateOrderBody(AddressId, "ECONOMY", new DateOnly(2026, 10, 15), "SHIFT_EVENING", null, null, 58, 42);
+        await f.Service().CreateAsync(CustomerId, body);
+        Assert.Equal(58, f.Creation.Last!.PreferredWorkerId);
+        Assert.Equal(42, f.Creation.Last.PreviousOrderId);
     }
 
     [Theory]

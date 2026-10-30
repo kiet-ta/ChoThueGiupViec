@@ -143,6 +143,16 @@ class FakeFavorites implements IBookingFavoriteSource {
   }
 }
 
+class FakeRebookAvailability implements IRebookAvailabilitySource {
+  final requested = <(int, int)>[];
+
+  @override
+  Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
+    requested.add((orderId, workerId));
+    return {'2026-10-15|SHIFT_MORNING'};
+  }
+}
+
 const _mai = FavoriteWorker(
   workerId: 42,
   fullName: 'Nguyễn Thị Mai',
@@ -158,6 +168,7 @@ Future<List<BookingOrder>> pumpBooking(
   VoidCallback? onManageAddresses,
   BookingScreenArgs? args,
   FakeFavorites? favorites,
+  IRebookAvailabilitySource? rebookAvailability,
   double width = 390,
   double textScale = 1.0,
 }) async {
@@ -184,6 +195,7 @@ Future<List<BookingOrder>> pumpBooking(
         onManageAddresses: onManageAddresses,
         args: args,
         favorites: favorites ?? FakeFavorites(),
+        rebookAvailability: rebookAvailability,
       ),
     ),
   );
@@ -264,6 +276,31 @@ void main() {
       await tapKey(tester, 'tier-PREMIUM');
       expect(find.byKey(const Key('favorite-42')), findsNothing);
     });
+
+    testWidgets(
+      'rebooking selects a previous worker without adding a favorite',
+      (tester) async {
+        final service = FakeBookingService();
+        final availability = FakeRebookAvailability();
+        await pumpBooking(
+          tester,
+          service,
+          rebookAvailability: availability,
+          args: const BookingScreenArgs(
+            preferredWorkerId: 42,
+            previousOrderId: 100,
+            previousWorkerName: 'Nguyễn Thị Mai',
+          ),
+        );
+        expect(availability.requested, [(100, 42)]);
+        expect(find.byKey(const Key('favorite-42')), findsOneWidget);
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'submit-order');
+        expect(service.created.single.previousOrderId, 100);
+        expect(service.created.single.preferredWorkerId, 42);
+      },
+    );
 
     testWidgets(
       'picking a favorite greys out the days and shifts they are busy, and sends them',

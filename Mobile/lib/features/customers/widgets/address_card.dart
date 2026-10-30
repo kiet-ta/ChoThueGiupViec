@@ -5,6 +5,7 @@ import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../models/customer_address.dart';
 
@@ -20,6 +21,7 @@ class AddressCard extends StatelessWidget {
 
   /// The address the current booking uses: marked with a check.
   final bool selected;
+  final bool grouped;
 
   const AddressCard({
     super.key,
@@ -28,6 +30,7 @@ class AddressCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     this.selected = false,
+    this.grouped = false,
   });
 
   IconData _getHousingIcon() {
@@ -51,105 +54,105 @@ class AddressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NordicCard(
-      key: Key('address-card-${address.addressId}'),
-      onTap: onSelect,
-      padding: const EdgeInsets.fromLTRB(
-        NordicSpace.md,
-        NordicSpace.sm,
-        NordicSpace.xxs,
-        NordicSpace.sm,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40.0,
-            height: 40.0,
-            decoration: BoxDecoration(
-              color: selected
-                  ? NordicColors.primaryFixed
-                  : NordicColors.surfaceLow,
-              borderRadius: NordicRadius.tileAll,
-            ),
-            child: Icon(
-              selected ? Icons.check : _getHousingIcon(),
-              key: selected
-                  ? Key('address-selected-${address.addressId}')
-                  : null,
-              color: NordicColors.primary,
-            ),
+    const padding = EdgeInsets.fromLTRB(
+      NordicSpace.md,
+      NordicSpace.sm,
+      NordicSpace.xxs,
+      NordicSpace.sm,
+    );
+    final content = Row(
+      children: [
+        Container(
+          width: 40.0,
+          height: 40.0,
+          decoration: BoxDecoration(
+            color: selected
+                ? NordicColors.primaryFixed
+                : NordicColors.surfaceLow,
+            borderRadius: NordicRadius.tileAll,
           ),
-          const SizedBox(width: 12.0),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
+          child: Icon(
+            selected ? Icons.check : _getHousingIcon(),
+            key: selected ? Key('address-selected-${address.addressId}') : null,
+            color: NordicColors.primary,
+          ),
+        ),
+        const SizedBox(width: NordicSpace.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      address.label,
+                      style: NordicTypography.titleSmall,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (address.isDefault) ...[
+                    const SizedBox(width: NordicSpace.xxs),
                     Flexible(
-                      child: Text(
-                        address.label,
-                        style: NordicTypography.titleSmall,
-                        overflow: TextOverflow.ellipsis,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: const StatusPill('Mặc định', tone: PillTone.ok),
                       ),
                     ),
-                    if (address.isDefault) ...[
-                      const SizedBox(width: 6.0),
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: const StatusPill(
-                            'Mặc định',
-                            tone: PillTone.ok,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
-                ),
-                const SizedBox(height: 2.0),
-                Text(
-                  address.fullAddress,
-                  style: NordicTypography.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8.0),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _area,
-                key: Key('address-area-${address.addressId}'),
-                style: NordicTypography.titleSmall,
+                ],
               ),
-              const Text(
-                'm²',
-                style: TextStyle(
-                  fontSize: 11.0,
-                  color: NordicColors.textSecondary,
-                ),
+              const SizedBox(height: NordicSpace.xxs),
+              Text(
+                address.fullAddress,
+                style: NordicTypography.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
-          IconButton(
-            key: Key('address-edit-${address.addressId}'),
-            icon: const Icon(Icons.edit_outlined, size: 20.0),
-            color: NordicColors.textSecondary,
-            tooltip: 'Sửa',
-            onPressed: onEdit,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, size: 20.0),
-            color: NordicColors.textSecondary,
-            tooltip: 'Xoá',
-            onPressed: onDelete,
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: NordicSpace.xs),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              _area,
+              key: Key('address-area-${address.addressId}'),
+              style: NordicTypography.titleSmall,
+            ),
+            const Text('m²', style: NordicTypography.bodySmall),
+          ],
+        ),
+        IconButton(
+          key: Key('address-edit-${address.addressId}'),
+          icon: const Icon(Icons.edit_outlined, size: 20.0),
+          color: NordicColors.textSecondary,
+          tooltip: 'Sửa',
+          onPressed: onEdit,
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, size: 20.0),
+          color: NordicColors.textSecondary,
+          tooltip: 'Xoá',
+          onPressed: onDelete,
+        ),
+      ],
+    );
+    if (grouped) {
+      return Pressable(
+        key: Key('address-card-${address.addressId}'),
+        child: InkWell(
+          onTap: onSelect,
+          child: Padding(padding: padding, child: content),
+        ),
+      );
+    }
+    return NordicCard(
+      key: Key('address-card-${address.addressId}'),
+      onTap: onSelect,
+      padding: padding,
+      child: content,
     );
   }
 }

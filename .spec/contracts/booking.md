@@ -128,21 +128,23 @@ Shows the fixed price **before** paying (PRD §4.1, Q01). 200 `data`: `PriceQuot
 | 500 | no active `PRICE_RULE` row for the pair (seed data broken; never guessed) |
 
 ### 3.3 `POST /api/booking/orders` (BE-M2-01, BE-M2-02, BE-M2-03)
+
+For rebooking, `GET /api/booking/orders/{orderId}/workers/{workerId}/availability` returns `data` as an array of `{ "date": "yyyy-MM-dd", "shiftCode": "string" }` for the booking window. The order must belong to the caller and have a COMPLETED assignment for that worker; either mismatch returns 404. This read does not add a favorite.
 Request
 ```json
 {
   "addressId": 0, "serviceTier": "ECONOMY | PREMIUM",
   "scheduledDate": "2026-10-15", "shiftCode": "SHIFT_MORNING",
   "customerNote": "string | null", "requiredSkill": "string | null",
-  "preferredWorkerId": "int | null"
+  "preferredWorkerId": "int | null", "previousOrderId": "long | null"
 }
 ```
-`preferredWorkerId` (optional, ECONOMY only): one of the caller's favorite workers (`customers.md` 2.3). Dispatch offers that worker the first open seat before the 5 -> 7 -> 10 km scan, when they have not had the order yet, are free for the shift, within 10 km and pass the usual eligibility; otherwise (or after a decline / timeout) dispatch goes on as usual. It is a wish, not a guarantee. Stored in `JOB_ORDER.preferred_worker_id` (INT NULL, plain id).
+`preferredWorkerId` (optional, ECONOMY only): one of the caller's favorite workers (`customers.md` 2.3), or a worker with a COMPLETED assignment on the caller's `previousOrderId`. The latter does not change the caller's favorites. Dispatch offers that worker the first open seat before the 5 -> 7 -> 10 km scan, when they have not had the order yet, are free for the shift, within 10 km and pass the usual eligibility; otherwise (or after a decline / timeout) dispatch goes on as usual. It is a wish, not a guarantee. Stored in `JOB_ORDER.preferred_worker_id` (INT NULL, plain id).
 Response **201** `data`: `Order` (`orderStatus = PENDING_PAYMENT`). The client then asks for the QR (`payments.md` §2.1).
 
 Rules (in this order; nothing is written when one fails):
 1. Validation (400, O5): `addressId` > 0; `serviceTier` and `shiftCode` from §1.2/§1.3; `scheduledDate` a date; `customerNote` <= 500 chars (column `NVARCHAR(500)`); `requiredSkill` <= 100 chars and only allowed for `PREMIUM` (see **B6**); `preferredWorkerId` > 0 and only allowed for `ECONOMY`.
-2. The address must belong to the caller (404 otherwise), read through a port, never from `CUSTOMER_ADDRESS` (`customers.md` §3; see **B2**). `areaSnapshotM2` = its `totalAreaM2` at this moment. A `preferredWorkerId` must be one of the caller's favorites (404 otherwise, read through the port `ICustomerFavoriteQuery`).
+2. The address must belong to the caller (404 otherwise), read through a port, never from `CUSTOMER_ADDRESS` (`customers.md` §3; see **B2**). `areaSnapshotM2` = its `totalAreaM2` at this moment. A `preferredWorkerId` must be a favorite or have a COMPLETED assignment on the caller's `previousOrderId` (404 otherwise). `previousOrderId`, when provided, must be positive and requires `preferredWorkerId` (400 otherwise).
 3. Shift start must be in the future (409 `SHIFT_IN_PAST`). See **B3** for an Economy lead time / booking horizon.
 4. `PREMIUM`: shift start >= now + `Premium.MinLeadHours` (4) (Q13) else **409** `PREMIUM_LEAD_TIME`.
 5. `requiredWorkers` and `totalAmount` from §1.3 (BE-M2-01 pure function + BE-M2-02 price lookup).
@@ -152,7 +154,7 @@ Rules (in this order; nothing is written when one fails):
 | Status | Condition |
 |---|---|
 | 400 | validation (O5) |
-| 404 | address not found / not owned; `preferredWorkerId` not in the caller's favorites |
+| 404 | address not found / not owned; `preferredWorkerId` is neither a favorite nor a completed worker on the caller's previous order |
 | 409 | `data.code` = `SHIFT_IN_PAST` \| `PREMIUM_LEAD_TIME` \| `FULLY_BOOKED` |
 
 Business 409s carry `data: { "code": "<CODE>" }` so clients branch on the code, never on `message` (same pattern as `admin.md` `failedCriteria`).

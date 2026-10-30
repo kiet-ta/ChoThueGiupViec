@@ -1,6 +1,6 @@
 # Customer redesign v2 — spec cho agent code (Mobile)
 
-> Owner: Duy (M3, nền Mobile) · Ngày: 2026-10-30 · Trạng thái: **đã code: §1 đến §4.4 (ticket #554, PR #557); §4.5 còn hạn chế, xem bảng trong PR**
+> Owner: Duy (M3, nền Mobile) · Ngày: 2026-10-30 · Trạng thái: **đã code trong ticket #554 và #560; đang nghiệm thu**
 > Bản thiết kế (canvas, bấm thử được): https://claude.ai/artifact/98zVVg82Br7C56Zt6KXWuV
 > - Hàng 1: Trang chủ (`Main` = chưa có ca, `Booked` = có ca sắp tới)
 > - Hàng 2: `Orders`, `OrderDone`, `OrderCancelled`, `Favorites`, `Account`

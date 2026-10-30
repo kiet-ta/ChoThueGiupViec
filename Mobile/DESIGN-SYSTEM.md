@@ -106,7 +106,7 @@ Controllers: `animateWith(spring.simulate(from: value, velocity: velocity))`. Im
 
 | Component | File | Notes |
 |---|---|---|
-| `NordicPage.tab` / `NordicPage.pushed` | `core/widgets/nordic_page.dart` | the scaffold of every screen (§5) |
+| `NordicPage.tab` / `NordicPage.pushed` | `core/widgets/nordic_page.dart` | the scaffold of every screen (§5); a pushed page may supply `fullWidthHeader` for a `DarkHeader`, or `bodyOverride` for a state-specific scrollable body while keeping its action bar |
 | `NordicButton` (primary, secondary, ghost) | `core/widgets/nordic_button.dart` | pill, `Pressable`, loading state |
 | `BottomActionBar` | `core/widgets/bottom_action_bar.dart` | the main button(s); `NordicPage(actions:)` places it |
 | `NordicCard` | `core/widgets/nordic_card.dart` | white card with the `card` shadow; `onTap` makes it a pressable button; `elevated: false` flattens it |
@@ -114,7 +114,7 @@ Controllers: `animateWith(spring.simulate(from: value, velocity: velocity))`. Im
 | `DarkHeader` | `core/widgets/dark_header.dart` | deep-green header that bleeds to the top edge, rounded bottom, three rings; keeps `overlap` free for a `RaisedPanel`; optional app bar (back 44x44 + centred title) |
 | `RaisedPanel` | `core/widgets/raised_panel.dart` | the one floating white panel of a screen (`raised` shadow, sheet radius); put it in `Transform.translate(Offset(0, -overlap))` over a `DarkHeader` |
 | `GlassPanel` | `core/widgets/glass_panel.dart` | white 8 % panel with a 14 % border on a dark surface, no shadow; `pill` and `onTap` options |
-| `GroupedListCard` | `core/widgets/grouped_list_card.dart` | settings-like rows in one card |
+| `GroupedListCard` | `core/widgets/grouped_list_card.dart` | settings-like rows in one elevated card; `GroupedListCard.custom` groups interactive rows such as address entries while retaining their controls |
 | `SectionTitle` | `core/widgets/section_title.dart` | section heading + optional link |
 | `StatTile` | `core/widgets/stat_tile.dart` | one label, one number |
 | `StatusPill` | `core/widgets/status_pill.dart` | a status in words, tone ok / warn / bad / neutral |
@@ -132,6 +132,7 @@ Controllers: `animateWith(spring.simulate(from: value, velocity: velocity))`. Im
 - **Form**: fields with labels above; validate inline while typing where possible; on submit, an error message under the field + `ErrorShake`; the submit button in `actions` (above the keyboard); a field never hidden by the keyboard.
 - **List**: cards with `sm` gaps, newest first, grouped by month when long; each row: title (what), one meta line (when · how much), a status pill on the right; the whole card is the tap target.
 - **Detail with a dark header** (order detail, account): a `DarkHeader` (with the app bar on a pushed screen) holds the big figure or the person, the facts sit on a `RaisedPanel` that rises over it, the rest follows on the `canvas`. A cancelled order shows one red cross line in the timeline, never a tick, and no workers section.
+- **Payment while waiting**: a pushed `NordicPage` uses `fullWidthHeader` with a `DarkHeader` for the server amount and expiry countdown; the sandbox notice and payment details sit on a `RaisedPanel` below it. The countdown and copy controls retain their keys.
 - **Detail** (order detail, payment): the one big number first (time or amount) in a dark `contrastDark` block with the `raised` shadow (figure in `textInverse`, secondary text in `onDarkMuted`, the status pill below it), then the facts and the timeline in a white card, then people, then actions at the bottom. One `raised` block per screen; panels on the dark block are white at 8 % with a 14 % white border and no shadow. List and form screens stay on the light `canvas`.
 - **Choice tile** (booking tier, day, shift, address): a white tile with a `primaryContainer` border and a check mark when chosen. The main `NordicButton` (primary) carries the `cta` shadow by itself; a disabled or loading one lies flat.
 - **States**: loading = `LoadingStateWidget`; error = `ErrorStateWidget` with "Thử lại"; empty = `EmptyStateWidget` with one sentence and, when it helps, one action.

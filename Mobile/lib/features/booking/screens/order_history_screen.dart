@@ -355,28 +355,48 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Flexible(
-                        child: Text(
-                          shift?.startLocal ?? shiftLabel(order.shiftCode),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: NordicTypography.numberLarge.copyWith(
-                            color: NordicColors.textInverse,
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                shift?.startLocal ??
+                                    shiftLabel(order.shiftCode),
+                                maxLines: 1,
+                                style: NordicTypography.numberLarge.copyWith(
+                                  color: NordicColors.textInverse,
+                                ),
+                              ),
+                              if (shift != null) ...[
+                                const SizedBox(width: NordicSpace.xs),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    'đến ${shift.endLocal}',
+                                    style: muted,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ),
-                      if (shift != null) ...[
-                        const SizedBox(width: NordicSpace.xs),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('đến ${shift.endLocal}', style: muted),
-                        ),
-                      ],
-                      const Spacer(),
-                      Text(
-                        formatVnd(order.totalAmount),
-                        style: NordicTypography.numberSmall.copyWith(
-                          color: NordicColors.textInverse,
+                      const SizedBox(width: NordicSpace.sm),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            formatVnd(order.totalAmount),
+                            maxLines: 1,
+                            style: NordicTypography.numberSmall.copyWith(
+                              color: NordicColors.textInverse,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -405,8 +425,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     );
     final widgets = <Widget>[];
     for (final group in groups) {
-      if (widgets.isNotEmpty)
+      if (widgets.isNotEmpty) {
         widgets.add(const SizedBox(height: NordicSpace.lg));
+      }
       if (group.key.isNotEmpty) {
         widgets.add(
           Padding(
@@ -535,9 +556,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 ),
               ),
               const SizedBox(width: NordicSpace.xs),
-              OrderStatusPill(
-                order.orderStatus,
-                textKey: Key('order-status-${order.orderId}'),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 124),
+                child: OrderStatusPill(
+                  order.orderStatus,
+                  textKey: Key('order-status-${order.orderId}'),
+                ),
               ),
             ],
           ),

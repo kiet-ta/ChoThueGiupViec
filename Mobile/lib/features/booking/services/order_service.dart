@@ -51,7 +51,7 @@ class OrderService implements IOrderService {
       queryParams: {
         'page': '$page',
         'pageSize': '$pageSize',
-        if (status != null) 'status': status,
+        'status': ?status,
       },
       fromJson: (json) => OrderPage.fromJson(json as Map<String, dynamic>),
     );

@@ -465,6 +465,7 @@ void main() {
         expect(textOf(tester, 'order-status'), 'Đã huỷ');
         expect(textOf(tester, 'order-cancel-reason'), 'Lý do huỷ: bận việc');
         expect(find.byKey(const Key('order-notice')), findsOneWidget);
+        expect(textOf(tester, 'order-notice'), 'Đã huỷ đơn.');
         expect(find.byKey(const Key('open-cancel')), findsNothing);
         expect(find.byKey(const Key('cancel-form')), findsNothing);
       },
@@ -475,6 +476,11 @@ void main() {
       (tester) async {
         final service = FakeOrderService()..status = OrderStatus.cancelled;
         await pumpDetail(tester, service);
+
+        expect(
+          tester.getSize(find.byKey(const Key('order-amount'))).height,
+          lessThan(40),
+        );
 
         expect(find.byKey(const Key('order-timeline')), findsOneWidget);
         expect(
@@ -841,6 +847,15 @@ void main() {
 
         expect(find.text('Sắp tới'), findsOneWidget);
         expect(find.byKey(const Key('history-upcoming-1')), findsOneWidget);
+        final start = find.descendant(
+          of: find.byKey(const Key('history-upcoming-1')),
+          matching: find.text('08:00'),
+        );
+        expect(start, findsOneWidget);
+        expect(
+          tester.widget<Text>(start).overflow,
+          isNot(TextOverflow.ellipsis),
+        );
         expect(find.byKey(const Key('history-upcoming-2')), findsNothing);
         expect(
           find.byKey(const Key('order-1')),

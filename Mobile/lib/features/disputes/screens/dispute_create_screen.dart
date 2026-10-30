@@ -6,9 +6,9 @@ import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/progress_ring.dart';
 import '../../payouts/logic/payout_logic.dart';
 import '../logic/dispute_logic.dart';
@@ -135,35 +135,25 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
   @override
   Widget build(BuildContext context) {
     final sent = _created != null;
-    return Scaffold(
-      appBar: AppBar(
-        leading: const CloseButton(),
-        title: const Text('Khiếu nại'),
-      ),
-      // MOB-UI-16: full width; "Gửi khiếu nại" sits in the body's bar, above the keyboard while
-      // the description is typed; a refused send shakes the form (DESIGN-SYSTEM §5 Form).
-      body: Column(
-        children: [
-          Expanded(
-            child: sent
-                ? _sent(_created!)
-                : ErrorShake(errors: _formErrors, child: _form()),
-          ),
-          if (!sent)
-            BottomActionBar(
-              children: [
-                NordicButton(
-                  key: const Key('dispute-submit'),
-                  label: 'Gửi khiếu nại',
-                  isLoading: _sending,
-                  onPressed: _sending || !_uploader.isAvailable || !_complete
-                      ? null
-                      : _submit,
-                ),
-              ],
-            ),
-        ],
-      ),
+    return NordicPage.pushed(
+      title: 'Khiếu nại',
+      leading: const CloseButton(),
+      bodyOverride: sent
+          ? _sent(_created!)
+          : ErrorShake(errors: _formErrors, child: _form()),
+      actions: sent
+          ? null
+          : [
+              NordicButton(
+                key: const Key('dispute-submit'),
+                label: 'Gửi khiếu nại',
+                isLoading: _sending,
+                onPressed: _sending || !_uploader.isAvailable || !_complete
+                    ? null
+                    : _submit,
+              ),
+            ],
+      children: const [],
     );
   }
 

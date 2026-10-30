@@ -324,8 +324,12 @@ void main() {
       expect(find.text('Nguyễn Văn An'), findsOneWidget);
       expect(find.text('0901 234 567'), findsOneWidget);
       expect(find.text('15'), findsOneWidget);
-      expect(find.text('15/01/2026'), findsOneWidget);
+      expect(find.text('01/2026'), findsOneWidget);
       expect(find.text('Ngày tham gia'), findsOneWidget);
+      expect(
+        find.textContaining('Mặc định: 123 Nguyễn Thị Minh Khai'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('the rows open their screens and the last one signs out', (

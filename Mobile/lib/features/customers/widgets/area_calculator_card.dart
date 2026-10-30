@@ -47,10 +47,18 @@ class AreaCalculatorCard extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            '${totalAreaM2.toStringAsFixed(1).replaceAll('.', ',')} m²',
-            key: const Key('area-total'),
-            style: NordicTypography.numberLarge,
+          // The big total shrinks instead of pushing the row wider than the screen at a large text scale.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                '${totalAreaM2.toStringAsFixed(1).replaceAll('.', ',')} m²',
+                key: const Key('area-total'),
+                maxLines: 1,
+                style: NordicTypography.numberLarge,
+              ),
+            ),
           ),
         ],
       ),
