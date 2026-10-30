@@ -63,7 +63,17 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
     super.dispose();
   }
 
+  /// Closes the keyboard of a photo step so it never stays open on a screen without an input: the action bar sits
+  /// above the keyboard, so an open keyboard would push the send button up the confirmation step.
+  void _closeKeyboard() => FocusManager.instance.primaryFocus?.unfocus();
+
+  void _goToStep(int step) {
+    _closeKeyboard();
+    setState(() => _currentStep = step);
+  }
+
   Future<void> _submitEkyc() async {
+    _closeKeyboard();
     final frontUrl = _frontCccdController.text.trim();
     final backUrl = _backCccdController.text.trim();
     final selfieUrl = _selfieController.text.trim();
@@ -116,6 +126,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
                 label: 'Làm lại xác minh',
                 variant: NordicButtonVariant.secondary,
                 onPressed: () {
+                  _closeKeyboard();
                   setState(() {
                     _result = null;
                     _currentStep = 0;
@@ -333,7 +344,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
               child: NordicButton(
                 label: 'Quay lại',
                 variant: NordicButtonVariant.secondary,
-                onPressed: () => setState(() => _currentStep--),
+                onPressed: () => _goToStep(_currentStep - 1),
               ),
             ),
             const SizedBox(width: NordicSpace.sm),
@@ -342,7 +353,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
             child: NordicButton(
               label: 'Tiếp theo',
               variant: NordicButtonVariant.primary,
-              onPressed: () => setState(() => _currentStep++),
+              onPressed: () => _goToStep(_currentStep + 1),
             ),
           ),
         ],
@@ -363,7 +374,7 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
         NordicButton(
           label: 'Chỉnh sửa ảnh',
           variant: NordicButtonVariant.ghost,
-          onPressed: () => setState(() => _currentStep = 0),
+          onPressed: () => _goToStep(0),
         ),
       ],
     );

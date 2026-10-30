@@ -105,5 +105,62 @@ void main() {
       expect(find.text('92.0%'), findsOneWidget);
       expect(find.text('Đã duyệt'), findsOneWidget);
     });
+
+    group('last step layout', () {
+      Future<void> goToLastStep(WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: WorkerEkycScreen(ekycService: mockService)),
+        );
+        await tester.pumpAndSettle();
+        // Focus a photo field first: its keyboard is what used to stay open.
+        await tester.tap(find.byType(TextField).first);
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 3; i++) {
+          await tester.tap(find.text('Tiếp theo'));
+          await tester.pumpAndSettle();
+        }
+      }
+
+      for (final size in const [Size(360, 640), Size(390, 844)]) {
+        testWidgets(
+          'confirmation on top, send button under it at the bottom (${size.width.toInt()}x${size.height.toInt()})',
+          (tester) async {
+            tester.view.physicalSize = size;
+            tester.view.devicePixelRatio = 1.0;
+            addTearDown(() {
+              tester.view.resetPhysicalSize();
+              tester.view.resetDevicePixelRatio();
+            });
+            await goToLastStep(tester);
+
+            final card = tester.getTopLeft(find.text('Xác nhận ảnh sẽ gửi')).dy;
+            final send = tester.getTopLeft(find.text('Gửi xác minh')).dy;
+            final edit = tester.getTopLeft(find.text('Chỉnh sửa ảnh')).dy;
+            expect(card, lessThan(send));
+            expect(send, lessThan(edit));
+            // The buttons sit in the lower third of the screen, not up under the title.
+            expect(send, greaterThan(size.height * 0.6));
+          },
+        );
+      }
+
+      testWidgets('changing step closes the keyboard of the photo field', (
+        tester,
+      ) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          MaterialApp(home: WorkerEkycScreen(ekycService: mockService)),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(TextField).first);
+        await tester.pumpAndSettle();
+        expect(tester.testTextInput.isVisible, isTrue);
+
+        await tester.tap(find.text('Tiếp theo'));
+        await tester.pumpAndSettle();
+
+        expect(tester.testTextInput.isVisible, isFalse);
+      });
+    });
   });
 }
