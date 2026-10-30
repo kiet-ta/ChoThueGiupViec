@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/nordic_colors.dart';
+import '../../core/theme/nordic_elevation.dart';
 import '../../core/theme/nordic_radius.dart';
 import '../../core/theme/nordic_spacing.dart';
 import '../../core/theme/nordic_typography.dart';
@@ -17,14 +18,17 @@ import '../booking/screens/booking_screen.dart';
 import '../booking/services/booking_service.dart';
 import '../booking/services/order_service.dart';
 import '../customers/models/favorite_worker.dart';
+import '../customers/routes.dart';
 import '../customers/services/customer_profile_service.dart';
 import '../customers/services/favorite_worker_service.dart';
 
-/// The customer's Trang chủ tab (ui-templates `customer/home.html`): greeting, the next booking, quick
-/// booking with the server's prices for the default address, and favourite workers.
-/// MOB-UI-14 (`Mobile/DESIGN-SYSTEM.md`): a photo card is the main action, every card presses,
-/// plain words. Every section loads on its own; a failed call hides only its section. No spending chart: no API
-/// returns a customer's spending (README "needs API").
+/// The customer's Trang chủ tab (redesign 2026-10-30, `Mobile/DESIGN-SYSTEM.md` §5 "Home"):
+/// a deep-green header (date, greeting, default address, the next booking), a raised booking card
+/// that overlaps the header (the two segments with the server's prices for the default address and
+/// one "Đặt ca" button), then the favourite helpers as cards with "Đặt lại".
+/// Every section loads on its own; a failed call hides only its section. The device computes no
+/// money: every price is the server's quote. No spending chart, no cooking service, no
+/// notifications: no API feeds them.
 class CustomerHomeTab extends StatefulWidget {
   final IOrderService? orders;
   final IBookingService? booking;
@@ -78,11 +82,16 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   late final CustomerProfileService _profile =
       widget.profile ?? CustomerProfileService();
 
+  /// How far the booking card rises over the dark header.
+  static const double _overlap = 64;
+
   String? _firstName;
   _NextOrder? _next;
   bool _nextLoaded = false;
   String? _nextError;
+  BookingOptions? _options;
   _QuickQuotes? _quotes;
+  String _tier = ServiceTier.economy;
   List<FavoriteWorker> _favoriteList = const [];
 
   @override
@@ -116,6 +125,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     try {
       final page = await _orders.listOrders();
       final options = await _booking.getOptions();
+      if (mounted) setState(() => _options = options);
       final now = (widget.clock ?? DateTime.now)().toUtc().add(
         const Duration(hours: 7),
       );
@@ -182,7 +192,10 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   Future<void> _loadQuotes() async {
     try {
       final list = await _addresses.getAddresses();
-      if (list.isEmpty) return;
+      if (list.isEmpty) {
+        if (mounted) setState(() => _quotes = null);
+        return;
+      }
       final address = list.firstWhere(
         (a) => a.isDefault,
         orElse: () => list.first,
@@ -197,9 +210,12 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
         } catch (_) {}
       }
       if (!mounted || byTier.isEmpty) return;
-      setState(() => _quotes = _QuickQuotes(address, byTier));
+      setState(() {
+        _quotes = _QuickQuotes(address, byTier);
+        if (!byTier.containsKey(_tier)) _tier = byTier.keys.first;
+      });
     } catch (_) {
-      // No quick booking; the centre button still opens the booking form.
+      // No prices; the booking card still opens the booking form.
     }
   }
 
@@ -210,15 +226,40 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     } catch (_) {}
   }
 
-  void _openBooking() => Navigator.of(context).pushNamed(BookingRoutes.booking);
+  /// "Đặt ca": the form opens with the chosen segment and the default address already ticked.
+  void _openBooking() {
+    final q = _quotes;
+    Navigator.of(context)
+        .pushNamed(
+          BookingRoutes.booking,
+          arguments: q == null
+              ? null
+              : BookingScreenArgs(
+                  serviceTier: _tier,
+                  addressId: q.address.addressId,
+                ),
+        )
+        .then((_) {
+          if (mounted) _loadNext();
+        });
+  }
 
-  /// A "Đặt nhanh" tile: the form opens with that segment and address already ticked.
-  void _openQuickBooking(String tier, int addressId) {
+  /// "Đặt lại" on a favourite helper: a basic-segment booking with that helper ticked.
+  void _bookAgain(FavoriteWorker worker) {
     Navigator.of(context).pushNamed(
       BookingRoutes.booking,
-      arguments: BookingScreenArgs(serviceTier: tier, addressId: addressId),
+      arguments: BookingScreenArgs(
+        serviceTier: ServiceTier.economy,
+        addressId: _quotes?.address.addressId,
+        preferredWorkerId: worker.workerId,
+      ),
     );
   }
+
+  void _openAddresses() =>
+      Navigator.of(context).pushNamed(CustomerRoutes.addressList).then((_) {
+        if (mounted) _loadQuotes();
+      });
 
   void _openOrder(int orderId) => Navigator.of(context)
       .pushNamed(
@@ -248,58 +289,173 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    // The shell's translucent bar sits over the bottom of this tab: keep the end clear of it.
+    // The shell's bar and its raised centre button sit over the bottom of this tab: keep the end
+    // clear of both (the button rises about 30 px above the bar).
     final bottom = MediaQuery.paddingOf(context).bottom;
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            NordicSpace.gutter,
-            NordicSpace.md,
-            NordicSpace.gutter,
-            NordicSpace.xl + bottom,
+      backgroundColor: NordicColors.canvas,
+      body: ListView(
+        padding: EdgeInsets.only(bottom: 120 + bottom - _overlap),
+        children: [
+          _header(context),
+          // Everything below rises over the header; the list ends [_overlap] earlier to match.
+          Transform.translate(
+            offset: const Offset(0, -_overlap),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _bookingCard(),
+                if (_favoriteList.isNotEmpty) ..._favoriteSection(),
+              ],
+            ),
           ),
-          children: [
-            Text(
-              _today,
-              style: NordicTypography.bodyRegular.copyWith(
-                color: NordicColors.textSecondary,
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------- header
+
+  Widget _header(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(
+        color: NordicColors.contrastDark,
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(NordicRadius.sheet + 4),
+        ),
+      ),
+      child: Stack(
+        children: [
+          const Positioned(
+            right: -110,
+            top: -90,
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                child: CustomPaint(size: Size(300, 300), painter: _Rings()),
               ),
             ),
-            const SizedBox(height: NordicSpace.xxs),
-            Text(
-              _firstName == null ? 'Xin chào' : 'Chào $_firstName',
-              key: const Key('home-greeting'),
-              style: NordicTypography.greeting,
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              NordicSpace.gutter,
+              top + NordicSpace.lg,
+              NordicSpace.gutter,
+              _overlap + NordicSpace.section,
             ),
-            const SizedBox(height: NordicSpace.lg),
-            _bookBanner(),
-            const SectionTitle('Lịch của bạn'),
-            _nextCard(),
-            if (_quotes != null) ..._quickBook(_quotes!),
-            if (_favoriteList.isNotEmpty) ..._favoriteRow(),
-          ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _today,
+                  style: NordicTypography.bodyRegular.copyWith(
+                    color: NordicColors.onDarkMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: NordicSpace.xxs),
+                Text(
+                  _firstName == null ? 'Xin chào' : 'Chào $_firstName',
+                  key: const Key('home-greeting'),
+                  style: NordicTypography.greeting.copyWith(
+                    color: NordicColors.textInverse,
+                  ),
+                ),
+                if (_quotes != null) ...[
+                  const SizedBox(height: NordicSpace.md),
+                  _addressPill(_quotes!.address),
+                ],
+                const SizedBox(height: NordicSpace.gutter),
+                _nextSection(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A translucent white panel on the dark header.
+  static BoxDecoration get _glass => BoxDecoration(
+    color: NordicColors.textInverse.withValues(alpha: 0.08),
+    borderRadius: NordicRadius.cardAll,
+    border: Border.all(color: NordicColors.textInverse.withValues(alpha: 0.14)),
+  );
+
+  Widget _addressPill(BookingAddress address) {
+    return Pressable(
+      child: Semantics(
+        button: true,
+        label: 'Địa chỉ: ${address.addressLine}. Đổi địa chỉ',
+        child: Material(
+          color: NordicColors.textInverse.withValues(alpha: 0.08),
+          shape: StadiumBorder(
+            side: BorderSide(
+              color: NordicColors.textInverse.withValues(alpha: 0.14),
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const Key('home-address'),
+            onTap: _openAddresses,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  NordicSpace.sm,
+                  0,
+                  NordicSpace.sm,
+                  0,
+                ),
+                child: ExcludeSemantics(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 18,
+                        color: NordicColors.onDarkMuted,
+                      ),
+                      const SizedBox(width: NordicSpace.xs),
+                      Flexible(
+                        child: Text(
+                          '${address.addressLine} · ${formatArea(address.totalAreaM2)}',
+                          key: const Key('quick-quote-address'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: NordicTypography.labelMedium.copyWith(
+                            color: NordicColors.textInverse,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: NordicSpace.xxs),
+                      const Icon(
+                        Icons.expand_more,
+                        size: 18,
+                        color: NordicColors.textInverse,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  /// The next booking: the one big time, its day, progress and helper, on the primary colour.
-  Widget _nextCard() {
+  /// The next booking, on the dark header: a loading block, an error with retry, a one-line
+  /// notice when there is none, or the booking itself.
+  Widget _nextSection() {
     if (!_nextLoaded) {
-      return Container(
-        height: 168,
-        decoration: const BoxDecoration(
-          color: NordicColors.surfaceLow,
-          borderRadius: NordicRadius.cardAll,
-        ),
-      );
+      return Container(height: 120, decoration: _glass);
     }
-    final next = _next;
     if (_nextError != null) {
       return NordicCard(
         key: const Key('home-next-error'),
+        elevated: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -319,35 +475,40 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
         ),
       );
     }
+    final next = _next;
     if (next == null) {
-      // A notice, not a button: booking has its own card right below.
+      // A notice, not a button: booking is the card right below.
       return Container(
         key: const Key('home-no-order'),
-        padding: const EdgeInsets.all(NordicSpace.md),
-        decoration: BoxDecoration(
-          color: NordicColors.surfaceLow,
-          borderRadius: NordicRadius.cardAll,
-          border: Border.all(color: NordicColors.border),
+        padding: const EdgeInsets.symmetric(
+          horizontal: NordicSpace.md,
+          vertical: NordicSpace.sm,
         ),
-        child: const Row(
+        decoration: _glass,
+        child: Row(
           children: [
-            Icon(
-              Icons.notifications_none_outlined,
-              color: NordicColors.textSecondary,
+            const Icon(
+              Icons.event_available_outlined,
+              size: 20,
+              color: NordicColors.onDarkMuted,
             ),
-            SizedBox(width: NordicSpace.sm),
+            const SizedBox(width: NordicSpace.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Chưa có ca nào sắp tới',
-                    style: NordicTypography.titleSmall,
+                    style: NordicTypography.titleSmall.copyWith(
+                      color: NordicColors.textInverse,
+                    ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Khi bạn đặt ca, lịch sẽ hiện ở đây.',
-                    style: NordicTypography.bodySmall,
+                    'Ca bạn đặt sẽ hiện ở đây.',
+                    style: NordicTypography.bodySmall.copyWith(
+                      color: NordicColors.onDarkMuted,
+                    ),
                   ),
                 ],
               ),
@@ -356,21 +517,28 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
         ),
       );
     }
+    return _nextCard(next);
+  }
 
+  Widget _nextCard(_NextOrder next) {
     final order = next.order;
     final steps = orderTimeline(order.orderStatus);
     final worker = next.worker;
-    final soft = NordicColors.textInverse.withValues(alpha: 0.78);
     return Pressable(
       child: Material(
-        color: NordicColors.primary,
-        borderRadius: NordicRadius.cardAll,
+        color: NordicColors.textInverse.withValues(alpha: 0.08),
+        shape: RoundedRectangleBorder(
+          borderRadius: NordicRadius.cardAll,
+          side: BorderSide(
+            color: NordicColors.textInverse.withValues(alpha: 0.14),
+          ),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           key: const Key('home-next-order'),
           onTap: () => _openOrder(order.orderId),
           child: Padding(
-            padding: const EdgeInsets.all(NordicSpace.gutter),
+            padding: const EdgeInsets.all(NordicSpace.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -378,9 +546,9 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Ca sắp tới',
-                        style: NordicTypography.titleSmall.copyWith(
-                          color: soft,
+                        'CA SẮP TỚI',
+                        style: NordicTypography.caps.copyWith(
+                          color: NordicColors.onDarkMuted,
                         ),
                       ),
                     ),
@@ -389,16 +557,15 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                         horizontal: 10,
                         vertical: NordicSpace.xxs,
                       ),
-                      decoration: BoxDecoration(
-                        color: NordicColors.textInverse.withValues(alpha: 0.16),
+                      decoration: const BoxDecoration(
+                        color: NordicColors.primaryFixed,
                         borderRadius: NordicRadius.pill,
                       ),
                       child: Text(
                         orderStatusLabel(order.orderStatus),
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: NordicTypography.bodySmall.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: NordicColors.textInverse,
+                          color: NordicColors.primary,
                         ),
                       ),
                     ),
@@ -408,20 +575,24 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      next.startLocal ?? shiftLabel(order.shiftCode),
-                      style: NordicTypography.numberLarge.copyWith(
-                        color: NordicColors.textInverse,
+                    Flexible(
+                      child: Text(
+                        next.startLocal ?? shiftLabel(order.shiftCode),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: NordicTypography.numberMedium.copyWith(
+                          color: NordicColors.textInverse,
+                        ),
                       ),
                     ),
                     if (next.endLocal != null) ...[
-                      const SizedBox(width: 10),
+                      const SizedBox(width: NordicSpace.xs),
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.only(bottom: 2),
                         child: Text(
                           'đến ${next.endLocal}',
                           style: NordicTypography.bodyRegular.copyWith(
-                            color: soft,
+                            color: NordicColors.onDarkMuted,
                           ),
                         ),
                       ),
@@ -431,7 +602,9 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                 const SizedBox(height: NordicSpace.xxs),
                 Text(
                   '${scheduleText(order.scheduledDate, order.shiftCode)} · ${tierLabel(order.serviceTier)}',
-                  style: NordicTypography.bodyRegular.copyWith(color: soft),
+                  style: NordicTypography.bodyRegular.copyWith(
+                    color: NordicColors.onDarkMuted,
+                  ),
                 ),
                 if (steps.length > 1) ...[
                   const SizedBox(height: NordicSpace.md),
@@ -446,7 +619,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                               color: steps[i].done || steps[i].current
                                   ? NordicColors.textInverse
                                   : NordicColors.textInverse.withValues(
-                                      alpha: 0.3,
+                                      alpha: 0.24,
                                     ),
                               borderRadius: NordicRadius.pill,
                             ),
@@ -462,32 +635,40 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                     children: [
                       AvatarInitials(
                         workerName(worker),
-                        size: 36,
-                        background: NordicColors.textInverse.withValues(
-                          alpha: 0.18,
-                        ),
-                        foreground: NordicColors.textInverse,
+                        size: 40,
+                        background: NordicColors.amberSoft,
+                        foreground: NordicColors.onAmberSoft,
                       ),
                       const SizedBox(width: NordicSpace.sm),
                       Expanded(
-                        child: Text(
-                          workerName(worker),
-                          style: NordicTypography.titleSmall.copyWith(
-                            color: NordicColors.textInverse,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              workerName(worker),
+                              style: NordicTypography.titleSmall.copyWith(
+                                color: NordicColors.textInverse,
+                              ),
+                            ),
+                            Text(
+                              'Người giúp việc của bạn',
+                              style: NordicTypography.bodySmall.copyWith(
+                                color: NordicColors.onDarkMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       if (ratingText(worker.workerRatingAvg).isNotEmpty) ...[
                         const Icon(
-                          Icons.star,
-                          size: 16,
+                          Icons.star_rounded,
+                          size: 18,
                           color: NordicColors.accentAmber,
                         ),
                         const SizedBox(width: 2),
                         Text(
                           ratingText(worker.workerRatingAvg),
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: NordicTypography.labelMedium.copyWith(
                             fontWeight: FontWeight.w600,
                             color: NordicColors.textInverse,
                           ),
@@ -504,85 +685,155 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     );
   }
 
-  /// A photo card that opens the booking form: the one main action of the Home.
-  Widget _bookBanner() {
+  // ---------------------------------------------------------- booking card
+
+  /// The raised card over the header: the segments with the server's prices and one button.
+  Widget _bookingCard() {
+    final q = _quotes;
+    final selected = q?.byTier[_tier];
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: NordicSpace.md),
+      padding: const EdgeInsets.all(NordicSpace.gutter),
+      decoration: const BoxDecoration(
+        color: NordicColors.surface,
+        borderRadius: BorderRadius.all(Radius.circular(NordicRadius.sheet)),
+        boxShadow: NordicElevation.raised,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            _next == null ? 'Hôm nay nhà bạn cần gì?' : 'Đặt thêm ca',
+            style: NordicTypography.titleMedium,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            q == null
+                ? 'Thêm địa chỉ để xem giá theo diện tích nhà bạn.'
+                : 'Giá cố định theo diện tích nhà · ngày giờ chọn ở bước sau.',
+            style: NordicTypography.bodySmall,
+          ),
+          const SizedBox(height: NordicSpace.md),
+          if (q != null) ...[
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final tier in [ServiceTier.economy, ServiceTier.premium])
+                    if (q.byTier[tier] != null) ...[
+                      if (tier == ServiceTier.premium &&
+                          q.byTier[ServiceTier.economy] != null)
+                        const SizedBox(width: NordicSpace.sm),
+                      Expanded(child: _tierTile(tier, q.byTier[tier]!)),
+                    ],
+                ],
+              ),
+            ),
+            const SizedBox(height: NordicSpace.md),
+          ] else ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: NordicButton(
+                key: const Key('home-add-address'),
+                label: 'Thêm địa chỉ',
+                variant: NordicButtonVariant.secondary,
+                icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+                onPressed: _openAddresses,
+              ),
+            ),
+            const SizedBox(height: NordicSpace.md),
+          ],
+          DecoratedBox(
+            decoration: const BoxDecoration(
+              borderRadius: NordicRadius.pill,
+              boxShadow: NordicElevation.cta,
+            ),
+            child: NordicButton(
+              key: const Key('home-book'),
+              label: selected == null
+                  ? 'Đặt ca'
+                  : 'Đặt ca · ${formatVnd(selected.unitPrice)}',
+              icon: const Icon(Icons.arrow_forward, size: 20),
+              onPressed: _openBooking,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// One segment: a selectable tile (accent border and check mark when chosen).
+  Widget _tierTile(String tier, PriceQuote quote) {
+    final on = _tier == tier;
+    final options = _options;
     return Pressable(
       child: Semantics(
+        selected: on,
         button: true,
-        label: 'Đặt ca dọn nhà',
         child: Material(
-          borderRadius: NordicRadius.cardAll,
+          color: on ? NordicColors.surfaceSubtle : NordicColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: NordicRadius.cardAll,
+            side: BorderSide(
+              color: on ? NordicColors.primaryContainer : NordicColors.border,
+              width: on ? 2 : 1,
+            ),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            key: const Key('home-book-banner'),
-            onTap: _openBooking,
-            child: SizedBox(
-              height: 224,
-              child: Stack(
-                fit: StackFit.expand,
+            key: Key('home-quote-$tier'),
+            onTap: () => setState(() => _tier = tier),
+            child: Padding(
+              padding: EdgeInsets.all(on ? 13 : 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ExcludeSemantics(
-                    child: Image.asset(
-                      'assets/images/welcome/mop-living-room.jpg',
-                      fit: BoxFit.cover,
-                      alignment: const Alignment(0, -0.2),
-                    ),
-                  ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomLeft,
-                        end: Alignment.topRight,
-                        colors: [
-                          NordicColors.contrastDark.withValues(alpha: 0.82),
-                          NordicColors.contrastDark.withValues(alpha: 0.2),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(NordicSpace.gutter),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ExcludeSemantics(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Nhà sạch, lòng nhẹ.',
-                                  style: NordicTypography.titleMedium.copyWith(
-                                    color: NordicColors.textInverse,
-                                  ),
-                                ),
-                                const SizedBox(height: NordicSpace.xs),
-                                Text(
-                                  'Đặt ca dọn nhà · Chọn lịch phù hợp',
-                                  style: NordicTypography.bodyRegular.copyWith(
-                                    color: NordicColors.textInverse.withValues(
-                                      alpha: 0.85,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tierLabel(tier),
+                          style: NordicTypography.titleSmall,
                         ),
-                        Container(
-                          width: 40,
-                          height: 40,
+                      ),
+                      AnimatedOpacity(
+                        opacity: on ? 1 : 0,
+                        duration: const Duration(milliseconds: 150),
+                        child: Container(
+                          width: 22,
+                          height: 22,
                           decoration: const BoxDecoration(
-                            color: NordicColors.textInverse,
+                            color: NordicColors.primaryContainer,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
-                            Icons.arrow_forward,
-                            color: NordicColors.primary,
+                            Icons.check,
+                            size: 14,
+                            color: NordicColors.textInverse,
                           ),
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  if (options != null) ...[
+                    const SizedBox(height: NordicSpace.xxs),
+                    Expanded(
+                      child: Text(
+                        tierDescription(tier, options),
+                        style: NordicTypography.bodySmall,
+                      ),
                     ),
+                  ] else
+                    const Spacer(),
+                  const SizedBox(height: NordicSpace.sm),
+                  Text(
+                    formatVnd(quote.unitPrice),
+                    style: NordicTypography.numberSmall,
+                  ),
+                  const SizedBox(height: NordicSpace.xxs),
+                  Text(
+                    'mỗi người, mỗi ca · cần ${quote.requiredWorkers} người',
+                    style: NordicTypography.bodySmall,
                   ),
                 ],
               ),
@@ -593,91 +844,137 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     );
   }
 
-  List<Widget> _quickBook(_QuickQuotes q) {
-    final any = q.byTier.values.first;
-    return [
-      SectionTitle('Đặt nhanh', trailing: q.address.label),
-      Text(
-        '${q.address.addressLine} · ${formatArea(q.address.totalAreaM2)} · ${any.requiredWorkers} người',
-        key: const Key('quick-quote-address'),
-        style: NordicTypography.bodySmall.copyWith(
-          color: NordicColors.textSecondary,
-        ),
-      ),
-      const SizedBox(height: NordicSpace.sm),
-      Row(
-        children: [
-          for (final tier in [ServiceTier.economy, ServiceTier.premium])
-            if (q.byTier[tier] != null) ...[
-              if (tier == ServiceTier.premium)
-                const SizedBox(width: NordicSpace.sm),
-              Expanded(child: _quoteTile(tier, q.byTier[tier]!, q.address)),
-            ],
-        ],
-      ),
-    ];
-  }
+  // ------------------------------------------------------------ favourites
 
-  Widget _quoteTile(String tier, PriceQuote quote, BookingAddress address) {
-    final price = formatVnd(quote.unitPrice);
-    final number = price.substring(0, price.length - 2);
-    return NordicCard(
-      key: Key('home-quote-$tier'),
-      onTap: () => _openQuickBooking(tier, address.addressId),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(tierLabel(tier), style: NordicTypography.titleSmall),
-          const SizedBox(height: NordicSpace.xs),
-          Text.rich(
-            TextSpan(
-              text: number,
-              children: const [
-                TextSpan(text: ' đ', style: TextStyle(fontSize: 14)),
-              ],
-            ),
-            style: NordicTypography.numberSmall,
-          ),
-          const SizedBox(height: NordicSpace.xxs),
-          const Text('mỗi người, mỗi ca', style: NordicTypography.bodySmall),
-        ],
-      ),
-    );
-  }
+  static const _tints = [
+    (NordicColors.amberSoft, NordicColors.onAmberSoft),
+    (NordicColors.primaryFixed, NordicColors.primary),
+    (NordicColors.surfaceContainer, NordicColors.textTitle),
+  ];
 
-  List<Widget> _favoriteRow() => [
-    SectionTitle(
-      'Người giúp việc yêu thích',
-      trailing: 'Tất cả',
-      onAction: widget.onShowFavorites,
+  List<Widget> _favoriteSection() => [
+    Padding(
+      padding: const EdgeInsets.fromLTRB(
+        NordicSpace.gutter,
+        NordicSpace.xxs,
+        NordicSpace.gutter,
+        0,
+      ),
+      child: SectionTitle(
+        'Người giúp việc yêu thích',
+        trailing: 'Tất cả',
+        onAction: widget.onShowFavorites,
+      ),
     ),
     SizedBox(
-      height: 84,
+      // Grows with the text scale so the card keeps room for its rows.
+      height: 244 + (MediaQuery.textScalerOf(context).scale(1) - 1) * 80,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(
+          NordicSpace.gutter,
+          NordicSpace.xxs,
+          NordicSpace.gutter,
+          NordicSpace.md,
+        ),
         itemCount: _favoriteList.length,
-        separatorBuilder: (_, _) => const SizedBox(width: NordicSpace.md),
-        itemBuilder: (_, i) {
-          final w = _favoriteList[i];
-          final words = w.fullName.trim().split(RegExp(r'\s+'));
-          return Pressable(
-            child: InkWell(
-              borderRadius: NordicRadius.tileAll,
-              onTap: widget.onShowFavorites,
-              child: Padding(
-                padding: const EdgeInsets.all(NordicSpace.xxs),
-                child: Column(
-                  children: [
-                    AvatarInitials(w.fullName, size: 52),
-                    const SizedBox(height: NordicSpace.xxs),
-                    Text(words.last, style: NordicTypography.bodySmall),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
+        separatorBuilder: (_, _) => const SizedBox(width: NordicSpace.sm),
+        itemBuilder: (_, i) => _favoriteCard(_favoriteList[i], i),
       ),
     ),
   ];
+
+  Widget _favoriteCard(FavoriteWorker w, int index) {
+    final (tint, ink) = _tints[index % _tints.length];
+    final rating = ratingText(w.ratingAvg);
+    return SizedBox(
+      width: 164,
+      child: NordicCard(
+        key: Key('home-favorite-${w.workerId}'),
+        padding: const EdgeInsets.all(NordicSpace.md - 2),
+        onTap: widget.onShowFavorites,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AvatarInitials(
+              w.fullName,
+              size: 48,
+              background: tint,
+              foreground: ink,
+            ),
+            const SizedBox(height: NordicSpace.sm),
+            Text(
+              w.fullName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: NordicTypography.titleSmall,
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                if (rating.isNotEmpty) ...[
+                  const Icon(
+                    Icons.star_rounded,
+                    size: 15,
+                    color: NordicColors.accentAmber,
+                  ),
+                  const SizedBox(width: 2),
+                ],
+                Flexible(
+                  child: Text(
+                    rating.isEmpty
+                        ? '${w.completedJobs} ca'
+                        : '$rating · ${w.completedJobs} ca',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: NordicTypography.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: NordicSpace.xxs),
+            Text(
+              w.statusDisplayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.primaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: NordicButton(
+                key: Key('home-book-again-${w.workerId}'),
+                label: 'Đặt lại',
+                variant: NordicButtonVariant.secondary,
+                onPressed: () => _bookAgain(w),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Three thin rings in the corner of the header: depth without a gradient.
+class _Rings extends CustomPainter {
+  const _Rings();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = NordicColors.textInverse.withValues(alpha: 0.07);
+    final center = size.center(Offset.zero);
+    for (final r in const [60.0, 100.0, 140.0]) {
+      canvas.drawCircle(center, r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

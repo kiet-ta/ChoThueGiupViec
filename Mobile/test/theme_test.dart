@@ -8,30 +8,33 @@ import 'package:mobile/core/theme/nordic_typography.dart';
 
 /// Every NordicColors constant that has a DESIGN.md YAML token, as
 /// `YAML token name -> (constant, DESIGN.md hex)`.
-/// `primary`, `primary-hover` and `primary-container` are left out on purpose: the Mobile app
-/// uses its own palette for them (MOB-UI-09, owner decision 2026-10-28, see [_mobilePalette]).
+/// The brand greens, the canvas, the surfaces, the text greys and the outlines are left out on
+/// purpose: the Mobile app uses its own palette for them (MOB-UI-09, then the Mobile redesign of
+/// 2026-10-30, owner: Duy; see [_mobilePalette]).
 const Map<String, (Color, String)> _tokenColors = {
-  'canvas-background': (NordicColors.canvas, 'FAF8F3'),
   'card-surface': (NordicColors.surface, 'FFFFFF'),
-  'surface-container': (NordicColors.surfaceContainer, 'F0EEE9'),
-  'surface-dim': (NordicColors.surfaceDim, 'DBDAD5'),
-  'text-primary': (NordicColors.textTitle, '2F3A34'),
-  'text-secondary': (NordicColors.textSecondary, '6B7280'),
   'on-primary': (NordicColors.textInverse, 'FFFFFF'),
-  'outline-variant': (NordicColors.borderVariant, 'C2C8BF'),
   'error': (NordicColors.error, 'BA1A1A'),
   'error-container': (NordicColors.errorContainer, 'FFDAD6'),
 };
 
-/// The Mobile palette (#2F6B3F / #7FB77E / #F7C85C / #FFF6C0) and the values derived from it.
+/// The Mobile palette (redesign 2026-10-30: deep green #0F3D2E, accent #1F7A55, cool neutrals).
 const Map<String, (Color, int)> _mobilePalette = {
-  'primary': (NordicColors.primary, 0xFF2F6B3F),
-  'primaryHover': (NordicColors.primaryHover, 0xFF285C36),
-  'primaryContainer': (NordicColors.primaryContainer, 0xFF7FB77E),
-  'secondaryAccent': (NordicColors.secondaryAccent, 0xFF467F49),
-  'primaryFixed': (NordicColors.primaryFixed, 0xFFD2E6D2),
-  'accentAmber': (NordicColors.accentAmber, 0xFFF7C85C),
+  'primary': (NordicColors.primary, 0xFF0F3D2E),
+  'primaryHover': (NordicColors.primaryHover, 0xFF0A2E22),
+  'primaryContainer': (NordicColors.primaryContainer, 0xFF1F7A55),
+  'secondaryAccent': (NordicColors.secondaryAccent, 0xFF1F7A55),
+  'primaryFixed': (NordicColors.primaryFixed, 0xFFDCEDE3),
+  'accentAmber': (NordicColors.accentAmber, 0xFFF2B544),
   'amberSoft': (NordicColors.amberSoft, 0xFFFFF6C0),
+  'canvas': (NordicColors.canvas, 0xFFEEF1EC),
+  'surfaceContainer': (NordicColors.surfaceContainer, 0xFFE6EBE7),
+  'surfaceDim': (NordicColors.surfaceDim, 0xFFD5DCD7),
+  'textTitle': (NordicColors.textTitle, 0xFF101814),
+  'textSecondary': (NordicColors.textSecondary, 0xFF5E6A63),
+  'borderVariant': (NordicColors.borderVariant, 0xFFCBD5CF),
+  'contrastDark': (NordicColors.contrastDark, 0xFF0F3D2E),
+  'onDarkMuted': (NordicColors.onDarkMuted, 0xFFA9C7B8),
 };
 
 /// WCAG 2 contrast ratio of two opaque colours.
@@ -107,6 +110,19 @@ void main() {
         _contrast(NordicColors.onAmberSoft, NordicColors.amberSoft),
         greaterThanOrEqualTo(4.5),
       );
+      // Secondary text on the canvas and on the dark header; accent text on white.
+      expect(
+        _contrast(NordicColors.textSecondary, NordicColors.canvas),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrast(NordicColors.onDarkMuted, NordicColors.contrastDark),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrast(NordicColors.primaryContainer, NordicColors.surface),
+        greaterThanOrEqualTo(4.5),
+      );
     });
 
     test('NordicTheme configured with lightTheme properties', () {
@@ -132,24 +148,39 @@ void main() {
       expect(style.height, height);
     }
 
-    test('headlines use Newsreader', () {
-      expectStyle(
-        NordicTypography.headlineLg,
-        'Newsreader',
-        40,
-        FontWeight.w600,
-        1.2,
-      );
-      expectStyle(
-        NordicTypography.headlineLgMobile,
-        'Newsreader',
-        32,
-        FontWeight.w600,
-        1.25,
-      );
-      expectStyle(NordicTypography.h1, 'Newsreader', 28, FontWeight.w500, 1.3);
-      expectStyle(NordicTypography.h2, 'Newsreader', 22, FontWeight.w500, 1.4);
-    });
+    test(
+      'headlines use Be Vietnam Pro (one family since the 2026-10-30 redesign)',
+      () {
+        expectStyle(
+          NordicTypography.headlineLg,
+          'Be Vietnam Pro',
+          40,
+          FontWeight.w600,
+          1.2,
+        );
+        expectStyle(
+          NordicTypography.headlineLgMobile,
+          'Be Vietnam Pro',
+          32,
+          FontWeight.w600,
+          1.25,
+        );
+        expectStyle(
+          NordicTypography.h1,
+          'Be Vietnam Pro',
+          28,
+          FontWeight.w500,
+          1.3,
+        );
+        expectStyle(
+          NordicTypography.h2,
+          'Be Vietnam Pro',
+          22,
+          FontWeight.w500,
+          1.4,
+        );
+      },
+    );
 
     test('display tightens tracking by -0.02 em with tight leading', () {
       const display = NordicTypography.display;
@@ -159,8 +190,8 @@ void main() {
       expect(display.fontWeight, FontWeight.w700);
     });
 
-    test('body, label and metric use Plus Jakarta Sans', () {
-      const jakarta = 'Plus Jakarta Sans';
+    test('body, label and metric use Be Vietnam Pro', () {
+      const jakarta = 'Be Vietnam Pro';
       expectStyle(NordicTypography.h3, jakarta, 18, FontWeight.w400, 1.6);
       expectStyle(
         NordicTypography.bodyLarge,

@@ -11,16 +11,16 @@ It serves two primary personas within a unified responsive client:
 The visual identity follows the team design skill (`.agents/skills/project-team-design-template`):
 - **Design Frame:** 390×844 standard mobile layout.
 - **Source of truth:** `DESIGN.md` in that skill (YAML token values win over the prose and over any copy).
-- **Canvas:** `#FAF8F3` (`canvas-background`); cards `#FFFFFF` (`card-surface`).
+- **Canvas:** `#EEF1EC` (Mobile canvas since the 2026-10-30 redesign); cards `#FFFFFF` (`card-surface`).
 - **Mobile System Design:** [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) (MOB-UI-13) is the reference for every Mobile screen: tokens, components, screen patterns, copy rules, done checklist. The lines below are a summary.
-- **Primary Brand (Mobile palette, #479):** `#2F6B3F` (`primary`), pressed `#285C36`, leaf `#7FB77E` (`primaryContainer`), soft green `#D2E6D2` (`primaryFixed`). These deliberately differ from `DESIGN.md`.
-- **Accent Amber:** `#F7C85C` for ratings and highlights, cream `#FFF6C0` for warnings.
-- **Text:** `#2F3A34` (`text-primary`), `#6B7280` (`text-secondary`).
+- **Primary Brand (Mobile palette, redesign 2026-10-30):** deep green `#0F3D2E` (`primary`, also the Home header `contrastDark`), pressed `#0A2E22`, accent `#1F7A55` (`primaryContainer` / `secondaryAccent`), soft green `#DCEDE3` (`primaryFixed`). These deliberately differ from `DESIGN.md`.
+- **Accent Amber:** `#F2B544` for ratings and dots, cream `#FFF6C0` for warnings.
+- **Text:** `#101814` (title), `#34433B` (body), `#5E6A63` (secondary), `#A9C7B8` on the dark header.
 - **Not in DESIGN.md yet** (kept as-is, awaiting a leader decision on issue #61): secondary accent `#6B8F71`, dark anchor `#1A2F25` / `#223B2F`, success `#2E7D32`, subtle surface `#F4F2EB`, body text `#4B5563`, border `#E5E7EB`.
-- **Typography:** Newsreader for the Home greeting and large numbers, Plus Jakarta Sans for everything else (MOB-UI-02, after `Mobile/ui-templates`). Both are bundled as static TTFs under `assets/fonts/` (Newsreader 500/600, Plus Jakarta Sans 400-700, SIL OFL 1.1, licences beside them) and declared in `pubspec.yaml`; no font package.
+- **Typography:** one family, Be Vietnam Pro (redesign 2026-10-30), bundled as static TTFs (400-700) under `assets/fonts/` with its SIL OFL 1.1 licence and declared in `pubspec.yaml`; no font package. The Newsreader and Plus Jakarta Sans files are no longer declared.
 - **Elevation & Shapes:**
   - Pill buttons (`rounded-full` / `StadiumBorder`).
-  - Flat white cards with 1px hairline borders (`#E5E7EB`, no DESIGN.md token yet) and 20px corners; fields 14px, sheets 28px (`NordicRadius`, `NordicSpace`).
+  - White cards with a 1px hairline (`#DDE3DF`) and a soft layered shadow (`NordicElevation.card`), 20px corners; fields 14px, sheets 28px (`NordicRadius`, `NordicSpace`). The Home booking card floats over the dark header (`NordicElevation.raised`).
 
 ### 2.1 Motion & interaction (MOB-UI-12)
 Apple fluid-interface principles (the local `apple-design` Agent Skill), applied first to the sign-in screens. Reuse these on every screen you redesign instead of hand-made durations and curves:

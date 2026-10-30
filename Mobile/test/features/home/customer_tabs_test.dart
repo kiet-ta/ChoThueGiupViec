@@ -153,6 +153,33 @@ CustomerHomeTab _homeTab(_Orders orders, {List<BookingAddress>? addresses}) =>
 
 void main() {
   group('CustomerHomeTab (ui-templates customer/home.html)', () {
+    for (final width in [360.0, 428.0]) {
+      testWidgets(
+        'lays out without overflow at ${width.toInt()} px with text scale 1.3',
+        (tester) async {
+          tester.view.physicalSize = Size(width, 844);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(() {
+            tester.view.resetPhysicalSize();
+            tester.view.resetDevicePixelRatio();
+          });
+          await tester.pumpWidget(
+            MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+              child: _app(
+                _homeTab(_Orders([_summary(2, OrderStatus.assigned)])),
+                <String>[],
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await scrollTo(tester, find.text('Người giúp việc yêu thích'));
+
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
     testWidgets(
       'greets by the last name, shows the next order, the server prices and favourites',
       (tester) async {
@@ -182,31 +209,35 @@ void main() {
       },
     );
 
-    testWidgets('a quick-booking tile opens the form with its segment ticked', (
-      tester,
-    ) async {
-      useDesignFrame(tester);
-      Object? args;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: _homeTab(_Orders(const [])),
-          onGenerateRoute: (settings) {
-            args = settings.arguments;
-            return MaterialPageRoute(
-              settings: settings,
-              builder: (_) => const Scaffold(body: Text('booking')),
-            );
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'a segment tile selects it and "Đặt ca" opens the form with it ticked',
+      (tester) async {
+        useDesignFrame(tester);
+        Object? args;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: _homeTab(_Orders(const [])),
+            onGenerateRoute: (settings) {
+              args = settings.arguments;
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (_) => const Scaffold(body: Text('booking')),
+              );
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tapVisible(tester, find.byKey(const Key('home-quote-PREMIUM')));
-      expect(args, isA<BookingScreenArgs>());
-      final booking = args as BookingScreenArgs;
-      expect(booking.serviceTier, ServiceTier.premium);
-      expect(booking.addressId, _home.addressId);
-    });
+        await tapVisible(tester, find.byKey(const Key('home-quote-PREMIUM')));
+        expect(args, isNull, reason: 'a tile only selects the segment');
+        expect(find.text('Đặt ca · 390.000 đ'), findsOneWidget);
+        await tapVisible(tester, find.byKey(const Key('home-book')));
+        expect(args, isA<BookingScreenArgs>());
+        final booking = args as BookingScreenArgs;
+        expect(booking.serviceTier, ServiceTier.premium);
+        expect(booking.addressId, _home.addressId);
+      },
+    );
 
     testWidgets('a tap on the next order opens its detail', (tester) async {
       useDesignFrame(tester);
@@ -238,12 +269,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Đặt nhanh'), findsNothing);
+        expect(find.byKey(const Key('home-quote-ECONOMY')), findsNothing);
         await tester.tap(find.byKey(const Key('home-no-order')));
         await tester.pumpAndSettle();
         expect(opened, isEmpty);
 
-        await tester.tap(find.byKey(const Key('home-book-banner')));
+        await tapVisible(tester, find.byKey(const Key('home-book')));
         await tester.pumpAndSettle();
         expect(opened, ['/booking']);
       },
@@ -260,7 +291,7 @@ void main() {
 
         expect(find.byKey(const Key('home-no-order')), findsNothing);
         expect(find.byKey(const Key('home-next-error')), findsOneWidget);
-        expect(find.text('Đặt nhanh'), findsOneWidget);
+        expect(find.byKey(const Key('home-quote-ECONOMY')), findsOneWidget);
         orders.error = null;
         await tester.tap(find.text('Thử lại'));
         await tester.pumpAndSettle();

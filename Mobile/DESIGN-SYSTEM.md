@@ -24,31 +24,35 @@ Every screen redesign follows this file. When code and this file disagree, fix o
 
 ### 3.1 Colour — `lib/core/theme/nordic_colors.dart`
 
+Redesign of 2026-10-30 (owner: Duy): a deep green with cool neutrals, so a screen can show depth (a dark header, white cards that float). Mobile only.
+
 | Role | Token | Value | Use |
 |---|---|---|---|
-| Primary | `primary` | `#2F6B3F` | main buttons, selected states, brand mark; white text 6.4:1 |
-| Primary pressed | `primaryHover` | `#285C36` | pressed primary |
-| Leaf | `primaryContainer` | `#7FB77E` | accents, illustrations; never under white text (2.3:1) |
-| Soft green | `primaryFixed` | `#D2E6D2` | "ok" pills, selected tiles; primary text on it 4.5:1+ |
-| Secondary green | `secondaryAccent` | `#467F49` | icons, snackbars with white text |
-| Amber | `accentAmber` | `#F7C85C` | stars, highlights; with dark text only |
-| Cream | `amberSoft` / `onAmberSoft` | `#FFF6C0` / `#5F4100` | warnings, banners |
-| Canvas | `canvas` | `#FAF8F3` | screen background |
-| Surface | `surface` | `#FFFFFF` | cards, fields |
-| Text | `textTitle` / `textBody` / `textSecondary` | `#2F3A34` / `#4B5563` / `#6B7280` | titles / body / hints |
-| Hairline | `border` | `#E5E7EB` | card and field borders, dividers |
+| Primary | `primary` | `#0F3D2E` | main buttons, the centre "Đặt ca" button, links, selected text; white text 12:1 |
+| Primary pressed | `primaryHover` | `#0A2E22` | pressed primary |
+| Accent green | `primaryContainer` / `secondaryAccent` | `#1F7A55` | selection rings, check badges, small accent text, snackbars; white text 5.3:1, 5.3:1 on white |
+| Soft green | `primaryFixed` | `#DCEDE3` | "ok" pills, the selected tab pill; primary text on it 10:1 |
+| Amber | `accentAmber` | `#F2B544` | stars, dots; never under text |
+| Cream | `amberSoft` / `onAmberSoft` | `#FFF6C0` / `#5F4100` | warnings, banners, a warm avatar tint |
+| Canvas | `canvas` | `#EEF1EC` | screen background |
+| Surface | `surface` / `surfaceSubtle` | `#FFFFFF` / `#F4F6F2` | cards, fields / a selected tile |
+| Dark | `contrastDark` / `contrastCard` | `#0F3D2E` / `#17573D` | the Home header, gradients over photos, dark cards |
+| On dark | `textInverse` / `onDarkMuted` | `#FFFFFF` / `#A9C7B8` | text on the dark header (muted 6.7:1) |
+| Text | `textTitle` / `textBody` / `textSecondary` | `#101814` / `#34433B` / `#5E6A63` | titles / body / hints (hints 5.0:1 on the canvas) |
+| Hairline | `border` / `borderVariant` | `#DDE3DF` / `#CBD5CF` | card and field borders, dividers / outlined buttons |
 | Error | `error` / `errorContainer` | `#BA1A1A` / `#FFDAD6` | errors |
-| Dark | `contrastDark` | `#1A2F25` | gradients over photos, dark cards |
 
 Colour never carries meaning alone: a status always has a word too.
 
 ### 3.2 Type — `lib/core/theme/nordic_typography.dart`
 
+One family: **Be Vietnam Pro** (built for Vietnamese diacritics; static TTFs 400–700 in `assets/fonts/`, SIL OFL 1.1). Newsreader and Plus Jakarta Sans are no longer used.
+
 | Style | Size / weight / leading / tracking | Use |
 |---|---|---|
 | `display` | 30 / 700 / 1.1 / −0.6 (−0.02 em) | the largest title of a screen (tab titles, photo headers) |
-| `greeting` | Newsreader 30 / 600 | the welcome promise and the home greeting only |
-| `numberLarge` / `numberMedium` / `numberSmall` | Newsreader 34 / 26 / 20, tabular | the one big number of a screen (time, amount) |
+| `greeting` | 28 / 700 / 1.15 / −0.56 | the Home greeting only |
+| `numberLarge` / `numberMedium` / `numberSmall` | 34 / 26 / 20, 700, tabular, −0.02 em | the one big number of a screen (time, amount) |
 | `appBarTitle` | 17 / 600 | title of a pushed screen |
 | `titleMedium` | 18 / 700 | section titles inside a screen |
 | `titleSmall` | 15 / 600 | card titles, list rows |
@@ -68,9 +72,18 @@ Screen sides: `gutter` (20). Inside a card: `md` (16). Between cards in a list: 
 Rounded and soft (owner decision: square corners were tried and rejected).
 Buttons and chips: **pill**. Cards: **20**. Fields: **14**. Small tiles / icon squares: **12**. Sheets: **28** on top. Avatars, dots, round icon backgrounds: real circles.
 
-### 3.5 Elevation
+### 3.5 Elevation — `lib/core/theme/nordic_elevation.dart`
 
-Flat. Cards are separated by a 1 px `border` hairline on the cream canvas, not by shadows. Shadows only on floating things (the centre "Đặt ca" button) and on text over photos (a gradient, not a shadow).
+Depth, not flatness (redesign 2026-10-30). Shadows are soft, layered and tinted with the deep green; there are only four:
+
+| Token | Use |
+|---|---|
+| `NordicElevation.card` | every white `NordicCard` on the canvas, together with its 1 px hairline (`elevated: false` for a card inside another surface) |
+| `NordicElevation.raised` | the one floating panel of a screen: the Home booking card that overlaps the dark header |
+| `NordicElevation.cta` | the main dark button of the Home and the centre "Đặt ca" button |
+| `NordicElevation.segment` | the selected segment of a segmented control |
+
+No other shadows; no Material `elevation` numbers. On the dark header, panels are translucent white (8 % fill, 14 % border) instead of shadowed. Text over photos still sits on a gradient, not a shadow.
 
 ### 3.6 Motion — `lib/core/motion/`
 
@@ -96,7 +109,8 @@ Controllers: `animateWith(spring.simulate(from: value, velocity: velocity))`. Im
 | `NordicPage.tab` / `NordicPage.pushed` | `core/widgets/nordic_page.dart` | the scaffold of every screen (§5) |
 | `NordicButton` (primary, secondary, ghost) | `core/widgets/nordic_button.dart` | pill, `Pressable`, loading state |
 | `BottomActionBar` | `core/widgets/bottom_action_bar.dart` | the main button(s); `NordicPage(actions:)` places it |
-| `NordicCard` | `core/widgets/nordic_card.dart` | white flat card; `onTap` makes it a pressable button |
+| `NordicCard` | `core/widgets/nordic_card.dart` | white card with the `card` shadow; `onTap` makes it a pressable button; `elevated: false` flattens it |
+| `NordicElevation` | `core/theme/nordic_elevation.dart` | the four shadow tokens (§3.5) |
 | `GroupedListCard` | `core/widgets/grouped_list_card.dart` | settings-like rows in one card |
 | `SectionTitle` | `core/widgets/section_title.dart` | section heading + optional link |
 | `StatTile` | `core/widgets/stat_tile.dart` | one label, one number |
@@ -109,6 +123,7 @@ Controllers: `animateWith(spring.simulate(from: value, velocity: velocity))`. Im
 
 ## 5. Screen patterns
 
+- **Home (customer)**: a deep-green header that bleeds to the top edge (date, greeting, the default address as a pill that opens the address book, the next booking on a translucent panel or a one-line notice), then a white booking card raised over the header (`raised`): the segments as selectable tiles with the server's price, and one "Đặt ca · price" button (`cta`) that opens booking with the choice ticked; then the favourite helpers as cards with "Đặt lại". The list ends clear of the bar and the centre button.
 - **Tab screen** (`NordicPage.tab`): no app bar; large `display` title, optional small subtitle above it (e.g. the date) and a header action on the right; content below in sections.
 - **Pushed screen** (`NordicPage.pushed`): app bar with back and a short title (a noun: "Chi tiết đơn", "Địa chỉ"), never an internal code.
 - **Form**: fields with labels above; validate inline while typing where possible; on submit, an error message under the field + `ErrorShake`; the submit button in `actions` (above the keyboard); a field never hidden by the keyboard.
