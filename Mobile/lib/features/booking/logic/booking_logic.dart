@@ -45,9 +45,10 @@ String tierLabel(String tier) => switch (tier) {
 
 /// One line that tells the two segments apart (PRD 2.1): who does the work and how it is assigned.
 String tierDescription(String tier, BookingOptions options) => switch (tier) {
-  ServiceTier.economy => 'Người làm tự do gần bạn nhận ca. Giá tiết kiệm.',
+  ServiceTier.economy =>
+    'Phù hợp dọn dẹp thông thường. Người làm tự do nhận ca theo khu vực.',
   ServiceTier.premium =>
-    'Nhân viên của công ty đối tác, cam kết chất lượng. Đặt trước ít nhất ${options.premiumMinLeadHours} giờ.',
+    'Người làm từ công ty đối tác. Đặt trước ít nhất ${options.premiumMinLeadHours} giờ.',
   _ => '',
 };
 
