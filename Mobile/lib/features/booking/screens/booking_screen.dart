@@ -11,6 +11,7 @@ import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/raised_panel.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../customers/routes.dart';
 import '../../customers/models/favorite_worker.dart';
@@ -493,23 +494,17 @@ class _BookingScreenState extends State<BookingScreen> {
 
     return [
       _heading('Gói dịch vụ'),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var i = 0; i < options.serviceTiers.length; i++) ...[
-            if (i > 0) const SizedBox(width: NordicSpace.sm),
-            Expanded(
-              child: _TierTile(
-                key: Key('tier-${options.serviceTiers[i]}'),
-                selected: _tier == options.serviceTiers[i],
-                title: tierLabel(options.serviceTiers[i]),
-                subtitle: tierDescription(options.serviceTiers[i], options),
-                onTap: () => _chooseTier(options.serviceTiers[i]),
-              ),
-            ),
-          ],
-        ],
-      ),
+      for (final tier in options.serviceTiers) ...[
+        _TierTile(
+          key: Key('tier-$tier'),
+          selected: _tier == tier,
+          tier: tier,
+          title: tierLabel(tier),
+          subtitle: tierDescription(tier, options),
+          onTap: () => _chooseTier(tier),
+        ),
+        const SizedBox(height: NordicSpace.sm),
+      ],
       _fieldError('serviceTier'),
       if (_tier == ServiceTier.economy &&
           (_favorites.isNotEmpty || _previousWorkerId != null))
@@ -834,6 +829,7 @@ BoxDecoration _tileDecoration(bool selected) => BoxDecoration(
 /// ui-templates `.tier`: one segment, its radio and its one-line explanation.
 class _TierTile extends StatelessWidget {
   final bool selected;
+  final String tier;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -841,6 +837,7 @@ class _TierTile extends StatelessWidget {
   const _TierTile({
     super.key,
     required this.selected,
+    required this.tier,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -857,7 +854,7 @@ class _TierTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: NordicRadius.cardAll,
         child: Container(
-          padding: const EdgeInsets.all(14.0),
+          padding: const EdgeInsets.all(NordicSpace.md),
           decoration: _tileDecoration(selected),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -878,14 +875,30 @@ class _TierTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: NordicSpace.xs),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 11.0,
-                  height: 1.35,
-                  color: NordicColors.textSecondary,
+              if (tier == ServiceTier.economy)
+                const StatusPill('Giá tốt nhất', tone: PillTone.ok)
+              else if (tier == ServiceTier.premium)
+                const StatusPill(
+                  'Hỗ trợ thay thế khi có sự cố',
+                  tone: PillTone.ok,
                 ),
-              ),
+              const SizedBox(height: NordicSpace.xs),
+              Text(subtitle, style: NordicTypography.bodySmall),
+              if (tier == ServiceTier.economy) ...[
+                const SizedBox(height: NordicSpace.xs),
+                const Text(
+                  'Đơn có thể tự động hoàn tiền nếu khu vực hết người nhận ca.',
+                  style: NordicTypography.bodySmall,
+                ),
+              ] else if (tier == ServiceTier.premium) ...[
+                const SizedBox(height: NordicSpace.xs),
+                const Text(
+                  '• Đối tác cung cấp người làm theo lịch đã giữ.\n'
+                  '• Hỗ trợ điều phối thay thế khẩn cấp khi có sự cố; hoàn tiền nếu không tìm được người thay thế.\n'
+                  '• Bạn kiểm tra trực tiếp; người làm khắc phục tại chỗ trong 15–30 phút nếu cần.',
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
             ],
           ),
         ),
