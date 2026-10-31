@@ -7,6 +7,7 @@ import '../../core/theme/nordic_typography.dart';
 import '../../core/widgets/avatar_initials.dart';
 import '../../core/widgets/grouped_list_card.dart';
 import '../../core/widgets/nordic_card.dart';
+import '../../core/widgets/nordic_button.dart';
 import '../../core/widgets/nordic_page.dart';
 import '../../core/widgets/pressable.dart';
 import '../../core/widgets/stat_tile.dart';
@@ -14,8 +15,11 @@ import '../payouts/logic/payout_logic.dart';
 import '../payouts/models/payout_models.dart';
 import '../payouts/services/payouts_service.dart';
 import '../workers/models/booking_slot_models.dart';
+import '../workers/models/worker_work_area_models.dart';
+import '../workers/routes.dart';
 import '../workers/services/workers_profile_service.dart';
 import '../workers/services/workers_slots_service.dart';
+import '../workers/services/workers_work_area_service.dart';
 
 /// The worker's Hôm nay tab: the month's earnings and finished jobs from
 /// `GET /api/workers/me/earnings`, and the next 7 days of on/off slots from `GET /api/workers/me/slots`.
@@ -34,6 +38,7 @@ class WorkerTodayTab extends StatefulWidget {
   final IPayoutsService? payouts;
   final WorkersSlotsService? slots;
   final WorkersProfileService? profile;
+  final WorkersWorkAreaService? workArea;
 
   /// The clock, so the month and the week can be tested.
   final DateTime Function()? now;
@@ -48,6 +53,7 @@ class WorkerTodayTab extends StatefulWidget {
     this.payouts,
     this.slots,
     this.profile,
+    this.workArea,
     this.now,
   });
 
@@ -73,6 +79,10 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
 
   String? _fullName;
   Earnings? _earnings;
+
+  /// Whether the worker belongs to an agency, and the registered work area; null until each is read (a failed read leaves it null).
+  bool? _agencyWorker;
+  WorkerWorkArea? _area;
   Set<String>? _activeSlots; // "yyyy-MM-dd:SHIFT_CODE"
 
   @override
@@ -85,6 +95,13 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _load() {
+    final summary = _profile
+        .getSummary()
+        .then((s) {
+          if (mounted) setState(() => _agencyWorker = s.agencyWorker);
+        })
+        .catchError((_) {});
+    final area = _loadArea();
     final name = _profile
         .getFullName()
         .then((name) {
@@ -112,7 +129,7 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
           });
         })
         .catchError((_) {});
-    return Future.wait([name, earnings, slots]);
+    return Future.wait([name, earnings, slots, summary, area]);
   }
 
   @override
@@ -129,6 +146,10 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
         icon: const Icon(Icons.notifications_outlined),
       ),
       children: [
+        if (_agencyWorker == false && _area != null && !_area!.isSet) ...[
+          _workAreaCard(),
+          const SizedBox(height: NordicSpace.md),
+        ],
         Row(
           children: [
             AvatarInitials(name, size: 44),
@@ -202,6 +223,49 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
           ],
         ),
       ],
+    );
+  }
+
+  Future<void> _loadArea() {
+    return (widget.workArea ?? WorkersWorkAreaService())
+        .getWorkArea()
+        .then((response) {
+          if (mounted) setState(() => _area = response.data);
+        })
+        .catchError((_) {});
+  }
+
+  /// Shown to a freelancer who has not registered where they work: until then no job is offered to them (decisions D24).
+  Widget _workAreaCard() {
+    return NordicCard(
+      isHighlighted: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.place_outlined, color: NordicColors.primary),
+              const SizedBox(width: NordicSpace.xs),
+              const Expanded(
+                child: Text(
+                  'Chưa có nơi làm việc, bạn sẽ chưa nhận được việc',
+                  key: Key('worker-today-work-area-hint'),
+                  style: NordicTypography.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: NordicSpace.sm),
+          NordicButton(
+            key: const Key('worker-today-work-area'),
+            label: 'Đăng ký nơi làm việc',
+            onPressed: () =>
+                Navigator.of(context)
+                    .pushNamed(WorkerRoutes.workArea)
+                    .then((_) => _loadArea()),
+          ),
+        ],
+      ),
     );
   }
 

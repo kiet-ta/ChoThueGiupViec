@@ -6,9 +6,12 @@ import 'package:mobile/features/home/worker_today_tab.dart';
 import 'package:mobile/features/payouts/models/payout_models.dart';
 import 'package:mobile/features/payouts/services/payouts_service.dart';
 import 'package:mobile/features/workers/models/booking_slot_models.dart';
+import 'package:mobile/features/workers/models/worker_work_area_models.dart';
+import 'package:mobile/features/workers/routes.dart';
 import 'package:mobile/features/workers/screens/worker_screen.dart';
 import 'package:mobile/features/workers/services/workers_profile_service.dart';
 import 'package:mobile/features/workers/services/workers_slots_service.dart';
+import 'package:mobile/features/workers/services/workers_work_area_service.dart';
 
 import '../workers/design_frame.dart';
 
@@ -73,6 +76,28 @@ class _SummaryProfile extends WorkersProfileService {
   Future<WorkerSummary> getSummary() async =>
       (fullName: name, agencyWorker: agency);
 }
+
+class _Area extends WorkersWorkAreaService {
+  final WorkerWorkArea? area;
+  int reads = 0;
+
+  _Area(this.area);
+
+  @override
+  Future<ApiResponse<WorkerWorkArea>> getWorkArea() async {
+    reads++;
+    if (area == null) throw Exception('offline');
+    return ApiResponse<WorkerWorkArea>(success: true, message: '', data: area);
+  }
+}
+
+const _areaSet = WorkerWorkArea(
+  isSet: true,
+  latitude: 10.7769,
+  longitude: 106.7009,
+  radiusKm: 10,
+  districts: ['Phường Bến Nghé', 'Phường Bến Thành'],
+);
 
 class _FailingProfile extends WorkersProfileService {
   @override
@@ -284,6 +309,168 @@ void main() {
       expect(find.text('Thợ #12'), findsOneWidget);
     },
   );
+
+  group('work area (decisions D24)', () {
+    Widget account(
+      WorkersProfileService profile,
+      WorkersWorkAreaService area,
+    ) => MaterialApp(
+      routes: {
+        WorkerRoutes.workArea: (_) =>
+            const Scaffold(body: Text('work-area-screen')),
+      },
+      home: WorkerScreen(workerId: 12, profile: profile, workArea: area),
+    );
+
+    testWidgets(
+      'a freelancer sees the row, "Chưa đăng ký" until they register',
+      (tester) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          account(_SummaryProfile(), _Area(const WorkerWorkArea.empty())),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('worker-account-work-area')),
+          findsOneWidget,
+        );
+        expect(find.text('Chưa đăng ký'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'the row shows the radius and the number of wards once registered',
+      (tester) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(account(_SummaryProfile(), _Area(_areaSet)));
+        await tester.pumpAndSettle();
+
+        expect(find.text('10 km · 2 phường/xã'), findsOneWidget);
+      },
+    );
+
+    testWidgets('an agency worker has no work area row', (tester) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        account(_SummaryProfile(agency: true), _Area(_areaSet)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('worker-account-work-area')), findsNothing);
+    });
+
+    testWidgets(
+      'the row opens the screen and the area is read again on return',
+      (tester) async {
+        useDesignFrame(tester);
+        final area = _Area(const WorkerWorkArea.empty());
+        await tester.pumpWidget(account(_SummaryProfile(), area));
+        await tester.pumpAndSettle();
+        expect(area.reads, 1);
+
+        await tapVisible(
+          tester,
+          find.byKey(const Key('worker-account-work-area')),
+        );
+        expect(find.text('work-area-screen'), findsOneWidget);
+        tester.state<NavigatorState>(find.byType(Navigator)).pop();
+        await tester.pumpAndSettle();
+
+        expect(area.reads, 2);
+      },
+    );
+
+    Future<void> pumpToday(
+      WidgetTester tester, {
+      required WorkersProfileService profile,
+      required WorkersWorkAreaService area,
+    }) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          routes: {
+            WorkerRoutes.workArea: (_) =>
+                const Scaffold(body: Text('work-area-screen')),
+          },
+          home: WorkerTodayTab(
+            workerId: 12,
+            payouts: _Payouts(),
+            slots: _Slots(),
+            profile: profile,
+            workArea: area,
+            now: () => DateTime(2026, 10, 26),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'a freelancer with no work area gets a reminder that opens the screen',
+      (tester) async {
+        await pumpToday(
+          tester,
+          profile: _SummaryProfile(),
+          area: _Area(const WorkerWorkArea.empty()),
+        );
+
+        expect(
+          find.byKey(const Key('worker-today-work-area-hint')),
+          findsOneWidget,
+        );
+        await tapVisible(
+          tester,
+          find.byKey(const Key('worker-today-work-area')),
+        );
+        expect(find.text('work-area-screen'), findsOneWidget);
+      },
+    );
+
+    testWidgets('no reminder once the area is registered', (tester) async {
+      await pumpToday(
+        tester,
+        profile: _SummaryProfile(),
+        area: _Area(_areaSet),
+      );
+
+      expect(
+        find.byKey(const Key('worker-today-work-area-hint')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('no reminder for an agency worker', (tester) async {
+      await pumpToday(
+        tester,
+        profile: _SummaryProfile(agency: true),
+        area: _Area(const WorkerWorkArea.empty()),
+      );
+
+      expect(
+        find.byKey(const Key('worker-today-work-area-hint')),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'a failed read of the profile or of the area shows nothing and never blocks the tab',
+      (tester) async {
+        await pumpToday(tester, profile: _FailingProfile(), area: _Area(null));
+        expect(
+          find.byKey(const Key('worker-today-work-area-hint')),
+          findsNothing,
+        );
+        expect(find.text('Hôm nay'), findsWidgets);
+
+        await pumpToday(tester, profile: _SummaryProfile(), area: _Area(null));
+        expect(
+          find.byKey(const Key('worker-today-work-area-hint')),
+          findsNothing,
+        );
+      },
+    );
+  });
 
   testWidgets('Account tab shows the worker and the links, sign-out last', (
     tester,

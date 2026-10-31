@@ -10,15 +10,18 @@ import '../../agencies/routes.dart';
 import '../../disputes/models/dispute_models.dart';
 import '../../disputes/routes.dart';
 import '../../disputes/screens/dispute_screen.dart';
+import '../models/worker_work_area_models.dart';
 import '../routes.dart';
 import '../services/workers_profile_service.dart';
+import '../services/workers_work_area_service.dart';
 
 /// The worker's Tài khoản tab and the `/workers/profile` screen: who is signed in
-/// and the links to eKYC, the company schedule and disputes. The rating and criteria averages of the template need an API
+/// and the links to eKYC, the work area, the company schedule and disputes. The rating and criteria averages of the template need an API
 /// that does not exist yet, so they are not shown.
 /// MOB-UI-24 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage` (tab, or pushed when it has a back route), tokens only.
 /// MOB-UI-26: an agency worker is verified by the agency, so the eKYC row is not shown to them; the company roster row is
 /// shown to agency workers only (a freelancer sets the shifts in the Lịch tab).
+/// MOB-WORKER-AREA-01 (#556): a freelancer also has the row "Nơi làm việc" (where they work, decisions D24).
 class WorkerScreen extends StatefulWidget {
   /// The worker's id from the login; there is no profile endpoint to read a name from.
   final int? workerId;
@@ -29,7 +32,16 @@ class WorkerScreen extends StatefulWidget {
   /// Reads the profile to tell an agency worker from a freelancer; replaceable in tests.
   final WorkersProfileService? profile;
 
-  const WorkerScreen({super.key, this.workerId, this.onSignOut, this.profile});
+  /// Reads the registered work area for the subtitle of its row; replaceable in tests.
+  final WorkersWorkAreaService? workArea;
+
+  const WorkerScreen({
+    super.key,
+    this.workerId,
+    this.onSignOut,
+    this.profile,
+    this.workArea,
+  });
 
   @override
   State<WorkerScreen> createState() => _WorkerScreenState();
@@ -42,6 +54,9 @@ class _WorkerScreenState extends State<WorkerScreen> {
 
   /// The worker's name from the profile; until it loads (or if it has none) the placeholder below is shown.
   String? _fullName;
+
+  /// The registered work area, or null while it loads or when it cannot be read.
+  WorkerWorkArea? _area;
 
   @override
   void initState() {
@@ -56,10 +71,29 @@ class _WorkerScreenState extends State<WorkerScreen> {
           });
         })
         .catchError((_) {});
+    _loadArea();
+  }
+
+  void _loadArea() {
+    (widget.workArea ?? WorkersWorkAreaService())
+        .getWorkArea()
+        .then((response) {
+          if (mounted) setState(() => _area = response.data);
+        })
+        .catchError((_) {});
   }
 
   void _open(BuildContext context, String route, {Object? arguments}) {
     Navigator.of(context).pushNamed(route, arguments: arguments);
+  }
+
+  String get _areaSubtitle {
+    final area = _area;
+    if (area == null || !area.isSet) return 'Chưa đăng ký';
+    final districts = area.districts.isEmpty
+        ? ''
+        : ' · ${area.districts.length} phường/xã';
+    return '${area.radiusKm} km$districts';
   }
 
   @override
@@ -94,6 +128,17 @@ class _WorkerScreenState extends State<WorkerScreen> {
               icon: Icons.badge_outlined,
               title: 'Xác minh danh tính',
               onTap: () => _open(context, WorkerRoutes.ekyc),
+            ),
+          if (!_agencyWorker)
+            GroupedListItem(
+              key: const Key('worker-account-work-area'),
+              icon: Icons.place_outlined,
+              title: 'Nơi làm việc',
+              subtitle: _areaSubtitle,
+              onTap: () =>
+                  Navigator.of(context)
+                      .pushNamed(WorkerRoutes.workArea)
+                      .then((_) => _loadArea()),
             ),
           // The company roster only exists for an agency worker; a freelancer sets the shifts in the Lịch tab.
           if (_agencyWorker)
