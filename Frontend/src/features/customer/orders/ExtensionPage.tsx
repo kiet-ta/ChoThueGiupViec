@@ -97,7 +97,7 @@ export function ExtensionPage() {
       <p className="mt-2">Thêm {hoursText(ext.extraHours)} · Phí thêm <b>{formatVnd(ext.extraAmount)}</b> · Kết thúc {newEndText(order.shiftEndAt, ext.extraHours).split('→ ')[1]}</p>
       {ext.extStatus === 'PENDING_PAYMENT' && <>
         <p className="mt-2 text-sm text-stone-500">Thanh toán phần phát sinh để thợ được hỏi có đồng ý làm thêm không.</p>
-        <Link to={`/app/payments/extension/${ext.extensionId}`} className="mt-4 inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Thanh toán {formatVnd(ext.extraAmount)}</Link></>}
+        <Link to={`/app/payments/extension/${ext.extensionId}?order=${orderId}`} className="mt-4 inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Thanh toán {formatVnd(ext.extraAmount)}</Link></>}
       {ext.extStatus === 'PAID' && <p className="mt-2 flex items-center gap-2 text-sm text-stone-500"><Loader size={16} className="animate-spin" />Đang chờ thợ trả lời. Nếu thợ từ chối, phần phí thêm được hoàn lại.</p>}
       {ext.extStatus === 'ACCEPTED' && <p className="mt-2 text-sm text-emerald-800">Thợ đã đồng ý làm thêm. Không cần thao tác gì thêm.</p>}
       {ext.extStatus === 'DECLINED' && <p className="mt-2 text-sm text-stone-600">Thợ không làm thêm được. Phần phí thêm đã được hoàn lại.</p>}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { CircleAlert, CircleCheck, Clock, Copy, ExternalLink, FlaskConical, Loader, QrCode, Timer } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
@@ -15,6 +15,9 @@ const pill: Record<string, string> = { PENDING: 'bg-amber-100 text-amber-900', P
 /** `kind = 'order'` pays `/app/payments/:orderId`; `kind = 'extension'` pays `/app/payments/extension/:extensionId` ("Làm lần 2"). */
 export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }) {
   const params = useParams()
+  // The payment of an extension carries no order id, so the extension page passes it as `?order=`.
+  const [search] = useSearchParams()
+  const queryOrderId = Number(search.get('order')) || null
   const isExtension = kind === 'extension'
   const targetId = Number(isExtension ? params.extensionId : params.orderId)
   const orderId = isExtension ? null : targetId
@@ -42,7 +45,7 @@ export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }
     }
   }, [targetId, isExtension])
 
-  const paymentOrderId = payment?.orderId ?? (isExtension ? null : orderId)
+  const paymentOrderId = payment?.orderId ?? (isExtension ? queryOrderId : orderId)
   useEffect(() => {
     void createQr()
   }, [createQr])
