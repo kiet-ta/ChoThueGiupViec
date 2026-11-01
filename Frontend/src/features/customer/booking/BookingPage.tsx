@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleAlert, Home, Loader } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
+import { accountApi } from '../account/api'
 import { bookingApi } from './api'
 import type { BookingOptions, CustomerAddress, PriceQuote, ServiceTier } from './types'
 import { bookingProblem, dayText, NOTE_MAX_LENGTH, shiftBlockedReason, shiftLabel, shiftRange, tierLabel, upcomingDays, workersPrice } from './view'
@@ -15,6 +16,8 @@ const radio = (on: boolean) => <span className={`mt-1 grid h-4 w-4 shrink-0 plac
 export function BookingPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const workerParam = Number(params.get('worker')) || null
+  const [favoriteName, setFavoriteName] = useState<string | null>(null)
   const [options, setOptions] = useState<BookingOptions | null>(null)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -44,6 +47,12 @@ export function BookingPage() {
       cancelled = true
     }
   }, [])
+
+  // "Đặt thợ này" from the favorites: show the worker's name (a wish for Economy, ignored for Premium).
+  useEffect(() => {
+    if (workerParam === null) return
+    accountApi.favorites().then((l) => setFavoriteName(l.find((w) => w.workerId === workerParam)?.fullName ?? null)).catch(() => undefined)
+  }, [workerParam])
 
   // The server price per tier for the chosen address (the prices in the prototype are samples).
   useEffect(() => {
@@ -78,7 +87,7 @@ export function BookingPage() {
     setSubmitting(true)
     setBanner(null)
     try {
-      const order = await bookingApi.createOrder({ addressId, serviceTier: tier, scheduledDate: date, shiftCode, customerNote: note.trim() || null })
+      const order = await bookingApi.createOrder({ addressId, serviceTier: tier, scheduledDate: date, shiftCode, customerNote: note.trim() || null, preferredWorkerId: tier === 'ECONOMY' ? workerParam : null })
       navigate(`/app/payments/${order.orderId}`)
     } catch (e) {
       setBanner(bookingProblem(e as ApiError))
@@ -105,6 +114,7 @@ export function BookingPage() {
             </button>)}
           </div>
           <p className="mt-3 text-sm text-stone-500">Gói Premium đặt trước tối thiểu {options.premiumMinLeadHours} giờ.</p>
+          {workerParam !== null && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">{tier === 'ECONOMY' ? <>Ưu tiên thợ <b>{favoriteName ?? `#${workerParam}`}</b>. Đây là mong muốn, hệ thống sẽ hỏi thợ này trước nếu thợ rảnh ca bạn chọn.</> : 'Chọn thợ cụ thể chỉ áp dụng cho gói Economy.'}</p>}
           {quoteError && <p role="alert" className="mt-3 text-sm text-red-700">{quoteError}</p>}
         </section>
         <section className={card}>

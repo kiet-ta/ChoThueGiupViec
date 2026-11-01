@@ -79,4 +79,6 @@ export interface CreateOrderBody {
   scheduledDate: string
   shiftCode: string
   customerNote: string | null
+  /** ECONOMY only: one of the caller's favorite workers (a wish, not a guarantee). */
+  preferredWorkerId?: number | null
 }

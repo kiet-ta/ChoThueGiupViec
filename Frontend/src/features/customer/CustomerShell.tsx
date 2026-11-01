@@ -1,6 +1,11 @@
 import { House, LogOut, Menu } from 'lucide-react'
 import { Link, NavLink, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
+import { AccountPage } from './account/AccountPage'
+import { AddressesPage } from './account/AddressesPage'
+import { AddressFormPage } from './account/AddressFormPage'
+import { FavoritesPage } from './account/FavoritesPage'
+import { ProfilePage } from './account/ProfilePage'
 import { AcceptancePage } from './after-shift/AcceptancePage'
 import { DisputeCreatePage } from './after-shift/DisputeCreatePage'
 import { DisputesPage } from './after-shift/DisputesPage'
@@ -24,6 +29,12 @@ const customerRoutes: RouteObject[] = [
   { path: 'orders/:orderId/extension', element: <ExtensionPage /> },
   { path: 'orders/:orderId/acceptance', element: <AcceptancePage /> },
   { path: 'orders/:orderId/rating', element: <RatingPage /> },
+  { path: 'account', element: <AccountPage /> },
+  { path: 'profile', element: <ProfilePage /> },
+  { path: 'favorites', element: <FavoritesPage /> },
+  { path: 'addresses', element: <AddressesPage /> },
+  { path: 'addresses/new', element: <AddressFormPage /> },
+  { path: 'addresses/:addressId', element: <AddressFormPage /> },
   { path: 'disputes', element: <DisputesPage /> },
   { path: 'disputes/new', element: <DisputeCreatePage /> },
 ]

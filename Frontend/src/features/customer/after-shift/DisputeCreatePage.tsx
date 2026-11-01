@@ -99,11 +99,11 @@ export function DisputeCreatePage() {
           {orders.map((o) => <option key={o.orderId} value={o.orderId}>{o.orderCode} · {dayText(o.scheduledDate)} · {shiftLabel(o.shiftCode)}</option>)}
         </select></label>
       <fieldset><legend className="text-sm font-medium">Vấn đề</legend>
-        <div className="mt-2 flex flex-wrap gap-2">{CATEGORIES.map((c) => <button key={c.value} type="button" aria-pressed={category === c.value} onClick={() => setCategory(c.value)}
+        <div className="mt-2 flex flex-wrap gap-2">{CATEGORIES.map((c) => <button key={c.value} type="button" aria-pressed={category === c.value} onClick={() => { setCategory(c.value); setErrors((p) => ({ ...p, category: undefined })) }}
           className={`h-9 rounded-full border px-4 text-sm font-medium ${category === c.value ? 'border-[#1a2f25] bg-[#1a2f25] text-white' : 'border-stone-300'}`}>{c.label}</button>)}</div>
         {errors.category && <p role="alert" className="mt-1 text-sm text-red-700">{errors.category}</p>}</fieldset>
       <div><label className="block text-sm font-medium">Mô tả
-        <textarea value={description} maxLength={DESCRIPTION_MAX} onChange={(e) => setDescription(e.target.value)} aria-invalid={!!errors.description} className="mt-1 min-h-28 w-full rounded-lg border border-stone-300 p-3 text-sm" /></label>
+        <textarea value={description} maxLength={DESCRIPTION_MAX} onChange={(e) => { setDescription(e.target.value); setErrors((p) => ({ ...p, description: undefined })) }} aria-invalid={!!errors.description} className="mt-1 min-h-28 w-full rounded-lg border border-stone-300 p-3 text-sm" /></label>
         <p className="mt-1 text-right text-xs text-stone-500">{description.length}/{DESCRIPTION_MAX}</p>
         {errors.description && <p role="alert" className="text-sm text-red-700">{errors.description}</p>}</div>
       <div><p className="text-sm font-medium">Ảnh bằng chứng · {evidence.length}/{EVIDENCE_MAX}</p>
