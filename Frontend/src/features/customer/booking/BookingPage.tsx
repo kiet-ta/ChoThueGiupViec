@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleAlert, Home, Loader } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
@@ -14,10 +14,11 @@ const radio = (on: boolean) => <span className={`mt-1 grid h-4 w-4 shrink-0 plac
 
 export function BookingPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [options, setOptions] = useState<BookingOptions | null>(null)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [tier, setTier] = useState<ServiceTier>('ECONOMY')
+  const [tier, setTier] = useState<ServiceTier>(params.get('tier') === 'PREMIUM' ? 'PREMIUM' : 'ECONOMY')
   const [addressId, setAddressId] = useState<number | null>(null)
   const [quotes, setQuotes] = useState<Partial<Record<ServiceTier, PriceQuote>>>({})
   const [quoteError, setQuoteError] = useState<string | null>(null)
@@ -150,6 +151,7 @@ export function BookingPage() {
         <hr className="my-4 border-stone-200" />
         <div className="flex items-baseline justify-between"><b>Tổng cộng</b><b className="text-2xl">{quote ? formatVnd(quote.totalAmount) : '—'}</b></div>
         {banner && <p role="alert" className="mt-4 flex gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{banner}</p>}
+        {!canSubmit && !submitting && <p className="mt-4 text-sm text-stone-500">{addressId === null ? 'Chọn địa chỉ để xem giá.' : !selectionValid ? 'Chọn ngày và ca để tiếp tục.' : 'Đang tính giá…'}</p>}
         <button type="button" disabled={!canSubmit} onClick={() => void submit()}
           className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#1a2f25] font-semibold text-white disabled:opacity-50">
           {submitting && <Loader className="animate-spin" size={16} />}Đặt và thanh toán</button>

@@ -5,7 +5,7 @@ import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
 import { bookingApi } from '../booking/api'
 import type { CustomerAddress, OrderSummary, PriceQuote, ServiceTier } from '../booking/types'
-import { dayText, nextOrder, shiftLabel, statusLabel, tierLabel, vnDate, workersPrice } from '../booking/view'
+import { dayText, nextOrder, shiftLabel, statusLabel, tierLabel, vnDate } from '../booking/view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 
@@ -59,9 +59,9 @@ export function HomePage() {
         {!address && <p className="mt-3 text-sm text-stone-500">Thêm địa chỉ trong ứng dụng TỔ ẤM để xem giá theo diện tích.</p>}
         {address && sample && <p className="mt-1 text-sm text-stone-500">{address.totalAreaM2} m² · {sample.requiredWorkers} thợ · 4 giờ</p>}
         {address && <ul className="mt-4 space-y-3">
-          {(['ECONOMY', 'PREMIUM'] as ServiceTier[]).map((t) => <li key={t} className="flex items-center justify-between rounded-xl border border-stone-200 p-4">
-            <div><b>{tierLabel(t)}</b><div className="text-sm text-stone-500">mỗi thợ / ca</div></div>
-            <b>{quotes[t] ? workersPrice(1, quotes[t].unitPrice) : '—'}</b></li>)}
+          {(['ECONOMY', 'PREMIUM'] as ServiceTier[]).map((t) => <li key={t}><Link to={`/app/booking?tier=${t}`} className="flex items-center justify-between rounded-xl border border-stone-200 p-4">
+            <span><b>{tierLabel(t)}</b><span className="block text-sm text-stone-500">mỗi thợ / ca</span></span>
+            <b>{quotes[t] ? formatVnd(quotes[t].unitPrice) : '—'}</b></Link></li>)}
         </ul>}
         <Link to="/app/booking" className="mt-4 flex h-10 items-center justify-center rounded-lg bg-[#1a2f25] font-semibold text-white">Chọn ngày và giờ</Link>
       </section>
