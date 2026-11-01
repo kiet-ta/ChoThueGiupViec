@@ -46,6 +46,12 @@ Frontend/
 - Each area is wrapped by `RequireRole` (WEB-BASE-02): `/admin/*` needs the `Admin` role, `/partner/*` the `Partner` role; see "Authentication and session" below. Paths no feature owns render a not-found page **inside** the area, so the login guard applies first.
 - Theme: layouts use the shadcn theme tokens (`bg-sidebar`, `text-sidebar-foreground`, ...). Mapping the TO AM design tokens into `src/index.css` is a separate ticket (design skill, section 4); do not do it inside a feature ticket.
 
+## Public landing page (WEB-LANDING-01, ticket #569)
+- `/` renders `src/pages/LandingPage.tsx` (public, no login); it used to redirect to `/admin`. The consoles stay at `/admin` and `/partner`, sign-in at `/login`.
+- Code lives in `src/features/landing/`: one component per section, `data.ts` (copy, plans, photo URLs), `pricing.ts` (pure price estimate, unit-tested in `tests/landing-pricing.test.ts`; it is a marketing estimate, the backend price is the source of truth), `landing.css` (scoped under `.landing`, inside `@layer components`) and `motion.ts` (the only place that imports `gsap`).
+- Dependency added: `gsap` (ScrollTrigger is part of it). Motion respects `prefers-reduced-motion`; ScrollTriggers are reverted on unmount; the pinned "3 layers" sequence is desktop-only (>= 1024 px).
+- The figures and quotes in `PLACEHOLDER_PROOF` (`data.ts`) are placeholders without a source: replace before launch. Visual reference: `ui-template/plandingPageWeb.html`.
+
 ## Authentication and session (WEB-BASE-02, contract `.spec/contracts/identity.md` 2.3-2.6)
 - **Login:** `/login` (`src/pages/LoginPage.tsx`) takes email + password + role (`Admin` | `Partner`) and calls `POST /api/auth/password/login`. Errors: 400 field messages under the fields, 401 one generic message (no hint which part was wrong; the password field is emptied), 403 account disabled, 423 locked with the `Retry-After` time in minutes.
 - **Where tokens live (decision of this ticket, leader to confirm):** the access token is kept in **memory only**; the refresh token is kept in `sessionStorage` (key `giupviec.refreshToken`) so a reload can get a new access token and the session ends when the tab closes. `localStorage` is not used. The backend sets no httpOnly cookie, so a script-readable store is the only option for the refresh token, and any XSS can read it: keep the app free of `dangerouslySetInnerHTML` and unreviewed third-party scripts. A refresh token left in the tab is revoked by logout.
