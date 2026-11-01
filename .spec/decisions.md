@@ -316,3 +316,6 @@ SePay Test mode bank-transfer QR is in scope for the demo (owner request 2026-10
 | `Customer.InitialTrustScore` | 0.00 | Q21 (**provisional**, nothing reads it in the MVP) |
 | `Address.RoomMaxAreaM2` | 30 | Q21, PRD section 1.1 |
 | `Address.HouseMaxFloors` | 10 | Q21 (**suggestion**, not in the PRD) |
+
+## Web sign-in split (owner, 2026-11-01)
+- The public website login at `/login` serves Customer (phone and OTP) and Agency (Partner email and password). Admin has its own login at `/admin`; it is not linked from the public landing page. Customer pages are under `/app`.

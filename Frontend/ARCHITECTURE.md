@@ -107,3 +107,8 @@ Live in `src/components/` (outside `features/`, so no module owns them). No extr
 ## Audit log (ADMIN-UAT-07, contract `admin.md` 2.4)
 - `/admin/audit-logs` (`features/admin/audit/AuditPage.tsx`, sidebar section "HỆ THỐNG"): read-only table of `GET /api/admin/audit-logs`, newest first, 20 per page. Filters: entity type (the seven types the backend writes), entity id, actor (Admin / system), from and to day. A day is a Vietnam calendar day: `from` is its start (17:00 UTC of the day before) and `to` is the start of the NEXT day, so the whole last day is included; a range that ends before it starts is refused on the page.
 - Rows of a dispute link to the case. Pure helpers (labels, actor, change text, the query, the range check) are in `audit/view.ts` and tested in `tests/admin-audit.test.ts`. No write action exists.
+
+## Customer and separate Admin sign-in (WEB-CUST-01)
+- `/login` offers Customer OTP and Partner password tabs. Customer OTP uses `/auth/otp/request` and `/auth/otp/verify`; resend availability is taken from the server. `/admin` displays the separate fixed-role Admin login when anonymous.
+- `/app/*` is guarded for Customer and renders the customer shell and placeholders. Admin and Partner retain their own guarded areas. `safeNext` limits redirects to the signed-in role's area.
+- All three web roles use the same session policy: access token in memory, refresh token in `sessionStorage`, rotated on refresh and revoked on logout. The OTP API currently does not return remaining attempts on a wrong code.
