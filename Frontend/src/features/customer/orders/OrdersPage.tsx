@@ -35,7 +35,8 @@ export function OrdersPage() {
   return <div>
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Đơn</p><h1 className="mt-1 text-3xl font-semibold">Đơn của tôi</h1></div>
-      <Link to="/app/booking" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#1a2f25] px-4 font-semibold text-white"><Plus size={16} />Đặt ca mới</Link>
+      <div className="flex gap-3"><Link to="/app/disputes" className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 font-semibold">Khiếu nại của tôi</Link>
+        <Link to="/app/booking" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#1a2f25] px-4 font-semibold text-white"><Plus size={16} />Đặt ca mới</Link></div>
     </div>
     <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Lọc theo trạng thái">
       {STATUS_TABS.map((t) => <button key={t.label} type="button" role="tab" aria-selected={status === t.status} onClick={() => { setStatus(t.status); setPage(1) }}

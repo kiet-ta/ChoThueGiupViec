@@ -110,11 +110,10 @@ export function OrderDetailPage() {
         {(actions.showAcceptance || actions.showRating || actions.showDispute) && <section className={card}>
           <h2 className="text-lg font-semibold">Sau ca</h2>
           <ul className="mt-2 divide-y divide-stone-100">
-            {actions.showAcceptance && <li className="flex items-center gap-3 py-3"><MoreHorizontal size={18} /><span className="grow"><b>Xem ảnh và nghiệm thu</b><span className="block text-sm text-stone-500">So sánh trước/sau 5 góc</span></span><ChevronRight size={18} /></li>}
-            {actions.showRating && <li className="flex items-center gap-3 py-3"><Star size={18} /><span className="grow"><b>Đánh giá thợ</b><span className="block text-sm text-stone-500">Trong 48 giờ sau ca</span></span><ChevronRight size={18} /></li>}
-            {actions.showDispute && <li className="flex items-center gap-3 py-3"><Flag size={18} /><span className="grow"><b>Khiếu nại</b><span className="block text-sm text-stone-500">Trong 24 giờ sau ca</span></span><ChevronRight size={18} /></li>}
+            {actions.showAcceptance && <li><Link to={`/app/orders/${order.orderId}/acceptance`} className="flex items-center gap-3 py-3"><MoreHorizontal size={18} /><span className="grow"><b>Xem ảnh và nghiệm thu</b><span className="block text-sm text-stone-500">So sánh trước/sau 5 góc</span></span><ChevronRight size={18} /></Link></li>}
+            {actions.showRating && <li><Link to={`/app/orders/${order.orderId}/rating`} className="flex items-center gap-3 py-3"><Star size={18} /><span className="grow"><b>Đánh giá thợ</b><span className="block text-sm text-stone-500">Trong 48 giờ sau ca</span></span><ChevronRight size={18} /></Link></li>}
+            {actions.showDispute && <li><Link to={`/app/disputes/new?order=${order.orderId}`} className="flex items-center gap-3 py-3"><Flag size={18} /><span className="grow"><b>Khiếu nại</b><span className="block text-sm text-stone-500">Trong 24 giờ sau ca</span></span><ChevronRight size={18} /></Link></li>}
           </ul>
-          <p className="mt-2 text-xs text-stone-500">Các màn này sẽ mở được ở bản cập nhật tiếp theo.</p>
         </section>}
       </div>
       <div className="space-y-4">
