@@ -18,6 +18,7 @@ export function LandingNav() {
             </a>
           ))}
         </nav>
+        <a href="/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-(--lp-forest)">Đăng nhập</a>
         <a href="#bang-gia" className="lp-btn lp-btn-primary !px-5 !py-2.5 text-sm">
           Đặt lịch <ArrowRight className="h-4 w-4" />
         </a>
