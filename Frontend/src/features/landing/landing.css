@@ -1,0 +1,106 @@
+/* Public landing page (ticket #569). Everything is scoped under .landing so it cannot leak into the admin/partner shells. */
+/* In @layer components so Tailwind utilities (hidden, lg:hidden, ...) can still override these rules. */
+@layer components {
+
+.landing {
+  --lp-ivory: #faf8f3;
+  --lp-sand: #f1eee6;
+  --lp-forest: #1a2f25;
+  --lp-footer: #12221a;
+  --lp-pine: #2d5a43;
+  --lp-sage: #416448;
+  --lp-mist: #c5ecc9;
+  --lp-amber: #d99b26;
+  --lp-ink: #2f3a34;
+  --lp-ink-soft: #6b7280;
+  --lp-line: rgba(47, 58, 52, 0.12);
+
+  background: var(--lp-ivory);
+  color: var(--lp-ink);
+  font-family: 'Geist Variable', system-ui, sans-serif;
+  /* clip, not hidden: hidden would make this a scroll container and break position: sticky */
+  overflow-x: clip;
+}
+
+.landing [id] {
+  scroll-margin-top: 5rem;
+}
+
+.landing .lp-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Buttons: 8 px radius, primary solid, secondary white + 1 px brand outline */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  padding: 1rem 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: background-color 0.2s, color 0.2s, transform 0.15s;
+}
+.lp-btn:active { transform: scale(0.97); }
+.lp-btn:focus-visible { outline: 2px solid var(--lp-sage); outline-offset: 3px; }
+.lp-btn-primary { background: var(--lp-forest); color: #fff; }
+.lp-btn-primary:hover { background: var(--lp-sage); }
+.lp-btn-light { background: #fff; color: var(--lp-forest); }
+.lp-btn-light:hover { background: var(--lp-mist); }
+.lp-btn-outline { background: #fff; color: var(--lp-forest); border: 1px solid var(--lp-forest); }
+.lp-btn-outline:hover { background: var(--lp-sand); }
+.lp-btn-ghost { color: #fff; border: 1px solid rgba(255, 255, 255, 0.6); }
+.lp-btn-ghost:hover { background: rgba(255, 255, 255, 0.15); }
+.lp-btn-icon { width: 3rem; height: 3rem; padding: 0; }
+
+/* Boxes: 12 px radius */
+.lp-card { border-radius: 12px; }
+
+/* Range slider */
+.lp-range { -webkit-appearance: none; appearance: none; background: transparent; height: 28px; width: 100%; }
+.lp-range::-webkit-slider-runnable-track { height: 6px; border-radius: 9999px; background: var(--lp-track, #e2e3de); }
+.lp-range::-moz-range-track { height: 6px; border-radius: 9999px; background: #e2e3de; }
+.lp-range::-webkit-slider-thumb {
+  -webkit-appearance: none; margin-top: -9px; height: 24px; width: 24px; border-radius: 9999px;
+  background: var(--lp-sage); border: 3px solid #fff; box-shadow: 0 2px 10px rgba(26, 47, 37, 0.28); cursor: pointer;
+}
+.lp-range::-moz-range-thumb { height: 20px; width: 20px; border-radius: 9999px; background: var(--lp-sage); border: 3px solid #fff; cursor: pointer; }
+.lp-range:focus-visible { outline: 2px solid var(--lp-sage); outline-offset: 4px; border-radius: 9999px; }
+
+/* Room slider */
+.lp-slide {
+  opacity: 0.45;
+  transform: scale(0.965);
+  transform-origin: 0 50%;
+  transition: opacity 0.8s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lp-slide.is-on { opacity: 1; transform: none; }
+.lp-track { transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1); }
+.lp-tab .lp-tab-label { color: rgba(47, 58, 52, 0.5); transition: color 0.2s; }
+.lp-tab[aria-selected='true'] .lp-tab-label,
+.lp-tab:hover .lp-tab-label { color: var(--lp-forest); }
+.lp-tab:focus-visible { outline: 2px solid var(--lp-sage); outline-offset: 6px; border-radius: 8px; }
+.lp-fill { width: 0; height: 100%; background: var(--lp-forest); }
+.lp-fill.is-running { animation: lp-fill var(--lp-slide-ms, 5000ms) linear forwards; }
+.lp-fill.is-paused { animation-play-state: paused; }
+.lp-fill.is-static { width: 100%; }
+@keyframes lp-fill { from { width: 0; } to { width: 100%; } }
+
+/* Pinned control sequence. `is-pinned` is added by GSAP only on desktop, so the stacked fallback works without JS. */
+.lp-seq.is-pinned { min-height: 100vh; display: flex; align-items: center; padding-top: 7rem; padding-bottom: 4rem; }
+.lp-seq.is-pinned .lp-stage { position: relative; height: 27rem; }
+.lp-seq.is-pinned .lp-panel { position: absolute; inset: 0; }
+.lp-seq.is-pinned .lp-panel:not(:first-child) { opacity: 0; }
+
+/* Testimonials */
+.lp-quote { grid-area: 1 / 1; transition: opacity 0.6s ease, transform 0.6s ease; opacity: 0; transform: translateY(16px); pointer-events: none; }
+.lp-quote.is-on { opacity: 1; transform: none; pointer-events: auto; }
+.lp-avatar { transition: transform 0.5s ease, opacity 0.5s ease; transform: scale(0.92); opacity: 0.55; }
+.lp-avatar.is-on { transform: scale(1.12); opacity: 1; z-index: 5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .landing *, .landing *::before, .landing *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+}

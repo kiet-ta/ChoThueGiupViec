@@ -4,13 +4,14 @@ import { AreaLayout } from './AreaLayout'
 import { routesFor } from './feature-registry'
 import { AreaHomePage } from '@/pages/AreaHomePage'
 import { AreaNotFoundPage } from '@/pages/AreaNotFoundPage'
+import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterAgencyPage } from '@/pages/RegisterAgencyPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // Each area renders only for its own role (WEB-BASE-02): /admin needs Admin, /partner needs Partner.
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/admin" replace /> },
+  { path: '/', element: <LandingPage /> }, // public landing (ticket #569); the consoles stay at /admin and /partner
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterAgencyPage /> },
   {
