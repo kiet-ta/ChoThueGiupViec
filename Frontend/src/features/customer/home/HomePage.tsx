@@ -53,7 +53,7 @@ export function HomePage() {
           <p className="mt-6 text-sm text-white/70">{dayText(next.scheduledDate)} · {shiftLabel(next.shiftCode)}</p>
           <p className="text-3xl font-bold tabular-nums">{nextShift ? shiftRange(nextShift) : shiftLabel(next.shiftCode)}</p>
           <p className="mt-2 text-sm text-white/70">{next.requiredWorkers} thợ · {formatVnd(next.totalAmount)} · Mã {next.orderCode}</p>
-          <Link to={next.orderStatus === 'PENDING_PAYMENT' ? `/app/payments/${next.orderId}` : '/app/orders'} className="mt-6 inline-flex h-10 items-center rounded-lg bg-white px-4 font-semibold text-[#1a2f25]">
+          <Link to={next.orderStatus === 'PENDING_PAYMENT' ? `/app/payments/${next.orderId}` : `/app/orders/${next.orderId}`} className="mt-6 inline-flex h-10 items-center rounded-lg bg-white px-4 font-semibold text-[#1a2f25]">
             {next.orderStatus === 'PENDING_PAYMENT' ? 'Thanh toán ngay' : 'Xem đơn'}</Link>
         </div>}
       </section>
