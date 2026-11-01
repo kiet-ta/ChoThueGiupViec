@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thêm thợ hàng loạt | TỔ ẤM</title>
+<link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js" defer></script>
+</head>
+<body data-role="agency" data-tab="import" data-crumb="Thêm thợ">
+<main class="page">
+  <div class="page-head"><div><div class="eyebrow">Đối tác · Nhân sự</div><h1>Thêm thợ hàng loạt</h1></div><div class="row"></div></div>
+  <div class="col" style="gap:16px">
+    <div class="card pad"><div class="head"><h2>1. Mẫu và cam kết bảo lãnh</h2><span class="pill "><span class="ms">info</span>Chỉ nộp một lần</span></div>
+      <p class="sm muted" style="max-width:720px">Nhập tên pháp lý, mã số thuế và người đại diện đúng theo hồ sơ Agency đã đăng ký. Mẫu không liệt kê từng thợ; hệ thống không tự đối chiếu thông tin hoặc xác minh chữ ký.</p>
+      <div class="form-grid mt-16"><div class="field"><label>Tên pháp lý</label><input class="input" type="text" value="Công ty TNHH Dịch vụ Sạch Việt" placeholder=""></div><div class="field"><label>Mã số thuế</label><input class="input" type="text" value="0312345678" placeholder=""></div><div class="field full"><label>Người đại diện pháp luật</label><input class="input" type="text" value="Trần Văn Minh" placeholder=""></div></div>
+      <div class="row mt-16"><a class="btn outline sm"><span class="ms">print</span>Mở mẫu để in / lưu PDF</a><span class="xs muted">Trong cửa sổ mẫu, chọn "In / Lưu PDF"; ký bản PDF trước khi nộp.</span></div>
+      <hr class="divider"><div class="row"><div class="grow"><b>Tải PDF đã ký</b><div class="xs muted">Các lần nhập sau không cần tải lại nếu cam kết chưa bị thay thế.</div></div><a class="btn outline sm"><span class="ms">upload</span>Chọn tệp PDF</a></div></div>
+    <div class="card pad"><div class="head"><h2>2. File thợ (.xlsx)</h2><a class="btn outline sm"><span class="ms">download</span>Tải mẫu</a></div>
+      <div class="card flat pad row" style="border-style:dashed;justify-content:center;flex-direction:column;padding:32px"><span class="ms">upload_file</span><b>Kéo thả file .xlsx vào đây</b><span class="xs muted">Cột: full_name, phone_number, national_id (12 số), bank_name, bank_account_no</span></div>
+      <div class="row mt-16" style="justify-content:flex-end"><a class="btn outline">Kiểm tra file</a><a class="btn disabled">Tạo thợ</a></div></div>
+    <div class="card pad"><div class="head"><h2>File có lỗi</h2><span class="pill bad">2 dòng lỗi</span></div>
+      <div class="table-wrap" style="border:0"><table class="table"><thead><tr><th>Dòng</th><th>Cột</th><th>Lỗi</th></tr></thead><tbody>
+        <tr><td class="tnum">4</td><td>national_id</td><td>Cần đúng 12 chữ số</td></tr><tr><td class="tnum">9</td><td>phone_number</td><td>Số điện thoại đã tồn tại</td></tr>
+      </tbody></table></div></div>
+  </div></main>
+</body>
+</html>
