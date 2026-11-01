@@ -1,6 +1,10 @@
 import { House, LogOut, Menu } from 'lucide-react'
 import { Link, NavLink, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
+import { AcceptancePage } from './after-shift/AcceptancePage'
+import { DisputeCreatePage } from './after-shift/DisputeCreatePage'
+import { DisputesPage } from './after-shift/DisputesPage'
+import { RatingPage } from './after-shift/RatingPage'
 import { BookingPage } from './booking/BookingPage'
 import { HomePage } from './home/HomePage'
 import { ExtensionPage } from './orders/ExtensionPage'
@@ -18,6 +22,10 @@ const customerRoutes: RouteObject[] = [
   { path: 'orders', element: <OrdersPage /> },
   { path: 'orders/:orderId', element: <OrderDetailPage /> },
   { path: 'orders/:orderId/extension', element: <ExtensionPage /> },
+  { path: 'orders/:orderId/acceptance', element: <AcceptancePage /> },
+  { path: 'orders/:orderId/rating', element: <RatingPage /> },
+  { path: 'disputes', element: <DisputesPage /> },
+  { path: 'disputes/new', element: <DisputeCreatePage /> },
 ]
 
 function Placeholder() {
