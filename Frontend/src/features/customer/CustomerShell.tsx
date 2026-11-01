@@ -1,7 +1,17 @@
 import { House, LogOut, Menu } from 'lucide-react'
-import { Link, NavLink, useLocation, useRoutes } from 'react-router-dom'
+import { Link, NavLink, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
-import { customerRoutes } from './routes'
+import { BookingPage } from './booking/BookingPage'
+import { HomePage } from './home/HomePage'
+import { PaymentPage } from './payment/PaymentPage'
+
+// Kept here, not in `customer/routes.tsx`: src/app/feature-registry.ts loads every `features/*/routes.tsx` as an Admin/Partner
+// FeatureModule, and a customer file there breaks the whole app at start-up. Paths not listed stay placeholders.
+const customerRoutes: RouteObject[] = [
+  { index: true, element: <HomePage /> },
+  { path: 'booking', element: <BookingPage /> },
+  { path: 'payments/:orderId', element: <PaymentPage /> },
+]
 
 function Placeholder() {
   const { pathname } = useLocation()

@@ -7,7 +7,7 @@ import { bookingApi } from '../booking/api'
 import type { Order } from '../booking/types'
 import { paymentApi } from './api'
 import type { Payment } from './types'
-import { formatCountdown, paymentState, POLL_INTERVAL_MS, qrProblem, secondsLeft, shouldPoll, stateView } from './view'
+import { formatCountdown, paymentState, POLL_INTERVAL_MS, qrImageUrl, qrProblem, secondsLeft, shouldPoll, stateView } from './view'
 
 const icons = { Loader, CircleCheck, Clock, CircleAlert }
 const pill: Record<string, string> = { PENDING: 'bg-amber-100 text-amber-900', PAID: 'bg-emerald-100 text-emerald-900', EXPIRED: 'bg-stone-200 text-stone-800', FAILED: 'bg-red-100 text-red-800' }
@@ -64,6 +64,7 @@ export function PaymentPage() {
   const state = payment ? paymentState(payment.txnStatus) : problem?.expired ? 'EXPIRED' : 'FAILED'
   const view = stateView(state)
   const StateIcon = icons[view.icon]
+  const qrImage = qrImageUrl(payment?.qrPayload)
 
   async function copy() {
     if (!payment?.qrPayload) return
@@ -86,8 +87,12 @@ export function PaymentPage() {
         {problem.expired ? <Link to="/app/booking" className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Đặt lại ca</Link>
           : <button type="button" onClick={() => void createQr()} disabled={loading} className="h-10 rounded-lg border border-stone-300 px-4 font-semibold disabled:opacity-50">Thử lại</button>}
       </div>}
-      {payment && <>
-        <div className="text-sm text-stone-500">Số tiền cần thanh toán</div>
+      {payment && <div className={qrImage && state === 'PENDING' ? 'grid items-center gap-8 sm:grid-cols-[220px_1fr]' : ''}>
+        {qrImage && state === 'PENDING' && <figure className="rounded-xl border border-stone-200 bg-white p-3">
+          <img src={qrImage} alt={`Mã QR chuyển khoản ${formatVnd(payment.amount)}`} width={196} height={196} className="h-auto w-full" />
+          <figcaption className="mt-2 text-center text-xs text-stone-500">Quét bằng ứng dụng ngân hàng</figcaption></figure>}
+        <div>
+        <div className="text-sm text-stone-500">{state === 'PAID' ? 'Số tiền đã thanh toán' : 'Số tiền cần thanh toán'}</div>
         <div className="text-4xl font-bold tracking-tight">{formatVnd(payment.amount)}</div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${pill[state]}`}>
@@ -104,7 +109,8 @@ export function PaymentPage() {
           </div>}
         </>}
         {state === 'PAID' && payment.paidAt && <p className="mt-4 text-sm text-stone-500">Thanh toán lúc {new Date(payment.paidAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}.</p>}
-      </>}
+        </div>
+      </div>}
       <hr className="my-6 border-stone-200" />
       <div className="flex flex-wrap justify-between gap-3">
         <Link to="/app/booking" className="inline-flex h-10 items-center rounded-lg border border-stone-300 px-4 font-semibold">{state === 'EXPIRED' || state === 'FAILED' ? 'Đặt lại ca' : 'Quay lại'}</Link>

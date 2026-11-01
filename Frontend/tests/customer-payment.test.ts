@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { formatCountdown, paymentState, qrProblem, secondsLeft, shouldPoll, stateView } from '../src/features/customer/payment/view.ts'
+import { formatCountdown, paymentState, qrImageUrl, qrProblem, secondsLeft, shouldPoll, stateView } from '../src/features/customer/payment/view.ts'
 
 describe('paymentState', () => {
   it('maps the wire statuses', () => {
@@ -42,5 +42,20 @@ describe('state words and QR problems', () => {
     const p = qrProblem({ status: 502 })
     assert.equal(p.expired, false)
     assert.match(p.text, /thử lại/)
+  })
+})
+
+describe('qrImageUrl', () => {
+  it('shows the SePay VietQR image', () => {
+    const url = 'https://qr.sepay.vn/img?acc=1&bank=MB&amount=260000&des=TA1&template=compact'
+    assert.equal(qrImageUrl(url), url)
+  })
+  it('accepts an https image file', () => assert.equal(qrImageUrl('https://cdn.test/qr.png'), 'https://cdn.test/qr.png'))
+  it('refuses plain text, http and deeplinks', () => {
+    assert.equal(qrImageUrl('FAKE-QR-123'), null)
+    assert.equal(qrImageUrl('http://qr.sepay.vn/img?x=1'), null)
+    assert.equal(qrImageUrl('momo://pay?x=1'), null)
+    assert.equal(qrImageUrl('https://test-payment.momo.vn/pay/abc'), null)
+    assert.equal(qrImageUrl(null), null)
   })
 })

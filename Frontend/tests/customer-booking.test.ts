@@ -44,9 +44,20 @@ describe('bookingProblem', () => {
 
 describe('price text and next order', () => {
   it('formats workers x unit price', () => assert.equal(workersPrice(2, 260000), '2 × 260.000 đ'))
+  const shifts = [morning, { shiftCode: 'SHIFT_AFTERNOON', startLocal: '13:00', endLocal: '17:00' }]
+  const evening = new Date('2026-11-01T14:00:00Z') // 21:00 in Vietnam
   it('picks the soonest open order from today on', () => {
     const list = [order({ orderId: 1, scheduledDate: '2026-11-05' }), order({ orderId: 2, scheduledDate: '2026-11-03' }), order({ orderId: 3, scheduledDate: '2026-10-30' }), order({ orderId: 4, scheduledDate: '2026-11-02', orderStatus: 'CANCELLED' })]
-    assert.equal(nextOrder(list, '2026-11-01')?.orderId, 2)
+    assert.equal(nextOrder(list, evening, shifts)?.orderId, 2)
   })
-  it('returns null when nothing is open', () => assert.equal(nextOrder([order({ orderStatus: 'COMPLETED' })], '2026-11-01'), null))
+  it('skips a shift of today that already ended', () => {
+    const list = [order({ orderId: 1, scheduledDate: '2026-11-01', shiftCode: 'SHIFT_AFTERNOON' }), order({ orderId: 2, scheduledDate: '2026-11-04' })]
+    assert.equal(nextOrder(list, evening, shifts)?.orderId, 2)
+    assert.equal(nextOrder(list, new Date('2026-11-01T08:00:00Z'), shifts)?.orderId, 1) // 15:00, shift still running
+  })
+  it('sorts by shift start time within a day', () => {
+    const list = [order({ orderId: 1, scheduledDate: '2026-11-03', shiftCode: 'SHIFT_AFTERNOON' }), order({ orderId: 2, scheduledDate: '2026-11-03', shiftCode: 'SHIFT_MORNING' })]
+    assert.equal(nextOrder(list, evening, shifts)?.orderId, 2)
+  })
+  it('returns null when nothing is open', () => assert.equal(nextOrder([order({ orderStatus: 'COMPLETED' })], evening, shifts), null))
 })

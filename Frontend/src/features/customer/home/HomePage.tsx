@@ -4,8 +4,8 @@ import { CalendarClock, CircleAlert, Loader, Plus } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
 import { bookingApi } from '../booking/api'
-import type { CustomerAddress, OrderSummary, PriceQuote, ServiceTier } from '../booking/types'
-import { dayText, nextOrder, shiftLabel, statusLabel, tierLabel, vnDate } from '../booking/view'
+import type { CustomerAddress, OrderSummary, PriceQuote, ServiceTier, ShiftOption } from '../booking/types'
+import { dayText, nextOrder, shiftLabel, shiftRange, statusLabel, tierLabel } from '../booking/view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 
@@ -14,11 +14,13 @@ export function HomePage() {
   const [address, setAddress] = useState<CustomerAddress | null>(null)
   const [quotes, setQuotes] = useState<Partial<Record<ServiceTier, PriceQuote>>>({})
   const [error, setError] = useState<string | null>(null)
-  const [today] = useState(() => vnDate(new Date()))
+  const [now] = useState(() => new Date())
+  const [shifts, setShifts] = useState<ShiftOption[]>([])
 
   useEffect(() => {
     let cancelled = false
     bookingApi.orders().then((page) => !cancelled && setOrders(page.items)).catch((e: unknown) => !cancelled && setError(e instanceof ApiError ? e.message : 'Không tải được danh sách đơn.'))
+    bookingApi.options().then((o) => !cancelled && setShifts(o.shifts)).catch(() => undefined)
     bookingApi.addresses().then((list) => {
       const chosen = list.find((a) => a.isDefault) ?? list[0] ?? null
       if (cancelled || !chosen) return
@@ -32,7 +34,8 @@ export function HomePage() {
     }
   }, [])
 
-  const next = orders ? nextOrder(orders, today) : null
+  const next = orders ? nextOrder(orders, now, shifts) : null
+  const nextShift = next ? shifts.find((s) => s.shiftCode === next.shiftCode) : undefined
   const sample = quotes.ECONOMY ?? quotes.PREMIUM
 
   return <div>
@@ -47,8 +50,8 @@ export function HomePage() {
         {orders !== null && !next && <div><CalendarClock size={28} className="text-white/70" /><h2 className="mt-3 text-xl font-semibold">Chưa có ca sắp tới</h2><p className="mt-1 text-sm text-white/70">Đặt ca đầu tiên chỉ mất vài phút.</p></div>}
         {next && <div>
           <div className="flex flex-wrap justify-between gap-2"><span className="rounded-full bg-white/15 px-3 py-1 text-sm">Ca sắp tới · {tierLabel(next.serviceTier)}</span><span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-[#1a2f25]">{statusLabel(next.orderStatus)}</span></div>
-          <p className="mt-6 text-sm text-white/70">{dayText(next.scheduledDate)}</p>
-          <p className="text-3xl font-bold">{shiftLabel(next.shiftCode)}</p>
+          <p className="mt-6 text-sm text-white/70">{dayText(next.scheduledDate)} · {shiftLabel(next.shiftCode)}</p>
+          <p className="text-3xl font-bold tabular-nums">{nextShift ? shiftRange(nextShift) : shiftLabel(next.shiftCode)}</p>
           <p className="mt-2 text-sm text-white/70">{next.requiredWorkers} thợ · {formatVnd(next.totalAmount)} · Mã {next.orderCode}</p>
           <Link to={next.orderStatus === 'PENDING_PAYMENT' ? `/app/payments/${next.orderId}` : '/app/orders'} className="mt-6 inline-flex h-10 items-center rounded-lg bg-white px-4 font-semibold text-[#1a2f25]">
             {next.orderStatus === 'PENDING_PAYMENT' ? 'Thanh toán ngay' : 'Xem đơn'}</Link>

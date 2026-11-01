@@ -58,6 +58,24 @@ export function stateView(state: PaymentState): StateView {
   }
 }
 
+/**
+ * The QR as a picture when the server already sends one: the SePay gateway returns `qrPayload` as an https URL of a VietQR image
+ * (`https://qr.sepay.vn/img?...`), so no QR package is needed. Any other text (a MoMo deeplink, the Fake gateway's text) is null and
+ * the page offers the copyable link instead.
+ */
+export function qrImageUrl(qrPayload: string | null | undefined): string | null {
+  if (!qrPayload) return null
+  let url: URL
+  try {
+    url = new URL(qrPayload)
+  } catch {
+    return null
+  }
+  if (url.protocol !== 'https:') return null
+  if (url.hostname === 'qr.sepay.vn' || /\.(png|jpe?g|svg|webp)$/i.test(url.pathname)) return url.toString()
+  return null
+}
+
 /** Text of a failed QR request: 409 PAYMENT_EXPIRED means the order is cancelled, 502 means the gateway did not answer (retry). */
 export function qrProblem(error: { status?: number; message?: string; data?: unknown }): { text: string; expired: boolean } {
   const code = error.data && typeof error.data === 'object' ? (error.data as { code?: unknown }).code : undefined

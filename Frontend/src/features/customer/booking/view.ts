@@ -98,10 +98,21 @@ export function bookingProblem(error: ProblemInput): string {
   return error.message || 'Không đặt được ca. Vui lòng thử lại.'
 }
 
-/** The nearest upcoming open order (waiting for payment, paid, dispatching or assigned) from `today` on; null when there is none. */
-export function nextOrder(orders: OrderSummary[], today: string): OrderSummary | null {
+/**
+ * The nearest upcoming open order (waiting for payment, paid, dispatching or assigned) whose shift has not ended yet; null when there
+ * is none. With `shifts` (from GET /booking/options) a shift of today that already ended is skipped; without them every order of today counts.
+ */
+export function nextOrder(orders: OrderSummary[], now: Date, shifts: ShiftOption[] = []): OrderSummary | null {
+  const today = vnDate(now)
+  const notEnded = (o: OrderSummary) => {
+    if (o.scheduledDate > today) return true
+    if (o.scheduledDate < today) return false
+    const shift = shifts.find((s) => s.shiftCode === o.shiftCode)
+    return !shift || shiftStart(o.scheduledDate, shift.endLocal).getTime() > now.getTime()
+  }
+  const startOf = (o: OrderSummary) => shifts.find((s) => s.shiftCode === o.shiftCode)?.startLocal ?? o.shiftCode
   const upcoming = orders
-    .filter((o) => OPEN_STATUSES.includes(o.orderStatus) && o.scheduledDate >= today)
-    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || a.shiftCode.localeCompare(b.shiftCode))
+    .filter((o) => OPEN_STATUSES.includes(o.orderStatus) && notEnded(o))
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || startOf(a).localeCompare(startOf(b)))
   return upcoming[0] ?? null
 }
