@@ -3,7 +3,7 @@ using CommonService.Application.Interfaces.Ports;
 
 namespace CommonService.Infrastructure.Fakes;
 
-public sealed class FakeWorkerProfileQuery : IWorkerProfileQuery
+public class FakeWorkerProfileQuery : IWorkerProfileQuery
 {
     private readonly ConcurrentDictionary<int, WorkerProfileSummary> _items = new();
 

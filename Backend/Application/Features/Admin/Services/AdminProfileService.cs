@@ -3,7 +3,7 @@ using CommonService.Domain.Entities;
 
 namespace CommonService.Application.Features.Admin.Services;
 
-public sealed class AdminProfileResult
+public class AdminProfileResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }
@@ -21,7 +21,7 @@ public interface IAdminProfileService
 }
 
 /// <summary>GET /api/admin/me (contract admin.md section 2.1, BE-M6-06a).</summary>
-public sealed class AdminProfileService(IAdminProfileReader admins) : IAdminProfileService
+public class AdminProfileService(IAdminProfileReader admins) : IAdminProfileService
 {
     public async Task<AdminProfileResult> GetAsync(int adminId, CancellationToken cancellationToken = default)
     {

@@ -13,7 +13,7 @@ namespace CommonService.Tests.Dispatch;
 
 public class IncidentServiceTests
 {
-    private sealed class InMemoryIncidentRepository : IIncidentRepository
+    private class InMemoryIncidentRepository : IIncidentRepository
     {
         public Dictionary<long, JobAssignment> Assignments { get; } = new();
         public Dictionary<long, JobOrder> Orders { get; } = new();
@@ -68,7 +68,7 @@ public class IncidentServiceTests
         }
     }
 
-    private sealed class MockClock : IClock
+    private class MockClock : IClock
     {
         public DateTime UtcNow { get; set; } = new DateTime(2026, 10, 15, 6, 0, 0, DateTimeKind.Utc);
         public DateTime LocalNow => UtcNow.AddHours(7);
@@ -77,7 +77,7 @@ public class IncidentServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(LocalNow);
     }
 
-    private sealed class MockMediator : IMediator
+    private class MockMediator : IMediator
     {
         public List<INotification> PublishedEvents { get; } = new();
 
@@ -100,7 +100,7 @@ public class IncidentServiceTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
+    private class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
     {
         public List<AvailableWorker> Workers { get; } = new();
 

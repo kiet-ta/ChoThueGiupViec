@@ -1,13 +1,13 @@
 namespace CommonService.Application.Features.Payouts.Dtos;
 
 /// <summary>Body of POST /api/admin/payout-batches (contract payouts.md 2.1).</summary>
-public sealed class BuildPayoutBatchRequestDto
+public class BuildPayoutBatchRequestDto
 {
     /// <summary><c>YYYY-MM</c>.</summary>
     public string? PeriodMonth { get; init; }
 }
 
-public sealed class PayoutBatchDto
+public class PayoutBatchDto
 {
     public int BatchId { get; init; }
     public string PeriodMonth { get; init; } = string.Empty;
@@ -22,7 +22,7 @@ public sealed class PayoutBatchDto
     public DateTime CreatedAt { get; init; }
 }
 
-public sealed class PayoutItemDto
+public class PayoutItemDto
 {
     public int ItemId { get; init; }
 
@@ -46,7 +46,7 @@ public sealed class PayoutItemDto
     public string ItemStatus { get; init; } = string.Empty;
 }
 
-public sealed class PayoutBatchPageDto
+public class PayoutBatchPageDto
 {
     public List<PayoutBatchDto> Items { get; init; } = [];
     public int Page { get; init; }
@@ -54,7 +54,7 @@ public sealed class PayoutBatchPageDto
     public int Total { get; init; }
 }
 
-public sealed class PayoutBatchDetailDto
+public class PayoutBatchDetailDto
 {
     public PayoutBatchDto Batch { get; init; } = new();
     public List<PayoutItemDto> Items { get; init; } = [];

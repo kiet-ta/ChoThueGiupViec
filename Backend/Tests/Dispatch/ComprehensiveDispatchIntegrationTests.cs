@@ -21,7 +21,7 @@ namespace CommonService.Tests.Dispatch;
 /// </summary>
 public class ComprehensiveDispatchIntegrationTests
 {
-    private sealed class MockClock : IClock
+    private class MockClock : IClock
     {
         public DateTime UtcNow { get; set; } = new DateTime(2026, 10, 15, 6, 0, 0, DateTimeKind.Utc);
         public DateTime LocalNow => UtcNow.AddHours(7);
@@ -30,7 +30,7 @@ public class ComprehensiveDispatchIntegrationTests
         public DateOnly LocalToday => DateOnly.FromDateTime(LocalNow);
     }
 
-    private sealed class MockMediator : IMediator
+    private class MockMediator : IMediator
     {
         public List<INotification> PublishedEvents { get; } = new();
 
@@ -53,7 +53,7 @@ public class ComprehensiveDispatchIntegrationTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
+    private class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
     {
         public List<AvailableWorker> Workers { get; } = new();
 
@@ -225,7 +225,7 @@ public class ComprehensiveDispatchIntegrationTests
         Assert.Contains("Hoàn tiền 100%", failedEvt.Reason);
     }
 
-    private sealed class InMemoryIncidentRepositoryHelper : IIncidentRepository
+    private class InMemoryIncidentRepositoryHelper : IIncidentRepository
     {
         public Dictionary<long, JobAssignment> Assignments { get; } = new();
         public Dictionary<long, IncidentLog> Incidents { get; } = new();

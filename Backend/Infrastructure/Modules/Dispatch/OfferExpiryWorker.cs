@@ -9,7 +9,7 @@ namespace CommonService.Infrastructure.Modules.Dispatch;
 /// Runs <see cref="DispatchOfferEngine.ExpirePendingOffersAsync"/> every <see cref="SweepInterval"/> so that a seat whose 30-second offer
 /// ran out goes to the next candidate (BR-03). A failing run is logged and never stops the loop.
 /// </summary>
-public sealed class OfferExpiryWorker(IServiceScopeFactory scopeFactory, ILogger<OfferExpiryWorker> logger) : BackgroundService
+public class OfferExpiryWorker(IServiceScopeFactory scopeFactory, ILogger<OfferExpiryWorker> logger) : BackgroundService
 {
     /// <summary>
     /// provenance: an offer is moved on at most this long after its 30 s window (Dispatch.OfferTimeoutSeconds, BR-03) ends; 5 s keeps that

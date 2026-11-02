@@ -79,7 +79,7 @@ public class WorkerReputationTests
     private static DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options;
 
-    private sealed record Seeded(int CustomerId, int WorkerId, int OtherWorkerId, int AddressId, long OrderId, List<int> SlotIds, List<long> AssignmentIds);
+    private record Seeded(int CustomerId, int WorkerId, int OtherWorkerId, int AddressId, long OrderId, List<int> SlotIds, List<long> AssignmentIds);
 
     private static JobAssignment NewAssignment(JobOrder order, Customer customer, Worker worker, BookingSlot slot, byte seq, params JobAssignmentStatus[] path)
     {

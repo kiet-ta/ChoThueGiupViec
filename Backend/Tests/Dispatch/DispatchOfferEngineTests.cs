@@ -15,7 +15,7 @@ public class DispatchOfferEngineTests
     private static readonly DateOnly ShiftDate = new(2026, 10, 15);
     private static readonly GeoPoint OrderLocation = new(10.762622, 106.660172);
 
-    private sealed class TestMediator : IMediator
+    private class TestMediator : IMediator
     {
         public readonly List<INotification> PublishedEvents = [];
 
@@ -49,7 +49,7 @@ public class DispatchOfferEngineTests
     }
 
     /// <summary>Records the location of every availability query (to prove the order's own address is used).</summary>
-    private sealed class RecordingAvailabilityQuery : IWorkerAvailabilityQuery
+    private class RecordingAvailabilityQuery : IWorkerAvailabilityQuery
     {
         public List<AvailableWorker> Workers { get; } = [];
         public List<GeoPoint> Locations { get; } = [];
@@ -62,7 +62,7 @@ public class DispatchOfferEngineTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public FakeClock Clock { get; } = new();
         public RecordingAvailabilityQuery Query { get; } = new();
@@ -609,7 +609,7 @@ public class DispatchOfferEngineTests
         Assert.Equal([(byte)1, (byte)2], h.Repo.Assignments.Values.Select(a => a.AssignmentSeq).OrderBy(x => x));
     }
 
-    private sealed class ThrowingDispatchRepository : IDispatchRepository
+    private class ThrowingDispatchRepository : IDispatchRepository
     {
         private static Exception Down() => new InvalidOperationException("database down");
         public Task<DispatchOrderContext?> GetOrderContextAsync(long orderId, CancellationToken cancellationToken = default) => throw Down();

@@ -4,7 +4,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Anonymous until a test or a dev sets a user.</summary>
-public sealed class FakeCurrentUser : ICurrentUser
+public class FakeCurrentUser : ICurrentUser
 {
     public bool IsAuthenticated => UserId.HasValue;
 

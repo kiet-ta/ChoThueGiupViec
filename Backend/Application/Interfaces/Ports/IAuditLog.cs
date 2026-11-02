@@ -3,7 +3,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Interfaces.Ports;
 
 /// <summary>One row of ADMIN_AUDIT_LOG (decisions SC-3). Append-only: the port has no update or delete.</summary>
-public sealed record AuditEntry(
+public record AuditEntry(
     AuditActorType ActorType,
     int? AdminId,
     string EntityType,

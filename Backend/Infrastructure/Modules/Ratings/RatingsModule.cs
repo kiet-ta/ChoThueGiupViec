@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CommonService.Infrastructure.Modules.Ratings;
 
 /// <summary>Module registration for Ratings (M6). Self-registers via IModule (BASE-02).</summary>
-public sealed class RatingsModule : IModule
+public class RatingsModule : IModule
 {
     public string Name => "Ratings";
 

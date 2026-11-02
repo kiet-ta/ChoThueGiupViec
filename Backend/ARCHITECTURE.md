@@ -5,6 +5,7 @@
 ## 1. Overview
 - ASP.NET Core Web API, **.NET 10** (`net10.0`), Nullable + ImplicitUsings enabled.
 - Single project (`CommonService.csproj`), layered by **folders/namespaces** following **Clean Architecture**. Use cases are **application services** (`I<Name>Service` + `<Name>Service`) called from thin controllers; MediatR is kept for domain-event notifications.
+- Classes and records are not marked `sealed`; `partial` stays where a type is split over files or uses a source generator.
 - Purpose: a reusable "common service" template (users, orders, payment via Stripe, caching, email, standard response/error middleware).
 - Packages: `MediatR 13`, `Stripe.net 48`, `Swashbuckle.AspNetCore 9`, `Microsoft.AspNetCore.OpenApi`.
 - Root namespace: `CommonService`. Port (dev): http `5004`, https `7204`. Swagger is enabled in Development only.

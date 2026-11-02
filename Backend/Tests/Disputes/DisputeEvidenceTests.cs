@@ -37,7 +37,7 @@ public class DisputeEvidenceTests
         ContentBase64 = Convert.ToBase64String(content),
     };
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;

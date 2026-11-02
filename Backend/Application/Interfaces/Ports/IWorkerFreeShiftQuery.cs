@@ -1,7 +1,7 @@
 namespace CommonService.Application.Interfaces.Ports;
 
 /// <summary>One shift a worker has free: an <c>AVAILABLE</c> BOOKING_SLOT row.</summary>
-public sealed record WorkerFreeShift(DateOnly Date, string ShiftCode);
+public record WorkerFreeShift(DateOnly Date, string ShiftCode);
 
 /// <summary>
 /// The free shifts of one worker, so a customer can see when a favorite worker can come (customers.md 2.3). Only <c>AVAILABLE</c>

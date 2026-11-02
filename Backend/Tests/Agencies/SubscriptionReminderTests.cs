@@ -11,7 +11,7 @@ public class SubscriptionReminderTests
 {
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc); // 10:00 local, 14 October
 
-    private sealed class InMemoryReminders : ISubscriptionReminderRepository
+    private class InMemoryReminders : ISubscriptionReminderRepository
     {
         public List<ExpiringSubscription> Rows { get; } = [];
         public Dictionary<int, int> Marked { get; } = [];

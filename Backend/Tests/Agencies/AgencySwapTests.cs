@@ -16,7 +16,7 @@ public class AgencySwapTests
     private static readonly DateTime ShiftStartUtc = new(2026, 10, 15, 1, 0, 0, DateTimeKind.Utc);
     private const string Morning = "SHIFT_MORNING";
 
-    private sealed class InMemorySwap : IAgencySwapRepository
+    private class InMemorySwap : IAgencySwapRepository
     {
         public SwapAssignmentView Assignment { get; set; } = new(
             1001, 501, AgencyId: 7, WorkerId: 1, SlotId: 10, JobAssignmentStatus.Assigned, ShiftDate, Morning, new TimeOnly(8, 0), ServiceTier.Premium);
@@ -88,7 +88,7 @@ public class AgencySwapTests
         }
     }
 
-    private sealed class PassThroughUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
+    private class PassThroughUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -97,7 +97,7 @@ public class AgencySwapTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
 
@@ -114,7 +114,7 @@ public class AgencySwapTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public InMemorySwap Repo { get; } = new();
         public RecordingPublisher Publisher { get; } = new();

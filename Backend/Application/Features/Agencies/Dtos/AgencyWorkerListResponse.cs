@@ -3,7 +3,7 @@ namespace CommonService.Application.Features.Agencies.Dtos;
 /// <summary>
 /// Response for listing agency workers with pagination.
 /// </summary>
-public sealed record AgencyWorkerListResponse(
+public record AgencyWorkerListResponse(
     IReadOnlyList<AgencyWorkerItem> Items,
     int Page,
     int PageSize,
@@ -13,7 +13,7 @@ public sealed record AgencyWorkerListResponse(
 /// <summary>
 /// Individual worker item in the agency worker list.
 /// </summary>
-public sealed record AgencyWorkerItem(
+public record AgencyWorkerItem(
     int WorkerId,
     string FullName,
     string WorkStatus,

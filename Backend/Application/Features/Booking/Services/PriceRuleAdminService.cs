@@ -7,7 +7,7 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Booking.Services;
 
-public sealed class PriceRuleAdminService(
+public class PriceRuleAdminService(
     IPriceRuleRepository rules,
     IAuditLog auditLog,
     IUnitOfWork unitOfWork,

@@ -13,12 +13,12 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BE-M2-02a: Admin edits of PRICE_RULE, audited in the same unit of work (contract booking.md 4.1-4.2, decisions Q01, G-5).</summary>
-public sealed class PriceRuleAdminServiceTests
+public class PriceRuleAdminServiceTests
 {
     private const int AdminId = 5;
     private static readonly DateTime Now = new(2026, 10, 10, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -26,7 +26,7 @@ public sealed class PriceRuleAdminServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class InMemoryRules : IPriceRuleRepository
+    private class InMemoryRules : IPriceRuleRepository
     {
         public List<PriceRule> Rows { get; } =
         [
@@ -45,7 +45,7 @@ public sealed class PriceRuleAdminServiceTests
             Task.FromResult(Rows.FirstOrDefault(r => r.RuleId == ruleId));
     }
 
-    private sealed class PassThroughUnitOfWork : IUnitOfWork
+    private class PassThroughUnitOfWork : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -54,7 +54,7 @@ public sealed class PriceRuleAdminServiceTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class FailingAuditLog : IAuditLog
+    private class FailingAuditLog : IAuditLog
     {
         public Task WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("audit table unavailable");

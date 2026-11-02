@@ -20,7 +20,7 @@ public static class PaymentErrorCodes
 /// 100 % of the amount, sandbox only (Q04). Idempotent: a PENDING transaction that has not expired is returned instead of
 /// creating a second QR. Not here: IPN, reconciliation, expiry handling (BE-M2-05, 05a).
 /// </summary>
-public sealed class PaymentQrService(
+public class PaymentQrService(
     IPaymentRepository payments,
     IPaymentGateway gateway,
     IUnitOfWork unitOfWork,

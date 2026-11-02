@@ -5,7 +5,7 @@ namespace CommonService.Application.Features.Booking;
 
 /// <param name="UnitPrice">Price per worker per shift (decisions Q01).</param>
 /// <param name="TotalAmount">UnitPrice x RequiredWorkers, whole VND (G-2). Frozen into JOB_ORDER.total_amount by order creation.</param>
-public sealed record PriceQuote(
+public record PriceQuote(
     ServiceTier ServiceTier,
     decimal TotalAreaM2,
     string AreaBracket,

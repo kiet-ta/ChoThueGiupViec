@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Dispatch;
 
 /// <summary><c>INCIDENT_LOG</c> with the worker of its assignment, read only (no navigation properties: plain ids).</summary>
-public sealed class EfAdminIncidentQuery(AppDbContext db) : IAdminIncidentQuery
+public class EfAdminIncidentQuery(AppDbContext db) : IAdminIncidentQuery
 {
     public async Task<IReadOnlyList<AdminIncidentDto>> ListAsync(int limit, CancellationToken cancellationToken = default)
     {

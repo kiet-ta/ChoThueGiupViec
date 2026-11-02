@@ -37,7 +37,7 @@ public class AdminProfileTests
         }
     }
 
-    private sealed class MemoryAdmins : IAdminProfileReader
+    private class MemoryAdmins : IAdminProfileReader
     {
         public Dictionary<int, AdminAccount> Rows { get; } = [];
         public List<int> Asked { get; } = [];
@@ -62,7 +62,7 @@ public class AdminProfileTests
         LockedUntil = new DateTime(2026, 10, 7, 1, 0, 0, DateTimeKind.Utc),
     };
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;

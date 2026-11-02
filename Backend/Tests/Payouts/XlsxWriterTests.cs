@@ -9,7 +9,7 @@ internal static class XlsxTestReader
 {
     private static readonly XNamespace Main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
-    internal sealed record Cell(string Reference, string? Type, string? Style, string? Value);
+    internal record Cell(string Reference, string? Type, string? Style, string? Value);
 
     public static List<string> PartNames(byte[] file)
     {

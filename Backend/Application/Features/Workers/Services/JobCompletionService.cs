@@ -9,7 +9,7 @@ using MediatR;
 
 namespace CommonService.Application.Features.Workers.Services;
 
-public sealed class JobCompletionService(
+public class JobCompletionService(
     IWorkerRepository workerRepository,
     IPublisher publisher,
     ICurrentUser currentUser,

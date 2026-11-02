@@ -3,7 +3,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Returns whatever list a test or a dev puts in <see cref="Workers"/> (up to the query limit).</summary>
-public sealed class FakeWorkerAvailabilityQuery : IWorkerAvailabilityQuery
+public class FakeWorkerAvailabilityQuery : IWorkerAvailabilityQuery
 {
     public List<AvailableWorker> Workers { get; } = [];
 

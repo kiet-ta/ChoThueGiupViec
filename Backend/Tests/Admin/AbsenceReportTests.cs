@@ -46,7 +46,7 @@ public class AbsenceReportTests
         }
     }
 
-    private sealed class TestClock(DateTime utcNow) : IClock
+    private class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -54,7 +54,7 @@ public class AbsenceReportTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(utcNow));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<CustomerAbsentApproved> Events { get; } = [];
 
@@ -69,7 +69,7 @@ public class AbsenceReportTests
             Publish((object)notification, cancellationToken);
     }
 
-    private sealed class RefusingRefunds : IRefundService
+    private class RefusingRefunds : IRefundService
     {
         public int Calls { get; private set; }
 
@@ -80,7 +80,7 @@ public class AbsenceReportTests
         }
     }
 
-    private sealed class TrackingUnitOfWork : IUnitOfWork
+    private class TrackingUnitOfWork : IUnitOfWork
     {
         public int Committed { get; private set; }
         public int RolledBack { get; private set; }
@@ -112,7 +112,7 @@ public class AbsenceReportTests
         }
     }
 
-    private sealed class MemoryAbsence : IAbsenceRepository
+    private class MemoryAbsence : IAbsenceRepository
     {
         public List<AbsenceReportRow> Rows { get; } = [];
         public int MarkCalls { get; private set; }
@@ -161,7 +161,7 @@ public class AbsenceReportTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public MemoryAbsence Repo { get; } = new();
         public FakeRefundService Refunds { get; } = new();
@@ -499,14 +499,14 @@ public class AbsenceReportTests
 
     // ---- controller -----------------------------------------------------------------------------
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;
         public UserRole? Role => null;
     }
 
-    private sealed class StubService(int status) : IAbsenceReportService
+    private class StubService(int status) : IAbsenceReportService
     {
         public (int Admin, long Assignment)? LastCall { get; private set; }
 
@@ -600,7 +600,7 @@ public class AbsenceReportTests
     private static DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options;
 
-    private sealed record Seeded(int AdminId, int CustomerId, int AddressId, int WorkerId, long OrderId, int SlotId, long AssignmentId);
+    private record Seeded(int AdminId, int CustomerId, int AddressId, int WorkerId, long OrderId, int SlotId, long AssignmentId);
 
     /// <summary>A customer, a freelancer and one CHECKED_IN assignment of 260000 VND with a check-in that reported the customer absent.</summary>
     private static async Task<Seeded> SeedAsync(DateTime now, bool gpsVerified = true, byte calls = 2)

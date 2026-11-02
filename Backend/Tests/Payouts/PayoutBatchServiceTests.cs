@@ -24,7 +24,7 @@ public class PayoutBatchServiceTests
     private static readonly DateTime Now = new(2026, 11, 10, 4, 0, 0, DateTimeKind.Utc);
     private const int AdminId = 3;
 
-    internal sealed class TestClock(DateTime utcNow) : IClock
+    internal class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -32,7 +32,7 @@ public class PayoutBatchServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(utcNow));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<PayoutBatchClosed> Events { get; } = [];
 
@@ -47,7 +47,7 @@ public class PayoutBatchServiceTests
             Publish((object)notification, cancellationToken);
     }
 
-    private sealed class StubPenalties : IPayoutPenaltySource
+    private class StubPenalties : IPayoutPenaltySource
     {
         public Dictionary<PayeeKey, decimal> Decided { get; } = [];
         public DateTime? AskedThrough { get; private set; }
@@ -59,7 +59,7 @@ public class PayoutBatchServiceTests
         }
     }
 
-    private sealed class RollbackTrackingUnitOfWork : IUnitOfWork
+    private class RollbackTrackingUnitOfWork : IUnitOfWork
     {
         public int Committed { get; private set; }
         public int RolledBack { get; private set; }
@@ -85,7 +85,7 @@ public class PayoutBatchServiceTests
         }
     }
 
-    internal sealed class MemoryPayouts : IPayoutRepository
+    internal class MemoryPayouts : IPayoutRepository
     {
         public List<PayoutBatch> Batches { get; } = [];
         public Dictionary<int, List<NewPayoutItem>> Stored { get; } = [];
@@ -232,7 +232,7 @@ public class PayoutBatchServiceTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public MemoryPayouts Repo { get; } = new();
         public StubPenalties Penalties { get; } = new();
@@ -602,14 +602,14 @@ public class PayoutBatchServiceTests
 
     // ---- controller -----------------------------------------------------------------------------
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;
         public UserRole? Role => null;
     }
 
-    private sealed class StubBatches(int status) : IPayoutBatchService
+    private class StubBatches(int status) : IPayoutBatchService
     {
         public int? ConfirmedBy { get; private set; }
         public string? BuiltPeriod { get; private set; }

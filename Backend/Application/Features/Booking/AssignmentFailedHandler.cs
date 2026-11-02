@@ -15,7 +15,7 @@ namespace CommonService.Application.Features.Booking;
 /// Known gap: if the refund fails it is logged as an error and NOT retried (no retry mechanism yet; the order stays cancelled).
 /// A PREMIUM order also gives its agency capacity hold back (<see cref="PremiumHoldRelease"/>).
 /// </summary>
-public sealed class AssignmentFailedHandler(
+public class AssignmentFailedHandler(
     IOrderRepository orders,
     IUnitOfWork unitOfWork,
     IRefundService refunds,

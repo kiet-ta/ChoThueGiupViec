@@ -2,7 +2,7 @@ using CommonService.Application.Features.Customers.Dtos;
 
 namespace CommonService.Application.Features.Customers.Services;
 
-public sealed class CustomerProfileResult
+public class CustomerProfileResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }

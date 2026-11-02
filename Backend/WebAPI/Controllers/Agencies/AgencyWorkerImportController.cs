@@ -80,4 +80,4 @@ public class AgencyWorkerImportController(WorkerImportService service) : Control
     }
 }
 
-public sealed record GuaranteeSignedDto(DateTime GuaranteeSignedAt);
+public record GuaranteeSignedDto(DateTime GuaranteeSignedAt);

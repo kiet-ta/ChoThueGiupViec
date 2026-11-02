@@ -20,12 +20,12 @@ namespace CommonService.Tests.Booking;
 /// BE-M2-11: the REAL Booking and Payments services wired together over one in-memory store and the existing Fakes
 /// (no SQL Server, no HTTP host): IPN replay, the Premium last-position race, the 80 m2 price boundary, and "money is never lost".
 /// </summary>
-public sealed class M2AcceptanceTests
+public class M2AcceptanceTests
 {
     private static readonly DateTime Start = new(2026, 10, 14, 0, 0, 0, DateTimeKind.Utc); // 07:00 local
     private static readonly DateOnly ShiftDate = new(2026, 10, 15);
 
-    private sealed class MutableClock : IClock
+    private class MutableClock : IClock
     {
         public DateTime UtcNow { get; set; } = Start;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -33,7 +33,7 @@ public sealed class M2AcceptanceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(UtcNow));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         private readonly List<object> _published = [];
         public IReadOnlyList<object> Published { get { lock (_published) { return _published.ToArray(); } } }
@@ -49,13 +49,13 @@ public sealed class M2AcceptanceTests
             where TNotification : INotification => Publish((object)notification, cancellationToken);
     }
 
-    private sealed class NoNotifications : INotificationService
+    private class NoNotifications : INotificationService
     {
         public Task SendAsync(NotificationMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     /// <summary>The Q01 DEFAULT prices of Backend/Infrastructure/Persistence/DefaultDataSeeder.cs.</summary>
-    private sealed class DefaultPrices : IPriceRuleRepository
+    private class DefaultPrices : IPriceRuleRepository
     {
         private readonly List<PriceRule> _rules =
         [
@@ -79,7 +79,7 @@ public sealed class M2AcceptanceTests
     /// a failing <see cref="ExecuteInTransactionAsync{TResult}"/> removes the rows it inserted (rollback). Status changes made on
     /// a tracked entity inside a failed transaction are not undone (the services under test throw before changing them).
     /// </summary>
-    private sealed class Store : IOrderRepository, IPaymentRepository, IUnitOfWork
+    private class Store : IOrderRepository, IPaymentRepository, IUnitOfWork
     {
         private readonly object _gate = new();
         private readonly AsyncLocal<List<Action>?> _undo = new();
@@ -311,7 +311,7 @@ public sealed class M2AcceptanceTests
     }
 
     /// <summary>Everything a customer journey touches, wired like the application wires it.</summary>
-    private sealed class World
+    private class World
     {
         public Store Db { get; } = new();
         public MutableClock Clock { get; } = new();

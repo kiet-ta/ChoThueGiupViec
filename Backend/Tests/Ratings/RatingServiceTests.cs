@@ -20,7 +20,7 @@ public class RatingServiceTests
     private const int WorkerId = 22;
     private const long AssignmentId = 500;
 
-    private sealed class TestClock(DateTime initialUtc) : IClock
+    private class TestClock(DateTime initialUtc) : IClock
     {
         public DateTime UtcNow { get; set; } = initialUtc;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -28,7 +28,7 @@ public class RatingServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(UtcNow));
     }
 
-    private sealed class MemoryRatings : IRatingRepository
+    private class MemoryRatings : IRatingRepository
     {
         public Dictionary<long, RatingAssignmentInfo> Assignments { get; } = [];
         public List<TwoWayRating> Saved { get; } = [];
@@ -54,7 +54,7 @@ public class RatingServiceTests
         }
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
         public bool Throw { get; set; }
@@ -72,7 +72,7 @@ public class RatingServiceTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public MemoryRatings Repo { get; } = new();
         public TestClock Clock { get; } = new(CompletedAt.AddHours(1));

@@ -21,7 +21,7 @@ public class PayoutExportTests
 {
     private static readonly DateTime Now = new(2026, 11, 10, 4, 0, 0, DateTimeKind.Utc);
 
-    private sealed class Rig
+    private class Rig
     {
         public PayoutBatchServiceTests.MemoryPayouts Repo { get; } = new();
         public FakeFileStorage Storage { get; } = new();
@@ -39,13 +39,13 @@ public class PayoutExportTests
         }
     }
 
-    private sealed class NoPenalties : IPayoutPenaltySource
+    private class NoPenalties : IPayoutPenaltySource
     {
         public Task<IReadOnlyDictionary<PayeeKey, decimal>> GetDecidedAsync(DateTime throughUtc, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyDictionary<PayeeKey, decimal>>(new Dictionary<PayeeKey, decimal>());
     }
 
-    private sealed class NoopUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
+    private class NoopUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -54,7 +54,7 @@ public class PayoutExportTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class NullPublisher : MediatR.IPublisher
+    private class NullPublisher : MediatR.IPublisher
     {
         public Task Publish(object notification, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
@@ -239,7 +239,7 @@ public class PayoutExportTests
 
     // ---- controller -----------------------------------------------------------------------------
 
-    private sealed class StubExports(int status) : IPayoutExportService
+    private class StubExports(int status) : IPayoutExportService
     {
         public (int Batch, string? Type)? LastCall { get; private set; }
 

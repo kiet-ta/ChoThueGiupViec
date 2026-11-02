@@ -14,7 +14,7 @@ namespace CommonService.Infrastructure.Modules.Dispatch;
 /// Module registration for Dispatch (M3). Self-registers via IModule (BASE-02). Everything is scoped because the engine works on the
 /// request's <c>AppDbContext</c>; races are settled by conditional updates in <see cref="EfDispatchRepository"/>, not by in-process locks.
 /// </summary>
-public sealed class DispatchModule : IModule
+public class DispatchModule : IModule
 {
     public string Name => "Dispatch";
 

@@ -26,7 +26,7 @@ public class WorkerRetirementTests
     private static readonly DateOnly Tomorrow = Today.AddDays(1);
     private static readonly DateOnly DayAfter = Today.AddDays(2);
 
-    private sealed class World : IAgencyRepository, IAgencySwapRepository, IUnitOfWork, IWorkerQuotaGuard, IPublisher
+    private class World : IAgencyRepository, IAgencySwapRepository, IUnitOfWork, IWorkerQuotaGuard, IPublisher
     {
         public List<Worker> Workers { get; private set; } = [];
         public List<BookingSlot> Slots { get; private set; } = [];

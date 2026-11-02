@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Tests.Payments;
 
 /// <summary>Stands in for the refund core where a test only needs to know WHAT was asked to be refunded (late payments, P4).</summary>
-internal sealed class RecordingLateRefunds : IRefundService, IExtensionRefundService
+internal class RecordingLateRefunds : IRefundService, IExtensionRefundService
 {
     private readonly object _gate = new();
     private readonly List<RefundRequest> _orders = [];

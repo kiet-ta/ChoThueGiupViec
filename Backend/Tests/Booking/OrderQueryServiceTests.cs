@@ -14,13 +14,13 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BE-M2-12: the customer's booking endpoints (contract booking.md 3.1 to 3.6), with in-memory ports (no DB).</summary>
-public sealed class OrderQueryServiceTests
+public class OrderQueryServiceTests
 {
     private const int CustomerId = 7;
     private const int AddressId = 3;
     private static readonly DateTime Now = new(2026, 10, 14, 0, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -28,7 +28,7 @@ public sealed class OrderQueryServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class Orders : IOrderRepository
+    private class Orders : IOrderRepository
     {
         public List<JobOrder> Items { get; } = [];
 
@@ -48,20 +48,20 @@ public sealed class OrderQueryServiceTests
         public Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class Tracking : IOrderTrackingQuery
+    private class Tracking : IOrderTrackingQuery
     {
         public List<AssignmentProgress> Rows { get; } = [];
         public Task<IReadOnlyList<AssignmentProgress>> GetOrderProgressAsync(long orderId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<AssignmentProgress>>(Rows);
         public Task<IReadOnlyList<CustomerAssignmentSummary>> GetCustomerHistoryAsync(int customerId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class FreeShifts : IWorkerFreeShiftQuery
+    private class FreeShifts : IWorkerFreeShiftQuery
     {
         public Task<IReadOnlyList<WorkerFreeShift>> GetFreeShiftsAsync(int workerId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<WorkerFreeShift>>([new WorkerFreeShift(from, BookingShifts.Morning)]);
     }
 
-    private sealed class Extensions : IExtensionRepository
+    private class Extensions : IExtensionRepository
     {
         public JobOrderExtension? Extension { get; set; }
         public Task<JobOrderExtension?> GetByOrderAsync(long orderId, CancellationToken cancellationToken = default) => Task.FromResult(Extension);
@@ -71,7 +71,7 @@ public sealed class OrderQueryServiceTests
         public void Add(JobOrderExtension extension) => throw new NotSupportedException();
     }
 
-    private sealed class DefaultPrices : IPriceRuleRepository
+    private class DefaultPrices : IPriceRuleRepository
     {
         public Task<PriceRule?> GetActiveAsync(ServiceTier serviceTier, string areaBracket, CancellationToken cancellationToken = default)
         {
@@ -89,7 +89,7 @@ public sealed class OrderQueryServiceTests
         public Task<PriceRule?> GetForUpdateAsync(int ruleId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class RecordingCreation : IOrderCreationService
+    private class RecordingCreation : IOrderCreationService
     {
         public CreateOrderRequest? Last { get; private set; }
 
@@ -103,7 +103,7 @@ public sealed class OrderQueryServiceTests
         }
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public Orders Db { get; } = new();
         public Tracking Track { get; } = new();
@@ -413,7 +413,7 @@ public sealed class OrderQueryServiceTests
         Assert.DoesNotContain(typeof(ProgressAssignmentDto).GetProperties(), p => p.PropertyType.IsEnum);
     }
 
-    private sealed class StubUser(int? userId) : ICurrentUser
+    private class StubUser(int? userId) : ICurrentUser
     {
         public bool IsAuthenticated => userId.HasValue;
         public int? UserId => userId;

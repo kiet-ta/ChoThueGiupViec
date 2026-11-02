@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Payouts;
 
 /// <summary>PAYOUT_BATCH and PAYOUT_ITEM over EF Core plus the one-table read of the flat JOB_ASSIGNMENT node (BE-M6-04, no navigation properties).</summary>
-public sealed class EfPayoutRepository(AppDbContext db) : IPayoutRepository
+public class EfPayoutRepository(AppDbContext db) : IPayoutRepository
 {
     public async Task<bool> TryLockPeriodAsync(string periodMonth, CancellationToken cancellationToken = default)
     {

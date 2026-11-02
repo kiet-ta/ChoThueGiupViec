@@ -25,7 +25,7 @@ public interface IDisputeFilingService
 }
 
 /// <summary>Filing and own lists of disputes (contract disputes.md 2.1, PRD 4.3 step 1, BE-M6-02a).</summary>
-public sealed class DisputeFilingService(
+public class DisputeFilingService(
     IDisputeRepository disputes, IClock clock, IOptions<DisputeOptions> options, IOptions<BusinessRules>? rules = null) : IDisputeFilingService
 {
     private static readonly JobAssignmentStatus[] DisputableStatuses =

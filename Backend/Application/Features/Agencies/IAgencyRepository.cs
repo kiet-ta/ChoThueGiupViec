@@ -70,10 +70,10 @@ public interface IAgencyRepository
 }
 
 /// <summary>A future <c>ASSIGNED</c> job of a worker as the repository reads it.</summary>
-public sealed record FutureJob(long AssignmentId, long OrderId, int SlotId, DateOnly SlotDate, string ShiftCode);
+public record FutureJob(long AssignmentId, long OrderId, int SlotId, DateOnly SlotDate, string ShiftCode);
 
 /// <summary>A future job as the API shows it (contract agencies.md 9.2).</summary>
-public sealed record FutureJobHandover(
+public record FutureJobHandover(
     long AssignmentId,
     long OrderId,
     DateOnly SlotDate,

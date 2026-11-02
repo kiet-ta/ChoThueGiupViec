@@ -1,12 +1,12 @@
 namespace CommonService.Application.Features.Workers.Dtos;
 
-public sealed record SubmitEkycRequest(
+public record SubmitEkycRequest(
     string FrontCccdUrl,
     string BackCccdUrl,
     string SelfieUrl
 );
 
-public sealed record EkycResultResponse(
+public record EkycResultResponse(
     int WorkerId,
     decimal ConfidenceScore,
     string KycStatus,
@@ -15,7 +15,7 @@ public sealed record EkycResultResponse(
     string? RejectionReason = null
 );
 
-public sealed record EkycStatusResponse(
+public record EkycStatusResponse(
     int WorkerId,
     string KycStatus,
     decimal? ConfidenceScore,
@@ -23,7 +23,7 @@ public sealed record EkycStatusResponse(
     string? RejectionReason = null
 );
 
-public sealed record EkycQueueItemResponse(
+public record EkycQueueItemResponse(
     int WorkerId,
     string FullName,
     string PhoneNumber,
@@ -38,12 +38,12 @@ public sealed record EkycQueueItemResponse(
     DateTime SubmittedAt
 );
 
-public sealed record ReviewEkycRequest(
+public record ReviewEkycRequest(
     bool Approved,
     string? RejectionReason = null
 );
 
-public sealed record EkycQueuePagedResponse(
+public record EkycQueuePagedResponse(
     IReadOnlyList<EkycQueueItemResponse> Items,
     int TotalCount,
     int Page,

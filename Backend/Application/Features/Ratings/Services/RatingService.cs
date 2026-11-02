@@ -16,7 +16,7 @@ namespace CommonService.Application.Features.Ratings.Services;
 /// Two-way rating rules of contract ratings.md and decisions Q14 / SC-5 (BE-M6-01a): the window opens when the
 /// assignment is COMPLETED and closes Rating.WindowHours later, one rating per (assignment, rater role), fixed criteria.
 /// </summary>
-public sealed class RatingService : IRatingService
+public class RatingService : IRatingService
 {
     public const int MaxCommentLength = 500;
     private const int MinScore = 1;

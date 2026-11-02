@@ -9,7 +9,7 @@ using MediatR;
 
 namespace CommonService.Application.Features.Payouts.Services;
 
-public sealed class PayoutResult<T>
+public class PayoutResult<T>
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }
@@ -51,7 +51,7 @@ public interface IPayoutBatchService
 /// The monthly payout batch (BE-M6-04, spec 4.4 step 3; decisions Q10, Q11, G-1, G-2, G-3). Nothing here calls a bank (G-1): confirming
 /// only records that the Admin made the transfers from the exported file.
 /// </summary>
-public sealed class PayoutBatchService(
+public class PayoutBatchService(
     IPayoutRepository payouts,
     IPayoutPenaltySource penalties,
     IAuditLog audit,
@@ -60,7 +60,7 @@ public sealed class PayoutBatchService(
     IPublisher publisher) : IPayoutBatchService
 {
     /// <summary>Thrown inside the unit of work to undo it; never leaves this class.</summary>
-    private sealed class BuildAbortedException(string message) : Exception(message);
+    private class BuildAbortedException(string message) : Exception(message);
 
     public async Task<PayoutResult<PayoutBatchDto>> BuildAsync(string? periodMonth, CancellationToken cancellationToken = default)
     {

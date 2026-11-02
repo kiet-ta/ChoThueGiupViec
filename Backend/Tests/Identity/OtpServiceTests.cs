@@ -41,7 +41,7 @@ public class OtpServiceTests
         return new AppDbContext(options);
     }
 
-    private sealed class TestClock(DateTime initialUtc) : IClock
+    private class TestClock(DateTime initialUtc) : IClock
     {
         public DateTime UtcNow { get; set; } = initialUtc;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -49,7 +49,7 @@ public class OtpServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(UtcNow));
     }
 
-    private sealed class TestOtpSender : IOtpSender
+    private class TestOtpSender : IOtpSender
     {
         public string? LastPhone { get; private set; }
         public string? LastCode { get; private set; }

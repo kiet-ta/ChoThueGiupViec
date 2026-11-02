@@ -13,7 +13,7 @@ namespace CommonService.Tests.Workers;
 /// <summary>GET / PUT /api/workers/me/work-area (contract workers.md 2.3B, decisions D24).</summary>
 public class WorkerWorkAreaServiceTests
 {
-    private sealed class TestCurrentUser : ICurrentUser
+    private class TestCurrentUser : ICurrentUser
     {
         public int? UserId { get; set; }
         public UserRole? Role { get; set; } = UserRole.Worker;
@@ -21,7 +21,7 @@ public class WorkerWorkAreaServiceTests
     }
 
     /// <summary>Two workers, like the table. Only what the service uses is implemented.</summary>
-    private sealed class WorkersOnly : IWorkerRepository
+    private class WorkersOnly : IWorkerRepository
     {
         public Dictionary<int, Worker> Workers { get; } = [];
         public int Saves { get; private set; }

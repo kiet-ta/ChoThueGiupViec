@@ -16,7 +16,7 @@ public class BookingSlotToggleGuardTests
     private const int WorkerId = 7;
     private static readonly DateOnly SlotDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
 
-    private sealed class User : ICurrentUser
+    private class User : ICurrentUser
     {
         public int? UserId => WorkerId;
         public UserRole? Role => UserRole.Worker;
@@ -24,7 +24,7 @@ public class BookingSlotToggleGuardTests
     }
 
     /// <summary>Holds one worker's slots; only the members the toggle uses are implemented.</summary>
-    private sealed class SlotRepository : IWorkerRepository
+    private class SlotRepository : IWorkerRepository
     {
         public List<BookingSlot> Slots { get; } = [];
         public int Saves { get; private set; }

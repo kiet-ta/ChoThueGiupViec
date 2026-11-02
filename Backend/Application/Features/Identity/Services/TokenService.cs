@@ -13,7 +13,7 @@ namespace CommonService.Application.Features.Identity.Services;
 /// Service producing and validating cryptographically signed JWT tokens and refresh token hashes (BE-M1-02).
 /// Adheres strictly to RFC 7519 JWT and decisions Q16, SC-7.
 /// </summary>
-public sealed class TokenService : ITokenService
+public class TokenService : ITokenService
 {
     private static readonly string JwtHeaderBase64 = Base64UrlEncode(
         Encoding.UTF8.GetBytes("{\"alg\":\"HS256\",\"typ\":\"JWT\"}"));

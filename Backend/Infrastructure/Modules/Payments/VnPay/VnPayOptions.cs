@@ -5,7 +5,7 @@ namespace CommonService.Infrastructure.Modules.Payments.VnPay;
 /// (<c>VnPay__TmnCode</c>, <c>VnPay__HashSecret</c>, <c>VnPay__ReturnUrl</c>; decisions G-6). Sandbox only, no real money (G-1).
 /// The IPN URL is not sent with a payment: it is set in the VNPay merchant portal and must point at <c>/api/v1/payments/ipn/vnpay</c>.
 /// </summary>
-public sealed class VnPayOptions
+public class VnPayOptions
 {
     public const string SectionName = "VnPay";
 

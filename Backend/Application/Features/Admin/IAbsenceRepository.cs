@@ -6,7 +6,7 @@ namespace CommonService.Application.Features.Admin;
 /// One absence report as the repository reads it: the check-in row of the assignment plus the names. <c>Rejected</c> is true when the
 /// audit log holds a rejection for the assignment (question A3).
 /// </summary>
-public sealed record AbsenceReportRow(
+public record AbsenceReportRow(
     long AssignmentId,
     long OrderId,
     string OrderCode,

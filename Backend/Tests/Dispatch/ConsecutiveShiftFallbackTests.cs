@@ -23,7 +23,7 @@ public class ConsecutiveShiftFallbackTests
     private static readonly DateOnly ShiftDate = new(2026, 10, 15);
     private static readonly GeoPoint Location = new(10.762622, 106.660172);
 
-    private sealed class RecordingMediator : IMediator
+    private class RecordingMediator : IMediator
     {
         public readonly List<INotification> Published = [];
 
@@ -50,7 +50,7 @@ public class ConsecutiveShiftFallbackTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class Availability : IWorkerAvailabilityQuery
+    private class Availability : IWorkerAvailabilityQuery
     {
         public List<AvailableWorker> Workers { get; } = [];
 
@@ -58,7 +58,7 @@ public class ConsecutiveShiftFallbackTests
             Task.FromResult<IReadOnlyList<AvailableWorker>>(Workers.Where(w => w.DistanceKm <= query.RadiusKm).OrderBy(w => w.DistanceKm).ToList());
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public FakeClock Clock { get; } = new();
         public Availability Query { get; } = new();

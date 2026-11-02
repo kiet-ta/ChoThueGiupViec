@@ -7,7 +7,7 @@ namespace CommonService.Infrastructure.Services;
 /// Real IFileStorage storing files on the local disk (development and on-premise deployments).
 /// Configured via "FileStorage:BasePath" or defaults to AppContext.BaseDirectory/App_Data/Uploads.
 /// </summary>
-public sealed class LocalFileStorage : IFileStorage
+public class LocalFileStorage : IFileStorage
 {
     private readonly string _basePath;
 

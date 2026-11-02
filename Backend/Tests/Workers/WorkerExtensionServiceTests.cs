@@ -19,14 +19,14 @@ public class WorkerExtensionServiceTests
     private const int ExtensionId = 301;
     private const long OrderId = 9;
 
-    private sealed class User(int? id, UserRole? role, bool authenticated = true) : ICurrentUser
+    private class User(int? id, UserRole? role, bool authenticated = true) : ICurrentUser
     {
         public int? UserId { get; } = id;
         public UserRole? Role { get; } = role;
         public bool IsAuthenticated { get; } = authenticated;
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
 
@@ -41,7 +41,7 @@ public class WorkerExtensionServiceTests
     }
 
     /// <summary>One extension of one worker; a write other than the conditional accept is a test failure.</summary>
-    private sealed class Extensions(string status, string shiftCode = BookingShifts.Morning, decimal hours = 2m, bool acceptWins = true) : IWorkerExtensionRepository
+    private class Extensions(string status, string shiftCode = BookingShifts.Morning, decimal hours = 2m, bool acceptWins = true) : IWorkerExtensionRepository
     {
         public int Lookups { get; private set; }
         public int AcceptCalls { get; private set; }

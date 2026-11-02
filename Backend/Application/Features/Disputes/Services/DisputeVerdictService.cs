@@ -20,7 +20,7 @@ public interface IDisputeVerdictService
 /// Verdict of a dispute (BE-M6-02b). Everything that must stay consistent (the ticket, the refund, the SLA penalty, the audit row)
 /// runs in ONE unit of work; a refusal of a port undoes the whole thing and the ticket stays open.
 /// </summary>
-public sealed class DisputeVerdictService(
+public class DisputeVerdictService(
     IDisputeRepository disputes,
     IRefundService refunds,
     ISlaPenaltyService slaPenalties,
@@ -38,7 +38,7 @@ public sealed class DisputeVerdictService(
     private const string AuditWorkStatusField = "work_status";
 
     /// <summary>Thrown inside the unit of work to undo it; never leaves this class.</summary>
-    private sealed class VerdictAbortedException(string message) : Exception(message);
+    private class VerdictAbortedException(string message) : Exception(message);
 
     public async Task<DisputeResult<AdminDisputeDto>> ResolveAsync(
         int adminId, int disputeId, ResolveDisputeRequestDto request, CancellationToken cancellationToken = default)

@@ -13,10 +13,10 @@ using Microsoft.Extensions.Options;
 namespace CommonService.Application.Features.Agencies;
 
 /// <summary>The escrow-relevant columns of an agency.</summary>
-public sealed record AgencyEscrowRow(int AgencyId, decimal Balance, decimal SlaScore, string Status);
+public record AgencyEscrowRow(int AgencyId, decimal Balance, decimal SlaScore, string Status);
 
 /// <summary>An escrow ledger row as the Partner or Admin sees it (decisions SC-4; never another agency's).</summary>
-public sealed record EscrowTransactionDto(
+public record EscrowTransactionDto(
     long EscrowTxnId, string TxnType, decimal Amount, decimal BalanceAfter, decimal? SlaPointsDelta,
     long? OrderId, int? DisputeId, long? PaymentId, string Reason, DateTime CreatedAt, bool CanAppeal);
 
@@ -24,20 +24,20 @@ public sealed record EscrowTransactionDto(
 /// <param name="HasEscrowWarning">An ACTIVE agency below the minimum (decisions Q25 R4a): still operating, needs a top-up.</param>
 /// <param name="HasSlaWarning">The score is at or below <c>Sla.WarnAtOrBelow</c> (Q09).</param>
 /// <param name="ExcludedFromPremium">The score is below <c>Sla.BlockPremiumBelow</c> or the agency is not ACTIVE: it receives no Premium job.</param>
-public sealed record EscrowStateDto(
+public record EscrowStateDto(
     decimal EscrowDepositBalance, string AgencyStatus, decimal MinEscrowBalance, bool HasEscrowWarning,
     decimal SlaScore, bool HasSlaWarning, bool ExcludedFromPremium);
 
-public sealed record DepositRequest(decimal? Amount);
+public record DepositRequest(decimal? Amount);
 
-public sealed record DepositPurchaseDto(long PaymentId, string GatewayTxnRef, decimal Amount, string? QrPayload, string? PayUrl, DateTime ExpiresAt);
+public record DepositPurchaseDto(long PaymentId, string GatewayTxnRef, decimal Amount, string? QrPayload, string? PayUrl, DateTime ExpiresAt);
 
-public sealed record AppealRequest(string? Reason);
+public record AppealRequest(string? Reason);
 
-public sealed record EscrowAppealDto(
+public record EscrowAppealDto(
     int AppealId, long EscrowTxnId, int AgencyId, string Reason, string Status, DateTime CreatedAt, DateTime? DecidedAt, string? DecisionNote);
 
-public sealed record AppealDecisionRequest(bool? Accept, string? Note);
+public record AppealDecisionRequest(bool? Accept, string? Note);
 
 public static class EscrowErrorCodes
 {
@@ -129,7 +129,7 @@ public static class EscrowRules
 /// Escrow fund (BE-M5-07, decisions Q09, SC-4, contract agencies.md 6): top-up through the payment gateway, the ledger, the real
 /// <see cref="ISlaPenaltyService"/> and the 48-hour appeal that an Admin settles with a REVERSAL row.
 /// </summary>
-public sealed class EscrowService(
+public class EscrowService(
     IEscrowRepository repository,
     IPaymentRepository payments,
     IPaymentGateway gateway,
@@ -484,7 +484,7 @@ public sealed class EscrowService(
 /// the balance credited with one DEPOSIT ledger row in one transaction; PENDING or SUSPENDED agencies become ACTIVE at the minimum
 /// (decisions Q09, Q25 R3/R4). Idempotent.
 /// </summary>
-public sealed class EscrowDepositSettlement(
+public class EscrowDepositSettlement(
     IPaymentRepository payments,
     EscrowService escrow,
     IUnitOfWork unitOfWork,
@@ -543,5 +543,5 @@ public sealed class EscrowDepositSettlement(
     /// <summary>provenance: a lost optimistic update re-reads; five writers on one agency at once is far beyond real traffic.</summary>
     private const int MaxAttempts = 5;
 
-    private sealed class EscrowRaceException : Exception;
+    private class EscrowRaceException : Exception;
 }

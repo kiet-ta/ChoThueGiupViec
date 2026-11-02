@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace CommonService.Application.Features.Agencies;
 
 /// <summary>A reservation as stored: the seats of one order.</summary>
-public sealed record StoredCapacityHold(Guid ReservationId, long OrderId, int AgencyId, IReadOnlyList<int> SlotIds, decimal CommissionRate);
+public record StoredCapacityHold(Guid ReservationId, long OrderId, int AgencyId, IReadOnlyList<int> SlotIds, decimal CommissionRate);
 
 /// <summary>
 /// Persistence of Premium capacity holds. Every change is all-or-nothing and conditional, so two requests can never both win a slot.
@@ -44,7 +44,7 @@ public interface ICapacityRepository
 /// Booking stores nothing. Eligibility: ACTIVE agency with <c>sla_score &gt;= Sla.BlockPremiumBelow</c> (decisions Q25 R8, an ACTIVE agency
 /// with an escrow warning still counts). No Skill matching: Skill was removed from the product (CONTEXT.md, 2026-10-13).
 /// </summary>
-public sealed class AgencyCapacityService(
+public class AgencyCapacityService(
     ICapacityRepository repository,
     IClock clock,
     IOptions<BusinessRules> rules,

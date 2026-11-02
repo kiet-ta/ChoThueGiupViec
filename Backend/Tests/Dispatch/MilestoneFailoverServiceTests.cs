@@ -15,7 +15,7 @@ namespace CommonService.Tests.Dispatch;
 
 public class MilestoneFailoverServiceTests
 {
-    private sealed class InMemoryMilestoneFailoverRepository : IMilestoneFailoverRepository
+    private class InMemoryMilestoneFailoverRepository : IMilestoneFailoverRepository
     {
         public Dictionary<long, JobAssignment> Assignments { get; } = new();
         public Dictionary<long, JobOrder> Orders { get; } = new();
@@ -125,7 +125,7 @@ public class MilestoneFailoverServiceTests
         }
     }
 
-    private sealed class MockClock : IClock
+    private class MockClock : IClock
     {
         public DateTime UtcNow { get; set; } = new DateTime(2026, 10, 15, 6, 0, 0, DateTimeKind.Utc);
         public DateTime LocalNow => UtcNow.AddHours(7);
@@ -134,7 +134,7 @@ public class MilestoneFailoverServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(LocalNow);
     }
 
-    private sealed class MockMediator : IMediator
+    private class MockMediator : IMediator
     {
         public List<INotification> PublishedEvents { get; } = new();
         public MockUnitOfWork? Uow { get; set; }
@@ -164,7 +164,7 @@ public class MilestoneFailoverServiceTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class MockAgencyCapacityService : IAgencyCapacityService
+    private class MockAgencyCapacityService : IAgencyCapacityService
     {
         public bool HasCap { get; set; } = true;
         public CapacityReservation? NextReservation { get; set; }
@@ -195,7 +195,7 @@ public class MilestoneFailoverServiceTests
             Task.CompletedTask;
     }
 
-    private sealed class MockSlaPenaltyService : ISlaPenaltyService
+    private class MockSlaPenaltyService : ISlaPenaltyService
     {
         public List<SlaPenaltyRequest> AppliedRequests { get; } = new();
         public MockUnitOfWork? Uow { get; set; }
@@ -218,7 +218,7 @@ public class MilestoneFailoverServiceTests
         }
     }
 
-    private sealed class MockUnitOfWork : IUnitOfWork
+    private class MockUnitOfWork : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(1);
         public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;

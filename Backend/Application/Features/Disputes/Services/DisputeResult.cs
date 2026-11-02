@@ -1,6 +1,6 @@
 namespace CommonService.Application.Features.Disputes.Services;
 
-public sealed class DisputeResult<T>
+public class DisputeResult<T>
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }

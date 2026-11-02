@@ -7,9 +7,9 @@ using Xunit;
 namespace CommonService.Tests.Customers;
 
 /// <summary>BE-M2-12: the real ICustomerAddressQuery (contract booking.md B2) over the Customers repository.</summary>
-public sealed class CustomerAddressQueryTests
+public class CustomerAddressQueryTests
 {
-    private sealed class Addresses : ICustomerAddressRepository
+    private class Addresses : ICustomerAddressRepository
     {
         public List<CustomerAddress> Items { get; } = [];
 

@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Dispatch;
 
 /// <summary>One row of the Admin incident monitor (contract dispatch.md 3.3, <c>IncidentLogDto</c>).</summary>
-public sealed record AdminIncidentDto(
+public record AdminIncidentDto(
     long IncidentId,
     long AssignmentId,
     int WorkerId,

@@ -14,7 +14,7 @@ namespace CommonService.Application.Features.Payments.Services;
 /// <param name="Expired">Transactions marked EXPIRED.</param>
 /// <param name="Cancelled">Orders cancelled with PAYMENT_EXPIRED.</param>
 /// <param name="Failed">Items that raised an error (logged, the run went on).</param>
-public sealed record ReconciliationResult(int Settled, int Expired, int Cancelled, int Failed);
+public record ReconciliationResult(int Settled, int Expired, int Cancelled, int Failed);
 
 public interface IPaymentReconciliationService
 {
@@ -32,7 +32,7 @@ public static class PaymentCancelReasons
 /// nobody pays is cancelled after <c>Payments.QrExpiryMinutes</c> with no charge. EXTENSION transactions are not touched (BE-M2-08).
 /// A PREMIUM order cancelled here gives its agency capacity hold back (<see cref="PremiumHoldRelease"/>, contract payments.md 3.3).
 /// </summary>
-public sealed class PaymentReconciliationService(
+public class PaymentReconciliationService(
     IPaymentRepository payments,
     IPaymentGateway gateway,
     IPaymentSettlementService settlement,

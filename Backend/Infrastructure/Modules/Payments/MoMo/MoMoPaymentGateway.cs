@@ -11,7 +11,7 @@ namespace CommonService.Infrastructure.Modules.Payments.MoMo;
 /// codes are those of <see cref="MoMoProtocol"/> (official documentation). The gateway reference we store (gateway_txn_ref) is the
 /// MoMo <c>orderId</c> generated here. Written without sandbox keys: it has not been run against MoMo.
 /// </summary>
-public sealed class MoMoPaymentGateway(HttpClient http, MoMoOptions options) : IPaymentGateway
+public class MoMoPaymentGateway(HttpClient http, MoMoOptions options) : IPaymentGateway
 {
     public async Task<PaymentQr> CreateQrAsync(CreatePaymentRequest request, CancellationToken cancellationToken = default)
     {

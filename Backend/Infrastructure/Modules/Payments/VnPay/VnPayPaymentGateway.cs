@@ -12,7 +12,7 @@ namespace CommonService.Infrastructure.Modules.Payments.VnPay;
 /// here; it carries the creation date, which querydr and refund need and the port does not. Written without sandbox keys: it has not
 /// been run against VNPay.
 /// </summary>
-public sealed class VnPayPaymentGateway(HttpClient http, VnPayOptions options) : IPaymentGateway
+public class VnPayPaymentGateway(HttpClient http, VnPayOptions options) : IPaymentGateway
 {
     public Task<PaymentQr> CreateQrAsync(CreatePaymentRequest request, CancellationToken cancellationToken = default)
     {

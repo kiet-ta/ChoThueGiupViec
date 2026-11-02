@@ -3,7 +3,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Reports <see cref="VolScore"/> for every image; accepted when it reaches <see cref="Threshold"/> (decisions Q03 default 100.0).</summary>
-public sealed class FakeImageQualityService : IImageQualityService
+public class FakeImageQualityService : IImageQualityService
 {
     public double VolScore { get; set; } = 150.0;
 

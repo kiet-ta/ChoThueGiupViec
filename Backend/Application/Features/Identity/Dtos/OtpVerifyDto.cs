@@ -3,7 +3,7 @@ namespace CommonService.Application.Features.Identity.Dtos;
 /// <summary>
 /// Request payload for POST /api/auth/otp/verify (contract identity.md §2.2).
 /// </summary>
-public sealed class OtpVerifyDto
+public class OtpVerifyDto
 {
     /// <summary>Vietnamese mobile number (0XXXXXXXXX).</summary>
     public string PhoneNumber { get; set; } = string.Empty;

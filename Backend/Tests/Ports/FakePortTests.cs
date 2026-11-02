@@ -13,7 +13,7 @@ namespace CommonService.Tests.Ports;
 
 public class FakePortTests
 {
-    private sealed class TestEnvironment(string name) : IHostEnvironment
+    private class TestEnvironment(string name) : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = name;
         public string ApplicationName { get; set; } = "Tests";
@@ -71,7 +71,7 @@ public class FakePortTests
         Assert.IsType<RealClock>(provider.GetRequiredService<IClock>());
     }
 
-    private sealed class RealClock : IClock
+    private class RealClock : IClock
     {
         public DateTime UtcNow => new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         public DateOnly LocalToday => new(2030, 1, 1);
@@ -79,7 +79,7 @@ public class FakePortTests
         public DateTime ToUtc(DateTime local) => local;
     }
 
-    private sealed class RealClockModule : IModule
+    private class RealClockModule : IModule
     {
         public string Name => "RealClockForTest";
 

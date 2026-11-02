@@ -1,6 +1,6 @@
 namespace CommonService.Application.Features.Ratings.Services;
 
-public sealed class RatingResult<T>
+public class RatingResult<T>
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }

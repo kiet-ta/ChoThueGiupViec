@@ -43,7 +43,7 @@ public class SuperFreelancerTests
         }
     }
 
-    private sealed class TestClock(DateTime utcNow) : IClock
+    private class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -51,7 +51,7 @@ public class SuperFreelancerTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(utcNow));
     }
 
-    private sealed class MemoryWorkers : ISuperFreelancerRepository
+    private class MemoryWorkers : ISuperFreelancerRepository
     {
         public Dictionary<int, Worker> Rows { get; } = [];
         public Dictionary<long, int> AssignmentWorkers { get; } = [];
@@ -71,7 +71,7 @@ public class SuperFreelancerTests
             Task.FromResult(AssignmentWorkers.TryGetValue(assignmentId, out var id) ? id : (int?)null);
     }
 
-    private sealed class StubReputation : IWorkerReputation
+    private class StubReputation : IWorkerReputation
     {
         public Dictionary<int, WorkerReputationDto> Items { get; } = [];
 
@@ -79,7 +79,7 @@ public class SuperFreelancerTests
             Task.FromResult(Items.GetValueOrDefault(workerId));
     }
 
-    private sealed class CountingUnitOfWork : IUnitOfWork
+    private class CountingUnitOfWork : IUnitOfWork
     {
         public int Saves { get; private set; }
 
@@ -97,7 +97,7 @@ public class SuperFreelancerTests
             action();
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public MemoryWorkers Workers { get; } = new();
         public StubReputation Reputation { get; } = new();
@@ -364,7 +364,7 @@ public class SuperFreelancerTests
 
     // ---- controller -----------------------------------------------------------------------------
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;
@@ -423,7 +423,7 @@ public class SuperFreelancerTests
     private static DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options;
 
-    private sealed record Seeded(int AdminId, int CustomerId, int AddressId, long OrderId, int WorkerId, int OtherWorkerId, List<int> SlotIds, List<long> AssignmentIds, long OtherOrderId);
+    private record Seeded(int AdminId, int CustomerId, int AddressId, long OrderId, int WorkerId, int OtherWorkerId, List<int> SlotIds, List<long> AssignmentIds, long OtherOrderId);
 
     private static async Task<Seeded> SeedAsync(DateTime now)
     {

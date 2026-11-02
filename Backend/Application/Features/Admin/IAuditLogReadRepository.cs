@@ -8,7 +8,7 @@ namespace CommonService.Application.Features.Admin;
 /// <param name="ActorType">ADMIN or SYSTEM.</param>
 /// <param name="FromUtc">Inclusive lower bound of changed_at.</param>
 /// <param name="ToUtc">Exclusive upper bound of changed_at.</param>
-public sealed record AuditLogFilter(
+public record AuditLogFilter(
     string? EntityType,
     string? EntityId,
     AuditActorType? ActorType,

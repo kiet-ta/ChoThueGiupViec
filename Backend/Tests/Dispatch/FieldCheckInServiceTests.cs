@@ -10,7 +10,7 @@ namespace CommonService.Tests.Dispatch;
 
 public class FieldCheckInServiceTests
 {
-    private sealed class InMemoryFieldCheckInRepository : IFieldCheckInRepository
+    private class InMemoryFieldCheckInRepository : IFieldCheckInRepository
     {
         private readonly Dictionary<long, JobAssignment> _assignments = new();
         private readonly Dictionary<long, CheckInLog> _logs = new();

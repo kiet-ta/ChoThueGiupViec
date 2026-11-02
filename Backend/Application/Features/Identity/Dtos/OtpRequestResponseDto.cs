@@ -3,7 +3,7 @@ namespace CommonService.Application.Features.Identity.Dtos;
 /// <summary>
 /// Response data for POST /api/auth/otp/request (contract identity.md §2.1).
 /// </summary>
-public sealed class OtpRequestResponseDto
+public class OtpRequestResponseDto
 {
     /// <summary>Seconds until the generated OTP code expires (default 300).</summary>
     public int ExpiresInSeconds { get; set; }

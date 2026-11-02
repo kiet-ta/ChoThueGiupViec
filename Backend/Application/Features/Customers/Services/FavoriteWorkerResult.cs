@@ -1,6 +1,6 @@
 namespace CommonService.Application.Features.Customers.Services;
 
-public sealed class FavoriteWorkerResult<T>
+public class FavoriteWorkerResult<T>
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }

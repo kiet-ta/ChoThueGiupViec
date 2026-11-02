@@ -12,14 +12,14 @@ using Xunit;
 namespace CommonService.Tests.Payments;
 
 /// <summary>BE-M2-12: customer reads of payments (contract payments.md 2.3, shape 1.3).</summary>
-public sealed class PaymentReadServiceTests
+public class PaymentReadServiceTests
 {
     private const int CustomerId = 7;
     private const long OrderId = 42;
     private const int ExtensionId = 9;
     private static readonly DateTime OrderCreated = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class Db : PaymentRepositoryStub
+    private class Db : PaymentRepositoryStub
     {
         public List<PaymentTransaction> Transactions { get; } = [];
         public int OrderCustomer { get; set; } = CustomerId;
@@ -151,7 +151,7 @@ public sealed class PaymentReadServiceTests
         Assert.DoesNotContain(names, n => n.Contains("Ipn", StringComparison.OrdinalIgnoreCase));
     }
 
-    private sealed class StubUser(int? userId) : ICurrentUser
+    private class StubUser(int? userId) : ICurrentUser
     {
         public bool IsAuthenticated => userId.HasValue;
         public int? UserId => userId;

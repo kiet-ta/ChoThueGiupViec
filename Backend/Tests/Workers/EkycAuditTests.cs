@@ -252,7 +252,7 @@ public class EkycAuditTests
         Assert.False(auditService.ShouldAuditJob(seasonedFreelancer, randomRoll: 0.25));
     }
 
-    private sealed class TestCurrentUser : ICurrentUser
+    private class TestCurrentUser : ICurrentUser
     {
         public int? UserId { get; set; }
         public UserRole? Role { get; set; } = UserRole.Worker;

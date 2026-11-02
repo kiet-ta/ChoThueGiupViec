@@ -16,7 +16,7 @@ namespace CommonService.Application.Features.Ratings.Services;
 /// flags a customer who got three low ratings in a row from different workers. A flag is an audit row the Admin reads in the audit page;
 /// it never blocks anybody (Q14: the worker's rating of a customer is internal only).
 /// </summary>
-public sealed class RatingSubmittedHandler(
+public class RatingSubmittedHandler(
     IRatingRepository ratings,
     IWorkerRatingStore store,
     IWorkerReputation reputation,

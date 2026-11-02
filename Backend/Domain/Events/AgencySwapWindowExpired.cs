@@ -7,7 +7,7 @@ namespace CommonService.Domain.Events;
 /// 2 hours away (decisions Q09, spec 2.5 phase 2). Dispatch (M3) takes over with the emergency rescue (BE-M3-07); the agency is not
 /// penalised here, M3 applies the SLA penalty with the rescue cost.
 /// </summary>
-public sealed record AgencySwapWindowExpired(
+public record AgencySwapWindowExpired(
     long AssignmentId,
     long OrderId,
     int AgencyId,

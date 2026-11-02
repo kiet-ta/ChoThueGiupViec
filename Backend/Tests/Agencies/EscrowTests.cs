@@ -63,7 +63,7 @@ public class EscrowTests
 
     // ---- the service
 
-    internal sealed class InMemoryEscrow : IEscrowRepository
+    internal class InMemoryEscrow : IEscrowRepository
     {
         public AgencyEscrowRow Agency { get; set; } = new(7, 10_000_000m, 100m, "ACTIVE");
         public List<EscrowTransaction> Ledger { get; } = [];
@@ -137,7 +137,7 @@ public class EscrowTests
             Task.FromResult<PaymentTransaction?>(null);
     }
 
-    internal sealed class DepositPayments : PaymentRepositoryStub
+    internal class DepositPayments : PaymentRepositoryStub
     {
         public List<PaymentTransaction> Added { get; } = [];
         private long _next = 700;
@@ -167,7 +167,7 @@ public class EscrowTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public InMemoryEscrow Repo { get; } = new();
         public DepositPayments Payments { get; } = new();

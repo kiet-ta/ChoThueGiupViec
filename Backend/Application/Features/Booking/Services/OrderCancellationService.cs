@@ -22,7 +22,7 @@ namespace CommonService.Application.Features.Booking.Services;
 /// A PREMIUM order also gives its agency capacity hold back (<see cref="PremiumHoldRelease"/>).
 /// Known gap: a failed refund is reported but not retried.
 /// </summary>
-public sealed class OrderCancellationService(
+public class OrderCancellationService(
     IOrderRepository orders,
     IPaymentRepository payments,
     IUnitOfWork unitOfWork,

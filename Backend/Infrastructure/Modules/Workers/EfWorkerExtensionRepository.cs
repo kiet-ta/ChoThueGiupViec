@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CommonService.Infrastructure.Modules.Workers;
 
-public sealed class EfWorkerExtensionRepository(AppDbContext dbContext) : IWorkerExtensionRepository
+public class EfWorkerExtensionRepository(AppDbContext dbContext) : IWorkerExtensionRepository
 {
     public async Task<ExtensionForWorker?> FindForWorkerAsync(long assignmentId, int workerId, CancellationToken cancellationToken = default) =>
         await (

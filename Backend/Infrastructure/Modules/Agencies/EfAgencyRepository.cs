@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="IAgencyRepository"/> on <c>PARTNER_AGENCY</c>.</summary>
-public sealed class EfAgencyRepository(AppDbContext dbContext) : IAgencyRepository
+public class EfAgencyRepository(AppDbContext dbContext) : IAgencyRepository
 {
     public Task<bool> TaxCodeExistsAsync(string taxCode, CancellationToken cancellationToken = default) =>
         dbContext.PartnerAgencies.AsNoTracking().AnyAsync(a => a.TaxCode == taxCode, cancellationToken);

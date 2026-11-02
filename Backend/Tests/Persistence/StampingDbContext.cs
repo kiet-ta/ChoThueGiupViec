@@ -8,7 +8,7 @@ namespace CommonService.Tests.Persistence;
 /// context refuses a <see cref="DateTime"/> that is not UTC; those tests build entities through the domain factories and never set them, so
 /// this context fills a missing (default) timestamp with the current UTC time and marks any other one as UTC before the save.
 /// </summary>
-internal sealed class StampingDbContext(DbContextOptions<AppDbContext> options) : AppDbContext(options)
+internal class StampingDbContext(DbContextOptions<AppDbContext> options) : AppDbContext(options)
 {
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {

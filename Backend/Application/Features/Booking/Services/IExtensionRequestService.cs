@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Booking.Services;
 
 /// <summary>The <c>Extension</c> shape of contract booking.md section 2 (times in UTC).</summary>
-public sealed record ExtensionDto(
+public record ExtensionDto(
     int ExtensionId,
     long OrderId,
     int WorkerId,
@@ -13,7 +13,7 @@ public sealed record ExtensionDto(
     DateTime? DecidedAt);
 
 /// <summary>Body of POST /api/booking/orders/{orderId}/extensions (contract booking.md 3.8).</summary>
-public sealed record CreateExtensionRequest(long AssignmentId, decimal ExtraHours);
+public record CreateExtensionRequest(long AssignmentId, decimal ExtraHours);
 
 public static class ExtensionErrorCodes
 {

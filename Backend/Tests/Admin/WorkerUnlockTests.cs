@@ -38,7 +38,7 @@ public class WorkerUnlockTests
         }
     }
 
-    private sealed class MemoryWorkers : IWorkerLockRepository
+    private class MemoryWorkers : IWorkerLockRepository
     {
         public Dictionary<int, Worker> Rows { get; } = [];
 
@@ -46,7 +46,7 @@ public class WorkerUnlockTests
             Task.FromResult(Rows.GetValueOrDefault(workerId));
     }
 
-    private sealed class CountingUnitOfWork : IUnitOfWork
+    private class CountingUnitOfWork : IUnitOfWork
     {
         public int Saves { get; private set; }
 
@@ -63,14 +63,14 @@ public class WorkerUnlockTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;
         public UserRole? Role => UserRole.Admin;
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public MemoryWorkers Workers { get; } = new();
         public FakeAuditLog Audit { get; } = new();
@@ -260,7 +260,7 @@ public class WorkerUnlockTests
 
     // ---- SQL Server -----------------------------------------------------------------------------
 
-    private sealed class TestClock(DateTime utcNow) : IClock
+    private class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);

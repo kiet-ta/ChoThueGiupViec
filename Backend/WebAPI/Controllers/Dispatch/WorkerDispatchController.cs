@@ -7,13 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace CommonService.WebAPI.Controllers.Dispatch;
 
 /// <summary>Request body of the decline endpoint (contract dispatch.md 3.1).</summary>
-public sealed record DeclineOfferRequest(string? Reason);
+public record DeclineOfferRequest(string? Reason);
 
 /// <summary>Request body of the GPS check-in endpoint (contract dispatch.md 3.1).</summary>
-public sealed record CheckInRequest(double? Latitude, double? Longitude);
+public record CheckInRequest(double? Latitude, double? Longitude);
 
 /// <summary>Request body of the plate-photo fallback (contract dispatch.md 3.1).</summary>
-public sealed record PlatePhotoRequest(string? PlatePhotoUrl);
+public record PlatePhotoRequest(string? PlatePhotoUrl);
 
 /// <summary>
 /// Worker side of Dispatch (contract dispatch.md 3.1, policy WorkerOnly): the 30-second offer, field check-in (BR-04), system calls and

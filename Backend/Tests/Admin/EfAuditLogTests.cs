@@ -183,7 +183,7 @@ public class EfAuditLogTests
 
     // ---- registration ----------------------------------------------------------------------------
 
-    private sealed class TestEnvironment : IHostEnvironment
+    private class TestEnvironment : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = "Development";
         public string ApplicationName { get; set; } = "Tests";
@@ -207,7 +207,7 @@ public class EfAuditLogTests
         Assert.IsType<EfAuditLog>(scope.ServiceProvider.GetRequiredService<IAuditLog>());
     }
 
-    private sealed class SingletonConsumer(IAuditLog audit)
+    private class SingletonConsumer(IAuditLog audit)
     {
         public IAuditLog Audit { get; } = audit;
     }

@@ -20,7 +20,7 @@ namespace CommonService.Tests.Payments;
 /// BE-M2-06: MoMo sandbox adapter. No network and no real key: a stub handler captures the HTTP calls and the credentials below are
 /// made-up test values. Every expected signature is computed here, independently of the adapter, from the raw string of MoMo's documentation.
 /// </summary>
-public sealed class MoMoPaymentGatewayTests
+public class MoMoPaymentGatewayTests
 {
     private const string Partner = "TESTPARTNER";
     private const string Access = "test-access";
@@ -47,7 +47,7 @@ public sealed class MoMoPaymentGatewayTests
         return string.Concat(hmac.ComputeHash(Encoding.UTF8.GetBytes(raw)).Select(b => b.ToString("x2")));
     }
 
-    private sealed class StubHandler : HttpMessageHandler
+    private class StubHandler : HttpMessageHandler
     {
         private readonly Queue<(HttpStatusCode Status, string Body)> _answers = new();
         public List<(HttpMethod Method, string Url, JsonElement Body)> Calls { get; } = [];

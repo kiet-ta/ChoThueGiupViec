@@ -15,7 +15,7 @@ namespace CommonService.Infrastructure.Modules.Identity;
 /// Self-registers via IModule without modifying Program.cs (BASE-02).
 /// Configures JWT Bearer authentication, 4 authorization policies, and real ICurrentUser (BE-M1-02, Gate G2).
 /// </summary>
-public sealed class IdentityModule : IModule
+public class IdentityModule : IModule
 {
     public string Name => "Identity";
 

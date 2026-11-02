@@ -10,12 +10,12 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BOOKING-COMPLETE-01: Booking completes the order when its workers have completed (contract booking.md section 5, decision Q22 D7).</summary>
-public sealed class JobCompletedHandlerTests
+public class JobCompletedHandlerTests
 {
     private const long OrderId = 42;
     private static readonly DateTime Now = new(2026, 10, 21, 9, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -23,7 +23,7 @@ public sealed class JobCompletedHandlerTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class InMemoryOrders : IOrderRepository, IUnitOfWork
+    private class InMemoryOrders : IOrderRepository, IUnitOfWork
     {
         public Dictionary<long, JobOrder> Orders { get; } = [];
         public Dictionary<long, List<JobAssignmentStatus>> Assignments { get; } = [];

@@ -4,7 +4,7 @@ namespace CommonService.Application.Common.Options;
 /// Single options class for all business parameters (decisions.md section 4, BASE-05).
 /// Holds default values for every key; bound from configuration section "BusinessRules".
 /// </summary>
-public sealed class BusinessRules
+public class BusinessRules
 {
     public const string SectionName = "BusinessRules";
 
@@ -33,22 +33,22 @@ public sealed class BusinessRules
     public AddressRules Address { get; set; } = new();
 }
 
-public sealed class ShiftRules
+public class ShiftRules
 {
     public int MaxHours { get; set; } = 4;
 }
 
-public sealed class AreaRules
+public class AreaRules
 {
     public decimal StandardMaxM2 { get; set; } = 80m;
 }
 
-public sealed class GpsRules
+public class GpsRules
 {
     public double CheckInToleranceMeters { get; set; } = 100.0;
 }
 
-public sealed class DispatchRules
+public class DispatchRules
 {
     private static readonly double[] DefaultRadiusSteps = [5.0, 7.0, 10.0];
     private double[]? _radiusStepsKm;
@@ -79,12 +79,12 @@ public sealed class DispatchRules
     public int FallbackConfirmSeconds { get; set; } = 120;
 }
 
-public sealed class CommissionRules
+public class CommissionRules
 {
     public decimal Freelancer { get; set; } = 0.200m;
 }
 
-public sealed class AbsenceRules
+public class AbsenceRules
 {
     public decimal FeeRate { get; set; } = 0.40m;
     public int MinWaitMinutes { get; set; } = 15;
@@ -92,31 +92,31 @@ public sealed class AbsenceRules
     public int CustomerDisputeHours { get; set; } = 24;
 }
 
-public sealed class VolRules
+public class VolRules
 {
     public double Threshold { get; set; } = 100.0;
     public int ResizeWidthPx { get; set; } = 640;
 }
 
-public sealed class PhotoRules
+public class PhotoRules
 {
     public int MinPerPhase { get; set; } = 3;
     public int MaxPerPhase { get; set; } = 5;
 }
 
-public sealed class PaymentRules
+public class PaymentRules
 {
     public int QrExpiryMinutes { get; set; } = 15;
     public int ReconcileAfterMinutes { get; set; } = 3;
     public int ReconcileIntervalSeconds { get; set; } = 60;
 }
 
-public sealed class EkycFakeRules
+public class EkycFakeRules
 {
     public decimal Confidence { get; set; } = 92.00m;
 }
 
-public sealed class EkycRules
+public class EkycRules
 {
     public decimal AutoApproveConfidence { get; set; } = 85.00m;
     public EkycFakeRules Fake { get; set; } = new();
@@ -124,7 +124,7 @@ public sealed class EkycRules
     public int FullAuditFirstJobs { get; set; } = 5;
 }
 
-public sealed class OtpRules
+public class OtpRules
 {
     public int Length { get; set; } = 6;
     public int TtlMinutes { get; set; } = 5;
@@ -134,24 +134,24 @@ public sealed class OtpRules
     public int MaxPerIpPerHour { get; set; } = 20;
 }
 
-public sealed class SubscriptionRules
+public class SubscriptionRules
 {
     public int GraceDays { get; set; } = 7;
 }
 
-public sealed class AgencyRules
+public class AgencyRules
 {
     public decimal MinEscrowBalance { get; set; } = 5_000_000m;
 }
 
-public sealed class SlaPenaltyRules
+public class SlaPenaltyRules
 {
     public decimal NoShow { get; set; } = 20m;
     public decimal Shortage { get; set; } = 10m;
     public decimal QualityComplaint { get; set; } = 5m;
 }
 
-public sealed class SlaRules
+public class SlaRules
 {
     public decimal InitialScore { get; set; } = 100.00m;
     public SlaPenaltyRules Penalty { get; set; } = new();
@@ -160,7 +160,7 @@ public sealed class SlaRules
     public int AppealHours { get; set; } = 48;
 }
 
-public sealed class SuperFreelancerRules
+public class SuperFreelancerRules
 {
     public decimal MinRating { get; set; } = 4.80m;
     public int MinCompletedJobs { get; set; } = 50;
@@ -168,24 +168,24 @@ public sealed class SuperFreelancerRules
     public decimal RevokeBelowRating { get; set; } = 4.70m;
 }
 
-public sealed class PremiumRules
+public class PremiumRules
 {
     public int MinLeadHours { get; set; } = 4;
 }
 
-public sealed class BookingRules
+public class BookingRules
 {
     /// <summary>Booking horizon in days for both tiers (contract booking.md B3).</summary>
     public int MaxDaysAhead { get; set; } = 14;
 }
 
-public sealed class RatingMinAvgAfterJobsRules
+public class RatingMinAvgAfterJobsRules
 {
     public decimal Rating { get; set; } = 4.00m;
     public int Jobs { get; set; } = 10;
 }
 
-public sealed class RatingRules
+public class RatingRules
 {
     public int WindowHours { get; set; } = 48;
     public int LowStarThreshold { get; set; } = 2;
@@ -193,7 +193,7 @@ public sealed class RatingRules
     public RatingMinAvgAfterJobsRules MinAvgAfterJobs { get; set; } = new();
 }
 
-public sealed class CancelRules
+public class CancelRules
 {
     public int FullRefundHoursBefore { get; set; } = 2;
     public decimal LateFeeRate { get; set; } = 0.40m;
@@ -201,7 +201,7 @@ public sealed class CancelRules
     public int WorkerCancelWindowDays { get; set; } = 30;
 }
 
-public sealed class AuthRules
+public class AuthRules
 {
     public int MinPasswordLength { get; set; } = 10;
     public int LockoutFailures { get; set; } = 5;
@@ -211,18 +211,18 @@ public sealed class AuthRules
     public int RegistrationTokenMinutes { get; set; } = 30;
 }
 
-public sealed class PrivacyRules
+public class PrivacyRules
 {
     public int PhoneVisibleBeforeMinutes { get; set; } = 60;
     public int PhoneVisibleAfterMinutes { get; set; } = 60;
 }
 
-public sealed class CustomerRules
+public class CustomerRules
 {
     public decimal InitialTrustScore { get; set; } = 0.00m;
 }
 
-public sealed class AddressRules
+public class AddressRules
 {
     public decimal RoomMaxAreaM2 { get; set; } = 30m;
     public int HouseMaxFloors { get; set; } = 10;

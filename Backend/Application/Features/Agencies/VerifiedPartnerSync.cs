@@ -23,7 +23,7 @@ public interface IVerifiedPartnerRepository
 /// The Verified Partner label is a paid benefit of the Pro package (leader decision 2026-10-14, decisions D17): it follows the package in
 /// force, grace days included (Q08). Set when a subscription is activated and kept right by the hourly expiry sweep.
 /// </summary>
-public sealed class VerifiedPartnerSync(
+public class VerifiedPartnerSync(
     IVerifiedPartnerRepository repository,
     IClock clock,
     IOptions<BusinessRules> rules,
@@ -44,7 +44,7 @@ public sealed class VerifiedPartnerSync(
 }
 
 /// <summary>A new Pro (or any) subscription may switch the label on: recompute it for that agency right after the activation.</summary>
-public sealed class SubscriptionActivatedVerifiedPartnerHandler(VerifiedPartnerSync sync) : INotificationHandler<SubscriptionActivated>
+public class SubscriptionActivatedVerifiedPartnerHandler(VerifiedPartnerSync sync) : INotificationHandler<SubscriptionActivated>
 {
     public async Task Handle(SubscriptionActivated notification, CancellationToken cancellationToken) =>
         await sync.SyncAsync(notification.AgencyId, cancellationToken);

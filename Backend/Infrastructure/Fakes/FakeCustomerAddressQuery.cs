@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>In-memory address book for tests and for running Booking before the Customers implementation is wired. Empty by default.</summary>
-public sealed class FakeCustomerAddressQuery : ICustomerAddressQuery
+public class FakeCustomerAddressQuery : ICustomerAddressQuery
 {
     private readonly ConcurrentDictionary<(int CustomerId, int AddressId), CustomerAddressInfo> _addresses = new();
 

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CommonService.Infrastructure.Modules.Disputes;
 
 /// <summary>Module registration for Disputes (M6). Self-registers via IModule (BASE-02).</summary>
-public sealed class DisputesModule : IModule
+public class DisputesModule : IModule
 {
     public string Name => "Disputes";
 

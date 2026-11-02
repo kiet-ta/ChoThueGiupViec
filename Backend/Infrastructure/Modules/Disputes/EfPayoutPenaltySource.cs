@@ -10,7 +10,7 @@ namespace CommonService.Infrastructure.Modules.Disputes;
 /// <c>DISPUTE_TICKET</c> rows put on payees. Read-only. The amount of a verdict is split over the blamed assignments of the order by
 /// gross value, like the <c>DisputeResolved</c> events, so each payee bears its own share.
 /// </summary>
-public sealed class EfPayoutPenaltySource(AppDbContext db) : IPayoutPenaltySource
+public class EfPayoutPenaltySource(AppDbContext db) : IPayoutPenaltySource
 {
     // DISPUTE_TICKET text values (disputes.md); the same strings the Disputes service writes.
     private const string Resolved = "RESOLVED";

@@ -10,7 +10,7 @@ public enum SlaViolation
 
 /// <param name="CustomerRefundAmount">Step 1 of the deduction order (decisions Q09): 100 % of the affected amount.</param>
 /// <param name="RescueCost">Step 2: actual cost of the rescue worker.</param>
-public sealed record SlaPenaltyRequest(
+public record SlaPenaltyRequest(
     int AgencyId,
     SlaViolation Violation,
     long? OrderId,
@@ -21,7 +21,7 @@ public sealed record SlaPenaltyRequest(
 
 /// <param name="EscrowDeducted">What was actually taken (the balance never goes below 0).</param>
 /// <param name="Shortfall">What the escrow could not cover.</param>
-public sealed record SlaPenaltyResult(
+public record SlaPenaltyResult(
     decimal SlaPointsDelta,
     decimal NewSlaScore,
     decimal EscrowDeducted,

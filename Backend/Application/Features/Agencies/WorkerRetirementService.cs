@@ -59,7 +59,7 @@ internal static class RescueHandOver
 /// <summary>
 /// Service for retiring agency workers and handling replacements (AGENCY-UAT-02, fixed by AGENCY-FIX-01).
 /// </summary>
-public sealed class WorkerRetirementService(
+public class WorkerRetirementService(
     IAgencyRepository agencyRepository,
     IAgencySwapRepository swapRepository,
     IWorkerQuotaGuard quota,
@@ -290,7 +290,7 @@ public sealed class WorkerRetirementService(
 /// The 5-minute sweep of retiring workers (AGENCY-FIX-01): hands the future jobs of a <c>RETIRING</c> worker to the emergency rescue
 /// again (the rescue is idempotent) and turns a <c>RETIRING</c> worker without any job left into <c>RETIRED</c>.
 /// </summary>
-public sealed class WorkerRetirementSweepService(
+public class WorkerRetirementSweepService(
     IAgencyRepository agencyRepository,
     IUnitOfWork unitOfWork,
     IPublisher publisher,

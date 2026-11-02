@@ -13,14 +13,14 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BE-M2-03: POST /api/booking/orders rules in the contract's order, with in-memory ports (no DB).</summary>
-public sealed class OrderCreationServiceTests
+public class OrderCreationServiceTests
 {
     private const int CustomerId = 7;
     private const int AddressId = 3;
     private static readonly DateOnly ShiftDate = new(2026, 10, 15);
     private static readonly DateTime Now = new(2026, 10, 14, 0, 0, 0, DateTimeKind.Utc);
 
-    private sealed class VietnamClock(DateTime utcNow) : IClock
+    private class VietnamClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -29,7 +29,7 @@ public sealed class OrderCreationServiceTests
     }
 
     /// <summary>Order table and unit of work in one: Save assigns ids, a thrown transaction drops what it added.</summary>
-    private sealed class InMemoryOrders : IOrderRepository, IUnitOfWork
+    private class InMemoryOrders : IOrderRepository, IUnitOfWork
     {
         private long _nextId = 100;
         private readonly List<JobOrder> _pending = [];
@@ -88,13 +88,13 @@ public sealed class OrderCreationServiceTests
     }
 
     /// <summary>260,000 per worker per shift, like the Q01 default of a mid bracket; the real lookup is covered by BE-M2-02 tests.</summary>
-    private sealed class StubPricing : IPricingService
+    private class StubPricing : IPricingService
     {
         public Task<PriceQuote> QuoteAsync(ServiceTier serviceTier, decimal totalAreaM2, int requiredWorkers, CancellationToken cancellationToken = default) =>
             Task.FromResult(PriceCalculator.Calculate(serviceTier, totalAreaM2, requiredWorkers, 260000m));
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public InMemoryOrders Orders { get; } = new();
         public FakeCustomerAddressQuery Addresses { get; } = new();
@@ -110,13 +110,13 @@ public sealed class OrderCreationServiceTests
     }
 
     /// <summary>The customer's favorites, as the Customers module would answer through the port.</summary>
-    private sealed class StubFavorites(params int[] workerIds) : ICustomerFavoriteQuery
+    private class StubFavorites(params int[] workerIds) : ICustomerFavoriteQuery
     {
         public Task<bool> IsFavoriteAsync(int customerId, int workerId, CancellationToken cancellationToken = default) =>
             Task.FromResult(customerId == CustomerId && workerIds.Contains(workerId));
     }
 
-    private sealed class StubTracking(params AssignmentProgress[] assignments) : IOrderTrackingQuery
+    private class StubTracking(params AssignmentProgress[] assignments) : IOrderTrackingQuery
     {
         public Task<IReadOnlyList<AssignmentProgress>> GetOrderProgressAsync(long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<AssignmentProgress>>(assignments);

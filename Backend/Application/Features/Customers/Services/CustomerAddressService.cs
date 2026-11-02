@@ -12,7 +12,7 @@ namespace CommonService.Application.Features.Customers.Services;
 /// Implements the address book of contract customers.md §2.2 (BE-M1-05): server-side S_total (PRD §1.1),
 /// validation by housing type (decisions Q21 C4), single default address, ownership and order-reference rules (C5).
 /// </summary>
-public sealed class CustomerAddressService : ICustomerAddressService
+public class CustomerAddressService : ICustomerAddressService
 {
     private const int MaxLabelLength = 50;
     private const int MaxAddressLineLength = 255;
@@ -182,7 +182,7 @@ public sealed class CustomerAddressService : ICustomerAddressService
         Referenced
     }
 
-    private sealed record ValidAddress(
+    private record ValidAddress(
         string Label,
         string AddressLine,
         string District,

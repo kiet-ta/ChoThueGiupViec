@@ -6,9 +6,9 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BE-M2-03, pure parts: shift windows (B1), order_code (B7), future / Premium lead-time rules (contract 3.3 rules 3-4).</summary>
-public sealed class BookingWindowTests
+public class BookingWindowTests
 {
-    private sealed class VietnamClock(DateTime utcNow) : IClock
+    private class VietnamClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);

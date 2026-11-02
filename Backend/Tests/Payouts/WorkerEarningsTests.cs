@@ -21,7 +21,7 @@ public class WorkerEarningsTests
     private static readonly DateTime Now = new(2026, 11, 10, 4, 0, 0, DateTimeKind.Utc);
     private const int WorkerId = 5;
 
-    private sealed class MemoryEarnings : IWorkerEarningsRepository
+    private class MemoryEarnings : IWorkerEarningsRepository
     {
         public WorkerType? Type { get; set; } = WorkerType.Freelancer;
         public List<WorkerEarningRow> Rows { get; } = [];
@@ -56,7 +56,7 @@ public class WorkerEarningsTests
         }
     }
 
-    private sealed class StubPenalties : IPayoutPenaltySource
+    private class StubPenalties : IPayoutPenaltySource
     {
         public Dictionary<PayeeKey, decimal> Decided { get; } = [];
         public DateTime? AskedThrough { get; private set; }
@@ -68,7 +68,7 @@ public class WorkerEarningsTests
         }
     }
 
-    private sealed class Rig
+    private class Rig
     {
         public MemoryEarnings Repo { get; } = new();
         public StubPenalties Penalties { get; } = new();
@@ -332,14 +332,14 @@ public class WorkerEarningsTests
 
     // ---- controller -----------------------------------------------------------------------------
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;
         public UserRole? Role => null;
     }
 
-    private sealed class StubService(int status) : IWorkerEarningsService
+    private class StubService(int status) : IWorkerEarningsService
     {
         public (int Worker, string? Month)? LastEarnings { get; private set; }
         public int? LastPayoutsFor { get; private set; }

@@ -3,7 +3,7 @@ using MediatR;
 
 namespace CommonService.Tests.Booking;
 
-public sealed class BookingOrderPaidTestHandler : INotificationHandler<OrderPaid>
+public class BookingOrderPaidTestHandler : INotificationHandler<OrderPaid>
 {
     public static readonly List<OrderPaid> Received = [];
 

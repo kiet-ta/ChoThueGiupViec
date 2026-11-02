@@ -23,7 +23,7 @@ public class JobPhotoAccessTests
     private const int WorkerId = 7;
     private const int CustomerId = 21;
 
-    private sealed class User(int? id, UserRole? role, bool authenticated = true) : ICurrentUser
+    private class User(int? id, UserRole? role, bool authenticated = true) : ICurrentUser
     {
         public int? UserId { get; } = id;
         public UserRole? Role { get; } = role;
@@ -31,7 +31,7 @@ public class JobPhotoAccessTests
     }
 
     /// <summary>One assignment with two photos; only the members the read uses are implemented.</summary>
-    private sealed class AssignmentRepository(bool assignmentExists = true) : IWorkerRepository
+    private class AssignmentRepository(bool assignmentExists = true) : IWorkerRepository
     {
         public int AssignmentLookups { get; private set; }
         public int PhotoReads { get; private set; }

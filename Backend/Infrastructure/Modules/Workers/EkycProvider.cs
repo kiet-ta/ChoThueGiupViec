@@ -8,7 +8,7 @@ namespace CommonService.Infrastructure.Modules.Workers;
 /// Phase 1 eKYC Provider implementation (decisions Q05).
 /// Uses Fake provider logic with configurable confidence score and fraud flag.
 /// </summary>
-public sealed class EkycProvider : IEkycProvider
+public class EkycProvider : IEkycProvider
 {
     private readonly BusinessRules _rules;
 

@@ -4,7 +4,7 @@ namespace CommonService.Application.Features.Admin.Dtos;
 /// The signed-in Admin as shown to themselves (contract admin.md section 1, AdminProfile). The password hash and the
 /// login-lockout columns of ADMIN are deliberately not part of it.
 /// </summary>
-public sealed class AdminProfileDto
+public class AdminProfileDto
 {
     public int AdminId { get; init; }
     public string Email { get; init; } = string.Empty;

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Ratings;
 
 /// <summary>The worker rating column (tracked, saved by the caller) and the customer's latest worker ratings (two tables, joined on the assignment).</summary>
-public sealed class EfWorkerRatingStore(AppDbContext db) : IWorkerRatingStore
+public class EfWorkerRatingStore(AppDbContext db) : IWorkerRatingStore
 {
     public async Task<WorkerAverageChange?> SetAverageAsync(int workerId, decimal average, CancellationToken cancellationToken = default)
     {

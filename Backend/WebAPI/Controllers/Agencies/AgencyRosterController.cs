@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CommonService.WebAPI.Controllers.Agencies;
 
 /// <summary>Body of the 422 answer of a rejected roster write.</summary>
-public sealed record RosterRejectedDto(IReadOnlyList<RosterEntryError> Errors);
+public record RosterRejectedDto(IReadOnlyList<RosterEntryError> Errors);
 
 /// <summary>Weekly shift roster of the agency (contract agencies.md 5, BE-M5-05, policy PartnerOnly).</summary>
 [ApiController]

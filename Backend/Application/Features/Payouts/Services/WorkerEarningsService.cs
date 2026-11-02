@@ -19,7 +19,7 @@ public interface IWorkerEarningsService
 /// as the payout batch, so the screen is available before the batch exists; once the month's batch is CLOSED the stored item is the
 /// answer, so the screen equals the money that was transferred.
 /// </summary>
-public sealed class WorkerEarningsService(IWorkerEarningsRepository earnings, IPayoutPenaltySource penalties, IClock clock) : IWorkerEarningsService
+public class WorkerEarningsService(IWorkerEarningsRepository earnings, IPayoutPenaltySource penalties, IClock clock) : IWorkerEarningsService
 {
     public const string NotBuilt = "NOT_BUILT";
     public const string Pending = "PENDING";

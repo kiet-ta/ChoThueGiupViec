@@ -18,7 +18,7 @@ public class WorkerDispatchServiceTests
     private static readonly DateOnly ShiftDate = new(2026, 10, 15);
     private static readonly GeoPoint Home = new(21.028511, 105.804817);
 
-    private sealed class NoopMediator : IMediator
+    private class NoopMediator : IMediator
     {
         public List<object> Published { get; } = [];
         public Task Publish(object notification, CancellationToken cancellationToken = default) { Published.Add(notification); return Task.CompletedTask; }
@@ -30,7 +30,7 @@ public class WorkerDispatchServiceTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class TestUser : ICurrentUser
+    private class TestUser : ICurrentUser
     {
         public int? UserId { get; set; }
         public UserRole? Role { get; set; } = UserRole.Worker;
@@ -38,7 +38,7 @@ public class WorkerDispatchServiceTests
     }
 
     /// <summary>Field persistence over the same assignments as <see cref="InMemoryDispatchRepository"/>, one log per assignment.</summary>
-    private sealed class InMemoryFieldRepository(InMemoryDispatchRepository dispatch) : IFieldCheckInRepository, ICustomerAbsentRepository, IWorkerDispatchQuery
+    private class InMemoryFieldRepository(InMemoryDispatchRepository dispatch) : IFieldCheckInRepository, ICustomerAbsentRepository, IWorkerDispatchQuery
     {
         private long _nextLogId = 1;
         public Dictionary<long, CheckInLog> Logs { get; } = new();
@@ -115,7 +115,7 @@ public class WorkerDispatchServiceTests
             Task.FromResult<GeoPoint?>(dispatch.Assignments.ContainsKey(assignmentId) ? Home : null);
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public FakeClock Clock { get; } = new();
         public FakeWorkerAvailabilityQuery Query { get; } = new();
@@ -387,7 +387,7 @@ public class WorkerDispatchServiceTests
     }
 
     /// <summary>Returns the log as it was before a concurrent report, then refuses the conditional write.</summary>
-    private sealed class RacingAbsentRepository(InMemoryFieldRepository inner, CheckInLog snapshot) : ICustomerAbsentRepository
+    private class RacingAbsentRepository(InMemoryFieldRepository inner, CheckInLog snapshot) : ICustomerAbsentRepository
     {
         public Task<JobAssignment?> GetAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default) => inner.GetAssignmentAsync(assignmentId, cancellationToken);
         public Task<CheckInLog?> GetCheckInLogAsync(long assignmentId, CancellationToken cancellationToken = default) => Task.FromResult<CheckInLog?>(snapshot);

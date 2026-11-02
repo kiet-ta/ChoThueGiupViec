@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="IAgencyBankRepository"/>.</summary>
-public sealed class EfAgencyBankRepository(AppDbContext db) : IAgencyBankRepository
+public class EfAgencyBankRepository(AppDbContext db) : IAgencyBankRepository
 {
     public async Task<(string BankName, string BankAccountNo)?> GetAsync(int agencyId, CancellationToken cancellationToken = default)
     {

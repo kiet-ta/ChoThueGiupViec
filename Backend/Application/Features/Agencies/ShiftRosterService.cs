@@ -10,19 +10,19 @@ using Microsoft.Extensions.Options;
 namespace CommonService.Application.Features.Agencies;
 
 /// <summary>One shift of a worker on the agency's roster (a <c>BOOKING_SLOT</c> of the agency).</summary>
-public sealed record RosterEntryDto(int SlotId, int WorkerId, string WorkerName, DateOnly SlotDate, string ShiftCode, string StartTime, string EndTime, string SlotStatus);
+public record RosterEntryDto(int SlotId, int WorkerId, string WorkerName, DateOnly SlotDate, string ShiftCode, string StartTime, string EndTime, string SlotStatus);
 
 /// <summary>An entry of <c>PUT /api/agencies/roster</c>.</summary>
-public sealed record RosterRequestEntry(int? WorkerId, DateOnly? SlotDate, string? ShiftCode);
+public record RosterRequestEntry(int? WorkerId, DateOnly? SlotDate, string? ShiftCode);
 
 /// <summary>The request of <c>PUT /api/agencies/roster</c>.</summary>
-public sealed record RosterRequest(IReadOnlyList<RosterRequestEntry>? Entries);
+public record RosterRequest(IReadOnlyList<RosterRequestEntry>? Entries);
 
 /// <summary>A problem of one entry: its 0-based position in <c>entries</c> and a code.</summary>
-public sealed record RosterEntryError(int Index, string Code, string Message);
+public record RosterEntryError(int Index, string Code, string Message);
 
 /// <summary>Result of a roster write: the slots now on the roster, how many were created, and nothing else changed.</summary>
-public sealed record RosterResultDto(int Created, int Unchanged, IReadOnlyList<RosterEntryDto> Entries);
+public record RosterResultDto(int Created, int Unchanged, IReadOnlyList<RosterEntryDto> Entries);
 
 public static class RosterErrorCodes
 {
@@ -38,7 +38,7 @@ public static class RosterErrorCodes
 }
 
 /// <summary>Raised when a roster write is rejected as a whole; carries the per-entry errors (HTTP 422).</summary>
-public sealed class RosterRejectedException(IReadOnlyList<RosterEntryError> errors)
+public class RosterRejectedException(IReadOnlyList<RosterEntryError> errors)
     : BusinessRuleViolationException("The roster was not changed: some entries are invalid.", RosterErrorCodes.RosterInvalid)
 {
     public IReadOnlyList<RosterEntryError> Errors { get; } = errors;
@@ -77,7 +77,7 @@ public interface IRosterRepository
 /// entry, a past date or beyond the booking horizon) rejects the whole request and changes nothing. Re-sending an existing AVAILABLE slot
 /// is a no-op (idempotent). Doubling a worker on the same shift is impossible by <c>UNIQUE(worker_id, slot_date, shift_code)</c>.
 /// </summary>
-public sealed class ShiftRosterService(
+public class ShiftRosterService(
     IRosterRepository repository,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,

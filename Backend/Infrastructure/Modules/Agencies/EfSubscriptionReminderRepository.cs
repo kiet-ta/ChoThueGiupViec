@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="ISubscriptionReminderRepository"/>.</summary>
-public sealed class EfSubscriptionReminderRepository(AppDbContext db) : ISubscriptionReminderRepository
+public class EfSubscriptionReminderRepository(AppDbContext db) : ISubscriptionReminderRepository
 {
     private const string Active = "ACTIVE";
 

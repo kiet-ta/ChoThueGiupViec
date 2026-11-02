@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Payments.Services;
 
 /// <summary>The <c>Payment</c> shape of contract payments.md 1.3. <c>gateway_txn_ref</c> and <c>ipn_payload</c> are never exposed.</summary>
-public sealed record PaymentDto(
+public record PaymentDto(
     long PaymentId,
     string Purpose,
     long? OrderId,
@@ -17,10 +17,10 @@ public sealed record PaymentDto(
     bool Sandbox);
 
 /// <param name="Created">True when a new transaction was created (HTTP 201), false when the existing PENDING one is returned (HTTP 200).</param>
-public sealed record PaymentQrResult(PaymentDto Payment, bool Created);
+public record PaymentQrResult(PaymentDto Payment, bool Created);
 
 /// <summary>The gateway refused or did not answer; nothing was stored and the client may retry (contract payments.md 2.1, P5). Maps to HTTP 502.</summary>
-public sealed class PaymentGatewayUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
+public class PaymentGatewayUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
 
 public interface IPaymentQrService
 {

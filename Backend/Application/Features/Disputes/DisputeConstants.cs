@@ -35,7 +35,7 @@ public static class DisputeConstants
 }
 
 /// <summary>Disputes thresholds, bound from the "Disputes" configuration section; the defaults are the recommended ones of disputes.md.</summary>
-public sealed class DisputeOptions
+public class DisputeOptions
 {
     /// <summary>How long after the end of the shift (or completion) a dispute may still be filed (PRD 4.3: 24 h).</summary>
     public int FileWindowHours { get; set; } = 24;

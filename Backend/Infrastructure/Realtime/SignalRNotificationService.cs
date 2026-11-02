@@ -8,7 +8,7 @@ namespace CommonService.Infrastructure.Realtime;
 /// Production INotificationService implementation dispatching via SignalR and storing in the fallback store.
 /// Customer payment status and job tracking are dispatched to role:id groups in realtime (decisions Q07).
 /// </summary>
-public sealed class SignalRNotificationService : INotificationService
+public class SignalRNotificationService : INotificationService
 {
     private readonly IHubContext<NotificationHub, INotificationClient> _hubContext;
     private readonly INotificationStore _store;

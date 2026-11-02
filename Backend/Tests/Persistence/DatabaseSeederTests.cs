@@ -41,7 +41,7 @@ public class DatabaseSeederTests
         return new AppDbContext(options);
     }
 
-    private sealed class TestHostEnvironment(string environmentName) : IHostEnvironment
+    private class TestHostEnvironment(string environmentName) : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = environmentName;
         public string ApplicationName { get; set; } = "CommonService";

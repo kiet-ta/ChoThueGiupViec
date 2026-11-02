@@ -10,7 +10,7 @@ using MediatR;
 
 namespace CommonService.Application.Features.Workers.Services;
 
-public sealed class WorkerExtensionService(
+public class WorkerExtensionService(
     IWorkerExtensionRepository extensions,
     IPublisher publisher,
     ICurrentUser currentUser,

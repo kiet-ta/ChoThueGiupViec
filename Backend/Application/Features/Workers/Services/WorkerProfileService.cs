@@ -7,7 +7,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace CommonService.Application.Features.Workers.Services;
 
-public sealed class WorkerProfileService(
+public class WorkerProfileService(
     IWorkerRepository workerRepository,
     ICurrentUser currentUser,
     IClock clock,

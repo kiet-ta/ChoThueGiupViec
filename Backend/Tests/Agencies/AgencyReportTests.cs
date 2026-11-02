@@ -16,7 +16,7 @@ public class AgencyReportTests
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
     private static readonly DateOnly Today = new(2026, 10, 14);
 
-    private sealed class InMemoryReport : IAgencyReportRepository
+    private class InMemoryReport : IAgencyReportRepository
     {
         public List<AgencyJobRow> Jobs { get; } = [];
         public List<WorkerPerformanceRow> Rows { get; } = [];
@@ -44,7 +44,7 @@ public class AgencyReportTests
     }
 
     /// <summary>Only the package lookups the report needs; everything else is unused here.</summary>
-    private sealed class PackageOnlySubscriptions : ISubscriptionRepository
+    private class PackageOnlySubscriptions : ISubscriptionRepository
     {
         public bool Pro { get; set; }
 
@@ -87,7 +87,7 @@ public class AgencyReportTests
         public Task<PaymentTransaction?> FindPendingPaymentAsync(int subscriptionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public InMemoryReport Repo { get; } = new();
         public PackageOnlySubscriptions Subs { get; } = new();
@@ -107,7 +107,7 @@ public class AgencyReportTests
         }
     }
 
-    private sealed class PaymentRepositoryStub2 : PaymentRepositoryStub;
+    private class PaymentRepositoryStub2 : PaymentRepositoryStub;
 
     [Fact]
     public async Task Jobs_are_the_callers_with_worker_names_and_the_status_filter()

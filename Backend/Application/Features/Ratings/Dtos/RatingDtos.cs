@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Ratings.Dtos;
 
 /// <summary>Body of the two POST .../rating endpoints (contract ratings.md section 2). Missing values become 400s.</summary>
-public sealed class SubmitRatingRequestDto
+public class SubmitRatingRequestDto
 {
     /// <summary>1-5. Nullable so that a missing value is reported as a validation error instead of becoming 0.</summary>
     public int? Stars { get; init; }
@@ -14,7 +14,7 @@ public sealed class SubmitRatingRequestDto
 }
 
 /// <summary>One TWO_WAY_RATING row returned to the rater who wrote it (contract ratings.md section 1).</summary>
-public sealed class RatingDto
+public class RatingDto
 {
     public long RatingId { get; init; }
     public long AssignmentId { get; init; }
@@ -34,7 +34,7 @@ public sealed class RatingDto
 }
 
 /// <summary>Whether and until when the caller may still rate an assignment (feeds the countdown of the rating screens).</summary>
-public sealed class RatingWindowDto
+public class RatingWindowDto
 {
     public long AssignmentId { get; init; }
     public bool CanRate { get; init; }

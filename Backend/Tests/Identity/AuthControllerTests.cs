@@ -12,7 +12,7 @@ namespace CommonService.Tests.Identity;
 
 public class AuthControllerTests
 {
-    private sealed class FakeOtpService : IOtpService
+    private class FakeOtpService : IOtpService
     {
         public OtpRequestResult RequestResult { get; set; } = OtpRequestResult.Ok(new OtpRequestResponseDto
         {
@@ -59,7 +59,7 @@ public class AuthControllerTests
         }
     }
 
-    private sealed class TestCurrentUser : ICurrentUser
+    private class TestCurrentUser : ICurrentUser
     {
         public bool IsAuthenticated { get; set; } = true;
         public int? UserId { get; set; } = 42;

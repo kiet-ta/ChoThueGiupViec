@@ -12,7 +12,7 @@ public class VerifiedPartnerTests
 {
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class Recording : IVerifiedPartnerRepository
+    private class Recording : IVerifiedPartnerRepository
     {
         public List<(DateOnly Today, int GraceDays, int? AgencyId)> Calls { get; } = [];
 

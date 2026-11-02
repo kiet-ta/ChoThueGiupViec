@@ -7,7 +7,7 @@ using Xunit;
 
 namespace CommonService.Tests.Booking;
 
-public sealed class PricingTests
+public class PricingTests
 {
     private static decimal D(string value) => decimal.Parse(value, CultureInfo.InvariantCulture);
 
@@ -98,7 +98,7 @@ public sealed class PricingTests
     }
 
     /// <summary>In-memory copy of the Q01 DEFAULT seed (Backend/Infrastructure/Persistence/DefaultDataSeeder.cs).</summary>
-    private sealed class SeededPriceRules(bool includePremium = true) : IPriceRuleRepository
+    private class SeededPriceRules(bool includePremium = true) : IPriceRuleRepository
     {
         private readonly List<PriceRule> _rules =
         [

@@ -12,7 +12,7 @@ using Xunit;
 namespace CommonService.Tests.Payments;
 
 /// <summary>BE-M2-08: the worker declines an extension, so it is marked DECLINED and the paid extension is refunded 100 % (contract payments.md 3.4).</summary>
-public sealed class ExtensionDeclinedTests
+public class ExtensionDeclinedTests
 {
     private const int CustomerId = 7;
     private const long OrderId = 42;
@@ -21,7 +21,7 @@ public sealed class ExtensionDeclinedTests
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime DeclinedAt = Now.AddMinutes(7);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -29,7 +29,7 @@ public sealed class ExtensionDeclinedTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
 
@@ -43,7 +43,7 @@ public sealed class ExtensionDeclinedTests
             where TNotification : INotification => Publish((object)notification, cancellationToken);
     }
 
-    private sealed class RecordingNotifications : INotificationService
+    private class RecordingNotifications : INotificationService
     {
         public List<NotificationMessage> Sent { get; } = [];
 
@@ -54,7 +54,7 @@ public sealed class ExtensionDeclinedTests
         }
     }
 
-    private sealed class Gateway(bool refuse = false) : IPaymentGateway
+    private class Gateway(bool refuse = false) : IPaymentGateway
     {
         public List<(string Ref, decimal Amount, string Reason)> Refunds { get; } = [];
 
@@ -69,7 +69,7 @@ public sealed class ExtensionDeclinedTests
         public Task<GatewayTransactionStatus> QueryStatusAsync(string gatewayTxnRef, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class Db : PaymentRepositoryStub
+    private class Db : PaymentRepositoryStub
     {
         public JobOrderExtension Extension { get; set; } = null!;
         public PaymentTransaction? Txn { get; set; }
@@ -132,7 +132,7 @@ public sealed class ExtensionDeclinedTests
         };
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public Db Repo { get; } = new();
         public Gateway Gw { get; }

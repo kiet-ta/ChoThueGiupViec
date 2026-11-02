@@ -1,18 +1,18 @@
 namespace CommonService.Application.Features.Admin;
 
 /// <summary>Thresholds of the operations dashboard, bound from the "Admin" configuration section (contract admin.md question A2).</summary>
-public sealed class AdminDashboardOptions
+public class AdminDashboardOptions
 {
     /// <summary>An open dispute due within this many hours (overdue included) counts as "near SLA". Chosen by the designer, not decided by the leader.</summary>
     public int DisputeNearSlaHours { get; set; } = 6;
 }
 
 /// <summary>The instants (UTC) the counts are taken against: Asia/Ho_Chi_Minh day and ISO week converted by <c>IClock</c>.</summary>
-public sealed record DashboardWindow(
+public record DashboardWindow(
     DateTime TodayStartUtc, DateTime TodayEndUtc, DateTime WeekStartUtc, DateTime WeekEndUtc, DateTime NearSlaBeforeUtc);
 
 /// <summary>The raw counts of the dashboard.</summary>
-public sealed record DashboardCounts(
+public record DashboardCounts(
     int OrdersToday, int OrdersThisWeek, int ShiftsInProgress, int ShiftsCompletedToday, int DisputesOpen, int DisputesNearSla);
 
 /// <summary>

@@ -6,10 +6,10 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Admin;
 
 /// <summary>Absence reports over <c>CHECK_IN_LOG</c> and the flat <c>JOB_ASSIGNMENT</c> node, read-only except for one conditional update (contract A3, A6).</summary>
-public sealed class EfAbsenceRepository(AppDbContext db) : IAbsenceRepository
+public class EfAbsenceRepository(AppDbContext db) : IAbsenceRepository
 {
     /// <summary>The joined columns, shaped with member initialisers so that filters and paging translate to SQL.</summary>
-    private sealed class Raw
+    private class Raw
     {
         public long AssignmentId { get; init; }
         public long OrderId { get; init; }

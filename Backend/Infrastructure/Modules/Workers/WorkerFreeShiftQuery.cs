@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Workers;
 
 /// <summary>Real <see cref="IWorkerFreeShiftQuery"/>: the worker's <c>AVAILABLE</c> BOOKING_SLOT rows in a date range.</summary>
-public sealed class WorkerFreeShiftQuery(AppDbContext dbContext) : IWorkerFreeShiftQuery
+public class WorkerFreeShiftQuery(AppDbContext dbContext) : IWorkerFreeShiftQuery
 {
     public async Task<IReadOnlyList<WorkerFreeShift>> GetFreeShiftsAsync(
         int workerId,

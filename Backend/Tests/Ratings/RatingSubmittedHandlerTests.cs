@@ -27,7 +27,7 @@ public class RatingSubmittedHandlerTests
     private const int WorkerId = 5;
     private const int CustomerId = 9;
 
-    private sealed class MemoryRatings : IRatingRepository
+    private class MemoryRatings : IRatingRepository
     {
         public Dictionary<long, RatingAssignmentInfo> Assignments { get; } = [];
 
@@ -38,7 +38,7 @@ public class RatingSubmittedHandlerTests
         public Task<bool> TryAddAsync(TwoWayRating rating, CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
-    private sealed class MemoryStore : IWorkerRatingStore
+    private class MemoryStore : IWorkerRatingStore
     {
         public Dictionary<int, Worker> Workers { get; } = [];
 
@@ -61,7 +61,7 @@ public class RatingSubmittedHandlerTests
             Task.FromResult<IReadOnlyList<RecentCustomerRating>>(CustomerRatings.Take(take).ToList());
     }
 
-    private sealed class StubReputation : IWorkerReputation
+    private class StubReputation : IWorkerReputation
     {
         public Dictionary<int, WorkerReputationDto> Items { get; } = [];
 
@@ -69,7 +69,7 @@ public class RatingSubmittedHandlerTests
             Task.FromResult(Items.GetValueOrDefault(workerId));
     }
 
-    private sealed class CountingUnitOfWork : IUnitOfWork
+    private class CountingUnitOfWork : IUnitOfWork
     {
         public int Saves { get; private set; }
 
@@ -86,7 +86,7 @@ public class RatingSubmittedHandlerTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public MemoryRatings Ratings { get; } = new();
         public MemoryStore Store { get; } = new();

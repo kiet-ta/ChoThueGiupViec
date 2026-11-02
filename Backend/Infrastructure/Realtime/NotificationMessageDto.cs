@@ -4,7 +4,7 @@ namespace CommonService.Infrastructure.Realtime;
 /// Data transfer object for SignalR notification messages.
 /// Broadcast to connected clients over the /hubs/notifications hub.
 /// </summary>
-public sealed record NotificationMessageDto(
+public record NotificationMessageDto(
     string RecipientRole,
     int RecipientId,
     string Topic,

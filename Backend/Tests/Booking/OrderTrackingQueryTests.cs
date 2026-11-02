@@ -9,7 +9,7 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BE-M2-10: order progress and customer history read JOB_ASSIGNMENT only (PRD 5.2, 0 JOIN).</summary>
-public sealed class OrderTrackingQueryTests
+public class OrderTrackingQueryTests
 {
     private const string ConnectionString =
         "Server=localhost;Database=ChoThueGiupViec;Integrated Security=True;TrustServerCertificate=True;";

@@ -16,7 +16,7 @@ public interface IDisputeEvidenceService
 /// The declared type, the size and the first bytes must agree, because the stored file is served back to anybody who knows its
 /// (unguessable) name.
 /// </summary>
-public sealed partial class DisputeEvidenceService(IFileStorage storage) : IDisputeEvidenceService
+public partial class DisputeEvidenceService(IFileStorage storage) : IDisputeEvidenceService
 {
     /// <summary>One folder level only: <c>LocalFileStorage</c> keeps just the last segment of the folder.</summary>
     public const string Folder = "dispute-evidence";

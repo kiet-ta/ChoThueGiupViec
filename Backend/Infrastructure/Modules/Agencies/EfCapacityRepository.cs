@@ -15,7 +15,7 @@ namespace CommonService.Infrastructure.Modules.Agencies;
 /// (<c>AVAILABLE -&gt; HELD</c> per slot, then the hold rows, whose unique index on <c>slot_id</c> is the second guard), so two orders can
 /// never both hold a slot. Not verified against a live SQL Server on this host (no server); covered by the owner's Windows run.
 /// </summary>
-public sealed class EfCapacityRepository(AppDbContext db, IClock clock, IOptions<BusinessRules> rules) : ICapacityRepository
+public class EfCapacityRepository(AppDbContext db, IClock clock, IOptions<BusinessRules> rules) : ICapacityRepository
 {
     public async Task<IReadOnlyList<CapacitySlot>> GetOpenSlotsAsync(
         DateOnly date, string shiftCode, decimal minSlaScore, CancellationToken cancellationToken = default)

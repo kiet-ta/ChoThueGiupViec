@@ -3,7 +3,7 @@ namespace CommonService.Application.Features.Agencies.Dtos;
 /// <summary>
 /// Request for listing agency workers with pagination.
 /// </summary>
-public sealed class AgencyWorkerListRequest
+public class AgencyWorkerListRequest
 {
     /// <summary>Page number (1-based).</summary>
     public int Page { get; set; } = 1;

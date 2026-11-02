@@ -16,7 +16,7 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BE-M2-09: the customer cancels an order (decisions Q15, contract booking.md 3.7), with in-memory ports (no DB).</summary>
-public sealed class OrderCancellationServiceTests
+public class OrderCancellationServiceTests
 {
     private const int CustomerId = 7;
     private const long OrderId = 42;
@@ -24,7 +24,7 @@ public sealed class OrderCancellationServiceTests
     /// <summary>The shift starts 2026-10-15 08:00 local = 01:00 UTC.</summary>
     private static readonly DateTime ShiftStartUtc = new(2026, 10, 15, 1, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock(DateTime utcNow) : IClock
+    private class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -32,7 +32,7 @@ public sealed class OrderCancellationServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(utcNow));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
 
@@ -46,7 +46,7 @@ public sealed class OrderCancellationServiceTests
             where TNotification : INotification => Publish((object)notification, cancellationToken);
     }
 
-    private sealed class RecordingRefunds(bool succeed = true) : IRefundService
+    private class RecordingRefunds(bool succeed = true) : IRefundService
     {
         public List<RefundRequest> Requests { get; } = [];
 
@@ -57,7 +57,7 @@ public sealed class OrderCancellationServiceTests
         }
     }
 
-    private sealed class Orders : IOrderRepository
+    private class Orders : IOrderRepository
     {
         public Dictionary<long, JobOrder> Items { get; } = [];
         public Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => Task.FromResult(Items.GetValueOrDefault(orderId));
@@ -74,7 +74,7 @@ public sealed class OrderCancellationServiceTests
     }
 
     /// <summary>Only what the cancel touches: the open QR transaction of the order.</summary>
-    private sealed class Payments : PaymentRepositoryStub
+    private class Payments : PaymentRepositoryStub
     {
         public PaymentTransaction? Open { get; set; }
         public List<(long PaymentId, string Marker)> Expired { get; } = [];
@@ -89,7 +89,7 @@ public sealed class OrderCancellationServiceTests
         }
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public Orders Db { get; } = new();
         public Payments Pay { get; } = new();
@@ -372,14 +372,14 @@ public sealed class OrderCancellationServiceTests
         Assert.Equal("note", order.CustomerNote);
     }
 
-    private sealed class StubUser(int? userId) : ICurrentUser
+    private class StubUser(int? userId) : ICurrentUser
     {
         public bool IsAuthenticated => userId.HasValue;
         public int? UserId => userId;
         public UserRole? Role => userId.HasValue ? UserRole.Customer : null;
     }
 
-    private sealed class StubService(string? refundProblem) : IOrderCancellationService
+    private class StubService(string? refundProblem) : IOrderCancellationService
     {
         public Task<CancelOrderResult> CancelAsync(int customerId, long orderId, CancelOrderRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(new CancelOrderResult(

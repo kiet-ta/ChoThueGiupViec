@@ -7,7 +7,7 @@ namespace CommonService.Infrastructure.Fakes;
 /// Applies the point table of decisions Q09 (NO_SHOW -20, SHORTAGE -10, QUALITY_COMPLAINT -5) to a score that starts at 100.00,
 /// and deducts customer refund + rescue cost from an endless escrow. The real service reads these values from BusinessRules.
 /// </summary>
-public sealed class FakeSlaPenaltyService : ISlaPenaltyService
+public class FakeSlaPenaltyService : ISlaPenaltyService
 {
     private readonly ConcurrentDictionary<int, decimal> _scores = new();
     private readonly ConcurrentQueue<SlaPenaltyRequest> _requests = new();

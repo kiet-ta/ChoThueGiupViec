@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="IVerifiedPartnerRepository"/>: two set-based updates, no rows loaded.</summary>
-public sealed class EfVerifiedPartnerRepository(AppDbContext db) : IVerifiedPartnerRepository
+public class EfVerifiedPartnerRepository(AppDbContext db) : IVerifiedPartnerRepository
 {
     private const string Active = "ACTIVE";
     private const string Pro = "PRO";

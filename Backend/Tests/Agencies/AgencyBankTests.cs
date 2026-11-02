@@ -10,7 +10,7 @@ namespace CommonService.Tests.Agencies;
 /// <summary>MAIN-FLOW-FIX: the bank account the agency's payout is transferred to.</summary>
 public class AgencyBankTests
 {
-    private sealed class InMemoryBank : IAgencyBankRepository
+    private class InMemoryBank : IAgencyBankRepository
     {
         public Dictionary<int, (string Name, string Account)> Rows { get; } = new() { [7] = ("", "") };
 

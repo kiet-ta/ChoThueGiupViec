@@ -11,17 +11,17 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace CommonService.Application.Features.Agencies;
 
 /// <summary>The assignment, its slot and the shift start as the swap window needs them.</summary>
-public sealed record SwapAssignmentView(
+public record SwapAssignmentView(
     long AssignmentId, long OrderId, int AgencyId, int WorkerId, int SlotId, JobAssignmentStatus Status,
     DateOnly SlotDate, string ShiftCode, TimeOnly StartTime, ServiceTier ServiceTier);
 
-public sealed record UnavailableRequest(string? Reason);
+public record UnavailableRequest(string? Reason);
 
-public sealed record SwapRequest(int? NewWorkerId);
+public record SwapRequest(int? NewWorkerId);
 
 /// <summary>The 30-minute window of one assignment (contract agencies.md 7).</summary>
 /// <param name="State"><c>OPEN</c> (the agency may swap until <c>DeadlineAt</c>), <c>SWAPPED</c>, or <c>RESCUE_STARTED</c> (expired or notice of 2 h or less: Dispatch took over).</param>
-public sealed record SwapWindowDto(
+public record SwapWindowDto(
     long AssignmentId, long OrderId, string State, DateTime OpenedAt, DateTime DeadlineAt, int RemainingSeconds, DateTime ShiftStartUtc, int? NewWorkerId);
 
 public static class SwapErrorCodes
@@ -72,7 +72,7 @@ public interface IAgencySwapRepository
 /// replace the worker with another of its own workers who has a free slot for that shift; when the window ends, or the notice is 2 hours
 /// or less, the right passes to Dispatch (<see cref="AgencySwapWindowExpired"/>: emergency rescue + SLA penalty are M3's, BE-M3-07).
 /// </summary>
-public sealed class AgencySwapService(
+public class AgencySwapService(
     IAgencySwapRepository repository,
     IUnitOfWork unitOfWork,
     IPublisher publisher,

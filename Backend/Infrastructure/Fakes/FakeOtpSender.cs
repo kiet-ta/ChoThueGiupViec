@@ -8,7 +8,7 @@ namespace CommonService.Infrastructure.Fakes;
 /// Writes the OTP to the log instead of sending an SMS (decisions Q06). It refuses to be created outside
 /// Development, so a host that registered it fails at startup (see <see cref="OtpSenderStartupGuard"/>).
 /// </summary>
-public sealed class FakeOtpSender : IOtpSender
+public class FakeOtpSender : IOtpSender
 {
     private readonly ILogger<FakeOtpSender> _logger;
     private readonly ConcurrentQueue<(string PhoneNumber, string Code)> _sent = new();
@@ -35,7 +35,7 @@ public sealed class FakeOtpSender : IOtpSender
 }
 
 /// <summary>Resolves <see cref="IOtpSender"/> when the host starts so that a forbidden Fake fails the startup, not the first login.</summary>
-public sealed class OtpSenderStartupGuard : IHostedService
+public class OtpSenderStartupGuard : IHostedService
 {
     public OtpSenderStartupGuard(IOtpSender sender)
     {

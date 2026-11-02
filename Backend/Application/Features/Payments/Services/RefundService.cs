@@ -22,7 +22,7 @@ public interface IExtensionRefundService
 /// paid amount; if the gateway refuses, the reservation is reverted exactly and nothing stays recorded.
 /// A gateway without a refund API is recorded in the database only (decisions Q04).
 /// </summary>
-public sealed class RefundService(
+public class RefundService(
     IPaymentRepository payments,
     IPaymentGateway gateway,
     IUnitOfWork unitOfWork,

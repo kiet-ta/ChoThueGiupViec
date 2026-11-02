@@ -134,7 +134,7 @@ public class SubscriptionTests
 
     // ---- the service
 
-    internal sealed class InMemorySubscriptions : ISubscriptionRepository
+    internal class InMemorySubscriptions : ISubscriptionRepository
     {
         public List<SubscriptionPackage> Packages { get; } = [Free(), ProMonthly(), ProQuarterly()];
         public List<PartnerSubscription> Subscriptions { get; } = [];
@@ -204,7 +204,7 @@ public class SubscriptionTests
             Task.FromResult(Payments.LastOrDefault(p => p.SubscriptionId == subscriptionId && p.TxnStatus == PaymentStatus.Pending));
     }
 
-    internal sealed class InMemoryPayments : PaymentRepositoryStub
+    internal class InMemoryPayments : PaymentRepositoryStub
     {
         private readonly InMemorySubscriptions _subs;
         private long _nextId = 900;
@@ -236,7 +236,7 @@ public class SubscriptionTests
         }
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
 
@@ -253,7 +253,7 @@ public class SubscriptionTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public InMemorySubscriptions Repo { get; } = new();
         public InMemoryPayments Payments { get; }
@@ -543,7 +543,7 @@ public class SubscriptionTests
         Assert.Equal(PaymentStatus.Pending, payment.TxnStatus);
     }
 
-    private sealed class IpnPayments(InMemorySubscriptions subs, InMemoryPayments inner) : PaymentRepositoryStub
+    private class IpnPayments(InMemorySubscriptions subs, InMemoryPayments inner) : PaymentRepositoryStub
     {
         public override Task<PaymentTransaction?> FindByGatewayRefAsync(string gatewayTxnRef, CancellationToken cancellationToken = default) =>
             Task.FromResult(subs.Payments.FirstOrDefault(p => p.GatewayTxnRef == gatewayTxnRef));
@@ -552,7 +552,7 @@ public class SubscriptionTests
             Task.FromResult(false);
     }
 
-    private sealed class NoSettlement : IPaymentSettlementService
+    private class NoSettlement : IPaymentSettlementService
     {
         public Task<bool> SettlePaidAsync(long paymentId, long orderId, decimal amount, string rawBody, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();

@@ -9,7 +9,7 @@ namespace CommonService.Infrastructure.Modules.Ratings;
 /// Registers the real IWorkerReputation (M6). A module of its own so it does not share a file with the Ratings
 /// endpoints module; the real implementation wins over FakeWorkerReputation, which is added later with TryAdd.
 /// </summary>
-public sealed class WorkerReputationModule : IModule
+public class WorkerReputationModule : IModule
 {
     public string Name => "WorkerReputation";
 

@@ -13,7 +13,7 @@ public class WorkerAssignmentServiceTests
 {
     private static readonly DateOnly Today = new(2026, 10, 30);
 
-    private sealed class TestCurrentUser : ICurrentUser
+    private class TestCurrentUser : ICurrentUser
     {
         public int? UserId { get; set; }
         public UserRole? Role { get; set; } = UserRole.Worker;
@@ -21,7 +21,7 @@ public class WorkerAssignmentServiceTests
     }
 
     /// <summary>Holds the jobs of several workers, like the table, and answers for the worker and range it is asked for only.</summary>
-    private sealed class FakeRepository(params (int WorkerId, WorkerAssignmentRow Row)[] all) : IWorkerAssignmentRepository
+    private class FakeRepository(params (int WorkerId, WorkerAssignmentRow Row)[] all) : IWorkerAssignmentRepository
     {
         public (int WorkerId, DateOnly Start, DateOnly End)? LastCall { get; private set; }
 

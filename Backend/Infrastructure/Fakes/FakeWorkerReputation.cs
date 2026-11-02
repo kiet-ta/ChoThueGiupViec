@@ -3,7 +3,7 @@ using CommonService.Application.Interfaces.Ports;
 
 namespace CommonService.Infrastructure.Fakes;
 
-public sealed class FakeWorkerReputation : IWorkerReputation
+public class FakeWorkerReputation : IWorkerReputation
 {
     private readonly ConcurrentDictionary<int, WorkerReputationDto> _items = new();
 

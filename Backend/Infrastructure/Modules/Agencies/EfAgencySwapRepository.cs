@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="IAgencySwapRepository"/>. Not verified against a live SQL Server on this host.</summary>
-public sealed class EfAgencySwapRepository(AppDbContext db) : IAgencySwapRepository
+public class EfAgencySwapRepository(AppDbContext db) : IAgencySwapRepository
 {
     public async Task<SwapAssignmentView?> GetAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default)
     {

@@ -23,7 +23,7 @@ public class BookingSlotInsertFailureTests
     private const int WorkerId = 7;
     private static readonly DateOnly SlotDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2));
 
-    private sealed class User : ICurrentUser
+    private class User : ICurrentUser
     {
         public int? UserId => WorkerId;
         public UserRole? Role => UserRole.Worker;
@@ -34,7 +34,7 @@ public class BookingSlotInsertFailureTests
     /// The slot is not there at first (the toggle takes the insert path); the first save fails; the slot a concurrent request created,
     /// if any, is there when the toggle reads again.
     /// </summary>
-    private sealed class FailingInsertRepository(DbUpdateException failure, BookingSlot? concurrentRow) : IWorkerRepository
+    private class FailingInsertRepository(DbUpdateException failure, BookingSlot? concurrentRow) : IWorkerRepository
     {
         private bool _insertFailed;
         public int Saves { get; private set; }

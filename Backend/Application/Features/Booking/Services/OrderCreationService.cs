@@ -14,7 +14,7 @@ namespace CommonService.Application.Features.Booking.Services;
 /// ECONOMY may carry a <c>preferredWorkerId</c>: the worker must be a favorite or have completed an assignment on the
 /// customer's previous order. Dispatch offers that worker the first seat before the radius scan.
 /// </summary>
-public sealed class OrderCreationService(
+public class OrderCreationService(
     ICustomerAddressQuery addresses,
     IPricingService pricing,
     IOrderRepository orders,

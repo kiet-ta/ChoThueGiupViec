@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CommonService.WebAPI.Controllers.Dispatch;
 
 /// <summary>Request body of the fallback answer (contract dispatch.md 3.2).</summary>
-public sealed record FallbackAnswerRequest(bool? Accept);
+public record FallbackAnswerRequest(bool? Accept);
 
 /// <summary>
 /// Customer side of the BR-02 fallback (contract dispatch.md 3.2, policy CustomerOnly): an order with one worker and no second worker

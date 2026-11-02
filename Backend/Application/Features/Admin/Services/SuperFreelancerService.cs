@@ -7,13 +7,13 @@ using Microsoft.Extensions.Options;
 
 namespace CommonService.Application.Features.Admin.Services;
 
-public sealed class SuperFreelancerDto
+public class SuperFreelancerDto
 {
     public int WorkerId { get; init; }
     public bool IsSuperFreelancer { get; init; }
 }
 
-public sealed class SuperFreelancerResult
+public class SuperFreelancerResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }
@@ -60,7 +60,7 @@ public interface ISuperFreelancerService
 }
 
 /// <summary>Approve, revoke and auto-revoke of <c>WORKER.is_super_freelancer</c> (decisions Q12, G-5; contract admin.md 2.5).</summary>
-public sealed class SuperFreelancerService(
+public class SuperFreelancerService(
     ISuperFreelancerRepository workers,
     IWorkerReputation reputation,
     IAuditLog audit,

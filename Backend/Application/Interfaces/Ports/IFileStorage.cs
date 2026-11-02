@@ -1,7 +1,7 @@
 namespace CommonService.Application.Interfaces.Ports;
 
 /// <summary>Where a stored file ended up. <see cref="Path"/> is the opaque key to pass back to the other methods.</summary>
-public sealed record StoredFile(string Path, string Url, long SizeBytes);
+public record StoredFile(string Path, string Url, long SizeBytes);
 
 /// <summary>Binary storage for before/after photos, signed guarantee PDFs and dispute evidence (local disk in development).</summary>
 public interface IFileStorage

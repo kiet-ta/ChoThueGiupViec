@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Append-only list in memory.</summary>
-public sealed class FakeAuditLog : IAuditLog
+public class FakeAuditLog : IAuditLog
 {
     private readonly ConcurrentQueue<AuditEntry> _entries = new();
 

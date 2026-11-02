@@ -5,7 +5,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Payouts.Services;
 
 /// <summary>A generated export file, ready to be sent as the response.</summary>
-public sealed record PayoutExportFile(byte[] Content, string FileName, string ContentType);
+public record PayoutExportFile(byte[] Content, string FileName, string ContentType);
 
 public interface IPayoutExportService
 {
@@ -17,7 +17,7 @@ public interface IPayoutExportService
 /// The bank transfer files of a payout batch as <c>.xlsx</c> (BE-M6-05). Columns: Q18 for the freelancer file, the recommended defaults
 /// of question P5 for the agency files. The system calls no bank (G-1): the Admin uploads the file to the bank by hand.
 /// </summary>
-public sealed class PayoutExportService(IPayoutRepository payouts, IFileStorage storage, IClock clock) : IPayoutExportService
+public class PayoutExportService(IPayoutRepository payouts, IFileStorage storage, IClock clock) : IPayoutExportService
 {
     public const string TypeFreelancer = "freelancer";
     public const string TypeAgencySummary = "agency-summary";

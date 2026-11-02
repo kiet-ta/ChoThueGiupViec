@@ -11,14 +11,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace CommonService.Application.Features.Agencies;
 
 /// <summary>One row of the import file after validation.</summary>
-public sealed record ImportRow(int RowNumber, string FullName, string PhoneNumber, string NationalId, string? BankName, string? BankAccountNo);
+public record ImportRow(int RowNumber, string FullName, string PhoneNumber, string NationalId, string? BankName, string? BankAccountNo);
 
 /// <summary>A problem of one row: the 1-based sheet row (the header is row 1), the column header and a short code.</summary>
-public sealed record ImportRowError(int Row, string Column, string Code, string Message);
+public record ImportRowError(int Row, string Column, string Code, string Message);
 
 /// <summary>Result of a dry-run or a commit (contract agencies.md 4, decisions Q18).</summary>
 /// <param name="Committed">True only for a commit that created every worker.</param>
-public sealed record ImportResultDto(bool IsValid, bool Committed, int TotalRows, int ValidRows, int CreatedWorkers, IReadOnlyList<ImportRowError> Errors);
+public record ImportResultDto(bool IsValid, bool Committed, int TotalRows, int ValidRows, int CreatedWorkers, IReadOnlyList<ImportRowError> Errors);
 
 /// <summary>Codes in <c>data.code</c> of a 409/422 and the row error codes.</summary>
 public static class ImportErrorCodes
@@ -63,7 +63,7 @@ public interface IWorkerImportRepository
 /// writes nothing, and an all-or-nothing commit. The guarantee must be signed first (Q19); the whole file is rejected for any invalid
 /// row or when it would exceed the worker quota (Q08). Workers are created <c>AGENCY_STAFF</c>, <c>IDLE</c>, with no Admin queue (PRD 2.8).
 /// </summary>
-public sealed class WorkerImportService(
+public class WorkerImportService(
     IWorkerImportRepository repository,
     IWorkerQuotaGuard quota,
     IFileStorage storage,
@@ -351,7 +351,7 @@ public sealed class WorkerImportService(
 }
 
 /// <summary>A commit was rejected: carries the per-row errors so the API answers 422 with them (decisions Q18).</summary>
-public sealed class ImportRejectedException(ImportResultDto result)
+public class ImportRejectedException(ImportResultDto result)
     : BusinessRuleViolationException("The import was rejected: no worker was created.", ImportErrorCodes.ImportInvalid)
 {
     public ImportResultDto Result { get; } = result;

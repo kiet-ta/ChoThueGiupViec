@@ -4,7 +4,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Ratings;
 
 /// <summary>What the Ratings module needs to know about an assignment (JOB_ASSIGNMENT is the flat shared node).</summary>
-public sealed record RatingAssignmentInfo(
+public record RatingAssignmentInfo(
     long AssignmentId,
     int CustomerId,
     int WorkerId,

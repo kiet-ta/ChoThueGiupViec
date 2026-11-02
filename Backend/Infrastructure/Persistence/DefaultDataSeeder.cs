@@ -9,7 +9,7 @@ namespace CommonService.Infrastructure.Persistence;
 /// Seeds reference data required in all environments (decisions Q01, Q08, skills catalog).
 /// Idempotent: checks for existence before adding rows.
 /// </summary>
-public sealed class DefaultDataSeeder
+public class DefaultDataSeeder
 {
     private readonly ILogger<DefaultDataSeeder> _logger;
 

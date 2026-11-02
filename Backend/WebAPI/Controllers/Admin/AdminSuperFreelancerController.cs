@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CommonService.WebAPI.Controllers.Admin;
 
 /// <summary>Body of both endpoints: why the Admin approves or revokes (written to the audit log, decision G-5).</summary>
-public sealed class SuperFreelancerReasonRequest
+public class SuperFreelancerReasonRequest
 {
     public string? Reason { get; init; }
 }

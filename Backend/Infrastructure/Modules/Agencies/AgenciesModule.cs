@@ -11,7 +11,7 @@ namespace CommonService.Infrastructure.Modules.Agencies;
 /// <summary>
 /// Module registration for Agencies (M5). Self-registers via <see cref="IModule"/> (BASE-02).
 /// </summary>
-public sealed class AgenciesModule : IModule
+public class AgenciesModule : IModule
 {
     public string Name => "Agencies";
 
