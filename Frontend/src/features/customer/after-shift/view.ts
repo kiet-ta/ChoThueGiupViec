@@ -159,6 +159,8 @@ export function afterShiftProblem(error: { status?: number; message?: string; fi
     if (first) return first
   }
   if (error.status === 409) {
+    if (/time to file/i.test(error.message ?? '')) return 'Đã quá 24 giờ sau ca nên không thể khiếu nại đơn này nữa.'
+    if (/nothing to dispute/i.test(error.message ?? '')) return 'Đơn này chưa có ca nào để khiếu nại. Bạn chỉ khiếu nại được khi thợ đã làm hoặc đang chờ nghiệm thu.'
     if (/already exists/i.test(error.message ?? '')) return 'Đơn này đã có khiếu nại. Mỗi đơn chỉ có một khiếu nại.'
     return 'Thao tác không còn hợp lệ với trạng thái hiện tại của đơn. Hãy tải lại trang.'
   }
