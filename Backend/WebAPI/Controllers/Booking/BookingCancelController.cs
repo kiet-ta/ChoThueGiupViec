@@ -10,7 +10,7 @@ namespace CommonService.WebAPI.Controllers.Booking;
 
 /// <summary>Customer cancel of an order (contract booking.md 3.7, Q15). Policy CustomerOnly.</summary>
 [ApiController]
-[Route("api/booking/orders/{orderId:long}/cancel")]
+[Route("api/v1/booking/orders/{orderId:long}/cancel")]
 [Authorize(Policy = "CustomerOnly")]
 public class BookingCancelController(IOrderCancellationService service, ICurrentUser currentUser) : ControllerBase
 {

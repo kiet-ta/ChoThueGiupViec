@@ -1,3 +1,4 @@
+using CommonService.Application.Common.Options;
 using CommonService.Application.Features.Disputes.Dtos;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -24,7 +25,8 @@ public interface IDisputeFilingService
 }
 
 /// <summary>Filing and own lists of disputes (contract disputes.md 2.1, PRD 4.3 step 1, BE-M6-02a).</summary>
-public sealed class DisputeFilingService(IDisputeRepository disputes, IClock clock, IOptions<DisputeOptions> options) : IDisputeFilingService
+public sealed class DisputeFilingService(
+    IDisputeRepository disputes, IClock clock, IOptions<DisputeOptions> options, IOptions<BusinessRules>? rules = null) : IDisputeFilingService
 {
     private static readonly JobAssignmentStatus[] DisputableStatuses =
     [
@@ -44,7 +46,10 @@ public sealed class DisputeFilingService(IDisputeRepository disputes, IClock clo
         if (eligible.Count == 0) return DisputeResult<DisputeDto>.Conflict("There is nothing to dispute on this order yet.");
 
         var now = clock.UtcNow;
-        var windowEnd = eligible.Max(a => Later(a.CompletedAtUtc, clock.ToUtc(a.ShiftEndLocal))).AddHours(options.Value.FileWindowHours);
+        // Q10: the customer of an absence fee has Absence.CustomerDisputeHours to dispute it; every other dispute has FileWindowHours (PRD 4.3).
+        var absenceFeeOnly = eligible.All(a => a.Status == JobAssignmentStatus.Absent);
+        var windowHours = absenceFeeOnly ? (rules?.Value ?? new BusinessRules()).Absence.CustomerDisputeHours : options.Value.FileWindowHours;
+        var windowEnd = eligible.Max(a => Later(a.CompletedAtUtc, clock.ToUtc(a.ShiftEndLocal))).AddHours(windowHours);
         if (now > windowEnd) return DisputeResult<DisputeDto>.Conflict("The time to file a dispute for this order has passed.");
 
         var ticket = new DisputeTicket

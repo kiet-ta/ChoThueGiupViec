@@ -132,7 +132,7 @@ public class JobPhotoRealUploadTests
         Assert.Equal(1, repository.Saves);
 
         // The client is given the authenticated file address, never the storage path.
-        Assert.Equal($"/api/workers/assignments/{AssignmentId}/photos/801/file", response.Data!.PhotoUrl);
+        Assert.Equal($"/api/v1/workers/assignments/{AssignmentId}/photos/801/file", response.Data!.PhotoUrl);
         Assert.True(response.Data.IsAccepted);
     }
 

@@ -12,7 +12,7 @@ namespace CommonService.WebAPI.Controllers.Identity;
 /// Authentication controller handling OTP login, token refresh, logout, and current user info (contract identity.md §2).
 /// </summary>
 [ApiController]
-[Route("api/auth")]
+[Route("api/v1/auth")]
 public class AuthController : ControllerBase
 {
     private readonly IOtpService _otpService;

@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/nordic_colors.dart';
+import '../../core/theme/nordic_radius.dart';
+import '../../core/theme/nordic_spacing.dart';
 import '../../core/theme/nordic_typography.dart';
 import '../../core/widgets/avatar_initials.dart';
 import '../../core/widgets/grouped_list_card.dart';
+import '../../core/widgets/nordic_card.dart';
+import '../../core/widgets/nordic_button.dart';
+import '../../core/widgets/nordic_page.dart';
+import '../../core/widgets/pressable.dart';
 import '../../core/widgets/stat_tile.dart';
 import '../payouts/logic/payout_logic.dart';
 import '../payouts/models/payout_models.dart';
 import '../payouts/services/payouts_service.dart';
 import '../workers/models/booking_slot_models.dart';
+import '../workers/models/worker_work_area_models.dart';
+import '../workers/routes.dart';
 import '../workers/services/workers_profile_service.dart';
 import '../workers/services/workers_slots_service.dart';
+import '../workers/services/workers_work_area_service.dart';
 
-/// The worker's Hôm nay tab (ui-templates `worker/today.html`): the month's earnings and finished jobs from
-/// `GET /api/workers/me/earnings`, and the next 7 days of on/off slots from `GET /api/workers/me/slots`.
-/// The header shows the worker's name from `GET /api/workers/me` (`Thợ #id` until it loads). A cell of the week grid
-/// opens the Lịch tab on that day. Not shown (README "needs API"): the next job, booked cells, the lifetime job count.
+/// The worker's Hôm nay tab: the month's earnings and finished jobs from
+/// `GET /api/v1/workers/me/earnings`, and the next 7 days of on/off slots from `GET /api/v1/workers/me/slots`.
+/// The header shows the worker's name from `GET /api/v1/workers/me` (`Thợ #id` until it loads). A cell of the week grid
+/// opens the Lịch tab on that day. Every section loads on its own; a failed call leaves its numbers as "–".
+/// Not shown (README "needs API"): the next job, booked cells, the lifetime job count.
+/// MOB-UI-20 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage.tab`, tokens only, pressable cells.
 class WorkerTodayTab extends StatefulWidget {
   final int workerId;
   final VoidCallback? onShowSlots;
@@ -27,6 +38,7 @@ class WorkerTodayTab extends StatefulWidget {
   final IPayoutsService? payouts;
   final WorkersSlotsService? slots;
   final WorkersProfileService? profile;
+  final WorkersWorkAreaService? workArea;
 
   /// The clock, so the month and the week can be tested.
   final DateTime Function()? now;
@@ -41,6 +53,7 @@ class WorkerTodayTab extends StatefulWidget {
     this.payouts,
     this.slots,
     this.profile,
+    this.workArea,
     this.now,
   });
 
@@ -66,6 +79,10 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
 
   String? _fullName;
   Earnings? _earnings;
+
+  /// Whether the worker belongs to an agency, and the registered work area; null until each is read (a failed read leaves it null).
+  bool? _agencyWorker;
+  WorkerWorkArea? _area;
   Set<String>? _activeSlots; // "yyyy-MM-dd:SHIFT_CODE"
 
   @override
@@ -77,20 +94,27 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
   static String _date(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  void _load() {
-    _profile
+  Future<void> _load() {
+    final summary = _profile
+        .getSummary()
+        .then((s) {
+          if (mounted) setState(() => _agencyWorker = s.agencyWorker);
+        })
+        .catchError((_) {});
+    final area = _loadArea();
+    final name = _profile
         .getFullName()
         .then((name) {
           if (mounted && name != null) setState(() => _fullName = name);
         })
         .catchError((_) {});
-    _payouts
+    final earnings = _payouts
         .getEarnings(monthKeyOf(_today))
         .then((e) {
           if (mounted) setState(() => _earnings = e);
         })
         .catchError((_) {});
-    _slots
+    final slots = _slots
         .getSlots(
           startDate: _date(_today),
           endDate: _date(_today.add(const Duration(days: 6))),
@@ -105,120 +129,153 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
           });
         })
         .catchError((_) {});
+    return Future.wait([name, earnings, slots, summary, area]);
   }
 
   @override
   Widget build(BuildContext context) {
     final earnings = _earnings;
     final name = _fullName ?? 'Thợ #${widget.workerId}';
-    return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+    return NordicPage.tab(
+      title: 'Hôm nay',
+      onRefresh: _load,
+      headerAction: IconButton.outlined(
+        key: const Key('worker-today-offers'),
+        tooltip: 'Nhận việc',
+        onPressed: widget.onOpenOffers,
+        icon: const Icon(Icons.notifications_outlined),
+      ),
+      children: [
+        if (_agencyWorker == false && _area != null && !_area!.isSet) ...[
+          _workAreaCard(),
+          const SizedBox(height: NordicSpace.md),
+        ],
+        Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 16),
-              child: Row(
-                children: [
-                  AvatarInitials(name, size: 44),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      name,
-                      key: const Key('worker-today-name'),
-                      style: NordicTypography.titleMedium,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton.outlined(
-                    key: const Key('worker-today-offers'),
-                    tooltip: 'Nhận việc',
-                    onPressed: widget.onOpenOffers,
-                    icon: const Icon(Icons.notifications_outlined),
-                  ),
-                ],
+            AvatarInitials(name, size: 44),
+            const SizedBox(width: NordicSpace.sm),
+            Expanded(
+              child: Text(
+                name,
+                key: const Key('worker-today-name'),
+                style: NordicTypography.titleMedium,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            Row(
-              children: [
-                Text(
-                  'Tháng ${_today.month}',
-                  style: NordicTypography.titleSmall,
-                ),
-                const Spacer(),
-                TextButton(
-                  key: const Key('worker-today-income'),
-                  onPressed: widget.onShowIncome,
-                  child: const Text('Chi tiết'),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: StatTile(
-                    key: const Key('worker-today-net'),
-                    icon: Icons.payments_outlined,
-                    label: 'Thực nhận',
-                    value: earnings == null
-                        ? '–'
-                        : formatVnd(earnings.netAmount),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StatTile(
-                    key: const Key('worker-today-jobs'),
-                    icon: Icons.task_alt_outlined,
-                    label: 'Ca hoàn tất',
-                    value: earnings == null ? '–' : '${earnings.jobCount}',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                const Text('7 ngày tới', style: NordicTypography.titleSmall),
-                const Spacer(),
-                TextButton(
-                  key: const Key('worker-today-slots'),
-                  onPressed: widget.onShowSlots,
-                  child: const Text('Lịch'),
-                ),
-              ],
-            ),
-            _weekStrip(),
-            const SizedBox(height: 24),
-            GroupedListCard(
-              items: [
-                GroupedListItem(
-                  key: const Key('worker-today-offer-row'),
-                  icon: Icons.notifications_active_outlined,
-                  title: 'Nhận việc',
-                  subtitle: 'Cuốc đang chờ, đếm ngược 30 giây',
-                  onTap: widget.onOpenOffers,
-                ),
-              ],
             ),
           ],
         ),
+        const SizedBox(height: NordicSpace.lg),
+        Row(
+          children: [
+            Text('Tháng ${_today.month}', style: NordicTypography.titleSmall),
+            const Spacer(),
+            TextButton(
+              key: const Key('worker-today-income'),
+              onPressed: widget.onShowIncome,
+              child: const Text('Chi tiết'),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: StatTile(
+                key: const Key('worker-today-net'),
+                icon: Icons.payments_outlined,
+                label: 'Thực nhận',
+                value: earnings == null ? '–' : formatVnd(earnings.netAmount),
+              ),
+            ),
+            const SizedBox(width: NordicSpace.sm),
+            Expanded(
+              child: StatTile(
+                key: const Key('worker-today-jobs'),
+                icon: Icons.task_alt_outlined,
+                label: 'Ca hoàn tất',
+                value: earnings == null ? '–' : '${earnings.jobCount}',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: NordicSpace.section),
+        Row(
+          children: [
+            const Text('7 ngày tới', style: NordicTypography.titleSmall),
+            const Spacer(),
+            TextButton(
+              key: const Key('worker-today-slots'),
+              onPressed: widget.onShowSlots,
+              child: const Text('Lịch'),
+            ),
+          ],
+        ),
+        _weekStrip(),
+        const SizedBox(height: NordicSpace.section),
+        GroupedListCard(
+          items: [
+            GroupedListItem(
+              key: const Key('worker-today-offer-row'),
+              icon: Icons.notifications_active_outlined,
+              title: 'Nhận việc',
+              subtitle: 'Việc đang chờ, đếm ngược 30 giây',
+              onTap: widget.onOpenOffers,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _loadArea() {
+    return (widget.workArea ?? WorkersWorkAreaService())
+        .getWorkArea()
+        .then((response) {
+          if (mounted) setState(() => _area = response.data);
+        })
+        .catchError((_) {});
+  }
+
+  /// Shown to a freelancer who has not registered where they work: until then no job is offered to them (decisions D24).
+  Widget _workAreaCard() {
+    return NordicCard(
+      isHighlighted: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.place_outlined, color: NordicColors.primary),
+              const SizedBox(width: NordicSpace.xs),
+              const Expanded(
+                child: Text(
+                  'Chưa có nơi làm việc, bạn sẽ chưa nhận được việc',
+                  key: Key('worker-today-work-area-hint'),
+                  style: NordicTypography.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: NordicSpace.sm),
+          NordicButton(
+            key: const Key('worker-today-work-area'),
+            label: 'Đăng ký nơi làm việc',
+            onPressed: () =>
+                Navigator.of(context)
+                    .pushNamed(WorkerRoutes.workArea)
+                    .then((_) => _loadArea()),
+          ),
+        ],
       ),
     );
   }
 
-  /// `.card.tight` with a 3 x 7 grid: rows are the shifts (Sáng, Chiều, Tối), columns the next 7 days. A green cell with a
+  /// A 3 x 7 grid: rows are the shifts (Sáng, Chiều, Tối), columns the next 7 days. A green cell with a
   /// tick is a shift the worker switched on; tapping a cell opens the schedule on that day.
   Widget _weekStrip() {
     final active = _activeSlots;
     final days = [for (var i = 0; i < 7; i++) _today.add(Duration(days: i))];
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: NordicColors.border),
-      ),
+    return NordicCard(
+      padding: const EdgeInsets.all(NordicSpace.sm),
       child: Column(
         children: [
           Row(
@@ -230,8 +287,7 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
                     children: [
                       Text(
                         d == days.first ? 'Nay' : _weekdays[d.weekday - 1],
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: NordicTypography.bodySmall.copyWith(
                           fontWeight: d == days.first
                               ? FontWeight.w700
                               : FontWeight.w400,
@@ -242,8 +298,7 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
                       ),
                       Text(
                         '${d.day}/${d.month}',
-                        style: TextStyle(
-                          fontSize: 10,
+                        style: NordicTypography.bodySmall.copyWith(
                           fontWeight: d == days.first
                               ? FontWeight.w700
                               : FontWeight.w400,
@@ -259,15 +314,14 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
           ),
           for (var s = 0; s < _shiftCodes.length; s++)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: NordicSpace.xs),
               child: Row(
                 children: [
                   SizedBox(
                     width: _labelWidth,
                     child: Text(
                       _shiftNames[s],
-                      style: const TextStyle(
-                        fontSize: 11,
+                      style: NordicTypography.bodySmall.copyWith(
                         color: NordicColors.textSecondary,
                       ),
                     ),
@@ -276,20 +330,22 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
                 ],
               ),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: NordicSpace.sm),
           const Row(
             children: [
               _Legend(color: NordicColors.primaryFixed, label: 'Đang rảnh'),
-              SizedBox(width: 16),
+              SizedBox(width: NordicSpace.md),
               _Legend(color: NordicColors.surfaceContainer, label: 'Đang tắt'),
             ],
           ),
-          const SizedBox(height: 6),
-          const Align(
+          const SizedBox(height: NordicSpace.xs),
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
               'Bấm vào một ô để xem lịch ngày đó',
-              style: TextStyle(fontSize: 11, color: NordicColors.textSecondary),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -300,25 +356,27 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
   Widget _cell(DateTime d, int shift, Set<String>? active) {
     final on = active?.contains('${_date(d)}:${_shiftCodes[shift]}') ?? false;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: InkWell(
-        key: Key('week-cell-${_date(d)}-${_shiftCodes[shift]}'),
-        borderRadius: BorderRadius.circular(6),
-        onTap: widget.onShowSlotsOn == null
-            ? null
-            : () => widget.onShowSlotsOn!(d),
-        child: Container(
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: on
-                ? NordicColors.primaryFixed
-                : NordicColors.surfaceContainer,
-            borderRadius: BorderRadius.circular(6),
+      padding: const EdgeInsets.symmetric(horizontal: NordicSpace.xxs),
+      child: Pressable(
+        child: InkWell(
+          key: Key('week-cell-${_date(d)}-${_shiftCodes[shift]}'),
+          borderRadius: NordicRadius.tileAll,
+          onTap: widget.onShowSlotsOn == null
+              ? null
+              : () => widget.onShowSlotsOn!(d),
+          child: Container(
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: on
+                  ? NordicColors.primaryFixed
+                  : NordicColors.surfaceContainer,
+              borderRadius: NordicRadius.tileAll,
+            ),
+            child: on
+                ? const Icon(Icons.check, size: 16, color: NordicColors.primary)
+                : null,
           ),
-          child: on
-              ? const Icon(Icons.check, size: 16, color: NordicColors.primary)
-              : null,
         ),
       ),
     );
@@ -338,16 +396,12 @@ class _Legend extends StatelessWidget {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: NordicSpace.xs),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 11,
+          style: NordicTypography.bodySmall.copyWith(
             color: NordicColors.textSecondary,
           ),
         ),

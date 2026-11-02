@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/booking/screens/booking_screen.dart';
+import 'package:mobile/features/booking/routes.dart';
+import 'package:mobile/features/customers/services/favorite_worker_service.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/booking/logic/order_logic.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
@@ -10,10 +13,31 @@ import 'package:mobile/features/disputes/screens/dispute_screen.dart';
 import 'package:mobile/features/ratings/models/rating_models.dart';
 import 'package:mobile/features/ratings/routes.dart';
 import 'package:mobile/features/ratings/screens/rating_screen.dart';
+import 'package:mobile/features/ratings/services/ratings_service.dart';
 import 'package:mobile/features/workers/routes.dart';
 import 'package:mobile/features/workers/screens/customer_acceptance_screen.dart';
 
 import 'order_screens_test.dart' show FakeOrderService;
+
+class _Ratings implements IRatingsService {
+  final bool allowed;
+  _Ratings({this.allowed = true});
+
+  @override
+  Future<RatingWindow> getWindow(RatingRole role, int assignmentId) async =>
+      RatingWindow(
+        assignmentId: assignmentId,
+        canRate: allowed,
+        reason: allowed ? 'OPEN' : 'ALREADY_RATED',
+      );
+
+  @override
+  Future<void> submit(
+    RatingRole role,
+    int assignmentId,
+    RatingSubmission submission,
+  ) async {}
+}
 
 ProgressAssignment _worker(
   int id,
@@ -92,8 +116,10 @@ void main() {
   group('OrderDetailScreen: acceptance, rating and dispute', () {
     Future<List<({String route, Object args})>> pump(
       WidgetTester tester,
-      FakeOrderService service,
-    ) async {
+      FakeOrderService service, {
+      FavoriteWorkerService? favorites,
+      IRatingsService? ratings,
+    }) async {
       tester.view.physicalSize = const Size(390, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -107,6 +133,8 @@ void main() {
           home: OrderDetailScreen(
             args: const OrderDetailArgs(orderId: 100),
             service: service,
+            favorites: favorites,
+            ratings: ratings ?? _Ratings(),
             pollInterval: const Duration(seconds: 5),
             onOpen: (route, args) => opened.add((route: route, args: args)),
           ),
@@ -133,6 +161,7 @@ void main() {
         final opened = await pump(tester, service);
 
         expect(find.byKey(const Key('accept-7')), findsOneWidget);
+        expect(find.text('Xác nhận nghiệm thu'), findsOneWidget);
         expect(find.byKey(const Key('rate-7')), findsNothing);
         await tap(tester, 'accept-7');
 
@@ -156,6 +185,16 @@ void main() {
       expect(args.completed, isTrue);
     });
 
+    testWidgets('does not offer a rating that has already been submitted', (
+      tester,
+    ) async {
+      final service = FakeOrderService()
+        ..status = OrderStatus.completed
+        ..workers = [_worker(8, AssignmentStatus.completed)];
+      await pump(tester, service, ratings: _Ratings(allowed: false));
+      expect(find.byKey(const Key('rate-8')), findsNothing);
+    });
+
     testWidgets(
       'a completed job opens the rating with the customer role, the assignment and the worker name',
       (tester) async {
@@ -174,6 +213,27 @@ void main() {
         expect(args.ratedName, 'Nguyễn Thị Lan');
       },
     );
+
+    testWidgets('"Đặt lại với" opens the form without changing favourites', (
+      tester,
+    ) async {
+      final favorites = FavoriteWorkerService(isMock: true);
+      final before = (await favorites.getFavoriteWorkers()).length;
+      final service = FakeOrderService()
+        ..status = OrderStatus.completed
+        ..workers = [_worker(8, AssignmentStatus.completed)];
+      final opened = await pump(tester, service, favorites: favorites);
+
+      await tap(tester, 'rebook-8');
+
+      final saved = await favorites.getFavoriteWorkers();
+      expect(saved.length, before);
+      expect(opened.single.route, BookingRoutes.booking);
+      final args = opened.single.args as BookingScreenArgs;
+      expect(args.preferredWorkerId, 58);
+      expect(args.previousOrderId, 100);
+      expect(args.serviceTier, ServiceTier.economy);
+    });
 
     testWidgets('the dispute opens with the customer role and the order id', (
       tester,
@@ -218,6 +278,14 @@ void main() {
             _worker(8, AssignmentStatus.awaitingAcceptance, name: null),
           ];
         final opened = await pump(tester, service);
+
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('assignment-7')),
+            matching: find.byKey(const Key('rate-7')),
+          ),
+          findsOneWidget,
+        );
 
         await tap(tester, 'accept-8');
         await tap(tester, 'rate-7');

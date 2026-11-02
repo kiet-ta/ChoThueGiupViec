@@ -2,11 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../models/job_offer.dart';
 import '../routes.dart';
@@ -40,6 +44,9 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
   String? _successMessage;
   Timer? _pollTimer;
   int? _acceptedAssignmentId;
+
+  /// Bumped on every failed accept or decline so the offer shakes.
+  int _errors = 0;
 
   @override
   void initState() {
@@ -114,14 +121,14 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
         _isAccepting = false;
         _currentOffer = null;
         _acceptedAssignmentId = result.assignmentId;
-        _successMessage =
-            'Nhận cuốc thành công! Mã ca làm #${result.assignmentId}';
+        _successMessage = 'Đã nhận việc. Đến nơi để bắt đầu.';
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isAccepting = false;
-        _errorMessage = 'Nhận cuốc không thành công: ${e.toString()}';
+        _errors++;
+        _errorMessage = 'Chưa nhận được việc: ${e.toString()}';
       });
     }
   }
@@ -146,7 +153,8 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
       if (!mounted) return;
       setState(() {
         _isDeclining = false;
-        _errorMessage = 'Không thể bỏ qua ca: ${e.toString()}';
+        _errors++;
+        _errorMessage = 'Chưa bỏ qua được ca này: ${e.toString()}';
       });
     }
   }
@@ -157,164 +165,152 @@ class _DispatchOffersScreenState extends State<DispatchOffersScreen> {
     setState(() {
       _currentOffer = null;
       _errorMessage = consecutive
-          ? 'Hết thời gian xác nhận ca thứ hai (120s). Đơn có thể bị huỷ và hoàn tiền cho khách.'
-          : 'Hết thời gian nhận cuốc (30s). Đơn đã chuyển cho thợ khác.';
+          ? 'Hết thời gian xác nhận ca thứ hai (120s). Đơn có thể bị huỷ và hoàn tiền cho gia chủ.'
+          : 'Hết thời gian nhận việc (30s). Đơn đã chuyển cho thợ khác.';
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Việc mới'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Làm mới',
-            onPressed: _isLoading ? null : _loadCurrentOffer,
-          ),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _buildContent(),
+    final accepted =
+        !_isLoading &&
+        _errorMessage == null &&
+        _currentOffer == null &&
+        _successMessage != null;
+    return NordicPage.pushed(
+      title: 'Việc mới',
+      onRefresh: _loadCurrentOffer,
+      appBarActions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Làm mới',
+          onPressed: _isLoading ? null : _loadCurrentOffer,
         ),
-      ),
+      ],
+      actions: accepted ? _resultActions() : null,
+      children: _buildContent(),
     );
   }
 
-  Widget _buildContent() {
+  /// The buttons of the result state sit in the action bar: go to the job, or look for the next one.
+  List<Widget> _resultActions() {
+    return [
+      if (_acceptedAssignmentId != null)
+        NordicButton(
+          key: const Key('go_to_check_in_button'),
+          label: 'Đến nơi',
+          onPressed: () => Navigator.of(
+            context,
+          ).pushNamed(DispatchRoutes.checkIn, arguments: _acceptedAssignmentId),
+        ),
+      NordicButton(
+        label: 'Tiếp tục tìm việc',
+        variant: _acceptedAssignmentId != null
+            ? NordicButtonVariant.secondary
+            : NordicButtonVariant.primary,
+        onPressed: _loadCurrentOffer,
+      ),
+    ];
+  }
+
+  List<Widget> _buildContent() {
     if (_isLoading) {
-      return const LoadingStateWidget(
-        message: 'Đang tìm kiếm ca làm việc mới...',
-      );
+      return const [
+        SizedBox(height: NordicSpace.xl),
+        LoadingStateWidget(message: 'Đang tìm việc mới...'),
+      ];
     }
 
     if (_errorMessage != null && _currentOffer == null) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            ErrorStateWidget(
-              message: _errorMessage!,
-              onRetry: _loadCurrentOffer,
-            ),
-          ],
-        ),
-      );
+      return [
+        ErrorStateWidget(message: _errorMessage!, onRetry: _loadCurrentOffer),
+      ];
     }
 
     if (_successMessage != null && _currentOffer == null) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            NordicCard(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.check_circle_outline,
-                      size: 64.0,
-                      color: NordicColors.success,
-                    ),
-                    const SizedBox(height: 16.0),
-                    Text(
-                      _successMessage!,
-                      textAlign: TextAlign.center,
-                      style: NordicTypography.h3,
-                    ),
-                    const SizedBox(height: 24.0),
-                    if (_acceptedAssignmentId != null) ...[
-                      NordicButton(
-                        key: const Key('go_to_check_in_button'),
-                        label: 'Đến nơi & Check-in',
-                        onPressed: () => Navigator.of(context).pushNamed(
-                          DispatchRoutes.checkIn,
-                          arguments: _acceptedAssignmentId,
-                        ),
-                      ),
-                      const SizedBox(height: 12.0),
-                    ],
-                    NordicButton(
-                      label: 'Tiếp tục tìm ca',
-                      onPressed: _loadCurrentOffer,
-                    ),
-                  ],
-                ),
+      return [
+        NordicCard(
+          padding: const EdgeInsets.all(NordicSpace.lg),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                size: 64.0,
+                color: NordicColors.success,
               ),
-            ),
-          ],
+              const SizedBox(height: NordicSpace.md),
+              Text(
+                _successMessage!,
+                textAlign: TextAlign.center,
+                style: NordicTypography.titleMedium,
+              ),
+            ],
+          ),
         ),
-      );
+      ];
     }
 
     if (_currentOffer == null) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+      return [
+        EmptyStateWidget(
+          title: 'Chưa có việc mới',
+          subtitle: 'Ứng dụng đang tìm việc phù hợp trong bán kính 5 - 10 km. Bạn giữ ứng dụng mở nhé.',
+          action: NordicButton(
+            label: 'Quét lại',
+            variant: NordicButtonVariant.secondary,
+            onPressed: _loadCurrentOffer,
+          ),
+        ),
+      ];
+    }
+
+    return [
+      ErrorShake(
+        errors: _errors,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            EmptyStateWidget(
-              title: 'Chưa có cuốc mới',
-              subtitle: 'Hệ thống đang quét các ca làm việc phù hợp với bạn trong bán kính 5 - 10 km. Vui lòng giữ ứng dụng mở.',
-              action: ElevatedButton.icon(
-                onPressed: _loadCurrentOffer,
-                icon: const Icon(Icons.refresh_rounded, size: 18.0),
-                label: const Text('Quét lại'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: StatusPill(
+                _currentOffer!.isConsecutiveShift
+                    ? 'Xác nhận ca thứ hai (120s)'
+                    : 'Đề nghị ca mới (30s)',
+                tone: PillTone.warn,
+                dot: true,
               ),
+            ),
+            const SizedBox(height: NordicSpace.xs),
+            const Text('Có gia chủ cần giúp việc', style: NordicTypography.h2),
+            const SizedBox(height: NordicSpace.md),
+            if (_errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.all(NordicSpace.sm),
+                margin: const EdgeInsets.only(bottom: NordicSpace.md),
+                decoration: BoxDecoration(
+                  color: NordicColors.errorContainer,
+                  borderRadius: NordicRadius.fieldAll,
+                  border: Border.all(color: NordicColors.error),
+                ),
+                child: Text(
+                  _errorMessage!,
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.error,
+                  ),
+                ),
+              ),
+            ],
+            JobOfferCard(
+              offer: _currentOffer!,
+              onAccept: _handleAccept,
+              onDecline: _handleDecline,
+              onTimeout: _handleTimeout,
+              isAccepting: _isAccepting,
+              isDeclining: _isDeclining,
             ),
           ],
         ),
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: StatusPill(
-              _currentOffer!.isConsecutiveShift
-                  ? 'Xác nhận ca thứ hai (120s)'
-                  : 'Đề nghị ca mới (30s)',
-              tone: PillTone.warn,
-              dot: true,
-            ),
-          ),
-          const SizedBox(height: 8.0),
-          const Text('Có khách cần giúp việc!', style: NordicTypography.h2),
-          const SizedBox(height: 16.0),
-          if (_errorMessage != null) ...[
-            Container(
-              padding: const EdgeInsets.all(12.0),
-              margin: const EdgeInsets.only(bottom: 16.0),
-              decoration: BoxDecoration(
-                color: NordicColors.errorContainer,
-                borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(color: NordicColors.error),
-              ),
-              child: Text(
-                _errorMessage!,
-                style: NordicTypography.bodySmall.copyWith(
-                  color: NordicColors.error,
-                ),
-              ),
-            ),
-          ],
-          JobOfferCard(
-            offer: _currentOffer!,
-            onAccept: _handleAccept,
-            onDecline: _handleDecline,
-            onTimeout: _handleTimeout,
-            isAccepting: _isAccepting,
-            isDeclining: _isDeclining,
-          ),
-        ],
       ),
-    );
+    ];
   }
 }

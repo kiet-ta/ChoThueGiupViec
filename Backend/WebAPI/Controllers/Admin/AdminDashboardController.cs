@@ -9,7 +9,7 @@ namespace CommonService.WebAPI.Controllers.Admin;
 
 /// <summary>The Admin operations dashboard (contract admin.md 2.3). Policy AdminOnly.</summary>
 [ApiController]
-[Route("api/admin/dashboard")]
+[Route("api/v1/admin/dashboard")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminDashboardController(IAdminDashboardService dashboard) : ControllerBase
 {

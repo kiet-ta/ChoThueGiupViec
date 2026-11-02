@@ -32,6 +32,35 @@ abstract class IBookingFavoriteSource {
   Future<Set<String>> getFreeShifts(int workerId);
 }
 
+abstract class IRebookAvailabilitySource {
+  Future<Set<String>> getFreeShifts(int orderId, int workerId);
+}
+
+class RebookAvailabilitySource implements IRebookAvailabilitySource {
+  final ApiClient _client;
+  RebookAvailabilitySource({ApiClient? client})
+    : _client = client ?? ApiClient();
+
+  @override
+  Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
+    final response = await _client.get<Set<String>>(
+      '/api/v1/booking/orders/$orderId/workers/$workerId/availability',
+      fromJson: (json) => {
+        for (final item in json as List)
+          freeShiftKey(
+            (item as Map<String, dynamic>)['date'] as String,
+            item['shiftCode'] as String,
+          ),
+      },
+    );
+    final data = response.data;
+    if (data == null) {
+      throw const ApiException(0, 'Máy chủ không trả lịch trống.');
+    }
+    return data;
+  }
+}
+
 /// booking.md 3.1 to 3.3 over the shared [ApiClient]. Failures are thrown as [ApiException] (with its business `code`).
 class BookingService implements IBookingService {
   final ApiClient _client;
@@ -46,7 +75,7 @@ class BookingService implements IBookingService {
   @override
   Future<BookingOptions> getOptions() async {
     final response = await _client.get<BookingOptions>(
-      '/api/booking/options',
+      '/api/v1/booking/options',
       fromJson: (json) => BookingOptions.fromJson(json as Map<String, dynamic>),
     );
     return _require(response.data, 'các lựa chọn đặt đơn');
@@ -58,7 +87,7 @@ class BookingService implements IBookingService {
     required String serviceTier,
   }) async {
     final response = await _client.get<PriceQuote>(
-      '/api/booking/price-quote',
+      '/api/v1/booking/price-quote',
       queryParams: {'addressId': '$addressId', 'serviceTier': serviceTier},
       fromJson: (json) => PriceQuote.fromJson(json as Map<String, dynamic>),
     );
@@ -68,7 +97,7 @@ class BookingService implements IBookingService {
   @override
   Future<BookingOrder> createOrder(CreateOrderInput input) async {
     final response = await _client.post<BookingOrder>(
-      '/api/booking/orders',
+      '/api/v1/booking/orders',
       body: input.toJson(),
       fromJson: (json) => BookingOrder.fromJson(json as Map<String, dynamic>),
     );
@@ -76,7 +105,7 @@ class BookingService implements IBookingService {
   }
 }
 
-/// Default [IBookingAddressSource]: the Customers feature's own service (`GET /api/customers/me/addresses`).
+/// Default [IBookingAddressSource]: the Customers feature's own service (`GET /api/v1/customers/me/addresses`).
 class CustomerAddressBookSource implements IBookingAddressSource {
   final CustomerAddressService _addresses;
 
@@ -111,7 +140,7 @@ class CustomerAddressBookSource implements IBookingAddressSource {
   }
 }
 
-/// Default [IBookingFavoriteSource]: the Customers feature's own service (`/api/customers/me/favorite-workers`).
+/// Default [IBookingFavoriteSource]: the Customers feature's own service (`/api/v1/customers/me/favorite-workers`).
 class CustomerFavoriteSource implements IBookingFavoriteSource {
   final FavoriteWorkerService _favorites;
 

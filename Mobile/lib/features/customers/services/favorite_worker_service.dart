@@ -72,12 +72,12 @@ class FavoriteWorkerService {
   ) => apiRequest(
     _httpClient,
     method,
-    Uri.parse('$baseUrl/api/customers/me/favorite-workers$path'),
+    Uri.parse('$baseUrl/api/v1/customers/me/favorite-workers$path'),
     bearerToken: _tokenStorage.accessToken,
     fallbackMessage: fallbackMessage,
   );
 
-  /// GET /api/customers/me/favorite-workers
+  /// GET /api/v1/customers/me/favorite-workers
   Future<List<FavoriteWorker>> getFavoriteWorkers() async {
     if (!isMock) {
       final envelope = await _call(
@@ -100,7 +100,7 @@ class FavoriteWorkerService {
     return sorted;
   }
 
-  /// PUT /api/customers/me/favorite-workers/{workerId} (Idempotent)
+  /// PUT /api/v1/customers/me/favorite-workers/{workerId} (Idempotent)
   Future<FavoriteWorker> addFavoriteWorker(int workerId) async {
     if (!isMock) {
       final envelope = await _call(
@@ -129,7 +129,7 @@ class FavoriteWorkerService {
     return newWorker;
   }
 
-  /// GET /api/customers/me/favorite-workers/{workerId}/availability: the shifts the worker is free for over the
+  /// GET /api/v1/customers/me/favorite-workers/{workerId}/availability: the shifts the worker is free for over the
   /// booking window (the server's default range).
   Future<List<WorkerFreeShift>> getFreeShifts(int workerId) async {
     if (!isMock) {
@@ -159,7 +159,7 @@ class FavoriteWorkerService {
   static String _dateKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  /// DELETE /api/customers/me/favorite-workers/{workerId} (Idempotent)
+  /// DELETE /api/v1/customers/me/favorite-workers/{workerId} (Idempotent)
   Future<void> removeFavoriteWorker(int workerId) async {
     if (!isMock) {
       await _call('DELETE', '/$workerId', 'Bỏ yêu thích thất bại.');

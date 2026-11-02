@@ -15,7 +15,7 @@ class CustomerAcceptanceService {
     String? feedback,
   }) {
     return _apiClient.post<AssignmentCompletionDto>(
-      '/api/customers/assignments/$assignmentId/accept',
+      '/api/v1/customers/assignments/$assignmentId/accept',
       body: feedback != null && feedback.isNotEmpty
           ? {'feedback': feedback}
           : {},
@@ -30,7 +30,7 @@ class CustomerAcceptanceService {
     required RequestRedoRequest request,
   }) {
     return _apiClient.post<AssignmentStatusDto>(
-      '/api/customers/assignments/$assignmentId/request-redo',
+      '/api/v1/customers/assignments/$assignmentId/request-redo',
       body: request.toJson(),
       fromJson: (json) =>
           AssignmentStatusDto.fromJson(json as Map<String, dynamic>),

@@ -63,7 +63,7 @@ void main() {
       final e = await service.getEarnings('2026-09');
 
       expect(seen.single.method, 'GET');
-      expect(seen.single.path, '/api/workers/me/earnings');
+      expect(seen.single.path, '/api/v1/workers/me/earnings');
       expect(seen.single.query, {'month': '2026-09'});
       expect(e.netAmount, 320000);
       expect(e.payoutStatus, 'TRANSFERRED');
@@ -93,7 +93,7 @@ void main() {
 
         final page = await service.getPayouts(page: 2, pageSize: 10);
 
-        expect(seen.single.path, '/api/workers/me/payouts');
+        expect(seen.single.path, '/api/v1/workers/me/payouts');
         expect(seen.single.query, {'page': '2', 'pageSize': '10'});
         expect(page.items.single.netAmount, 900000);
         expect(page.total, 11);

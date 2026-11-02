@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Payments;
 /// The exact MoMo format is BE-M2-06 (G-7); until then the body is a flat JSON object of the Fake gateway's keys.
 /// </summary>
 [ApiController]
-[Route("api/payments/ipn")]
+[Route("api/v1/payments/ipn")]
 [AllowAnonymous]
 public class PaymentIpnController(IIpnService ipn) : ControllerBase
 {
@@ -47,6 +47,51 @@ public class PaymentIpnController(IIpnService ipn) : ControllerBase
             ? BadRequest(ApiResponse<object>.Fail("IPN rejected."))
             : NoContent();
     }
+
+    /// <summary>Receives the SePay sandbox callback, preserving the signed request body.</summary>
+    [HttpPost("sepay")]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<IActionResult> SePay(CancellationToken ct)
+    {
+        using var reader = new StreamReader(Request.Body, leaveOpen: true);
+        var rawBody = await reader.ReadToEndAsync(ct);
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(rawBody);
+        }
+        catch (JsonException)
+        {
+            return BadRequest(SePayAnswer(false));
+        }
+
+        using (document)
+        {
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return BadRequest(SePayAnswer(false));
+            }
+
+            var payload = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                payload[property.Name] = property.Value.ValueKind switch
+                {
+                    JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                    JsonValueKind.Null or JsonValueKind.Undefined => string.Empty,
+                    _ => property.Value.GetRawText(),
+                };
+            }
+
+            payload["x-sepay-signature"] = Request.Headers["X-SePay-Signature"].ToString();
+            payload["x-sepay-timestamp"] = Request.Headers["X-SePay-Timestamp"].ToString();
+            payload["x-sepay-raw-body"] = rawBody;
+            var outcome = await ipn.HandleAsync(payload, rawBody, ct);
+            return outcome == IpnOutcome.Rejected ? BadRequest(SePayAnswer(false)) : Ok(SePayAnswer(true));
+        }
+    }
+
+    private static Dictionary<string, bool> SePayAnswer(bool success) => new() { ["success"] = success };
 
     /// <summary>
     /// Handles a VNPay (sandbox) callback: a GET whose query holds the <c>vnp_</c> fields. VNPay wants HTTP 200 with

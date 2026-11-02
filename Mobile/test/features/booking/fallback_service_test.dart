@@ -61,7 +61,7 @@ void main() {
       final status = await service.getStatus(100);
 
       expect(seen.single.method, 'GET');
-      expect(seen.single.path, '/api/dispatch/orders/100/fallback');
+      expect(seen.single.path, '/api/v1/dispatch/orders/100/fallback');
       expect(status.state, FallbackState.awaitingCustomer);
       expect(status.workerId, 101);
       expect(status.secondShiftCode, 'SHIFT_AFTERNOON');
@@ -72,7 +72,7 @@ void main() {
       final response = await service.respond(100, accept: true);
 
       expect(seen.single.method, 'POST');
-      expect(seen.single.path, '/api/dispatch/orders/100/fallback/respond');
+      expect(seen.single.path, '/api/v1/dispatch/orders/100/fallback/respond');
       expect(jsonDecode(seen.single.body), {'accept': true});
       expect(response.outcome, FallbackOutcome.workerAsked);
       expect(response.workerDeadline, DateTime.utc(2026, 10, 14, 3, 2));

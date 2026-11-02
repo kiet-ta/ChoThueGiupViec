@@ -1,13 +1,19 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../../../core/device/camera_wrapper.dart';
+import '../../../core/device/device_camera_wrapper.dart';
 import '../../../core/network/api_client.dart';
 import '../models/dispute_models.dart';
 import 'evidence_uploader.dart';
 
-/// Takes a photo with the shared [ICameraWrapper] and uploads it to `POST .../disputes/evidence` (contract disputes.md 2.1a),
+/// Takes a photo with an [ICameraWrapper] and uploads it to `POST .../disputes/evidence` (contract disputes.md 2.1a),
 /// returning the `url` to send in `evidenceUrls`. Failures are thrown as [ApiException] so the form can show the message.
+///
+/// Without a [camera] the real device camera and photo library ([DeviceCameraWrapper], `image_picker`) are used (ADMIN-UAT-11): the
+/// mock-able [CameraWrapper] returns no bytes, so on a phone every photo used to be reported as unreadable. Tests pass their own camera.
 class ApiEvidenceUploader implements IEvidenceUploader {
   final DisputeRole role;
   final ICameraWrapper _camera;
@@ -17,8 +23,11 @@ class ApiEvidenceUploader implements IEvidenceUploader {
     required this.role,
     ICameraWrapper? camera,
     ApiClient? client,
-  }) : _camera = camera ?? CameraWrapper(),
+  }) : _camera = camera ?? DeviceCameraWrapper(),
        _client = client ?? ApiClient();
+
+  @visibleForTesting
+  ICameraWrapper get camera => _camera;
 
   @override
   bool get isAvailable => true;

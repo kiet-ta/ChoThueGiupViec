@@ -15,7 +15,7 @@ class WorkersPhotosService {
     required UploadJobPhotoRequest request,
   }) {
     return _apiClient.postMultipart<JobPhotoDto>(
-      '/api/workers/assignments/$assignmentId/photos',
+      '/api/v1/workers/assignments/$assignmentId/photos',
       fields: {
         'photoPhase': request.photoPhase,
         'angleNo': '${request.angleNo}',
@@ -34,10 +34,10 @@ class WorkersPhotosService {
 
   /// Where and how to load a stored photo (contract workers.md §2.4.3), or null when it is not one the API serves.
   ///
-  /// The file endpoint is not anonymous, so the request carries the Bearer token. A `photoUrl` that is not an `/api/`
+  /// The file endpoint is not anonymous, so the request carries the Bearer token. A `photoUrl` that is not an `/api/v1/`
   /// address (a client URL kept from before the upload existed) is never given the token: it would go to another host.
   ({String url, Map<String, String> headers})? photoImage(String photoUrl) {
-    if (!photoUrl.startsWith('/api/')) return null;
+    if (!photoUrl.startsWith('/api/v1/')) return null;
     return (
       url: _apiClient.resolveUrl(photoUrl),
       headers: _apiClient.authHeaders(),
@@ -50,7 +50,7 @@ class WorkersPhotosService {
     String? notes,
   }) {
     return _apiClient.post<void>(
-      '/api/workers/assignments/$assignmentId/submit-completion',
+      '/api/v1/workers/assignments/$assignmentId/submit-completion',
       body: {'notes': notes},
     );
   }
@@ -58,7 +58,7 @@ class WorkersPhotosService {
   /// Returns all uploaded job photos for an assignment (contract workers.md §2.4.2).
   Future<ApiResponse<List<JobPhotoDto>>> getPhotos(int assignmentId) {
     return _apiClient.get<List<JobPhotoDto>>(
-      '/api/workers/assignments/$assignmentId/photos',
+      '/api/v1/workers/assignments/$assignmentId/photos',
       fromJson: (json) {
         if (json is List) {
           return json

@@ -135,6 +135,7 @@ public sealed class PaymentQrService(
         var type = gateway.GetType().Name;
         return type.StartsWith("Fake", StringComparison.Ordinal) ? "FAKE"
             : type.StartsWith("VnPay", StringComparison.Ordinal) ? "VNPAY"
+            : type.StartsWith("SePay", StringComparison.Ordinal) ? "SEPAY"
             : "MOMO";
     }
 

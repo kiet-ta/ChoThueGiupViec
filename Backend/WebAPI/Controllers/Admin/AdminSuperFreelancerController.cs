@@ -18,7 +18,7 @@ public sealed class SuperFreelancerReasonRequest
 /// AdminOnly; the Admin id for the audit row comes from the token.
 /// </summary>
 [ApiController]
-[Route("api/admin/workers/{workerId:int}/super-freelancer")]
+[Route("api/v1/admin/workers/{workerId:int}/super-freelancer")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminSuperFreelancerController(ISuperFreelancerService service, ICurrentUser currentUser) : ControllerBase
 {

@@ -86,7 +86,7 @@ class DispatchService {
 
     try {
       final response = await _apiClient.get(
-        '/api/dispatch/offers/current',
+        '/api/v1/dispatch/offers/current',
         requiresAuth: true,
       );
 
@@ -120,7 +120,7 @@ class DispatchService {
     }
 
     final response = await _apiClient.post(
-      '/api/dispatch/offers/$assignmentId/accept',
+      '/api/v1/dispatch/offers/$assignmentId/accept',
       requiresAuth: true,
     );
 
@@ -144,7 +144,7 @@ class DispatchService {
     }
 
     await _apiClient.post(
-      '/api/dispatch/offers/$assignmentId/decline',
+      '/api/v1/dispatch/offers/$assignmentId/decline',
       body: {'reason': reason ?? 'Bận việc đột xuất'},
       requiresAuth: true,
     );
@@ -188,7 +188,7 @@ class DispatchService {
     }
 
     final response = await _apiClient.post(
-      '/api/dispatch/assignments/$assignmentId/check-in',
+      '/api/v1/dispatch/assignments/$assignmentId/check-in',
       body: {'latitude': latitude, 'longitude': longitude},
       requiresAuth: true,
     );
@@ -220,7 +220,7 @@ class DispatchService {
     }
 
     final response = await _apiClient.post(
-      '/api/dispatch/assignments/$assignmentId/check-in/plate-photo',
+      '/api/v1/dispatch/assignments/$assignmentId/check-in/plate-photo',
       body: {'platePhotoUrl': platePhotoUrl},
       requiresAuth: true,
     );
@@ -275,7 +275,7 @@ class DispatchService {
     }
 
     final response = await _apiClient.post(
-      '/api/dispatch/assignments/$assignmentId/calls/log',
+      '/api/v1/dispatch/assignments/$assignmentId/calls/log',
       requiresAuth: true,
     );
 
@@ -316,7 +316,7 @@ class DispatchService {
     }
 
     final response = await _apiClient.post(
-      '/api/dispatch/assignments/$assignmentId/absent',
+      '/api/v1/dispatch/assignments/$assignmentId/absent',
       requiresAuth: true,
     );
 
@@ -358,7 +358,7 @@ class DispatchService {
     }
 
     final response = await _apiClient.post(
-      '/api/dispatch/assignments/$assignmentId/incidents',
+      '/api/v1/dispatch/assignments/$assignmentId/incidents',
       body: {
         'incidentType': incidentType,
         'description': description,

@@ -22,3 +22,5 @@ dist/
 /images/
 Backend/UAT-VIEN.md
 /UAT-WORKER.md
+# Uploads of a local run (LocalFileStorage: dispute evidence, guarantee PDFs, payout files): never committed (ticket #519)
+Backend/App_Data/

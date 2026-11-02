@@ -15,7 +15,7 @@ class WorkersSlotsService {
     required String endDate,
   }) {
     return _apiClient.get<List<BookingSlotDto>>(
-      '/api/workers/me/slots',
+      '/api/v1/workers/me/slots',
       queryParams: {'startDate': startDate, 'endDate': endDate},
       fromJson: (json) {
         if (json is List) {
@@ -33,7 +33,7 @@ class WorkersSlotsService {
     ToggleBookingSlotRequest request,
   ) {
     return _apiClient.post<BookingSlotDto>(
-      '/api/workers/me/slots/toggle',
+      '/api/v1/workers/me/slots/toggle',
       body: request.toJson(),
       fromJson: (json) => BookingSlotDto.fromJson(json as Map<String, dynamic>),
     );

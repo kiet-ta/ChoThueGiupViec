@@ -91,13 +91,13 @@ class CustomerAddressService {
   }) => apiRequest(
     _httpClient,
     method,
-    Uri.parse('$baseUrl/api/customers/me/addresses$path'),
+    Uri.parse('$baseUrl/api/v1/customers/me/addresses$path'),
     bearerToken: _tokenStorage.accessToken,
     body: body,
     fallbackMessage: fallbackMessage,
   );
 
-  /// GET /api/customers/me/addresses
+  /// GET /api/v1/customers/me/addresses
   Future<List<CustomerAddress>> getAddresses() async {
     if (!isMock) {
       final envelope = await _call('GET', '', 'Không tải được sổ địa chỉ.');
@@ -119,7 +119,7 @@ class CustomerAddressService {
     return sorted;
   }
 
-  /// GET /api/customers/me/addresses/{addressId}; null when the address does not exist (404).
+  /// GET /api/v1/customers/me/addresses/{addressId}; null when the address does not exist (404).
   Future<CustomerAddress?> getAddressById(int addressId) async {
     if (!isMock) {
       try {
@@ -143,7 +143,7 @@ class CustomerAddressService {
     }
   }
 
-  /// POST /api/customers/me/addresses
+  /// POST /api/v1/customers/me/addresses
   Future<CustomerAddress> createAddress(CustomerAddress input) async {
     _validateAddressInput(input);
 
@@ -184,7 +184,7 @@ class CustomerAddressService {
     return created;
   }
 
-  /// PUT /api/customers/me/addresses/{addressId}
+  /// PUT /api/v1/customers/me/addresses/{addressId}
   Future<CustomerAddress> updateAddress(
     int addressId,
     CustomerAddress input,
@@ -229,7 +229,7 @@ class CustomerAddressService {
     return updated;
   }
 
-  /// DELETE /api/customers/me/addresses/{addressId}
+  /// DELETE /api/v1/customers/me/addresses/{addressId}
   Future<void> deleteAddress(int addressId) async {
     if (!isMock) {
       await _call('DELETE', '/$addressId', 'Xoá địa chỉ thất bại.');

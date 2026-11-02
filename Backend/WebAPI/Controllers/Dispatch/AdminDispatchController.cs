@@ -8,7 +8,7 @@ namespace CommonService.WebAPI.Controllers.Dispatch;
 
 /// <summary>Admin view of the field: force majeure incidents and their re-dispatch (contract dispatch.md 3.3, BR-10). Policy AdminOnly.</summary>
 [ApiController]
-[Route("api/dispatch/admin")]
+[Route("api/v1/dispatch/admin")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminDispatchController(IAdminIncidentQuery incidents) : ControllerBase
 {

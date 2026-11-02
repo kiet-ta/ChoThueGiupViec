@@ -7,7 +7,7 @@
 
 ## 1. Conventions (shared with `customers.md`)
 
-- Base path `/api`. JSON, UTF-8. Property names **camelCase**. Timestamps ISO-8601 **UTC** (`2026-10-04T10:00:00Z`).
+- Base path **`/api/v1`** (PLATFORM-01, ticket #586): every route of every contract is under it, written out in full in the contracts (`/api/v1/...`); the payment IPN and webhooks are `/api/v1/payments/ipn/...`. Only the files served as plain addresses (`/files/...`) and SignalR (`/hubs/...`) are outside it. JSON, UTF-8. Property names **camelCase**. Timestamps ISO-8601 **UTC** (`2026-10-04T10:00:00Z`).
 - Every response is the envelope `ApiResponse<T>`: `{ "success": bool, "message": string, "data": T | null }` (`Backend/Application/Common/Models/ApiResponse.cs`).
   - 2xx: `success = true`. Non-2xx: `success = false`, `data = null` (validation: see O5), `message` is human readable and **not** part of the contract (clients branch on the HTTP status, never on the text).
   - Success responses always carry a JSON body (200/201). No `204`: the wrapper has no meaning for an empty body.
@@ -38,7 +38,7 @@
 
 ## 2. Endpoints
 
-### 2.1 `POST /api/auth/otp/request` (anonymous)
+### 2.1 `POST /api/v1/auth/otp/request` (anonymous)
 Sends a 6-digit OTP to a phone (Customer or Worker login, Q06). Dev uses the Fake `IOtpSender` that writes the code to the console log; the Fake is refused outside Development (startup fails).
 
 Request
@@ -58,7 +58,7 @@ Response 200 `data`
 
 Rules: only a **hash** of the code is stored (Q06), in table `OTP_CODE` (section 3). A new request invalidates the previous unconsumed code for that phone+role. Cooldown and the per-phone / per-IP hourly limits are computed by counting `OTP_CODE` rows (`created_at`, `requested_ip`). For role `Worker` the response is identical whether or not a Worker exists for the phone (no account enumeration).
 
-### 2.2 `POST /api/auth/otp/verify` (anonymous)
+### 2.2 `POST /api/v1/auth/otp/verify` (anonymous)
 Request
 ```json
 { "phoneNumber": "string", "role": "Customer | Worker", "code": "string (6 digits)" }
@@ -91,7 +91,7 @@ Rules:
   `registrationToken` is a signed, single-purpose token (claims: purpose `worker_registration`, the verified phone, `jti`). It is accepted **only** by the M4 registration endpoint (defined in `workers.md`, BE-M4-00), never as a bearer token. Lifetime: `Auth.RegistrationTokenMinutes` (decision O2 list). After registration (and eKYC, decisions Q05) the worker logs in normally. Until the profile exists the account cannot receive jobs (Q05).
 - A code is single-use: a correct verification consumes it.
 
-### 2.3 `POST /api/auth/password/login` (anonymous)
+### 2.3 `POST /api/v1/auth/password/login` (anonymous)
 Admin and Partner login (Q16): email + password. Password policy (`Auth.MinPasswordLength` 10, upper + lower + digit) is enforced when passwords are **created** (seed/Partner registration), not on login.
 
 Request
@@ -109,7 +109,7 @@ Response 200 `data`: `AuthResult` (`user.role` = `Admin` or `Partner`, `isNewUse
 
 Rules: failure counting and the lock use `failed_login_count` / `locked_until` on `ADMIN` and `PARTNER_AGENCY` (section 3). Admin looks up `ADMIN.email`; Partner looks up `PARTNER_AGENCY.contact_email` and `password_hash` (new column SC-1). Hash verification only through `IPasswordHasher`. Passwords/hashes are never logged or returned. A successful login resets the failure counter. 2FA is deferred (Q16).
 
-### 2.4 `POST /api/auth/refresh` (anonymous)
+### 2.4 `POST /api/v1/auth/refresh` (anonymous)
 Request `{ "refreshToken": "string" }` -> 200 `AuthResult` with a **new** access token and a **new** refresh token (rotation). The previous refresh token stops working. Refresh tokens are opaque random strings; only their hash is stored in `REFRESH_TOKEN` (section 3).
 
 | Status | Condition |
@@ -117,15 +117,15 @@ Request `{ "refreshToken": "string" }` -> 200 `AuthResult` with a **new** access
 | 400 | missing token |
 | 401 | token invalid, expired, revoked or already used (reuse of a rotated token revokes the whole chain) |
 
-### 2.5 `POST /api/auth/logout` (any authenticated role)
+### 2.5 `POST /api/v1/auth/logout` (any authenticated role)
 Request `{ "refreshToken": "string" }` -> 200 `data: null`. Revokes that refresh token. Idempotent: an unknown/already revoked token still returns 200.
 
 | Status | Condition |
 |---|---|
 | 401 | no/invalid access token |
 
-### 2.6 `GET /api/auth/me` (any authenticated role)
-Response 200 `data`: `{ "id": 0, "role": "Customer | Worker | Partner | Admin" }`. Used by the Web/Mobile role guard (WEB-BASE-02, MOB-BASE-03). Profile details live in the module that owns the account (`GET /api/customers/me`, etc.).
+### 2.6 `GET /api/v1/auth/me` (any authenticated role)
+Response 200 `data`: `{ "id": 0, "role": "Customer | Worker | Partner | Admin" }`. Used by the Web/Mobile role guard (WEB-BASE-02, MOB-BASE-03). Profile details live in the module that owns the account (`GET /api/v1/customers/me`, etc.).
 
 | Status | Condition |
 |---|---|

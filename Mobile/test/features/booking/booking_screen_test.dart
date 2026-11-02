@@ -143,6 +143,16 @@ class FakeFavorites implements IBookingFavoriteSource {
   }
 }
 
+class FakeRebookAvailability implements IRebookAvailabilitySource {
+  final requested = <(int, int)>[];
+
+  @override
+  Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
+    requested.add((orderId, workerId));
+    return {'2026-10-15|SHIFT_MORNING'};
+  }
+}
+
 const _mai = FavoriteWorker(
   workerId: 42,
   fullName: 'Nguyễn Thị Mai',
@@ -158,8 +168,11 @@ Future<List<BookingOrder>> pumpBooking(
   VoidCallback? onManageAddresses,
   BookingScreenArgs? args,
   FakeFavorites? favorites,
+  IRebookAvailabilitySource? rebookAvailability,
+  double width = 390,
+  double textScale = 1.0,
 }) async {
-  tester.view.physicalSize = const Size(390, 3200);
+  tester.view.physicalSize = Size(width, 3200);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(() {
     tester.view.resetPhysicalSize();
@@ -169,6 +182,11 @@ Future<List<BookingOrder>> pumpBooking(
   await tester.pumpWidget(
     MaterialApp(
       theme: NordicTheme.lightTheme,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       home: BookingScreen(
         service: service,
         addresses: addresses ?? FakeAddresses(),
@@ -177,6 +195,7 @@ Future<List<BookingOrder>> pumpBooking(
         onManageAddresses: onManageAddresses,
         args: args,
         favorites: favorites ?? FakeFavorites(),
+        rebookAvailability: rebookAvailability,
       ),
     ),
   );
@@ -197,6 +216,22 @@ String textOf(WidgetTester tester, String key) =>
 
 void main() {
   group('BookingScreen (MOB-M2-01, MOB-M2-02)', () {
+    for (final width in [360.0, 428.0]) {
+      testWidgets(
+        'lays out without overflow at ${width.toInt()} px with text scale 1.3',
+        (tester) async {
+          await pumpBooking(
+            tester,
+            FakeBookingService(),
+            width: width,
+            textScale: 1.3,
+          );
+
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
     testWidgets(
       'offers both segments, explained, with the lead time from the options',
       (tester) async {
@@ -241,6 +276,31 @@ void main() {
       await tapKey(tester, 'tier-PREMIUM');
       expect(find.byKey(const Key('favorite-42')), findsNothing);
     });
+
+    testWidgets(
+      'rebooking selects a previous worker without adding a favorite',
+      (tester) async {
+        final service = FakeBookingService();
+        final availability = FakeRebookAvailability();
+        await pumpBooking(
+          tester,
+          service,
+          rebookAvailability: availability,
+          args: const BookingScreenArgs(
+            preferredWorkerId: 42,
+            previousOrderId: 100,
+            previousWorkerName: 'Nguyễn Thị Mai',
+          ),
+        );
+        expect(availability.requested, [(100, 42)]);
+        expect(find.byKey(const Key('favorite-42')), findsOneWidget);
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'submit-order');
+        expect(service.created.single.previousOrderId, 100);
+        expect(service.created.single.preferredWorkerId, 42);
+      },
+    );
 
     testWidgets(
       'picking a favorite greys out the days and shifts they are busy, and sends them',
@@ -297,7 +357,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byKey(const Key('favorite-42')),
-            matching: find.byIcon(Icons.radio_button_checked),
+            matching: find.byIcon(Icons.check_circle_rounded),
           ),
           findsOneWidget,
         );

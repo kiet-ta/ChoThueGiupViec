@@ -8,6 +8,7 @@ namespace CommonService.Infrastructure.Modules.Workers;
 /// <summary>
 /// Real implementation of <see cref="IWorkerAvailabilityQuery"/> querying WORKER and BOOKING_SLOT tables via EF Core (BE-M4-07).
 /// Used by Dispatch (M3) candidate scanner to find available Freelancers.
+/// Decisions D24: the search matches on the work area the freelancer registered (base point + radius), not on the last GPS point.
 /// </summary>
 public sealed class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoService) : IWorkerAvailabilityQuery
 {
@@ -36,7 +37,8 @@ public sealed class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService 
         // - KycStatus = APPROVED
         // - WorkStatus = Idle
         // - BookingSlot: SlotDate == query.Date, ShiftCode == query.ShiftCode, SlotStatus == "AVAILABLE"
-        // - Bounding box on CurrentLat & CurrentLng
+        // - A registered work area (base point + radius); a worker without one is never found (decisions D24)
+        // - Bounding box on the base point WorkLat & WorkLng
         var candidateRows = await (
             from slot in dbContext.BookingSlots.AsNoTracking()
             join worker in dbContext.Workers.AsNoTracking() on slot.WorkerId equals worker.WorkerId
@@ -47,23 +49,25 @@ public sealed class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService 
                && worker.AgencyId == null
                && worker.KycStatus == "APPROVED"
                && worker.WorkStatus == WorkStatus.Idle
-               && worker.CurrentLat != null
-               && worker.CurrentLng != null
-               && (double)worker.CurrentLat!.Value >= minLat
-               && (double)worker.CurrentLat!.Value <= maxLat
-               && (double)worker.CurrentLng!.Value >= minLng
-               && (double)worker.CurrentLng!.Value <= maxLng
+               && worker.WorkLat != null
+               && worker.WorkLng != null
+               && worker.WorkRadiusKm != null
+               && (double)worker.WorkLat!.Value >= minLat
+               && (double)worker.WorkLat!.Value <= maxLat
+               && (double)worker.WorkLng!.Value >= minLng
+               && (double)worker.WorkLng!.Value <= maxLng
             select new
             {
                 worker.WorkerId,
                 slot.SlotId,
-                Lat = (double)worker.CurrentLat!.Value,
-                Lng = (double)worker.CurrentLng!.Value,
+                Lat = (double)worker.WorkLat!.Value,
+                Lng = (double)worker.WorkLng!.Value,
+                RadiusKm = (int)worker.WorkRadiusKm!.Value,
                 worker.RatingAvg
             }
         ).ToListAsync(cancellationToken);
 
-        // Compute exact Haversine distance and filter candidates within radius
+        // Compute exact Haversine distance and keep the workers inside both the search step and their own radius
         var availableWorkers = new List<AvailableWorker>();
 
         foreach (var c in candidateRows)
@@ -72,7 +76,7 @@ public sealed class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService 
             double distanceMeters = geoService.DistanceMeters(query.Location, workerLocation);
             double distanceKm = distanceMeters / 1000.0;
 
-            if (distanceKm <= query.RadiusKm)
+            if (distanceKm <= query.RadiusKm && distanceKm <= c.RadiusKm)
             {
                 availableWorkers.Add(new AvailableWorker(c.WorkerId, c.SlotId, distanceKm));
             }

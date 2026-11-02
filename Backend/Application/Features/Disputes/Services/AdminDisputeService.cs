@@ -1,5 +1,6 @@
 using System.Globalization;
 using CommonService.Application.Features.Disputes.Dtos;
+using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -107,7 +108,7 @@ public sealed class AdminDisputeService(IDisputeRepository disputes, IClock cloc
                     AssignmentId = p.AssignmentId,
                     Phase = p.Phase,
                     AngleNo = p.AngleNo,
-                    Url = p.Url,
+                    Url = PhotoAddress(p),
                     VolScore = p.VolScore,
                     IsAccepted = p.IsAccepted,
                 })
@@ -203,6 +204,14 @@ public sealed class AdminDisputeService(IDisputeRepository disputes, IClock cloc
     }
 
     private static DateTime Utc(DateTime value) => DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+    /// <summary>
+    /// What the Admin console can load. A photo the worker uploaded as a file is stored as a path (<c>job-photos/...</c>), which is no address
+    /// at all; it is answered as the address of its file, the same rule the Workers module uses for its own list (ADMIN-UAT-11 found the raw
+    /// path in this case file). An address the worker gave stays as it is.
+    /// </summary>
+    private static string PhotoAddress(DisputePhotoData p) =>
+        JobPhotoFileRules.IsStoredPath(p.Url) ? JobPhotoFileRules.FileAddress(p.AssignmentId, p.PhotoId) : p.Url;
 
     private static List<string> ParseStatuses(string? raw, Dictionary<string, string[]> errors)
     {

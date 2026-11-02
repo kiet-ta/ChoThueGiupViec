@@ -106,6 +106,8 @@ export function createAuthController(deps: { api: AuthApi; store: SessionStore; 
 
     refresh,
 
+    establishOtp(result: AuthResult): Session { return establish(result) },
+
     async login(email: string, password: string, role: LoginRole): Promise<Session> {
       // Errors (400/401/403/423) propagate to the form; nothing is stored on failure.
       return establish(await api.login(email, password, role))

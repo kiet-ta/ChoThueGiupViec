@@ -8,7 +8,7 @@ function reply(status: number, body: unknown, headers: Record<string, string> = 
 }
 
 function make(fetchImpl: FetchLike, config: ApiConfig = {}) {
-  return createApiClient({ baseUrl: '/api', fetch: fetchImpl, config: () => config })
+  return createApiClient({ baseUrl: '/api/v1', fetch: fetchImpl, config: () => config })
 }
 
 describe('api client', () => {
@@ -20,7 +20,7 @@ describe('api client', () => {
     })
     const data = await client.get<{ id: number }>('/admin/me', { query: { a: 1, b: undefined, c: 'x y' } })
     assert.deepEqual(data, { id: 7 })
-    assert.equal(seen, '/api/admin/me?a=1&c=x+y')
+    assert.equal(seen, '/api/v1/admin/me?a=1&c=x+y')
   })
 
   it('sends the JSON body with content-type', async () => {

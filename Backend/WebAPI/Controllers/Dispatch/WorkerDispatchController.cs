@@ -20,7 +20,7 @@ public sealed record PlatePhotoRequest(string? PlatePhotoUrl);
 /// the customer-absent report (BR-05). Someone else's assignment answers 404; a state that forbids the action answers 409 with data.code.
 /// </summary>
 [ApiController]
-[Route("api/dispatch")]
+[Route("api/v1/dispatch")]
 [Authorize(Policy = "WorkerOnly")]
 public class WorkerDispatchController(WorkerDispatchService service) : ControllerBase
 {

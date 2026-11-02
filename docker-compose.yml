@@ -13,6 +13,11 @@ services:
       - "${DB_HOST_PORT:-14330}:1433"
     volumes:
       - sqldata:/var/opt/mssql
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    mem_limit: 2g
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
       interval: 5s
@@ -26,6 +31,11 @@ services:
       target: migrate
     environment:
       CONNECTION: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Uat_Passw0rd!2026};TrustServerCertificate=True;"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    mem_limit: 2g
     depends_on:
       db:
         condition: service_healthy
@@ -39,6 +49,11 @@ services:
       # Development: the dev admin is seeded (Seed:Admin:* of appsettings.Development.json), the OTP is written to the log, payments are Fake.
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Uat_Passw0rd!2026};TrustServerCertificate=True;"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    mem_limit: 2g
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -48,6 +63,11 @@ services:
   web:
     build:
       context: ./Frontend
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    mem_limit: 2g
     depends_on:
       - backend
     ports:

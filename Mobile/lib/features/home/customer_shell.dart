@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/motion/nordic_motion.dart';
 import '../../core/theme/nordic_colors.dart';
+import '../../core/theme/nordic_elevation.dart';
 import '../../core/theme/nordic_radius.dart';
 import '../../core/theme/nordic_spacing.dart';
 import '../../core/widgets/pressable.dart';
@@ -23,8 +24,14 @@ class CustomerShell extends StatefulWidget {
 
   /// Tab contents, replaceable in tests (index 0..3).
   final List<Widget>? tabs;
+  final int initialTab;
 
-  const CustomerShell({super.key, required this.onSignOut, this.tabs});
+  const CustomerShell({
+    super.key,
+    required this.onSignOut,
+    this.tabs,
+    this.initialTab = 0,
+  }) : assert(initialTab >= 0 && initialTab < 4);
 
   @override
   State<CustomerShell> createState() => _CustomerShellState();
@@ -32,6 +39,12 @@ class CustomerShell extends StatefulWidget {
 
 class _CustomerShellState extends State<CustomerShell> {
   int _tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = widget.initialTab;
+  }
 
   /// A counter per tab: pushing a new key rebuilds (reloads) the tab when the customer comes back to it.
   final _generation = [0, 0, 0, 0];
@@ -61,6 +74,7 @@ class _CustomerShellState extends State<CustomerShell> {
           key: ValueKey('account-${_generation[3]}'),
           onSignOut: widget.onSignOut,
           onShowOrders: () => _select(1),
+          onShowFavorites: () => _select(2),
         ),
       ];
 
@@ -70,15 +84,26 @@ class _CustomerShellState extends State<CustomerShell> {
       // The bar is a translucent material: the tab content scrolls under it (DESIGN-SYSTEM §4).
       extendBody: true,
       body: IndexedStack(index: _tab, children: _tabs),
+      // The deep-green centre button floats on the soft green-tinted CTA shadow (DESIGN-SYSTEM §3.5).
       floatingActionButton: Pressable(
-        child: SizedBox(
-          width: 58,
-          height: 58,
-          child: FloatingActionButton(
-            key: const Key('customer-shell-book'),
-            tooltip: 'Đặt ca',
-            onPressed: _book,
-            child: const Icon(Icons.add, size: 28),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: NordicElevation.cta,
+          ),
+          child: SizedBox(
+            width: 60,
+            height: 60,
+            child: FloatingActionButton(
+              key: const Key('customer-shell-book'),
+              tooltip: 'Đặt ca',
+              elevation: 0,
+              focusElevation: 0,
+              hoverElevation: 0,
+              highlightElevation: 0,
+              onPressed: _book,
+              child: const Icon(Icons.add, size: 28),
+            ),
           ),
         ),
       ),
@@ -170,12 +195,17 @@ class _CustomerShellState extends State<CustomerShell> {
               ),
             ),
             const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: color,
+            // One line that shrinks instead of wrapping when the text is scaled up.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: color,
+                ),
               ),
             ),
           ],

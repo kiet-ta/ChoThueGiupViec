@@ -15,5 +15,8 @@ public sealed class RatingsModule : IModule
     {
         services.AddScoped<IRatingRepository, EfRatingRepository>();
         services.AddScoped<IRatingService, RatingService>();
+
+        // What a saved rating moves: WORKER.rating_avg and the Q14 flags (the MediatR handler is found by assembly scanning).
+        services.AddScoped<IWorkerRatingStore, EfWorkerRatingStore>();
     }
 }

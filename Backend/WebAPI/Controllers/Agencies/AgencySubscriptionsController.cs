@@ -11,7 +11,7 @@ namespace CommonService.WebAPI.Controllers.Agencies;
 /// subscription and worker quota, and buying or renewing a package through the payment gateway (the IPN activates it).
 /// </summary>
 [ApiController]
-[Route("api/agencies")]
+[Route("api/v1/agencies")]
 [Authorize(Policy = "PartnerOnly")]
 public class AgencySubscriptionsController(SubscriptionService service) : ControllerBase
 {
@@ -39,7 +39,7 @@ public class AgencySubscriptionsController(SubscriptionService service) : Contro
 
 /// <summary>Admin side of the packages (contract agencies.md 2, decisions G-5): edits need a reason and write ADMIN_AUDIT_LOG.</summary>
 [ApiController]
-[Route("api/admin/subscription-packages")]
+[Route("api/v1/admin/subscription-packages")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminSubscriptionPackagesController(SubscriptionService service) : ControllerBase
 {

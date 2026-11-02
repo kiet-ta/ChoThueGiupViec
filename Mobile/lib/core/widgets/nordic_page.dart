@@ -23,6 +23,9 @@ class NordicPage extends StatelessWidget {
   final List<Widget>? appBarActions;
   final Future<void> Function()? onRefresh;
   final bool large;
+  final Widget? fullWidthHeader;
+  final Widget? bodyOverride;
+  final Widget? leading;
 
   /// The padding of the scrolling content; the gutter on the sides by default.
   final EdgeInsetsGeometry padding;
@@ -43,7 +46,10 @@ class NordicPage extends StatelessWidget {
       NordicSpace.xl,
     ),
   }) : large = true,
-       appBarActions = null;
+       appBarActions = null,
+       fullWidthHeader = null,
+       bodyOverride = null,
+       leading = null;
 
   const NordicPage.pushed({
     super.key,
@@ -53,6 +59,9 @@ class NordicPage extends StatelessWidget {
     this.actions,
     this.appBarActions,
     this.onRefresh,
+    this.fullWidthHeader,
+    this.bodyOverride,
+    this.leading,
     this.padding = const EdgeInsets.fromLTRB(
       NordicSpace.gutter,
       NordicSpace.xs,
@@ -69,11 +78,13 @@ class NordicPage extends StatelessWidget {
     // Under a translucent bottom bar (the shells extend their body) or the home indicator, the
     // last item must still scroll clear of it; the action bar handles its own safe area.
     final inset = hasActions ? 0.0 : MediaQuery.paddingOf(context).bottom;
-    Widget list = ListView(
-      padding: padding.add(EdgeInsets.only(bottom: inset)),
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [if (large) _largeTitle(), ...children],
-    );
+    Widget list =
+        bodyOverride ??
+        ListView(
+          padding: padding.add(EdgeInsets.only(bottom: inset)),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [if (large) _largeTitle(), ?fullWidthHeader, ...children],
+        );
     if (onRefresh != null) {
       list = RefreshIndicator(
         color: NordicColors.primary,
@@ -91,10 +102,13 @@ class NordicPage extends StatelessWidget {
       return Scaffold(body: SafeArea(bottom: false, child: body));
     }
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title, key: titleKey),
-        actions: appBarActions,
-      ),
+      appBar: fullWidthHeader != null
+          ? null
+          : AppBar(
+              leading: leading,
+              title: Text(title, key: titleKey),
+              actions: appBarActions,
+            ),
       body: body,
     );
   }

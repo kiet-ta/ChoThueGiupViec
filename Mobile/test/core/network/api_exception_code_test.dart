@@ -24,7 +24,7 @@ void main() {
 
     Future<ApiException> failure() async {
       try {
-        await client.post<Object?>('/api/booking/orders', body: const {});
+        await client.post<Object?>('/api/v1/booking/orders', body: const {});
       } on ApiException catch (e) {
         return e;
       }

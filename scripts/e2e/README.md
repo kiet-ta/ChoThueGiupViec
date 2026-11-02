@@ -8,7 +8,7 @@
 | **Economy** (freelancer) | OTP registration -> eKYC auto-approve -> open a slot, share the location, set the bank account -> customer books an Economy shift and pays -> the freelancer gets the offer (30 s) and accepts -> check-in -> photos -> completion -> customer accepts (payout 80 %) -> earnings |
 | **Payout** | the completions are dated to last month -> payout batch (agency and freelancer items carry their bank accounts, the export file too) -> confirm -> the freelancer sees the transfer |
 
-Payments are confirmed with the development tool (`/api/dev/payments`, Development only), OTPs are read from the backend console (Fake OTP sender).
+Payments are confirmed with the development tool (`/api/v1/dev/payments`, Development only), OTPs are read from the backend console (Fake OTP sender).
 
 ## Run
 
