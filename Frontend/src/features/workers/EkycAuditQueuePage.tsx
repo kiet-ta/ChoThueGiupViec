@@ -12,8 +12,11 @@ import {
   PAGE_SIZE,
   REASON_MAX_LENGTH,
   TABS,
+  assessmentText,
   ekycQueueRow,
+  isUnderThreshold,
   parseActionError,
+  scoreBadgeText,
   validateRejectionReason,
   type ActionError,
   type EkycRow,
@@ -163,7 +166,7 @@ function EkycDetailPanel({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const inFlight = useRef(false)
 
-  const isUnderThreshold = item.confidenceScore < AUTO_APPROVE_THRESHOLD
+  const underThreshold = isUnderThreshold(item.confidenceScore)
 
   async function submitReview(approved: boolean) {
     if (inFlight.current) return
@@ -211,8 +214,8 @@ function EkycDetailPanel({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold">{item.fullName}</h2>
             <StatusBadge tone="neutral">CCCD: {item.nationalId}</StatusBadge>
-            <StatusBadge tone={isUnderThreshold ? 'warning' : 'success'}>
-              Điểm tin cậy: {item.confidenceScore.toFixed(1)}%
+            <StatusBadge tone={item.confidenceScore == null ? 'neutral' : underThreshold ? 'warning' : 'success'}>
+              {scoreBadgeText(item.confidenceScore)}
             </StatusBadge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -267,9 +270,7 @@ function EkycDetailPanel({
           <div className="rounded-lg bg-muted p-4 text-sm">
             <div className="font-medium text-foreground">Đánh giá hệ thống:</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {isUnderThreshold
-                ? `Điểm tin cậy (${item.confidenceScore.toFixed(1)}%) thấp hơn ngưỡng tự động (${AUTO_APPROVE_THRESHOLD}%). Cần Admin đối chiếu khuôn mặt trên selfie với ảnh trên CCCD.`
-                : `Điểm tin cậy đạt ${item.confidenceScore.toFixed(1)}%. Hồ sơ hợp lệ.`}
+              {assessmentText(item.confidenceScore)}
             </div>
           </div>
 

@@ -7,7 +7,8 @@ export interface EkycQueueItemResponse {
   frontCccdUrl: string
   backCccdUrl: string
   selfieUrl: string
-  confidenceScore: number
+  /** null while the worker has no score (the backend column `ekyc_confidence` is nullable). */
+  confidenceScore: number | null
   submittedAt: string
 }
 
