@@ -4,7 +4,7 @@ import { apiClientPath, needsAuthenticatedFetch } from '../src/components/photo-
 
 describe('needsAuthenticatedFetch (ADMIN-UAT-11: a browser sends no Authorization header for an <img>)', () => {
   it('is true for the protected addresses of this API, such as the file of a shift photo', () => {
-    assert.equal(needsAuthenticatedFetch('/api/workers/assignments/1/photos/2/file'), true)
+    assert.equal(needsAuthenticatedFetch('/api/v1/workers/assignments/1/photos/2/file'), true)
     assert.equal(needsAuthenticatedFetch('/api/anything'), true)
   })
 
@@ -24,11 +24,20 @@ describe('needsAuthenticatedFetch (ADMIN-UAT-11: a browser sends no Authorizatio
 })
 
 describe('apiClientPath', () => {
-  it('drops the /api base because the API client adds it (and VITE_API_BASE_URL when the API is on another origin)', () => {
+  it('drops the /api/v1 base because the API client adds it (and VITE_API_BASE_URL when the API is on another origin)', () => {
+    assert.equal(apiClientPath('/api/v1/workers/assignments/1/photos/2/file'), '/workers/assignments/1/photos/2/file')
+  })
+
+  it('does not leave a second v1: base + path is the address the server sent (PLATFORM-01)', () => {
+    const sent = '/api/v1/workers/assignments/1/photos/2/file'
+    assert.equal(`/api/v1${apiClientPath(sent)}`, sent)
+  })
+
+  it('keeps the old rule for an address without the version', () => {
     assert.equal(apiClientPath('/api/workers/assignments/1/photos/2/file'), '/workers/assignments/1/photos/2/file')
   })
 
   it('keeps a query string', () => {
-    assert.equal(apiClientPath('/api/x?y=1'), '/x?y=1')
+    assert.equal(apiClientPath('/api/v1/x?y=1'), '/x?y=1')
   })
 })
