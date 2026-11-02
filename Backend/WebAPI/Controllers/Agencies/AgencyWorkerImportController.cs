@@ -12,7 +12,7 @@ namespace CommonService.WebAPI.Controllers.Agencies;
 /// PDF comes first; then the <c>.xlsx</c> is validated by a dry-run and committed all-or-nothing.
 /// </summary>
 [ApiController]
-[Route("api/agencies")]
+[Route("api/v1/agencies")]
 [Authorize(Policy = "PartnerOnly")]
 public class AgencyWorkerImportController(WorkerImportService service) : ControllerBase
 {

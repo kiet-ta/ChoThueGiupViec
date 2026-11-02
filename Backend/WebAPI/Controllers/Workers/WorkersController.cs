@@ -12,11 +12,13 @@ namespace CommonService.WebAPI.Controllers.Workers;
 /// Worker profile management endpoints (contract workers.md §2.1 & §2.2).
 /// </summary>
 [ApiController]
-[Route("api/workers")]
+[Route("api/v1/workers")]
 public class WorkersController(
     IWorkerProfileService profiles,
     IWorkerEkycService ekyc,
     IWorkerBookingSlotService slots,
+    IWorkerAssignmentService assignments,
+    IWorkerWorkAreaService workAreas,
     IJobPhotoService photos,
     IJobCompletionService completions,
     IWorkerExtensionService extensions) : ControllerBase
@@ -134,6 +136,44 @@ public class WorkersController(
         CancellationToken ct)
     {
         var result = await slots.GetSlotsAsync(startDate, endDate, ct);
+        return Ok(result);
+    }
+
+    /// <summary>Returns the work area the signed-in freelancer registered, or <c>isSet</c> false (contract §2.3B, decisions D24).</summary>
+    [HttpGet("me/work-area")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerWorkAreaResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetWorkArea(CancellationToken ct)
+    {
+        var result = await workAreas.GetAsync(ct);
+        return Ok(result);
+    }
+
+    /// <summary>Registers where the freelancer works: a base point, a radius of 5, 10 or 15 km and the districts to show (contract §2.3B, decisions D24).</summary>
+    [HttpPut("me/work-area")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerWorkAreaResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> SaveWorkArea([FromBody] UpdateWorkerWorkAreaRequest? request, CancellationToken ct)
+    {
+        var result = await workAreas.SaveAsync(request, ct);
+        return Ok(result);
+    }
+
+    /// <summary>Returns the jobs booked for the signed-in worker in a date range: date, shift, status and district, never the street address (contract §2.3.3).</summary>
+    [HttpGet("me/assignments")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkerAssignmentResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetAssignments(
+        [FromQuery] DateOnly? startDate,
+        [FromQuery] DateOnly? endDate,
+        CancellationToken ct)
+    {
+        var result = await assignments.GetAsync(startDate, endDate, ct);
         return Ok(result);
     }
 

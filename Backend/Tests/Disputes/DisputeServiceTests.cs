@@ -631,7 +631,7 @@ public class DisputeServiceTests
 
         var photos = (await h.Admin.GetAsync(1)).Data!.Photos;
 
-        Assert.Equal("/api/workers/assignments/1/photos/29/file", photos.Single(p => p.Phase == "BEFORE").Url); // the raw "job-photos/..." path is no address
+        Assert.Equal("/api/v1/workers/assignments/1/photos/29/file", photos.Single(p => p.Phase == "BEFORE").Url); // the raw "job-photos/..." path is no address
         Assert.Equal("https://storage.example/jobs/after_1.jpg", photos.Single(p => p.Phase == "AFTER" && p.AngleNo == 1).Url);
         Assert.Equal("/uploads/after_2.jpg", photos.Single(p => p.Phase == "AFTER" && p.AngleNo == 2).Url);
     }

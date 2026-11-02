@@ -43,7 +43,7 @@ class PayoutStatus {
   PayoutStatus._();
 }
 
-/// Income of one month (`GET /api/workers/me/earnings`).
+/// Income of one month (`GET /api/v1/workers/me/earnings`).
 class Earnings {
   /// `YYYY-MM`.
   final String periodMonth;
@@ -83,7 +83,7 @@ class Earnings {
   );
 }
 
-/// One closed payout item of the worker (`items[]` of `GET /api/workers/me/payouts`).
+/// One closed payout item of the worker (`items[]` of `GET /api/v1/workers/me/payouts`).
 class PayoutHistoryItem {
   final int batchId;
   final String periodMonth;

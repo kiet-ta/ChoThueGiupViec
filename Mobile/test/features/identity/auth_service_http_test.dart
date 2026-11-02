@@ -30,7 +30,7 @@ void main() {
     test('200 returns the server TTL and cooldown', () async {
       backend.on(
         'POST',
-        '/api/auth/otp/request',
+        '/api/v1/auth/otp/request',
         200,
         FakeBackend.ok({
           'expiresInSeconds': 120,
@@ -45,7 +45,7 @@ void main() {
 
       expect(result.expiresInSeconds, 120);
       expect(result.resendAvailableInSeconds, 30);
-      expect(backend.requestBodies['POST /api/auth/otp/request'], {
+      expect(backend.requestBodies['POST /api/v1/auth/otp/request'], {
         'phoneNumber': '0912345678',
         'role': 'Worker',
       });
@@ -54,7 +54,7 @@ void main() {
     test('429 throws with the server message and Retry-After, instead of pretending the OTP was sent', () async {
       backend.on(
         'POST',
-        '/api/auth/otp/request',
+        '/api/v1/auth/otp/request',
         429,
         FakeBackend.error('Vui lòng chờ 45 giây.'),
         {'Retry-After': '45'},
@@ -90,7 +90,7 @@ void main() {
     test('200 saves the real tokens', () async {
       backend.on(
         'POST',
-        '/api/auth/otp/verify',
+        '/api/v1/auth/otp/verify',
         200,
         FakeBackend.ok({
           'tokenType': 'Bearer',
@@ -115,7 +115,7 @@ void main() {
     test('401 returns the server message and saves no token', () async {
       backend.on(
         'POST',
-        '/api/auth/otp/verify',
+        '/api/v1/auth/otp/verify',
         401,
         FakeBackend.error('Mã không đúng hoặc đã hết hạn.'),
       );
@@ -135,7 +135,7 @@ void main() {
     test('502 with a non-JSON body is an error, not a mock login', () async {
       backend.on(
         'POST',
-        '/api/auth/otp/verify',
+        '/api/v1/auth/otp/verify',
         502,
         '<html>Bad Gateway</html>',
       );

@@ -38,3 +38,18 @@ export function describeLoginError(error: ErrorLike): LoginErrorView {
       return { message: 'Đã có lỗi xảy ra. Vui lòng thử lại.', fields: {} }
   }
 }
+
+export function describeOtpError(error: ErrorLike, step: 'phone' | 'code'): LoginErrorView {
+  if (error.status === 400) {
+    const fields: Record<string, string[]> = {}
+    for (const [name, messages] of Object.entries(error.fieldErrors ?? {})) fields[name.toLowerCase()] = messages
+    return Object.keys(fields).length ? { fields } : { fields: {}, message: 'Thông tin chưa hợp lệ.' }
+  }
+  if (error.status === 401) return { fields: {}, message: 'Mã xác nhận không đúng hoặc đã hết hạn.' }
+  if (error.status === 403) return { fields: {}, message: 'Tài khoản đã bị khóa hoặc vô hiệu hóa.' }
+  if (error.status === 429) {
+    const wait = error.retryAfterSeconds ? ` Thử lại sau ${error.retryAfterSeconds} giây.` : ''
+    return { fields: {}, message: step === 'code' ? `Bạn đã thử quá số lần cho phép. Vui lòng yêu cầu mã mới.${wait}` : `Bạn đã yêu cầu mã quá nhiều lần.${wait}` }
+  }
+  return { fields: {}, message: error.status === 0 ? 'Không kết nối được tới máy chủ.' : 'Đã có lỗi xảy ra. Vui lòng thử lại.' }
+}

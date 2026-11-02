@@ -6,7 +6,7 @@
     "version": "v1"
   },
   "paths": {
-    "/api/admin/absence-reports": {
+    "/api/v1/admin/absence-reports": {
       "get": {
         "tags": [
           "AdminAbsenceReports"
@@ -119,7 +119,7 @@
         }
       }
     },
-    "/api/admin/absence-reports/{assignmentId}": {
+    "/api/v1/admin/absence-reports/{assignmentId}": {
       "get": {
         "tags": [
           "AdminAbsenceReports"
@@ -220,7 +220,7 @@
         }
       }
     },
-    "/api/admin/absence-reports/{assignmentId}/approve": {
+    "/api/v1/admin/absence-reports/{assignmentId}/approve": {
       "post": {
         "tags": [
           "AdminAbsenceReports"
@@ -361,7 +361,7 @@
         }
       }
     },
-    "/api/admin/absence-reports/{assignmentId}/reject": {
+    "/api/v1/admin/absence-reports/{assignmentId}/reject": {
       "post": {
         "tags": [
           "AdminAbsenceReports"
@@ -521,7 +521,7 @@
         }
       }
     },
-    "/api/admin/audit-logs": {
+    "/api/v1/admin/audit-logs": {
       "get": {
         "tags": [
           "AdminAuditLogs"
@@ -662,7 +662,7 @@
         }
       }
     },
-    "/api/admin/dashboard": {
+    "/api/v1/admin/dashboard": {
       "get": {
         "tags": [
           "AdminDashboard"
@@ -732,7 +732,7 @@
         }
       }
     },
-    "/api/dispatch/admin/incidents": {
+    "/api/v1/dispatch/admin/incidents": {
       "get": {
         "tags": [
           "AdminDispatch"
@@ -802,7 +802,7 @@
         }
       }
     },
-    "/api/admin/disputes": {
+    "/api/v1/admin/disputes": {
       "get": {
         "tags": [
           "AdminDisputes"
@@ -929,7 +929,7 @@
         }
       }
     },
-    "/api/admin/disputes/{disputeId}": {
+    "/api/v1/admin/disputes/{disputeId}": {
       "get": {
         "tags": [
           "AdminDisputes"
@@ -1030,7 +1030,7 @@
         }
       }
     },
-    "/api/admin/disputes/{disputeId}/take": {
+    "/api/v1/admin/disputes/{disputeId}/take": {
       "post": {
         "tags": [
           "AdminDisputes"
@@ -1151,7 +1151,7 @@
         }
       }
     },
-    "/api/admin/disputes/{disputeId}/resolve": {
+    "/api/v1/admin/disputes/{disputeId}/resolve": {
       "post": {
         "tags": [
           "AdminDisputes"
@@ -1331,7 +1331,7 @@
         }
       }
     },
-    "/api/admin/escrow/appeals": {
+    "/api/v1/admin/escrow/appeals": {
       "get": {
         "tags": [
           "AdminEscrowAppeals"
@@ -1370,7 +1370,7 @@
         }
       }
     },
-    "/api/admin/escrow/appeals/{appealId}/decision": {
+    "/api/v1/admin/escrow/appeals/{appealId}/decision": {
       "post": {
         "tags": [
           "AdminEscrowAppeals"
@@ -1470,7 +1470,7 @@
         }
       }
     },
-    "/api/admin/payout-batches": {
+    "/api/v1/admin/payout-batches": {
       "post": {
         "tags": [
           "AdminPayoutBatches"
@@ -1723,7 +1723,7 @@
         }
       }
     },
-    "/api/admin/payout-batches/{batchId}": {
+    "/api/v1/admin/payout-batches/{batchId}": {
       "get": {
         "tags": [
           "AdminPayoutBatches"
@@ -1865,7 +1865,7 @@
         }
       }
     },
-    "/api/admin/payout-batches/{batchId}/confirm": {
+    "/api/v1/admin/payout-batches/{batchId}/confirm": {
       "post": {
         "tags": [
           "AdminPayoutBatches"
@@ -1986,7 +1986,7 @@
         }
       }
     },
-    "/api/admin/payout-batches/{batchId}/export": {
+    "/api/v1/admin/payout-batches/{batchId}/export": {
       "get": {
         "tags": [
           "AdminPayoutExport"
@@ -2091,7 +2091,7 @@
         }
       }
     },
-    "/api/admin/price-rules": {
+    "/api/v1/admin/price-rules": {
       "get": {
         "tags": [
           "AdminPriceRules"
@@ -2161,7 +2161,7 @@
         }
       }
     },
-    "/api/admin/price-rules/{ruleId}": {
+    "/api/v1/admin/price-rules/{ruleId}": {
       "put": {
         "tags": [
           "AdminPriceRules"
@@ -2301,7 +2301,7 @@
         }
       }
     },
-    "/api/admin/me": {
+    "/api/v1/admin/me": {
       "get": {
         "tags": [
           "AdminProfile"
@@ -2391,7 +2391,7 @@
         }
       }
     },
-    "/api/admin/subscription-packages": {
+    "/api/v1/admin/subscription-packages": {
       "get": {
         "tags": [
           "AdminSubscriptionPackages"
@@ -2421,7 +2421,7 @@
         }
       }
     },
-    "/api/admin/subscription-packages/{packageId}": {
+    "/api/v1/admin/subscription-packages/{packageId}": {
       "put": {
         "tags": [
           "AdminSubscriptionPackages"
@@ -2521,7 +2521,7 @@
         }
       }
     },
-    "/api/admin/workers/{workerId}/super-freelancer": {
+    "/api/v1/admin/workers/{workerId}/super-freelancer": {
       "post": {
         "tags": [
           "AdminSuperFreelancer"
@@ -2819,7 +2819,7 @@
         }
       }
     },
-    "/api/admin/workers/ekyc-queue": {
+    "/api/v1/admin/workers/ekyc-queue": {
       "get": {
         "tags": [
           "AdminWorkersEkyc"
@@ -2937,7 +2937,7 @@
         }
       }
     },
-    "/api/admin/workers/{id}/ekyc-review": {
+    "/api/v1/admin/workers/{id}/ekyc-review": {
       "post": {
         "tags": [
           "AdminWorkersEkyc"
@@ -3077,7 +3077,7 @@
         }
       }
     },
-    "/api/admin/workers/{workerId}/unlock": {
+    "/api/v1/admin/workers/{workerId}/unlock": {
       "post": {
         "tags": [
           "AdminWorkerUnlock"
@@ -3237,7 +3237,7 @@
         }
       }
     },
-    "/api/agencies/registration": {
+    "/api/v1/agencies/registration": {
       "post": {
         "tags": [
           "Agencies"
@@ -3326,7 +3326,7 @@
         }
       }
     },
-    "/api/agencies/workers": {
+    "/api/v1/agencies/workers": {
       "get": {
         "tags": [
           "Agencies"
@@ -3423,7 +3423,7 @@
         }
       }
     },
-    "/api/agencies/workers/{workerId}/retire": {
+    "/api/v1/agencies/workers/{workerId}/retire": {
       "post": {
         "tags": [
           "Agencies"
@@ -3583,7 +3583,7 @@
         }
       }
     },
-    "/api/agencies/me/bank": {
+    "/api/v1/agencies/me/bank": {
       "get": {
         "tags": [
           "AgencyBank"
@@ -3680,7 +3680,7 @@
         }
       }
     },
-    "/api/agencies/escrow": {
+    "/api/v1/agencies/escrow": {
       "get": {
         "tags": [
           "AgencyEscrow"
@@ -3710,7 +3710,7 @@
         }
       }
     },
-    "/api/agencies/escrow/transactions": {
+    "/api/v1/agencies/escrow/transactions": {
       "get": {
         "tags": [
           "AgencyEscrow"
@@ -3760,7 +3760,7 @@
         }
       }
     },
-    "/api/agencies/escrow/deposits": {
+    "/api/v1/agencies/escrow/deposits": {
       "post": {
         "tags": [
           "AgencyEscrow"
@@ -3829,7 +3829,7 @@
         }
       }
     },
-    "/api/agencies/escrow/transactions/{escrowTxnId}/appeal": {
+    "/api/v1/agencies/escrow/transactions/{escrowTxnId}/appeal": {
       "post": {
         "tags": [
           "AgencyEscrow"
@@ -3929,7 +3929,7 @@
         }
       }
     },
-    "/api/agencies/orders": {
+    "/api/v1/agencies/orders": {
       "get": {
         "tags": [
           "AgencyReports"
@@ -4006,7 +4006,7 @@
         }
       }
     },
-    "/api/agencies/reports/performance": {
+    "/api/v1/agencies/reports/performance": {
       "get": {
         "tags": [
           "AgencyReports"
@@ -4094,7 +4094,7 @@
         }
       }
     },
-    "/api/agencies/roster": {
+    "/api/v1/agencies/roster": {
       "get": {
         "tags": [
           "AgencyRoster"
@@ -4221,7 +4221,7 @@
         }
       }
     },
-    "/api/agencies/roster/{slotId}": {
+    "/api/v1/agencies/roster/{slotId}": {
       "delete": {
         "tags": [
           "AgencyRoster"
@@ -4285,7 +4285,7 @@
         }
       }
     },
-    "/api/agencies/packages": {
+    "/api/v1/agencies/packages": {
       "get": {
         "tags": [
           "AgencySubscriptions"
@@ -4315,7 +4315,7 @@
         }
       }
     },
-    "/api/agencies/subscriptions/me": {
+    "/api/v1/agencies/subscriptions/me": {
       "get": {
         "tags": [
           "AgencySubscriptions"
@@ -4345,7 +4345,7 @@
         }
       }
     },
-    "/api/agencies/subscriptions": {
+    "/api/v1/agencies/subscriptions": {
       "post": {
         "tags": [
           "AgencySubscriptions"
@@ -4454,7 +4454,7 @@
         }
       }
     },
-    "/api/agencies/swap-windows": {
+    "/api/v1/agencies/swap-windows": {
       "get": {
         "tags": [
           "AgencySwap"
@@ -4484,7 +4484,7 @@
         }
       }
     },
-    "/api/agencies/assignments/{assignmentId}/unavailable": {
+    "/api/v1/agencies/assignments/{assignmentId}/unavailable": {
       "post": {
         "tags": [
           "AgencySwap"
@@ -4604,7 +4604,7 @@
         }
       }
     },
-    "/api/agencies/assignments/{assignmentId}/swap": {
+    "/api/v1/agencies/assignments/{assignmentId}/swap": {
       "post": {
         "tags": [
           "AgencySwap"
@@ -4724,7 +4724,7 @@
         }
       }
     },
-    "/api/agencies/workers/import/template": {
+    "/api/v1/agencies/workers/import/template": {
       "get": {
         "tags": [
           "AgencyWorkerImport"
@@ -4757,7 +4757,7 @@
         }
       }
     },
-    "/api/agencies/guarantee": {
+    "/api/v1/agencies/guarantee": {
       "post": {
         "tags": [
           "AgencyWorkerImport"
@@ -4827,7 +4827,7 @@
         }
       }
     },
-    "/api/agencies/workers/import/dry-run": {
+    "/api/v1/agencies/workers/import/dry-run": {
       "post": {
         "tags": [
           "AgencyWorkerImport"
@@ -4917,7 +4917,7 @@
         }
       }
     },
-    "/api/agencies/workers/import/commit": {
+    "/api/v1/agencies/workers/import/commit": {
       "post": {
         "tags": [
           "AgencyWorkerImport"
@@ -5007,7 +5007,7 @@
         }
       }
     },
-    "/api/auth/otp/request": {
+    "/api/v1/auth/otp/request": {
       "post": {
         "tags": [
           "Auth"
@@ -5096,7 +5096,7 @@
         }
       }
     },
-    "/api/auth/otp/verify": {
+    "/api/v1/auth/otp/verify": {
       "post": {
         "tags": [
           "Auth"
@@ -5225,7 +5225,7 @@
         }
       }
     },
-    "/api/auth/password/login": {
+    "/api/v1/auth/password/login": {
       "post": {
         "tags": [
           "Auth"
@@ -5354,7 +5354,7 @@
         }
       }
     },
-    "/api/auth/refresh": {
+    "/api/v1/auth/refresh": {
       "post": {
         "tags": [
           "Auth"
@@ -5443,7 +5443,7 @@
         }
       }
     },
-    "/api/auth/logout": {
+    "/api/v1/auth/logout": {
       "post": {
         "tags": [
           "Auth"
@@ -5512,7 +5512,7 @@
         }
       }
     },
-    "/api/auth/me": {
+    "/api/v1/auth/me": {
       "get": {
         "tags": [
           "Auth"
@@ -5562,7 +5562,7 @@
         }
       }
     },
-    "/api/booking/orders/{orderId}/cancel": {
+    "/api/v1/booking/orders/{orderId}/cancel": {
       "post": {
         "tags": [
           "BookingCancel"
@@ -5722,7 +5722,7 @@
         }
       }
     },
-    "/api/booking/orders/{orderId}/extensions": {
+    "/api/v1/booking/orders/{orderId}/extensions": {
       "post": {
         "tags": [
           "BookingExtensions"
@@ -5882,7 +5882,7 @@
         }
       }
     },
-    "/api/booking/options": {
+    "/api/v1/booking/options": {
       "get": {
         "tags": [
           "BookingOrders"
@@ -5952,7 +5952,7 @@
         }
       }
     },
-    "/api/booking/price-quote": {
+    "/api/v1/booking/price-quote": {
       "get": {
         "tags": [
           "BookingOrders"
@@ -6079,7 +6079,7 @@
         }
       }
     },
-    "/api/booking/orders": {
+    "/api/v1/booking/orders": {
       "post": {
         "tags": [
           "BookingOrders"
@@ -6341,7 +6341,7 @@
         }
       }
     },
-    "/api/booking/orders/{orderId}": {
+    "/api/v1/booking/orders/{orderId}": {
       "get": {
         "tags": [
           "BookingOrders"
@@ -6442,7 +6442,7 @@
         }
       }
     },
-    "/api/booking/orders/{orderId}/progress": {
+    "/api/v1/booking/orders/{orderId}/progress": {
       "get": {
         "tags": [
           "BookingOrders"
@@ -6543,7 +6543,117 @@
         }
       }
     },
-    "/api/customers/me/addresses": {
+    "/api/v1/booking/orders/{orderId}/workers/{workerId}/availability": {
+      "get": {
+        "tags": [
+          "BookingOrders"
+        ],
+        "operationId": "BookingOrders_RebookAvailability",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "workerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerFreeShiftIReadOnlyListApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerFreeShiftIReadOnlyListApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerFreeShiftIReadOnlyListApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/customers/me/addresses": {
       "get": {
         "tags": [
           "CustomerAddresses"
@@ -6720,7 +6830,7 @@
         }
       }
     },
-    "/api/customers/me/addresses/{addressId}": {
+    "/api/v1/customers/me/addresses/{addressId}": {
       "get": {
         "tags": [
           "CustomerAddresses"
@@ -7078,7 +7188,7 @@
         }
       }
     },
-    "/api/customers/assignments/{assignmentId}/accept": {
+    "/api/v1/customers/assignments/{assignmentId}/accept": {
       "post": {
         "tags": [
           "CustomerAssignments"
@@ -7218,7 +7328,7 @@
         }
       }
     },
-    "/api/customers/assignments/{assignmentId}/request-redo": {
+    "/api/v1/customers/assignments/{assignmentId}/request-redo": {
       "post": {
         "tags": [
           "CustomerAssignments"
@@ -7358,7 +7468,7 @@
         }
       }
     },
-    "/api/customers/me/disputes": {
+    "/api/v1/customers/me/disputes": {
       "post": {
         "tags": [
           "CustomerDisputes"
@@ -7575,7 +7685,7 @@
         }
       }
     },
-    "/api/customers/me/disputes/evidence": {
+    "/api/v1/customers/me/disputes/evidence": {
       "post": {
         "tags": [
           "CustomerDisputes"
@@ -7684,7 +7794,7 @@
         }
       }
     },
-    "/api/customers/me/disputes/{disputeId}": {
+    "/api/v1/customers/me/disputes/{disputeId}": {
       "get": {
         "tags": [
           "CustomerDisputes"
@@ -7785,7 +7895,7 @@
         }
       }
     },
-    "/api/dispatch/orders/{orderId}/fallback": {
+    "/api/v1/dispatch/orders/{orderId}/fallback": {
       "get": {
         "tags": [
           "CustomerFallback"
@@ -7846,7 +7956,7 @@
         }
       }
     },
-    "/api/dispatch/orders/{orderId}/fallback/respond": {
+    "/api/v1/dispatch/orders/{orderId}/fallback/respond": {
       "post": {
         "tags": [
           "CustomerFallback"
@@ -7966,7 +8076,7 @@
         }
       }
     },
-    "/api/customers/me/favorite-workers": {
+    "/api/v1/customers/me/favorite-workers": {
       "get": {
         "tags": [
           "CustomerFavoriteWorkers"
@@ -8036,7 +8146,7 @@
         }
       }
     },
-    "/api/customers/me/favorite-workers/{workerId}": {
+    "/api/v1/customers/me/favorite-workers/{workerId}": {
       "put": {
         "tags": [
           "CustomerFavoriteWorkers"
@@ -8216,7 +8326,7 @@
         }
       }
     },
-    "/api/customers/me/favorite-workers/{workerId}/availability": {
+    "/api/v1/customers/me/favorite-workers/{workerId}/availability": {
       "get": {
         "tags": [
           "CustomerFavoriteWorkers"
@@ -8353,7 +8463,7 @@
         }
       }
     },
-    "/api/customers/me/assignments/{assignmentId}/rating-window": {
+    "/api/v1/customers/me/assignments/{assignmentId}/rating-window": {
       "get": {
         "tags": [
           "CustomerRatings"
@@ -8454,7 +8564,7 @@
         }
       }
     },
-    "/api/customers/me/assignments/{assignmentId}/rating": {
+    "/api/v1/customers/me/assignments/{assignmentId}/rating": {
       "post": {
         "tags": [
           "CustomerRatings"
@@ -8614,7 +8724,7 @@
         }
       }
     },
-    "/api/customers/me": {
+    "/api/v1/customers/me": {
       "get": {
         "tags": [
           "Customers"
@@ -8874,7 +8984,7 @@
         }
       }
     },
-    "/api/notifications/poll": {
+    "/api/v1/notifications/poll": {
       "get": {
         "tags": [
           "Notifications"
@@ -8958,7 +9068,7 @@
         }
       }
     },
-    "/api/payments/ipn/momo": {
+    "/api/v1/payments/ipn/momo": {
       "post": {
         "tags": [
           "PaymentIpn"
@@ -9004,7 +9114,7 @@
         }
       }
     },
-    "/api/payments/orders/{orderId}/qr": {
+    "/api/v1/payments/orders/{orderId}/qr": {
       "post": {
         "tags": [
           "Payments"
@@ -9165,7 +9275,7 @@
         }
       }
     },
-    "/api/payments/extensions/{extensionId}/qr": {
+    "/api/v1/payments/extensions/{extensionId}/qr": {
       "post": {
         "tags": [
           "Payments"
@@ -9326,7 +9436,7 @@
         }
       }
     },
-    "/api/payments/{paymentId}": {
+    "/api/v1/payments/{paymentId}": {
       "get": {
         "tags": [
           "PaymentsQuery"
@@ -9427,7 +9537,7 @@
         }
       }
     },
-    "/api/payments": {
+    "/api/v1/payments": {
       "get": {
         "tags": [
           "PaymentsQuery"
@@ -9547,7 +9657,7 @@
         }
       }
     },
-    "/api/dispatch/offers/current": {
+    "/api/v1/dispatch/offers/current": {
       "get": {
         "tags": [
           "WorkerDispatch"
@@ -9577,7 +9687,7 @@
         }
       }
     },
-    "/api/dispatch/offers/{assignmentId}/accept": {
+    "/api/v1/dispatch/offers/{assignmentId}/accept": {
       "post": {
         "tags": [
           "WorkerDispatch"
@@ -9658,7 +9768,7 @@
         }
       }
     },
-    "/api/dispatch/offers/{assignmentId}/decline": {
+    "/api/v1/dispatch/offers/{assignmentId}/decline": {
       "post": {
         "tags": [
           "WorkerDispatch"
@@ -9758,7 +9868,7 @@
         }
       }
     },
-    "/api/dispatch/assignments/{assignmentId}/check-in": {
+    "/api/v1/dispatch/assignments/{assignmentId}/check-in": {
       "post": {
         "tags": [
           "WorkerDispatch"
@@ -9878,7 +9988,7 @@
         }
       }
     },
-    "/api/dispatch/assignments/{assignmentId}/check-in/plate-photo": {
+    "/api/v1/dispatch/assignments/{assignmentId}/check-in/plate-photo": {
       "post": {
         "tags": [
           "WorkerDispatch"
@@ -9998,7 +10108,7 @@
         }
       }
     },
-    "/api/dispatch/assignments/{assignmentId}/calls/log": {
+    "/api/v1/dispatch/assignments/{assignmentId}/calls/log": {
       "post": {
         "tags": [
           "WorkerDispatch"
@@ -10079,7 +10189,7 @@
         }
       }
     },
-    "/api/dispatch/assignments/{assignmentId}/absent": {
+    "/api/v1/dispatch/assignments/{assignmentId}/absent": {
       "post": {
         "tags": [
           "WorkerDispatch"
@@ -10160,7 +10270,7 @@
         }
       }
     },
-    "/api/workers/me/disputes": {
+    "/api/v1/workers/me/disputes": {
       "post": {
         "tags": [
           "WorkerDisputes"
@@ -10377,7 +10487,7 @@
         }
       }
     },
-    "/api/workers/me/disputes/evidence": {
+    "/api/v1/workers/me/disputes/evidence": {
       "post": {
         "tags": [
           "WorkerDisputes"
@@ -10486,7 +10596,7 @@
         }
       }
     },
-    "/api/workers/me/disputes/{disputeId}": {
+    "/api/v1/workers/me/disputes/{disputeId}": {
       "get": {
         "tags": [
           "WorkerDisputes"
@@ -10587,7 +10697,7 @@
         }
       }
     },
-    "/api/workers/me/earnings": {
+    "/api/v1/workers/me/earnings": {
       "get": {
         "tags": [
           "WorkerEarnings"
@@ -10706,7 +10816,7 @@
         }
       }
     },
-    "/api/workers/me/payouts": {
+    "/api/v1/workers/me/payouts": {
       "get": {
         "tags": [
           "WorkerEarnings"
@@ -10812,7 +10922,7 @@
         }
       }
     },
-    "/api/workers/me/assignments/{assignmentId}/rating-window": {
+    "/api/v1/workers/me/assignments/{assignmentId}/rating-window": {
       "get": {
         "tags": [
           "WorkerRatings"
@@ -10913,7 +11023,7 @@
         }
       }
     },
-    "/api/workers/me/assignments/{assignmentId}/rating": {
+    "/api/v1/workers/me/assignments/{assignmentId}/rating": {
       "post": {
         "tags": [
           "WorkerRatings"
@@ -11073,7 +11183,7 @@
         }
       }
     },
-    "/api/workers/register": {
+    "/api/v1/workers/register": {
       "post": {
         "tags": [
           "Workers"
@@ -11171,7 +11281,7 @@
         }
       }
     },
-    "/api/workers/me": {
+    "/api/v1/workers/me": {
       "get": {
         "tags": [
           "Workers"
@@ -11328,7 +11438,7 @@
         }
       }
     },
-    "/api/workers/me/bank": {
+    "/api/v1/workers/me/bank": {
       "get": {
         "tags": [
           "Workers"
@@ -11465,7 +11575,7 @@
         }
       }
     },
-    "/api/workers/me/location": {
+    "/api/v1/workers/me/location": {
       "put": {
         "tags": [
           "Workers"
@@ -11554,7 +11664,7 @@
         }
       }
     },
-    "/api/workers/me/ekyc": {
+    "/api/v1/workers/me/ekyc": {
       "post": {
         "tags": [
           "Workers"
@@ -11643,7 +11753,7 @@
         }
       }
     },
-    "/api/workers/me/ekyc/status": {
+    "/api/v1/workers/me/ekyc/status": {
       "get": {
         "tags": [
           "Workers"
@@ -11713,7 +11823,7 @@
         }
       }
     },
-    "/api/workers/me/slots": {
+    "/api/v1/workers/me/slots": {
       "get": {
         "tags": [
           "Workers"
@@ -11781,7 +11891,232 @@
         }
       }
     },
-    "/api/workers/me/slots/toggle": {
+    "/api/v1/workers/me/work-area": {
+      "get": {
+        "tags": [
+          "Workers"
+        ],
+        "operationId": "Workers_GetWorkArea",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerWorkAreaResponseApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerWorkAreaResponseApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerWorkAreaResponseApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Workers"
+        ],
+        "operationId": "Workers_SaveWorkArea",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWorkerWorkAreaRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWorkerWorkAreaRequest"
+              }
+            },
+            "application/*\u002Bjson": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWorkerWorkAreaRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerWorkAreaResponseApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerWorkAreaResponseApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerWorkAreaResponseApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workers/me/assignments": {
+      "get": {
+        "tags": [
+          "Workers"
+        ],
+        "operationId": "Workers_GetAssignments",
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerAssignmentResponseIReadOnlyListApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerAssignmentResponseIReadOnlyListApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerAssignmentResponseIReadOnlyListApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workers/me/slots/toggle": {
       "post": {
         "tags": [
           "Workers"
@@ -11870,7 +12205,7 @@
         }
       }
     },
-    "/api/workers/assignments/{assignmentId}/photos": {
+    "/api/v1/workers/assignments/{assignmentId}/photos": {
       "post": {
         "tags": [
           "Workers"
@@ -12123,7 +12458,7 @@
         }
       }
     },
-    "/api/workers/assignments/{assignmentId}/photos/{photoId}/file": {
+    "/api/v1/workers/assignments/{assignmentId}/photos/{photoId}/file": {
       "get": {
         "tags": [
           "Workers"
@@ -12236,7 +12571,7 @@
         }
       }
     },
-    "/api/workers/{id}": {
+    "/api/v1/workers/{id}": {
       "get": {
         "tags": [
           "Workers"
@@ -12297,7 +12632,7 @@
         }
       }
     },
-    "/api/workers/assignments/{assignmentId}/submit-completion": {
+    "/api/v1/workers/assignments/{assignmentId}/submit-completion": {
       "post": {
         "tags": [
           "Workers"
@@ -12437,7 +12772,7 @@
         }
       }
     },
-    "/api/workers/assignments/{assignmentId}/extension/respond": {
+    "/api/v1/workers/assignments/{assignmentId}/extension/respond": {
       "post": {
         "tags": [
           "Workers"
@@ -13852,6 +14187,11 @@
           "preferredWorkerId": {
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          },
+          "previousOrderId": {
+            "type": "integer",
+            "format": "int64",
             "nullable": true
           }
         },
@@ -17655,6 +17995,34 @@
         },
         "additionalProperties": false
       },
+      "UpdateWorkerWorkAreaRequest": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "radiusKm": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "districts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "UploadEvidenceRequestDto": {
         "type": "object",
         "properties": {
@@ -17668,6 +18036,76 @@
           },
           "contentBase64": {
             "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerAssignmentResponse": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "slotDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "shiftCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "endTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceTier": {
+            "type": "string",
+            "nullable": true
+          },
+          "district": {
+            "type": "string",
+            "nullable": true
+          },
+          "payoutAmount": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerAssignmentResponseIReadOnlyListApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkerAssignmentResponse"
+            },
             "nullable": true
           }
         },
@@ -17792,6 +18230,40 @@
           },
           "data": {
             "$ref": "#/components/schemas/WorkerEarningsDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerFreeShift": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shiftCode": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerFreeShiftIReadOnlyListApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkerFreeShift"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18099,6 +18571,58 @@
           "reason": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerWorkAreaResponse": {
+        "type": "object",
+        "properties": {
+          "isSet": {
+            "type": "boolean"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "radiusKm": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "districts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "setAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerWorkAreaResponseApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/WorkerWorkAreaResponse"
           }
         },
         "additionalProperties": false

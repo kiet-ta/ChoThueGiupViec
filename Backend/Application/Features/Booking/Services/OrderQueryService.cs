@@ -25,6 +25,8 @@ public interface IOrderQueryService
 
     /// <summary>NotFoundException (404) when the order is not the customer's.</summary>
     Task<OrderProgressDto> GetProgressAsync(int customerId, long orderId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<WorkerFreeShift>> GetRebookAvailabilityAsync(int customerId, long orderId, int workerId, CancellationToken cancellationToken = default);
 }
 
 public sealed class OrderQueryService(
@@ -36,7 +38,8 @@ public sealed class OrderQueryService(
     IOrderCreationService creation,
     IWorkerProfileQuery workers,
     IClock clock,
-    IOptions<BusinessRules> rules) : IOrderQueryService
+    IOptions<BusinessRules> rules,
+    IWorkerFreeShiftQuery? freeShifts = null) : IOrderQueryService
 {
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
@@ -113,7 +116,7 @@ public sealed class OrderQueryService(
         var created = await creation.CreateAsync(
             new CreateOrderRequest(
                 customerId, body.AddressId, tier, body.ScheduledDate!.Value, body.ShiftCode ?? string.Empty, body.CustomerNote, body.RequiredSkill,
-                body.PreferredWorkerId),
+                body.PreferredWorkerId, body.PreviousOrderId),
             cancellationToken);
         return OrderDto.From(created);
     }
@@ -194,6 +197,19 @@ public sealed class OrderQueryService(
                 extension.ExtStatus, extension.WorkerDecision, extension.RequestedAt, extension.DecidedAt);
 
         return new OrderProgressDto(order.OrderId, DbEnum.ToDb(order.OrderStatus), order.RequiredWorkers, assignments, extensionDto);
+    }
+
+    public async Task<IReadOnlyList<WorkerFreeShift>> GetRebookAvailabilityAsync(int customerId, long orderId, int workerId, CancellationToken cancellationToken = default)
+    {
+        _ = await orders.GetOwnedAsync(customerId, orderId, cancellationToken)
+            ?? throw new NotFoundException("Order", orderId);
+        var assignments = await tracking.GetOrderProgressAsync(orderId, cancellationToken);
+        if (!assignments.Any(a => a.WorkerId == workerId && a.AssignmentStatus == JobAssignmentStatus.Completed))
+            throw new NotFoundException("Worker", workerId);
+        if (freeShifts is null)
+            throw new InvalidOperationException("Worker availability is not configured.");
+        var today = clock.LocalToday;
+        return await freeShifts.GetFreeShiftsAsync(workerId, today, today.AddDays(_rules.Booking.MaxDaysAhead), cancellationToken);
     }
 
     /// <summary>Exactly the contract's spelling (ECONOMY, PREMIUM); anything else is not a tier.</summary>

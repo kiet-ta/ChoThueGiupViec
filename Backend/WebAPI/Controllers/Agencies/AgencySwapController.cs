@@ -11,7 +11,7 @@ namespace CommonService.WebAPI.Controllers.Agencies;
 /// BE-M5-09, decisions Q09, policy PartnerOnly). Someone else's assignment answers 404.
 /// </summary>
 [ApiController]
-[Route("api/agencies")]
+[Route("api/v1/agencies")]
 [Authorize(Policy = "PartnerOnly")]
 public class AgencySwapController(AgencySwapService service) : ControllerBase
 {

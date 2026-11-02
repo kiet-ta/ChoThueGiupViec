@@ -215,7 +215,7 @@ public class WorkerUnlockTests
     {
         var type = typeof(AdminWorkerUnlockController);
         Assert.Equal("AdminOnly", type.GetCustomAttribute<AuthorizeAttribute>()!.Policy);
-        Assert.Equal("api/admin/workers/{workerId:int}/unlock", type.GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/admin/workers/{workerId:int}/unlock", type.GetCustomAttribute<RouteAttribute>()!.Template);
 
         var verbs = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .SelectMany(m => m.GetCustomAttributes<HttpMethodAttribute>().SelectMany(a => a.HttpMethods))

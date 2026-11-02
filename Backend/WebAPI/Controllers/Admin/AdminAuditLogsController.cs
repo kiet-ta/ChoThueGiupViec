@@ -12,7 +12,7 @@ namespace CommonService.WebAPI.Controllers.Admin;
 /// write action: the table is append-only and rows are only added through the IAuditLog port (decisions G-5).
 /// </summary>
 [ApiController]
-[Route("api/admin/audit-logs")]
+[Route("api/v1/admin/audit-logs")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminAuditLogsController(IAuditLogQueryService queries) : ControllerBase
 {

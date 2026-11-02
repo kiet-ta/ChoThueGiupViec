@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/countdown_timer_widget.dart';
 import '../../../core/widgets/nordic_button.dart';
@@ -8,6 +10,7 @@ import '../../../core/widgets/nordic_card.dart';
 import '../models/job_offer.dart';
 
 /// Card component showing job offer details and 30-second countdown action buttons.
+/// MOB-UI-21 (`Mobile/DESIGN-SYSTEM-WORKER.md`): the net amount and the countdown are the big numbers; tokens only.
 class JobOfferCard extends StatelessWidget {
   final JobOffer offer;
   final VoidCallback onAccept;
@@ -44,7 +47,7 @@ class JobOfferCard extends StatelessWidget {
       offer.isConsecutiveShift ? _consecutiveWindowSeconds : 30;
 
   String get _tierLabel =>
-      offer.serviceTier == 'PREMIUM' ? 'Premium' : 'Tiêu chuẩn';
+      offer.serviceTier == 'PREMIUM' ? 'Cao cấp' : 'Cơ bản';
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +59,7 @@ class JobOfferCard extends StatelessWidget {
             .round()
             .clamp(1, 99);
     return NordicCard(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(NordicSpace.gutter),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -69,11 +72,13 @@ class JobOfferCard extends StatelessWidget {
                   children: [
                     Text(
                       offer.isConsecutiveShift
-                          ? 'CA THỨ HAI LIÊN TIẾP'
+                          ? 'Ca thứ hai liên tiếp'
                           : 'Việc mới',
-                      style: NordicTypography.caps,
+                      style: NordicTypography.bodySmall.copyWith(
+                        color: NordicColors.textSecondary,
+                      ),
                     ),
-                    const SizedBox(height: 4.0),
+                    const SizedBox(height: NordicSpace.xxs),
                     Text(offer.bookingDate, style: NordicTypography.h2),
                   ],
                 ),
@@ -88,21 +93,21 @@ class JobOfferCard extends StatelessWidget {
             ],
           ),
           if (offer.isConsecutiveShift) ...[
-            const SizedBox(height: 8.0),
+            const SizedBox(height: NordicSpace.xs),
             Text(
-              'Đơn này thiếu một thợ. Khách đồng ý để bạn làm luôn ca ngay sau ca bạn đã nhận. Bạn có $_consecutiveWindowSeconds giây để xác nhận.',
+              'Đơn này thiếu một thợ. Gia chủ đồng ý để bạn làm luôn ca ngay sau ca bạn đã nhận. Bạn có $_consecutiveWindowSeconds giây để xác nhận.',
               key: const Key('consecutive_shift_notice'),
               style: NordicTypography.bodySmall,
             ),
           ],
-          const SizedBox(height: 16.0),
+          const SizedBox(height: NordicSpace.md),
 
-          // Net amount (thực nhận sau hoa hồng) with the gross / commission split
+          // Net amount (thực nhận sau phí) with the gross / commission split
           Container(
-            padding: const EdgeInsets.all(20.0),
-            decoration: BoxDecoration(
+            padding: const EdgeInsets.all(NordicSpace.gutter),
+            decoration: const BoxDecoration(
               color: NordicColors.surfaceLow,
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: NordicRadius.fieldAll,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,42 +118,38 @@ class JobOfferCard extends StatelessWidget {
                     color: NordicColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 8.0),
+                const SizedBox(height: NordicSpace.xs),
                 Text(
                   _formatCurrency(offer.netEarnings),
                   style: NordicTypography.numberLarge,
                 ),
-                const SizedBox(height: 16.0),
+                const SizedBox(height: NordicSpace.md),
                 Row(
                   children: [
                     Expanded(
                       flex: netFlex,
                       child: Container(
-                        height: 8.0,
+                        height: NordicSpace.xs,
                         decoration: const BoxDecoration(
                           color: NordicColors.primary,
-                          borderRadius: BorderRadius.horizontal(
-                            left: Radius.circular(4.0),
-                          ),
+                          borderRadius: NordicRadius.pill,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 2.0),
+                    const SizedBox(width: NordicSpace.xxs),
                     Expanded(
                       flex: 100 - netFlex,
                       child: Container(
-                        height: 8.0,
+                        height: NordicSpace.xs,
                         decoration: const BoxDecoration(
                           color: NordicColors.accentAmber,
-                          borderRadius: BorderRadius.horizontal(
-                            right: Radius.circular(4.0),
-                          ),
+                          borderRadius: NordicRadius.pill,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8.0),
+                const SizedBox(height: NordicSpace.xs),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -158,7 +159,7 @@ class JobOfferCard extends StatelessWidget {
                         _formatCurrency(offer.grossAmount),
                       ),
                     ),
-                    const SizedBox(width: 8.0),
+                    const SizedBox(width: NordicSpace.xs),
                     Flexible(
                       child: _splitLabel(
                         'Phí ${(offer.commissionRate * 100).round()}%',
@@ -170,7 +171,7 @@ class JobOfferCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12.0),
+          const SizedBox(height: NordicSpace.sm),
 
           // Three info cards: start time, distance, service tier
           Row(
@@ -183,7 +184,7 @@ class JobOfferCard extends StatelessWidget {
                       '${offer.estimatedDurationHours.toStringAsFixed(offer.estimatedDurationHours % 1 == 0 ? 0 : 1)} giờ',
                 ),
               ),
-              const SizedBox(width: 8.0),
+              const SizedBox(width: NordicSpace.xs),
               Expanded(
                 child: _buildDetailItem(
                   icon: Icons.near_me_outlined,
@@ -191,7 +192,7 @@ class JobOfferCard extends StatelessWidget {
                   caption: offer.district,
                 ),
               ),
-              const SizedBox(width: 8.0),
+              const SizedBox(width: NordicSpace.xs),
               Expanded(
                 child: _buildDetailItem(
                   icon: Icons.cleaning_services_outlined,
@@ -201,9 +202,9 @@ class JobOfferCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20.0),
+          const SizedBox(height: NordicSpace.gutter),
 
-          // Actions: Decline (ghost) / Accept
+          // Actions: Decline (secondary) / Accept
           Row(
             children: [
               Expanded(
@@ -215,7 +216,7 @@ class JobOfferCard extends StatelessWidget {
                   onPressed: isAccepting ? null : onDecline,
                 ),
               ),
-              const SizedBox(width: 10.0),
+              const SizedBox(width: NordicSpace.sm),
               Expanded(
                 flex: 2,
                 child: NordicButton(
@@ -261,19 +262,22 @@ class JobOfferCard extends StatelessWidget {
     required String caption,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 6.0),
+      padding: const EdgeInsets.symmetric(
+        vertical: NordicSpace.sm,
+        horizontal: NordicSpace.xs,
+      ),
       decoration: BoxDecoration(
         color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(14.0),
+        borderRadius: NordicRadius.fieldAll,
         border: Border.all(color: NordicColors.border),
       ),
       child: Column(
         children: [
           Icon(icon, size: 20.0, color: NordicColors.primary),
-          const SizedBox(height: 4.0),
+          const SizedBox(height: NordicSpace.xxs),
           Text(
             value,
-            style: NordicTypography.h3,
+            style: NordicTypography.titleSmall,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

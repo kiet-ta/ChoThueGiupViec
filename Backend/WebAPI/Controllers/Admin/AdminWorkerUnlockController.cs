@@ -18,7 +18,7 @@ public sealed class WorkerUnlockRequest
 /// comes from the token.
 /// </summary>
 [ApiController]
-[Route("api/admin/workers/{workerId:int}/unlock")]
+[Route("api/v1/admin/workers/{workerId:int}/unlock")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminWorkerUnlockController(IWorkerUnlockService service, ICurrentUser currentUser) : ControllerBase
 {

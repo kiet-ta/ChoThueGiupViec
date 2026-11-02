@@ -9,7 +9,7 @@ namespace CommonService.WebAPI.Controllers.Payments;
 
 /// <summary>Customer payments (contract payments.md 2.1). Policy CustomerOnly. Sandbox only, no real money (Q04).</summary>
 [ApiController]
-[Route("api/payments")]
+[Route("api/v1/payments")]
 [Authorize(Policy = "CustomerOnly")]
 public class PaymentsController(IPaymentQrService qrService, ICurrentUser currentUser) : ControllerBase
 {

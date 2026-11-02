@@ -14,7 +14,7 @@ namespace CommonService.WebAPI.Controllers.Ratings;
 /// rating is internal (decisions Q14): no endpoint returns it to the customer and none lists it back to the worker.
 /// </summary>
 [ApiController]
-[Route("api/workers/me/assignments/{assignmentId:long}")]
+[Route("api/v1/workers/me/assignments/{assignmentId:long}")]
 [Authorize(Policy = "WorkerOnly")]
 public class WorkerRatingsController(IRatingService ratings, ICurrentUser currentUser) : ControllerBase
 {

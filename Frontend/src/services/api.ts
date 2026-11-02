@@ -3,8 +3,8 @@ import { createApiClient, type ApiConfig, type ApiResponse } from './client'
 export { ApiError, buildQuery } from './client'
 export type { ApiConfig, ApiResponse, FieldErrors, Query, RequestOptions } from './client'
 
-// Base URL: '/api' in dev goes through the Vite proxy to the .NET backend.
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+// Base URL: '/api/v1' in dev goes through the Vite proxy ('/api') to the .NET backend (PLATFORM-01: every route is under /api/v1).
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 let config: ApiConfig = {}
 
@@ -15,7 +15,7 @@ export function configureApi(next: ApiConfig) {
 
 /**
  * Typed client: `await apiClient.get<Dispute[]>('/admin/disputes', { query: { page: 1 } })`
- * returns `data` or throws ApiError. Paths are relative to /api (no leading /api).
+ * returns `data` or throws ApiError. Paths are relative to /api/v1 (no leading /api/v1).
  */
 export const apiClient = createApiClient({
   baseUrl: BASE_URL,

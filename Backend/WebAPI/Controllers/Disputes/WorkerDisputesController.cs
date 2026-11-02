@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Disputes;
 /// the worker id comes from the token. An order or dispute the worker is not part of is a 404.
 /// </summary>
 [ApiController]
-[Route("api/workers/me/disputes")]
+[Route("api/v1/workers/me/disputes")]
 [Authorize(Policy = "WorkerOnly")]
 public class WorkerDisputesController(IDisputeFilingService disputes, IDisputeEvidenceService evidence, ICurrentUser currentUser) : ControllerBase
 {

@@ -1,0 +1,823 @@
+<!doctype html>
+<html class="scroll-smooth" lang="vi">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>TỔ ẤM — Dọn nhà chuẩn Bắc Âu</title>
+  <meta name="description" content="TỔ ẤM: dọn nhà theo giờ, giá cố định, nghiệm thu trước khi thanh toán." />
+
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+  <!-- Geist: font duy nhat trong 4 font cua skill gpt-taste co glyph tieng Viet (da kiem tra bang fc-query). -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ivory: '#FAF8F3',
+            sand: '#F1EEE6',
+            forest: '#1A2F25',
+            pine: '#2D5A43',
+            sage: '#416448',
+            'sage-hover': '#56705B',
+            mist: '#C5ECC9',
+            amber: '#D99B26',
+            ink: '#2F3A34',
+            'ink-soft': '#6B7280',
+            line: 'rgba(47,58,52,0.12)',
+          },
+          fontFamily: {
+            sans: ['Geist', 'system-ui', 'sans-serif'],
+            mono: ['Geist Mono', 'ui-monospace', 'monospace'],
+          },
+          borderRadius: { '4xl': '2rem', '5xl': '2.75rem' },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: 'Geist', system-ui, sans-serif; }
+    .ms { font-family: 'Material Symbols Outlined'; font-weight: 400; font-style: normal; line-height: 1;
+      letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; direction: ltr;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .ms-fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+    /* Grain overlay: noise SVG, no external asset */
+    .grain::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .18  0 0 0 0 .23  0 0 0 0 .19  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+    .grain-dark::after { mix-blend-mode: screen; opacity: .35; }
+
+    /* Range slider */
+    input[type='range'] { -webkit-appearance: none; appearance: none; background: transparent; height: 28px; }
+    input[type='range']::-webkit-slider-runnable-track { height: 6px; border-radius: 9999px; background: var(--track, #E2E3DE); }
+    input[type='range']::-moz-range-track { height: 6px; border-radius: 9999px; background: #E2E3DE; }
+    input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; margin-top: -9px; height: 24px; width: 24px;
+      border-radius: 9999px; background: #416448; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(26,47,37,.28); cursor: pointer; transition: transform .15s; }
+    input[type='range']::-moz-range-thumb { height: 20px; width: 20px; border-radius: 9999px; background: #416448; border: 3px solid #fff; cursor: pointer; }
+    input[type='range']:hover::-webkit-slider-thumb { transform: scale(1.12); }
+    input[type='range']:focus-visible { outline: 2px solid #416448; outline-offset: 4px; border-radius: 9999px; }
+
+    /* Room slider */
+    .room-slide { opacity: .45; transform: scale(.965); transform-origin: 0 50%;
+      transition: opacity .8s ease, transform .9s cubic-bezier(.22,1,.36,1); }
+    .room-slide.is-on { opacity: 1; transform: none; }
+    .room-tab .room-label { color: rgba(47,58,52,.5); }
+    .room-tab[aria-selected='true'] .room-label, .room-tab:hover .room-label { color: #1A2F25; }
+    .room-tab:focus-visible { outline: 2px solid #416448; outline-offset: 6px; border-radius: 8px; }
+
+    /* Pinned step sequence (class is added by JS only on desktop, so the stacked fallback works without JS) */
+    .pin-on #an-tam { min-height: 100vh; display: flex; align-items: center; padding-top: 7rem; padding-bottom: 4rem; }
+    .pin-on .step-stage { position: relative; height: 27rem; }
+    .pin-on .step-panel { position: absolute; inset: 0; }
+    .pin-on .step-panel:not(:first-child) { opacity: 0; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+
+<body class="bg-ivory text-ink antialiased selection:bg-mist selection:text-forest font-sans">
+  <!-- overflow-x-clip (not hidden): hidden would turn <main> into a scroll container and break position: sticky -->
+  <main class="overflow-x-clip w-full max-w-full">
+
+    <!-- ============ NAV: floating glass pill ============ -->
+    <header class="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.5rem)] max-w-5xl">
+      <div class="flex items-center justify-between rounded-xl border border-white/60 bg-ivory/85 backdrop-blur-xl
+                  shadow-[0_10px_40px_-12px_rgba(26,47,37,0.25)] pl-3 pr-2 py-2">
+        <a href="#top" class="flex items-center gap-2.5 pl-1" aria-label="TỔ ẤM — về đầu trang">
+          <span class="grid place-items-center w-9 h-9 rounded-lg bg-forest text-mist">
+            <svg class="w-5 h-5 fill-none stroke-current" style="stroke-width:1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+              <path d="M3 10.5L12 3l9 7.5"></path><path d="M5 9v11a1 1 0 001 1h12a1 1 0 001-1V9"></path><path d="M9 16c1.5 1.5 4.5 1.5 6 0"></path>
+            </svg>
+          </span>
+          <span class="font-bold tracking-tight text-forest">TỔ ẤM</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-1 text-sm font-medium text-black" aria-label="Điều hướng chính">
+          <a class="px-4 py-2 rounded-lg hover:bg-white hover:text-forest transition" href="#tinh-gia">Tính giá</a>
+          <a class="px-4 py-2 rounded-lg hover:bg-white hover:text-forest transition" href="#cong-viec">Công việc</a>
+          <a class="px-4 py-2 rounded-lg hover:bg-white hover:text-forest transition" href="#an-tam">An tâm</a>
+          <a class="px-4 py-2 rounded-lg hover:bg-white hover:text-forest transition" href="#bang-gia">Bảng giá</a>
+          <a class="px-4 py-2 rounded-lg hover:bg-white hover:text-forest transition" href="#danh-gia">Đánh giá</a>
+        </nav>
+        <a href="#bang-gia"
+          class="inline-flex items-center gap-2 rounded-lg bg-forest text-white text-sm font-semibold px-5 py-2.5
+                 hover:bg-sage transition active:scale-95">
+          Đặt lịch <span class="ms text-[16px]">arrow_forward</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- ============ ATTENTION: Full-bleed photo hero ============ -->
+    <section id="top" class="relative isolate min-h-[100svh] flex items-center bg-forest text-white overflow-hidden">
+      <div class="absolute inset-0 -z-10" aria-hidden="true">
+        <!-- Mirrored so the cleaner sits on the right and the dark teal wall carries the text on the left -->
+        <img id="hero-bg" alt="Biệt thự hiện đại có hồ bơi" fetchpriority="high"
+          class="w-full h-full object-cover object-center"
+          src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=max&w=2000&q=72" />
+        <div class="absolute inset-0 bg-gradient-to-r from-forest/90 via-forest/70 to-forest/30 md:to-forest/10"></div>
+        <div class="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-forest/70 to-transparent"></div>
+      </div>
+
+      <div class="w-full max-w-7xl mx-auto px-6 lg:px-12 pt-36 pb-28">
+        <h1 id="hero-title" class="max-w-3xl [text-wrap:balance] font-bold tracking-[-0.035em] leading-[1.04]
+                                   text-[clamp(2.6rem,5vw,5rem)]">
+          Dọn nhà theo giờ, đúng hẹn, <span class="text-mist">giá cố định.</span>
+        </h1>
+
+        <p class="mt-7 max-w-xl text-lg md:text-xl text-white/85 leading-relaxed">
+          Chuyên viên mang đủ đồ nghề đến tận nhà. Nghiệm thu xong, hài lòng rồi bạn mới thanh toán.
+        </p>
+
+        <div id="hero-cta" class="mt-10 flex flex-wrap items-center gap-3">
+          <a href="#tinh-gia"
+            class="inline-flex items-center gap-2 rounded-lg bg-white text-forest font-semibold px-7 py-4
+                   hover:bg-mist transition active:scale-95">
+            Tính giá trong 10 giây <span class="ms text-[18px]">arrow_forward</span>
+          </a>
+          <a href="#an-tam"
+            class="inline-flex items-center gap-2 rounded-lg border border-white/50 text-white font-semibold px-7 py-4
+                   hover:bg-white/15 transition active:scale-95">
+            Xem quy trình an tâm
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INTEREST 1: Price calculator ============ -->
+    <section id="tinh-gia" class="relative px-6 lg:px-12 pt-24 md:pt-32 pb-24 md:pb-32">
+      <div class="max-w-7xl mx-auto">
+        <div class="max-w-3xl">
+          <h2 class="text-[clamp(2.2rem,4vw,3.75rem)] font-bold tracking-[-0.03em] leading-[1.05] text-forest">
+            Kéo một thanh trượt, biết ngay giá trọn gói.
+          </h2>
+          <p class="mt-5 text-lg text-ink-soft max-w-xl">Hệ thống tự chia nhân sự theo diện tích để ca dọn kết thúc đúng thời lượng.</p>
+        </div>
+
+        <div class="mt-14 grid lg:grid-cols-12 gap-5">
+          <div class="lg:col-span-7 rounded-xl bg-white border border-line p-8 md:p-12 shadow-sm">
+            <label for="calc-type" class="text-sm font-medium text-ink-soft">Loại không gian</label>
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Loại không gian" id="calc-types">
+              <button type="button" role="radio" aria-checked="true" data-type="apartment"
+                class="calc-type rounded-lg border px-4 py-4 text-left transition">
+                <span class="ms block mb-2">apartment</span><span class="font-semibold">Căn hộ</span>
+              </button>
+              <button type="button" role="radio" aria-checked="false" data-type="studio"
+                class="calc-type rounded-lg border px-4 py-4 text-left transition">
+                <span class="ms block mb-2">bed</span><span class="font-semibold">Studio / Mini</span>
+              </button>
+              <button type="button" role="radio" aria-checked="false" data-type="townhouse"
+                class="calc-type rounded-lg border px-4 py-4 text-left transition">
+                <span class="ms block mb-2">home</span><span class="font-semibold">Nhà phố / Biệt thự</span>
+              </button>
+            </div>
+
+            <div class="mt-10">
+              <div class="flex items-baseline justify-between">
+                <label for="calc-area" class="text-sm font-medium text-ink-soft">Diện tích sàn</label>
+                <span class="font-mono text-3xl font-semibold text-forest"><span id="calc-area-val">65</span> m²</span>
+              </div>
+              <input id="calc-area" type="range" min="30" max="250" value="65" class="w-full mt-3" />
+              <div class="flex justify-between text-xs text-ink-soft font-mono"><span>30 m²</span><span>250 m²</span></div>
+            </div>
+          </div>
+
+          <div id="calc-result" class="grain grain-dark lg:col-span-5 relative isolate overflow-hidden rounded-xl bg-forest text-white p-8 md:p-12 flex flex-col justify-between min-h-[24rem]">
+            <div class="pointer-events-none absolute -z-10 -top-20 -right-20 w-72 h-72 rounded-full bg-sage/50 blur-3xl"></div>
+            <div>
+              <p class="text-sm text-mist/80">Trọn gói ước tính</p>
+              <p class="mt-2 font-mono font-semibold tracking-tight text-[clamp(2.6rem,5vw,4.25rem)] leading-none">
+                <span id="calc-price">290.000</span><span class="text-2xl font-normal text-mist/70"> đ</span>
+              </p>
+            </div>
+            <div class="mt-8 flex items-start gap-3 rounded-lg bg-white/10 border border-white/10 p-4">
+              <span id="calc-worker-icon" class="ms ms-fill text-mist mt-0.5">person</span>
+              <div>
+                <p id="calc-worker-title" class="font-semibold">1 chuyên viên lành nghề</p>
+                <p id="calc-worker-desc" class="text-sm text-white/70 mt-1">Đạt thời lượng tối ưu cho diện tích 80 m² trở xuống.</p>
+              </div>
+            </div>
+            <a href="#bang-gia"
+              class="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-white text-forest font-semibold px-6 py-4 hover:bg-mist transition active:scale-95">
+              Đặt lịch với mức giá này <span class="ms text-[18px]">arrow_forward</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INTEREST 2: Compact gapless bento (4 cols x 2 rows = 8 cells) ============ -->
+    <section class="px-6 lg:px-12 pb-24 md:pb-32">
+      <div class="max-w-7xl mx-auto">
+        <h2 class="max-w-4xl text-[clamp(2rem,3.6vw,3.25rem)] font-bold tracking-[-0.03em] leading-[1.05] text-forest">
+          Mang theo mọi thứ. Chủ nhà không phải lo gì.
+        </h2>
+
+        <!-- A: 2x2 = 4, B: 2x1 = 2, C: 1, D: 1 -> 8 cells = 4 cols x 2 rows (lg) / 2 cols x 4 rows (md) -->
+        <div class="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 auto-rows-[9.5rem] grid-flow-dense gap-4">
+          <article class="group relative overflow-hidden rounded-xl md:col-span-2 lg:col-span-3 md:row-span-2 row-span-2 bg-forest">
+            <img alt="Máy hút bụi HEPA làm sạch thảm"
+              class="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-luminosity transition-transform duration-[900ms] ease-out group-hover:scale-105"
+              src="https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1400&q=72" />
+            <div class="absolute inset-0 bg-gradient-to-t from-forest/90 via-forest/25 to-transparent"></div>
+            <div class="absolute bottom-0 p-6 md:p-8 text-white">
+              <h3 class="text-2xl md:text-3xl font-bold tracking-tight">Đồ nghề chuẩn, tự mang theo.</h3>
+              <p class="mt-2 max-w-md text-sm md:text-base text-white/80">Máy hút bụi HEPA và bộ khăn 4 màu tách riêng bếp, toilet, bề mặt và kính. Dung dịch thảo mộc ECOCERT.</p>
+            </div>
+          </article>
+
+          <article class="md:col-span-2 rounded-xl bg-mist p-6 flex items-center gap-5">
+            <span class="grid place-items-center shrink-0 w-14 h-14 rounded-lg bg-forest/10 text-pine"><span class="ms ms-fill text-[28px]">verified_user</span></span>
+            <div>
+              <p class="font-mono text-3xl md:text-4xl font-semibold text-forest tracking-tight leading-none">50 triệu</p>
+              <p class="mt-2 text-sm text-pine font-medium">Hạn mức bảo hiểm tài sản cho mỗi ca dọn.</p>
+            </div>
+          </article>
+
+          <article class="rounded-xl bg-white border border-line p-5 flex flex-col justify-between">
+            <span class="ms text-sage text-[26px]">receipt_long</span>
+            <div>
+              <p class="text-xl font-bold tracking-tight text-forest">Giá cố định</p>
+              <p class="mt-0.5 text-sm text-ink-soft">Không phụ phí, không tiền tip.</p>
+            </div>
+          </article>
+
+          <article class="rounded-xl bg-sand border border-line p-5 flex flex-col justify-between">
+            <span class="ms text-amber text-[26px]">groups</span>
+            <div>
+              <p class="font-mono text-2xl font-semibold text-forest tracking-tight leading-none"><span data-proof="households">14.500</span>+</p>
+              <p class="mt-1.5 text-sm text-ink-soft">Hộ gia đình đã phục vụ (số mẫu).</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INTEREST 3: Auto-advancing horizontal room slider ============ -->
+    <section id="cong-viec" class="px-6 lg:px-12 py-24 md:py-32 bg-sand">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <h2 class="max-w-3xl text-[clamp(2.2rem,4vw,3.75rem)] font-bold tracking-[-0.03em] leading-[1.05] text-forest">
+            Từng căn phòng, một danh sách việc rõ ràng.
+          </h2>
+          <div class="flex gap-2 shrink-0">
+            <button id="room-prev" type="button" aria-label="Phòng trước"
+              class="grid place-items-center w-12 h-12 rounded-lg bg-white border border-forest text-forest hover:bg-forest hover:text-white transition active:scale-95"><span class="ms">arrow_back</span></button>
+            <button id="room-next" type="button" aria-label="Phòng kế tiếp"
+              class="grid place-items-center w-12 h-12 rounded-lg bg-forest text-white hover:bg-sage transition active:scale-95"><span class="ms">arrow_forward</span></button>
+          </div>
+        </div>
+
+        <div id="room-slider" class="mt-14" role="region" aria-roledescription="carousel" aria-label="Công việc theo từng phòng">
+          <div id="room-viewport" class="overflow-hidden touch-pan-y select-none">
+            <div id="room-track" class="flex gap-4" style="transition: transform 900ms cubic-bezier(.22,1,.36,1)">
+
+              <article class="room-slide is-on group relative shrink-0 basis-[90%] md:basis-[74%] lg:basis-[66%] h-[24rem] md:h-[30rem] lg:h-[34rem] overflow-hidden rounded-xl bg-forest" role="group" aria-roledescription="slide" aria-label="1 trên 4: Phòng khách">
+                <img alt="Phòng khách rộng rãi với sofa và cửa sổ lớn" draggable="false"
+                  class="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+                  src="https://images.unsplash.com/photo-1584622781564-1d987f7333c1?auto=format&fit=crop&w=1400&q=70" />
+                <div class="absolute inset-0 bg-gradient-to-t from-forest/90 via-forest/25 to-transparent"></div>
+                <div class="absolute bottom-0 left-0 p-7 md:p-10 text-white max-w-lg">
+                  <h3 class="text-3xl md:text-4xl font-bold tracking-tight">Phòng khách</h3>
+                  <ul class="mt-4 space-y-2 text-white/90 text-sm md:text-base">
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Hút bụi sàn, thảm và khe sofa</li>
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Lau bề mặt, kệ tivi, tay nắm cửa</li>
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Lau sàn thảo mộc khử khuẩn</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="room-slide group relative shrink-0 basis-[90%] md:basis-[74%] lg:basis-[66%] h-[24rem] md:h-[30rem] lg:h-[34rem] overflow-hidden rounded-xl bg-forest" role="group" aria-roledescription="slide" aria-label="2 trên 4: Nhà bếp">
+                <img alt="Nhà bếp sáng với mặt bếp và tủ trắng" draggable="false"
+                  class="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+                  src="https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1400&q=70" />
+                <div class="absolute inset-0 bg-gradient-to-t from-forest/90 via-forest/25 to-transparent"></div>
+                <div class="absolute bottom-0 left-0 p-7 md:p-10 text-white max-w-lg">
+                  <h3 class="text-3xl md:text-4xl font-bold tracking-tight">Nhà bếp</h3>
+                  <ul class="mt-4 space-y-2 text-white/90 text-sm md:text-base">
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Lau chùi mặt bếp từ và hút mùi</li>
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Rửa bồn, lau tủ bếp bên ngoài</li>
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Khăn màu riêng cho khu vực bếp</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="room-slide group relative shrink-0 basis-[90%] md:basis-[74%] lg:basis-[66%] h-[24rem] md:h-[30rem] lg:h-[34rem] overflow-hidden rounded-xl bg-forest" role="group" aria-roledescription="slide" aria-label="3 trên 4: Phòng tắm">
+                <img alt="Phòng tắm có vách kính và gương lớn" draggable="false"
+                  class="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+                  src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1400&q=70" />
+                <div class="absolute inset-0 bg-gradient-to-t from-forest/90 via-forest/25 to-transparent"></div>
+                <div class="absolute bottom-0 left-0 p-7 md:p-10 text-white max-w-lg">
+                  <h3 class="text-3xl md:text-4xl font-bold tracking-tight">Phòng tắm</h3>
+                  <ul class="mt-4 space-y-2 text-white/90 text-sm md:text-base">
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Vệ sinh toilet toàn phần</li>
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Tẩy cặn canxi vách kính tắm</li>
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Lau gương, vòi sen, chân tường</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="room-slide group relative shrink-0 basis-[90%] md:basis-[74%] lg:basis-[66%] h-[24rem] md:h-[30rem] lg:h-[34rem] overflow-hidden rounded-xl bg-forest" role="group" aria-roledescription="slide" aria-label="4 trên 4: Phòng ngủ">
+                <img alt="Phòng ngủ gọn gàng với giường và đèn đầu giường" draggable="false"
+                  class="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+                  src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1400&q=70" />
+                <div class="absolute inset-0 bg-gradient-to-t from-forest/90 via-forest/25 to-transparent"></div>
+                <div class="absolute bottom-0 left-0 p-7 md:p-10 text-white max-w-lg">
+                  <h3 class="text-3xl md:text-4xl font-bold tracking-tight">Phòng ngủ</h3>
+                  <ul class="mt-4 space-y-2 text-white/90 text-sm md:text-base">
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Dọn giường, hút bụi đệm và thảm</li>
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Lau tủ đầu giường, kệ, cửa lùa</li>
+                    <li class="flex gap-2"><span class="ms text-mist text-[20px]">check_circle</span>Hút bụi khe rãnh và ban công</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div id="room-tabs" class="mt-8 grid grid-cols-4 gap-3 md:gap-5" role="tablist" aria-label="Chọn phòng">
+            <button type="button" role="tab" class="room-tab text-left group"><span class="room-label block text-sm md:text-base font-semibold transition-colors">Phòng khách</span><span class="mt-3 block h-1 rounded-full bg-forest/15 overflow-hidden"><span class="room-fill block h-full w-0 bg-forest"></span></span></button>
+            <button type="button" role="tab" class="room-tab text-left group"><span class="room-label block text-sm md:text-base font-semibold transition-colors">Nhà bếp</span><span class="mt-3 block h-1 rounded-full bg-forest/15 overflow-hidden"><span class="room-fill block h-full w-0 bg-forest"></span></span></button>
+            <button type="button" role="tab" class="room-tab text-left group"><span class="room-label block text-sm md:text-base font-semibold transition-colors">Phòng tắm</span><span class="mt-3 block h-1 rounded-full bg-forest/15 overflow-hidden"><span class="room-fill block h-full w-0 bg-forest"></span></span></button>
+            <button type="button" role="tab" class="room-tab text-left group"><span class="room-label block text-sm md:text-base font-semibold transition-colors">Phòng ngủ</span><span class="mt-3 block h-1 rounded-full bg-forest/15 overflow-hidden"><span class="room-fill block h-full w-0 bg-forest"></span></span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DESIRE: Scroll-driven pinned sequence ============ -->
+    <section id="an-tam" class="relative bg-forest text-white px-6 lg:px-12 py-24 md:py-32 grain grain-dark isolate overflow-hidden">
+      <div class="pointer-events-none absolute -z-10 -top-40 -right-40 w-[34rem] h-[34rem] rounded-full bg-sage/30 blur-[120px]"></div>
+      <div class="w-full max-w-7xl mx-auto grid lg:grid-cols-12 gap-14 lg:gap-20 items-center">
+        <div class="lg:col-span-5">
+          <h2 class="text-[clamp(2.2rem,4vw,3.75rem)] font-bold tracking-[-0.03em] leading-[1.05] text-mist">
+            Ba lớp kiểm soát trong mỗi ca dọn.
+          </h2>
+          <p class="mt-6 text-lg text-white/70 max-w-md">Loại bỏ sự lơ là và nguy cơ thất thoát tài sản, từ lúc ghép nhân sự đến khi bạn thanh toán.</p>
+          <ol id="step-list" class="hidden lg:block relative mt-12">
+            <span class="absolute left-0 top-0 h-full w-px bg-white/15"></span>
+            <span id="step-fill" class="absolute left-0 top-0 h-full w-px bg-mist origin-top"></span>
+            <li class="step-item flex items-baseline gap-4 py-3 pl-6">
+              <span class="font-mono text-sm text-mist/70">01</span>
+              <span class="text-xl md:text-2xl font-semibold tracking-tight">Thợ quen</span>
+            </li>
+            <li class="step-item flex items-baseline gap-4 py-3 pl-6">
+              <span class="font-mono text-sm text-mist/70">02</span>
+              <span class="text-xl md:text-2xl font-semibold tracking-tight">Đúng giờ trong 100 m</span>
+            </li>
+            <li class="step-item flex items-baseline gap-4 py-3 pl-6">
+              <span class="font-mono text-sm text-mist/70">03</span>
+              <span class="text-xl md:text-2xl font-semibold tracking-tight">Nghiệm thu ACCEPT</span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="lg:col-span-7">
+          <div id="step-stage" class="step-stage space-y-5">
+          <article class="step-panel flex flex-col justify-between gap-10 rounded-xl bg-[#244034] border border-white/10 p-8 md:p-12 shadow-2xl">
+            <div class="flex items-center justify-between">
+              <span class="grid place-items-center w-14 h-14 rounded-lg bg-white/10 text-mist"><span class="ms text-[28px]">verified_user</span></span>
+              <span class="font-mono text-mist/60 text-sm">01 / 03</span>
+            </div>
+            <div>
+              <h3 class="text-3xl md:text-5xl font-bold tracking-tight">Thợ quen</h3>
+              <p class="mt-4 text-white/75 text-lg max-w-xl">Tự động ưu tiên ghép chuyên viên bạn ưng ý nhất cho tuần kế tiếp.</p>
+            </div>
+            <p class="pt-5 border-t border-white/10 text-sm text-mist/80">Danh tính xác minh bằng CCCD gắn chip.</p>
+          </article>
+          <article class="step-panel flex flex-col justify-between gap-10 rounded-xl bg-[#244034] border border-white/10 p-8 md:p-12 shadow-2xl">
+            <div class="flex items-center justify-between">
+              <span class="grid place-items-center w-14 h-14 rounded-lg bg-white/10 text-mist"><span class="ms text-[28px]">pin_drop</span></span>
+              <span class="font-mono text-mist/60 text-sm">02 / 03</span>
+            </div>
+            <div>
+              <h3 class="text-3xl md:text-5xl font-bold tracking-tight">Đúng giờ trong 100 m</h3>
+              <p class="mt-4 text-white/75 text-lg max-w-xl">Chuyên viên chỉ nhận ca khi đã đến đúng tòa nhà. Bạn nhận thông báo định vị tức thời.</p>
+            </div>
+            <p class="pt-5 border-t border-white/10 text-sm text-mist/80">Trễ 10 phút được đền 50.000đ.</p>
+          </article>
+          <article class="step-panel flex flex-col justify-between gap-10 rounded-xl bg-[#244034] border border-white/10 p-8 md:p-12 shadow-2xl">
+            <div class="flex items-center justify-between">
+              <span class="grid place-items-center w-14 h-14 rounded-lg bg-white/10 text-mist"><span class="ms text-[28px]">checklist_rtl</span></span>
+              <span class="font-mono text-mist/60 text-sm">03 / 03</span>
+            </div>
+            <div>
+              <h3 class="text-3xl md:text-5xl font-bold tracking-tight">Nghiệm thu ACCEPT</h3>
+              <p class="mt-4 text-white/75 text-lg max-w-xl">Kiểm tra theo checklist tiêu chuẩn. Vị trí nào chưa sạch được xử lý lại ngay.</p>
+            </div>
+            <p class="pt-5 border-t border-white/10 text-sm text-mist/80">Hài lòng mới thanh toán.</p>
+          </article>
+          </div>
+          <a href="#bang-gia"
+            class="lg:hidden mt-8 inline-flex items-center gap-2 rounded-lg bg-white text-forest font-semibold px-7 py-4 hover:bg-mist transition active:scale-95">
+            Đặt lịch ngay <span class="ms text-[18px]">arrow_forward</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ACTION 1: Pricing ============ -->
+    <section id="bang-gia" class="px-6 lg:px-12 py-24 md:py-32">
+      <div class="max-w-7xl mx-auto">
+        <h2 class="max-w-5xl text-[clamp(2.2rem,4vw,3.75rem)] font-bold tracking-[-0.03em] leading-[1.05] text-forest">
+          Giá minh bạch           cho từng loại không gian.
+        </h2>
+
+        <div class="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+          <article class="group rounded-xl bg-white border border-line p-8 md:p-10 flex flex-col justify-between hover:shadow-xl transition-shadow">
+            <div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="font-mono text-ink-soft">Dưới 45 m²</span><span class="ms text-ink-soft">bed</span>
+              </div>
+              <h3 class="mt-8 text-3xl font-bold tracking-tight text-forest">Studio &amp; Mini</h3>
+              <p class="mt-2 text-ink-soft">Người độc thân hoặc cặp đôi bận rộn.</p>
+              <p class="mt-8 font-mono text-5xl font-semibold tracking-tight text-forest">180.000<span class="text-base font-normal text-ink-soft"> đ / buổi</span></p>
+              <p class="mt-1 text-sm text-sage font-medium">2 giờ · 1 chuyên viên</p>
+              <ul class="mt-8 space-y-3 text-sm">
+                <li class="flex gap-2.5"><span class="ms text-sage text-[18px]">check_circle</span>Dọn giường, hút bụi đệm và thảm</li>
+                <li class="flex gap-2.5"><span class="ms text-sage text-[18px]">check_circle</span>Vệ sinh toilet toàn phần</li>
+                <li class="flex gap-2.5"><span class="ms text-sage text-[18px]">check_circle</span>Lau sàn thảo mộc khử khuẩn</li>
+              </ul>
+            </div>
+            <a href="#tinh-gia" class="mt-10 text-center rounded-lg bg-white border border-forest text-forest font-semibold py-4 hover:bg-sand transition active:scale-95">Chọn gói Studio</a>
+          </article>
+
+          <article class="group relative rounded-xl bg-forest text-white p-8 md:p-10 flex flex-col justify-between lg:-translate-y-4 shadow-[0_40px_70px_-30px_rgba(26,47,37,0.7)]">
+            <div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="font-mono text-mist/80">45 – 80 m²</span>
+                <span class="rounded-md bg-mist text-forest font-semibold px-3 py-1 text-xs">Phổ biến nhất</span>
+              </div>
+              <h3 class="mt-8 text-3xl font-bold tracking-tight">Căn hộ chung cư</h3>
+              <p class="mt-2 text-white/70">Căn hộ 1–2 phòng ngủ, dọn toàn diện.</p>
+              <p class="mt-8 font-mono text-5xl font-semibold tracking-tight text-white">240.000<span class="text-base font-normal text-white/60"> đ / buổi</span></p>
+              <p class="mt-1 text-sm text-mist/90 font-medium">3 giờ · 1 chuyên viên</p>
+              <ul class="mt-8 space-y-3 text-sm text-white/90">
+                <li class="flex gap-2.5"><span class="ms text-mist text-[18px]">check_circle</span>Bao gồm toàn bộ quy trình Studio</li>
+                <li class="flex gap-2.5"><span class="ms text-mist text-[18px]">check_circle</span>Tẩy cặn canxi vách kính tắm</li>
+                <li class="flex gap-2.5"><span class="ms text-mist text-[18px]">check_circle</span>Hút bụi khe rãnh cửa lùa và ban công</li>
+                <li class="flex gap-2.5"><span class="ms text-mist text-[18px]">check_circle</span>Lau mặt bếp từ và hút mùi</li>
+              </ul>
+            </div>
+            <a href="#tinh-gia" class="mt-10 text-center rounded-lg bg-white text-forest font-semibold py-4 hover:bg-mist transition active:scale-95">Đặt lịch ngay</a>
+          </article>
+
+          <article class="group rounded-xl bg-white border border-line p-8 md:p-10 flex flex-col justify-between hover:shadow-xl transition-shadow">
+            <div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="font-mono text-ink-soft">Trên 80 m²</span><span class="ms text-amber">domain</span>
+              </div>
+              <h3 class="mt-8 text-3xl font-bold tracking-tight text-forest">Nhà phố &amp; Biệt thự</h3>
+              <p class="mt-2 text-ink-soft">Tổ đội 2 người, rút ngắn thời gian dọn.</p>
+              <p class="mt-8 font-mono text-5xl font-semibold tracking-tight text-forest">480.000<span class="text-base font-normal text-ink-soft"> đ / buổi</span></p>
+              <p class="mt-1 text-sm text-amber font-semibold">2,5 giờ · 2 chuyên viên</p>
+              <ul class="mt-8 space-y-3 text-sm">
+                <li class="flex gap-2.5"><span class="ms text-sage text-[18px]">check_circle</span>2 chuyên viên chia việc theo sơ đồ tầng</li>
+                <li class="flex gap-2.5"><span class="ms text-sage text-[18px]">check_circle</span>Vệ sinh tay vịn cầu thang và chân tường</li>
+                <li class="flex gap-2.5"><span class="ms text-sage text-[18px]">check_circle</span>Làm sạch chuyên sâu 2–3 phòng tắm</li>
+              </ul>
+            </div>
+            <a href="#tinh-gia" class="mt-10 text-center rounded-lg bg-white border border-forest text-forest font-semibold py-4 hover:bg-sand transition active:scale-95">Chọn gói Nhà phố</a>
+          </article>
+        </div>
+
+        <div class="mt-8 rounded-xl bg-sand border border-line p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div class="flex items-center gap-5">
+            <span class="grid place-items-center w-12 h-12 rounded-lg bg-amber/20 text-amber"><span class="ms">calendar_month</span></span>
+            <div>
+              <h4 class="text-xl font-bold text-forest">Gói thuê bao định kỳ</h4>
+              <p class="text-ink-soft">Tiết kiệm 20% chi phí, cố định một chuyên viên quen thuộc.</p>
+            </div>
+          </div>
+          <a href="#tinh-gia" class="shrink-0 text-center rounded-lg bg-forest text-white font-semibold px-7 py-4 hover:bg-sage transition active:scale-95">Xem ưu đãi</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ACTION 2: Testimonial carousel ============ -->
+    <section id="danh-gia" class="px-6 lg:px-12 py-24 md:py-32 bg-sand">
+      <div class="max-w-6xl mx-auto">
+        <div class="flex items-end justify-between gap-6">
+          <h2 class="max-w-3xl text-[clamp(2.2rem,4vw,3.75rem)] font-bold tracking-[-0.03em] leading-[1.05] text-forest">
+            Người dùng nói gì về tổ ấm của họ.
+          </h2>
+          <div class="hidden md:flex gap-2 shrink-0">
+            <button id="t-prev" type="button" aria-label="Đánh giá trước"
+              class="grid place-items-center w-12 h-12 rounded-lg bg-white border border-forest text-forest hover:bg-forest hover:text-white transition active:scale-95"><span class="ms">arrow_back</span></button>
+            <button id="t-next" type="button" aria-label="Đánh giá kế tiếp"
+              class="grid place-items-center w-12 h-12 rounded-lg bg-forest text-white hover:bg-sage transition active:scale-95"><span class="ms">arrow_forward</span></button>
+          </div>
+        </div>
+
+        <div class="mt-16 grid md:grid-cols-12 gap-10 items-center">
+          <div class="md:col-span-4 flex md:justify-center" id="t-avatars" aria-hidden="true"></div>
+          <div class="md:col-span-8">
+            <div id="t-slides" class="grid" aria-live="polite"></div>
+            <div class="mt-8 flex md:hidden gap-2">
+              <button id="t-prev-m" type="button" aria-label="Đánh giá trước"
+                class="grid place-items-center w-12 h-12 rounded-lg bg-white border border-line text-forest"><span class="ms">arrow_back</span></button>
+              <button id="t-next-m" type="button" aria-label="Đánh giá kế tiếp"
+                class="grid place-items-center w-12 h-12 rounded-lg bg-forest text-white"><span class="ms">arrow_forward</span></button>
+            </div>
+          </div>
+        </div>
+        <p class="mt-14 text-xs text-ink-soft">Nội dung và số liệu trên trang này là dữ liệu mẫu để xem bố cục. Thay bằng số liệu và đánh giá thật trước khi ra mắt.</p>
+      </div>
+    </section>
+
+    <!-- ============ ACTION 3: CTA banner (photo only behind the headline) ============ -->
+    <section class="relative isolate overflow-hidden text-white px-6 lg:px-12 py-28 md:py-40">
+      <div class="absolute inset-0 -z-10" aria-hidden="true">
+        <img alt="" class="w-full h-full object-cover"
+          src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=max&w=2000&q=72" />
+        <div class="absolute inset-0 bg-forest/70"></div>
+        <div class="absolute inset-0" style="background: radial-gradient(ellipse 65% 75% at 50% 45%, rgba(26,47,37,.5), rgba(26,47,37,0) 100%)"></div>
+      </div>
+      <div class="max-w-7xl mx-auto text-center">
+        <h2 class="mx-auto max-w-5xl font-bold tracking-[-0.04em] leading-[1.02] text-[clamp(2.8rem,6.5vw,6rem)]">
+          Để cuối tuần thật sự là <span class="text-mist">ngày nghỉ.</span>
+        </h2>
+        <p class="mt-7 text-lg md:text-xl text-white/85">Đặt lịch trong 60 giây. Chuyên viên đầy đủ đồ nghề sẽ có mặt đúng giờ.</p>
+        <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a href="#tinh-gia"
+            class="inline-flex items-center gap-2 rounded-lg bg-white text-forest font-semibold px-8 py-4 hover:bg-mist transition active:scale-95">
+            Đặt lịch ngay <span class="ms text-[18px]">arrow_forward</span>
+          </a>
+          <a href="tel:19008899"
+            class="inline-flex items-center gap-2 rounded-lg border border-white/60 text-white font-semibold px-8 py-4 hover:bg-white/15 transition active:scale-95">
+            Hotline 1900 8899
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER: plain, no imagery ============ -->
+  <footer class="bg-[#12221A] text-white px-6 lg:px-12 py-14">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-8">
+      <div>
+        <p class="text-xl font-bold">TỔ ẤM</p>
+        <p class="mt-2 text-sm text-white/60">© 2025 TỔ ẤM Home Care. Yên tâm chuẩn Bắc Âu.</p>
+        <p class="mt-1 text-sm text-white/60">Hotline: <a class="hover:text-white" href="tel:19008899">1900 8899</a></p>
+      </div>
+      <nav class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/70 md:max-w-xl md:justify-end" aria-label="Chính sách">
+        <a class="hover:text-white transition" href="#">Cam kết hài lòng</a>
+        <a class="hover:text-white transition" href="#">Quy chuẩn KYC nhân sự</a>
+        <a class="hover:text-white transition" href="#">Chính sách bảo hiểm đồ đạc</a>
+        <a class="hover:text-white transition" href="#">Điều khoản dịch vụ</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script>
+    // PLACEHOLDER - du lieu mau de xem bo cuc. Thay bang so lieu/danh gia that truoc khi len production.
+    const PLACEHOLDER_PROOF = {
+      households: '14.500',
+      testimonials: [
+        { initials: 'HL', name: 'Chị Hương Ly', place: 'Masteri Thảo Điền', quote: 'Dung dịch thảo mộc thơm dịu như spa. Sàn nhà sạch bóng, con bò thoải mái không sợ hóa chất.' },
+        { initials: 'MN', name: 'Anh Minh Nhật', place: 'KĐT Sala, TP. Thủ Đức', quote: 'Nhà 3 tầng điều phối 2 người làm cùng lúc rất gọn gàng. Chỉ hơn 2 tiếng là xong.' },
+        { initials: 'TT', name: 'Bác Thanh Thảo', place: 'Vinhomes Central Park', quote: 'Các bạn tự mang máy hút bụi HEPA và khăn 4 màu riêng biệt. Nhà sạch thơm đúng chuẩn.' },
+      ],
+    };
+
+    (function () {
+      /* ---------- Price calculator (logic BR-21 giu nguyen tu template cu) ---------- */
+      const area = document.getElementById('calc-area');
+      const areaVal = document.getElementById('calc-area-val');
+      const priceEl = document.getElementById('calc-price');
+      const wTitle = document.getElementById('calc-worker-title');
+      const wDesc = document.getElementById('calc-worker-desc');
+      const wIcon = document.getElementById('calc-worker-icon');
+      const typeBtns = [...document.querySelectorAll('.calc-type')];
+      let type = 'apartment';
+
+      function paintTypes() {
+        typeBtns.forEach((b) => {
+          const on = b.dataset.type === type;
+          b.setAttribute('aria-checked', on ? 'true' : 'false');
+          b.className = 'calc-type rounded-lg border px-4 py-4 text-left transition ' +
+            (on ? 'bg-forest text-white border-forest' : 'bg-white text-forest border-line hover:bg-sand');
+        });
+      }
+
+      function calc() {
+        const a = parseInt(area.value, 10);
+        areaVal.textContent = a;
+        let base;
+        if (type === 'studio') { base = 180000; if (a > 40) base += (a - 40) * 1500; }
+        else if (type === 'townhouse') { base = 360000 + a * 1800; }
+        else { base = 200000 + a * 1400; }
+
+        const two = !(a <= 80 && type !== 'townhouse');
+        if (two) {
+          base = Math.max(base, 420000);
+          wTitle.textContent = '2 chuyên viên làm đồng thời';
+          wDesc.textContent = 'Tổ đội 2 người được kích hoạt cho nhà trên 80 m² hoặc nhà phố, rút ngắn thời gian hoàn thành.';
+          wIcon.textContent = 'group';
+        } else {
+          wTitle.textContent = '1 chuyên viên lành nghề';
+          wDesc.textContent = 'Đạt thời lượng tối ưu cho diện tích 80 m² trở xuống.';
+          wIcon.textContent = 'person';
+        }
+        priceEl.textContent = (Math.round(base / 10000) * 10000).toLocaleString('vi-VN');
+
+        const pct = ((a - area.min) / (area.max - area.min)) * 100;
+        area.style.setProperty('--track', `linear-gradient(to right, #416448 ${pct}%, #E2E3DE ${pct}%)`);
+      }
+
+      area.addEventListener('input', calc);
+      typeBtns.forEach((b) => b.addEventListener('click', () => { type = b.dataset.type; paintTypes(); calc(); }));
+      paintTypes(); calc();
+
+      /* ---------- Placeholder proof data ---------- */
+      const hh = document.querySelector('[data-proof="households"]');
+      if (hh) hh.textContent = PLACEHOLDER_PROOF.households;
+
+      /* ---------- Auto-advancing room slider ---------- */
+      (function () {
+        const viewport = document.getElementById('room-viewport');
+        const track = document.getElementById('room-track');
+        if (!viewport || !track) return;
+        const slidesR = [...track.children];
+        const tabs = [...document.querySelectorAll('.room-tab')];
+        const fills = tabs.map((t) => t.querySelector('.room-fill'));
+        const DELAY = 5000; // ms between automatic slides
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let idx = 0, timer = null, hovering = false, inView = true;
+
+        function offsetFor(i) {
+          const max = track.scrollWidth - viewport.clientWidth;
+          return Math.max(0, Math.min(slidesR[i].offsetLeft, max));
+        }
+        function resetFills() {
+          fills.forEach((f) => { f.style.transition = 'none'; f.style.width = '0%'; });
+        }
+        function arm() {
+          clearTimeout(timer);
+          resetFills();
+          void viewport.offsetWidth; // flush so the width transition restarts from 0
+          if (reduceMotion || hovering || !inView) return;
+          const f = fills[idx];
+          f.style.transition = 'width ' + DELAY + 'ms linear';
+          f.style.width = '100%';
+          timer = setTimeout(() => go(idx + 1), DELAY);
+        }
+        function freeze() {
+          clearTimeout(timer);
+          const f = fills[idx];
+          const w = getComputedStyle(f).width;
+          f.style.transition = 'none';
+          f.style.width = w;
+        }
+        function go(i, restart) {
+          idx = (i + slidesR.length) % slidesR.length;
+          track.style.transform = 'translateX(' + -offsetFor(idx) + 'px)';
+          slidesR.forEach((sl, k) => sl.classList.toggle('is-on', k === idx));
+          tabs.forEach((t, k) => t.setAttribute('aria-selected', k === idx ? 'true' : 'false'));
+          if (restart !== false) arm();
+        }
+
+        tabs.forEach((t, k) => t.addEventListener('click', () => go(k)));
+        document.getElementById('room-prev').addEventListener('click', () => go(idx - 1));
+        document.getElementById('room-next').addEventListener('click', () => go(idx + 1));
+
+        const box = document.getElementById('room-slider');
+        box.addEventListener('mouseenter', () => { hovering = true; freeze(); });
+        box.addEventListener('mouseleave', () => { hovering = false; arm(); });
+        new IntersectionObserver((e) => {
+          inView = e[0].isIntersecting;
+          inView ? arm() : freeze();
+        }, { threshold: 0.35 }).observe(box);
+
+        // Swipe
+        let x0 = null;
+        viewport.addEventListener('pointerdown', (e) => { x0 = e.clientX; });
+        viewport.addEventListener('pointerup', (e) => {
+          if (x0 === null) return;
+          const dx = e.clientX - x0; x0 = null;
+          if (Math.abs(dx) > 50) go(idx + (dx < 0 ? 1 : -1));
+        });
+        viewport.addEventListener('pointercancel', () => { x0 = null; });
+
+        let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => go(idx, false), 150); });
+        go(0);
+      })();
+
+      /* ---------- Testimonial carousel ---------- */
+      const slidesEl = document.getElementById('t-slides');
+      const avatarsEl = document.getElementById('t-avatars');
+      const T = PLACEHOLDER_PROOF.testimonials;
+      const tones = ['bg-forest text-mist', 'bg-amber text-forest', 'bg-sage text-white'];
+      T.forEach((t, i) => {
+        const s = document.createElement('figure');
+        s.style.gridArea = '1 / 1';
+        s.className = 't-slide';
+        s.innerHTML = `<blockquote class="text-[clamp(1.5rem,2.6vw,2.4rem)] font-medium tracking-tight leading-snug text-forest"></blockquote>
+          <figcaption class="mt-8 flex items-center gap-3"><span class="font-semibold text-forest"></span><span class="text-ink-soft"></span></figcaption>`;
+        s.querySelector('blockquote').textContent = '“' + t.quote + '”';
+        const cap = s.querySelectorAll('figcaption span');
+        cap[0].textContent = t.name; cap[1].textContent = '· ' + t.place;
+        slidesEl.appendChild(s);
+
+        const a = document.createElement('span');
+        a.className = `t-av grid place-items-center w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-sand font-bold text-2xl ${tones[i % 3]} ${i ? '-ml-8' : ''} transition-all duration-500`;
+        a.textContent = t.initials;
+        avatarsEl.appendChild(a);
+      });
+      const slides = [...slidesEl.children];
+      const avs = [...avatarsEl.children];
+      let cur = 0;
+      function show(n) {
+        cur = (n + slides.length) % slides.length;
+        slides.forEach((s, i) => {
+          s.style.pointerEvents = i === cur ? 'auto' : 'none';
+          if (window.gsap) gsap.to(s, { opacity: i === cur ? 1 : 0, y: i === cur ? 0 : 16, duration: 0.6, ease: 'power3.out' });
+          else s.style.opacity = i === cur ? 1 : 0;
+        });
+        avs.forEach((a, i) => { a.style.transform = i === cur ? 'scale(1.12)' : 'scale(0.92)'; a.style.opacity = i === cur ? 1 : 0.55; a.style.zIndex = i === cur ? 5 : 1; });
+      }
+      ['t-prev', 't-prev-m'].forEach((id) => document.getElementById(id).addEventListener('click', () => show(cur - 1)));
+      ['t-next', 't-next-m'].forEach((id) => document.getElementById(id).addEventListener('click', () => show(cur + 1)));
+      slides.forEach((s, i) => { s.style.opacity = i === 0 ? 1 : 0; });
+      show(0);
+
+      /* ---------- GSAP motion ---------- */
+      if (!window.gsap || !window.ScrollTrigger) return;
+      gsap.registerPlugin(ScrollTrigger);
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce) return;
+
+      // Hero entrance: word-by-word
+      const h1 = document.getElementById('hero-title');
+      gsap.from(h1, { opacity: 0, y: 40, duration: 1.1, ease: 'power4.out' });
+      // Animate wrappers, not the anchors: anchors carry Tailwind `transition` which fights GSAP's inline opacity/transform.
+      gsap.from('#top p, #hero-cta', { opacity: 0, y: 24, duration: 0.9, stagger: 0.1, delay: 0.35, ease: 'power3.out' });
+      gsap.fromTo('#hero-bg', { scale: 1.12 }, { scale: 1, duration: 2.4, ease: 'power2.out' });
+
+      // Section reveals
+      gsap.utils.toArray('#tinh-gia h2, #tinh-gia > div > div:last-child > div, #cong-viec h2, #bang-gia article, #danh-gia h2').forEach((el) => {
+        gsap.from(el, { opacity: 0, y: 48, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%', once: true } });
+      });
+      gsap.utils.toArray('section:nth-of-type(3) article').forEach((el, i) => {
+        gsap.from(el, { opacity: 0, y: 40, scale: 0.97, duration: 0.9, delay: i * 0.08, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 92%', once: true } });
+      });
+
+      const mm = gsap.matchMedia();
+      mm.add('(min-width: 1024px)', () => {
+        // Whole section is pinned; scrolling scrubs through 4 steps (crossfade + vertical drift),
+        // a vertical rule on the left fills as progress, and the active step label lights up.
+        document.documentElement.classList.add('pin-on');
+        const panels = gsap.utils.toArray('.step-panel');
+        const items = gsap.utils.toArray('.step-item');
+        const fill = document.getElementById('step-fill');
+        const N = panels.length;
+        const MIN = 0.08; // rule starts slightly filled so step 1 reads as active
+
+        gsap.set(panels.slice(1), { opacity: 0, y: 36 });
+        gsap.set(items.slice(1), { opacity: 0.35 });
+        gsap.set(fill, { scaleY: MIN });
+
+        // Timeline units: step k is held on [k, k+0.5]; transition into step k runs on [k-0.5, k].
+        const tl = gsap.timeline({
+          defaults: { ease: 'none' },
+          scrollTrigger: {
+            trigger: '#an-tam', start: 'top top', end: '+=' + (N * 85) + '%',
+            pin: true, scrub: 0.6, anticipatePin: 1,
+            snap: { snapTo: 'labels', duration: { min: 0.25, max: 0.7 }, ease: 'power2.inOut', delay: 0.05 },
+          },
+        });
+        for (let k = 0; k < N; k++) tl.addLabel('s' + k, k);
+        for (let k = 1; k < N; k++) {
+          const t = k - 0.5;
+          tl.to(panels[k - 1], { opacity: 0, y: -36, duration: 0.5 }, t)
+            .to(panels[k], { opacity: 1, y: 0, duration: 0.5 }, t)
+            .to(items[k - 1], { opacity: 0.35, duration: 0.5 }, t)
+            .to(items[k], { opacity: 1, duration: 0.5 }, t)
+            .to(fill, { scaleY: MIN + (1 - MIN) * (k / (N - 1)), duration: 0.5 }, t);
+        }
+        tl.to({}, { duration: 0.5 }, N - 1); // hold on the last step before the pin releases
+        ScrollTrigger.refresh();
+
+        return () => { document.documentElement.classList.remove('pin-on'); };
+      });
+
+    })();
+  </script>
+</body>
+
+</html>

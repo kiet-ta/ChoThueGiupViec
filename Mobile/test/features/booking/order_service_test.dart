@@ -105,7 +105,7 @@ void main() {
         final page = await service.listOrders(page: 2, pageSize: 20);
 
         expect(seen.single.method, 'GET');
-        expect(seen.single.path, '/api/booking/orders');
+        expect(seen.single.path, '/api/v1/booking/orders');
         expect(seen.single.query, {'page': '2', 'pageSize': '20'});
         expect(seen.single.auth, 'Bearer tok');
         expect(page.total, 21);
@@ -126,7 +126,7 @@ void main() {
 
       final order = await service.getOrder(100);
 
-      expect(seen.single.path, '/api/booking/orders/100');
+      expect(seen.single.path, '/api/v1/booking/orders/100');
       expect(order.orderStatus, OrderStatus.dispatching);
       expect(order.scheduledDate, '2026-10-15');
     });
@@ -167,7 +167,7 @@ void main() {
 
       final progress = await service.getProgress(100);
 
-      expect(seen.single.path, '/api/booking/orders/100/progress');
+      expect(seen.single.path, '/api/v1/booking/orders/100/progress');
       final a = progress.assignments.single;
       expect(a.assignmentId, 7);
       expect(a.workerName, 'Nguyễn Thị Lan');
@@ -214,7 +214,7 @@ void main() {
         final order = await service.cancelOrder(100, 'bận việc');
 
         expect(seen.single.method, 'POST');
-        expect(seen.single.path, '/api/booking/orders/100/cancel');
+        expect(seen.single.path, '/api/v1/booking/orders/100/cancel');
         expect(jsonDecode(seen.single.body), {'reason': 'bận việc'});
         expect(order.orderStatus, OrderStatus.cancelled);
         expect(order.cancelReason, 'bận việc');
@@ -262,7 +262,7 @@ void main() {
       );
 
       expect(seen.single.method, 'POST');
-      expect(seen.single.path, '/api/booking/orders/100/extensions');
+      expect(seen.single.path, '/api/v1/booking/orders/100/extensions');
       expect(jsonDecode(seen.single.body), {
         'assignmentId': 7,
         'extraHours': 1.5,

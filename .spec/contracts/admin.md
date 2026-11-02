@@ -40,14 +40,14 @@ Only the Admin created by the dev seed (overview §10) exists in the MVP. This c
 ## 2. Endpoints
 
 ### 2.1 Profile (BE-M6-06)
-**`GET /api/admin/me`** -> 200 `data: AdminProfile`. 404 only if the row was removed.
+**`GET /api/v1/admin/me`** -> 200 `data: AdminProfile`. 404 only if the row was removed.
 
 ### 2.2 Absence approval (BE-M6-03, WEB-M6-02)
 
-**`GET /api/admin/absence-reports?status=&page=&pageSize=`** -> 200 `data: { items: AbsenceReport[], page, pageSize, total }`, default `status = PENDING`, oldest `customerAbsentAt` first. A report exists when `CHECK_IN_LOG.customer_absent_at` is set (M3 published `CustomerAbsentReported`); there is no separate table (**A3**).
-**`GET /api/admin/absence-reports/{assignmentId}`** -> 200 `data: AbsenceReport`. 404 if the assignment has no absence report.
+**`GET /api/v1/admin/absence-reports?status=&page=&pageSize=`** -> 200 `data: { items: AbsenceReport[], page, pageSize, total }`, default `status = PENDING`, oldest `customerAbsentAt` first. A report exists when `CHECK_IN_LOG.customer_absent_at` is set (M3 published `CustomerAbsentReported`); there is no separate table (**A3**).
+**`GET /api/v1/admin/absence-reports/{assignmentId}`** -> 200 `data: AbsenceReport`. 404 if the assignment has no absence report.
 
-**`POST /api/admin/absence-reports/{assignmentId}/approve`** -> 200 `data: AbsenceReport`. No body.
+**`POST /api/v1/admin/absence-reports/{assignmentId}/approve`** -> 200 `data: AbsenceReport`. No body.
 The system **refuses** unless all hold (Q10): (a) `gps_verified`, (b) `call_attempts >= 2`, (c) at least 15 minutes since `checked_in_at`, (d) `customer_absent_at` is set. A refusal is **409** with `blockReasons` listing which of `GPS_NOT_VERIFIED`, `CALLS_BELOW_MINIMUM`, `WAIT_BELOW_MINIMUM`, `ABSENCE_NOT_REPORTED` failed. 409 also if already decided.
 On success, in one transaction (per affected assignment, Q10):
 - `absence_fee_amount = Vnd.Round(gross_amount x Absence.FeeRate)` (0.40); the assignment moves to `ABSENT` through the state machine.
@@ -57,7 +57,7 @@ On success, in one transaction (per affected assignment, Q10):
 - **(BE-M6-03) How it is done:** one conditional `UPDATE ... WHERE assignment_status = 'CHECKED_IN'` sets `ABSENT` and the fee, so two admins approving at once get one 200 and one 409 and the refund runs once; `IRefundService` refunds `gross - fee` (so the two parts add up exactly); a refused refund is a **502** and the whole transaction is rolled back; one `ADMIN_AUDIT_LOG` row is written (`JOB_ASSIGNMENT`, `absence_report`, `PENDING` to `APPROVED`, reason with the amounts); an assignment that is no longer `CHECKED_IN` (for example the work started) is a 409. `waitedMinutes` is the time since check-in until now while PENDING and until the report once decided.
 - **Double-refund risk to settle with M2:** `Domain/Events` and `Backend/ARCHITECTURE.md` describe this event as the trigger of the 60 % refund in M2, while this contract (and the code) refunds through `IRefundService` here. The real `IRefundService` implementer must not refund again on `CustomerAbsentApproved`.
 
-**`POST /api/admin/absence-reports/{assignmentId}/reject`** -> 200 `data: AbsenceReport`
+**`POST /api/v1/admin/absence-reports/{assignmentId}/reject`** -> 200 `data: AbsenceReport`
 ```json
 { "reason": "string" }
 ```
@@ -65,7 +65,7 @@ On success, in one transaction (per affected assignment, Q10):
 
 ### 2.3 Operations dashboard (BE-M6-06, WEB-M6-04)
 
-**`GET /api/admin/dashboard`** -> 200
+**`GET /api/v1/admin/dashboard`** -> 200
 ```json
 {
   "generatedAt": "ISO-8601 UTC",
@@ -74,7 +74,7 @@ On success, in one transaction (per affected assignment, Q10):
   "disputes": { "open": 0, "nearSla": 0 }
 }
 ```
-Exactly the three groups the plan names (orders, shifts, open disputes); no other metric is added without the leader (G-7). Definitions are **A2**. The "Tranh chấp sắp quá hạn" list on the dashboard reuses `GET /api/admin/disputes?nearSla=true&pageSize=5` (`disputes.md` §2.2), so the dashboard does not duplicate it. Errors and loading states are the standard envelope (the UI has loading/empty/error states).
+Exactly the three groups the plan names (orders, shifts, open disputes); no other metric is added without the leader (G-7). Definitions are **A2**. The "Tranh chấp sắp quá hạn" list on the dashboard reuses `GET /api/v1/admin/disputes?nearSla=true&pageSize=5` (`disputes.md` §2.2), so the dashboard does not duplicate it. Errors and loading states are the standard envelope (the UI has loading/empty/error states).
 
 **(BE-M6-06b, ticket #142) As built:** the counts follow the recommended defaults of **A2** (not yet confirmed by the leader). Days and the ISO week are those of `Asia/Ho_Chi_Minh` (Sunday 23:59:59 local still belongs to the ending week, Monday 00:00 local starts the new one even when the UTC date is still Sunday); `shifts.inProgress` counts `CHECKED_IN`, `IN_PROGRESS` and `AWAITING_ACCEPTANCE`; `disputes.open` counts `OPEN` and `IN_REVIEW`; `disputes.nearSla` is open tickets with `sla_due_at <= now + Admin:DisputeNearSlaHours` (default 6, configurable in one options class, overdue included). The module reads `JOB_ORDER`, `JOB_ASSIGNMENT` and `DISPUTE_TICKET` read-only because no read port exists (**A6**).
 
@@ -82,22 +82,22 @@ Exactly the three groups the plan names (orders, shifts, open disputes); no othe
 
 `IAuditLog` (port) gets its real implementation here: **append-only**; there is no update or delete endpoint or method. `Append` runs in the **same DB transaction** as the change it records (G-5) and rejects an empty `reason` for Admin actors.
 
-**`GET /api/admin/audit-logs?entityType=&entityId=&actorType=&from=&to=&page=&pageSize=`** -> 200 `data: { items: AuditLogEntry[], page, pageSize, total }`, newest first; `from`/`to` are ISO-8601 UTC dates; `pageSize` max 100. No write endpoints.
+**`GET /api/v1/admin/audit-logs?entityType=&entityId=&actorType=&from=&to=&page=&pageSize=`** -> 200 `data: { items: AuditLogEntry[], page, pageSize, total }`, newest first; `from`/`to` are ISO-8601 UTC dates; `pageSize` max 100. No write endpoints.
 
 ### 2.5 Super-Freelancer (BE-M6-09)
 
-**`POST /api/admin/workers/{workerId}/super-freelancer`** -> 200 `data: { workerId, isSuperFreelancer: true }`
+**`POST /api/v1/admin/workers/{workerId}/super-freelancer`** -> 200 `data: { workerId, isSuperFreelancer: true }`
 ```json
 { "reason": "string" }
 ```
 Q12: allowed only if `rating_avg >= 4.80`, `completed_jobs >= 50`, KYC approved, and no upheld dispute with `fault_party = FREELANCER` in the last 180 days. Otherwise **409** with `data.failedCriteria` listing `RATING_BELOW_MINIMUM`, `COMPLETED_JOBS_BELOW_MINIMUM`, `KYC_NOT_APPROVED`, `UPHELD_DISPUTE_RECENT`. 404 if the worker does not exist; 409 `NOT_FREELANCER` for `AGENCY_STAFF`. Writes one audit row (`entity_type = WORKER`, `field_name = is_super_freelancer`, `reason`).
-**`DELETE /api/admin/workers/{workerId}/super-freelancer`** -> 200, body `{ "reason": "string" }`, revokes manually and audits the same way.
+**`DELETE /api/v1/admin/workers/{workerId}/super-freelancer`** -> 200, body `{ "reason": "string" }`, revokes manually and audits the same way.
 
 **Automatic revoke** (Q12): when a `RatingSubmitted` event leaves `rating_avg < 4.70`, the Admin module sets `is_super_freelancer = false` and writes an audit row with `actor_type = SYSTEM`, `admin_id = null`, `reason = "rating below 4.70"`.
 
 ### 2.6 Unlock a worker (ADMIN-UAT-10, decisions Q15 "Admin can unlock")
 
-**`POST /api/admin/workers/{workerId}/unlock`** -> 200 `data: { workerId, workStatus: "IDLE" }`
+**`POST /api/v1/admin/workers/{workerId}/unlock`** -> 200 `data: { workerId, workStatus: "IDLE" }`
 ```json
 { "reason": "string" }
 ```
@@ -118,7 +118,7 @@ No endpoint: they are `ADMIN_AUDIT_LOG` rows with `actor_type = SYSTEM`, `admin_
 
 | # | Question | Recommended default |
 |---|---|---|
-| **A1** | "Tài khoản Admin" (plan BE-M6-06): create/list/deactivate Admin accounts? AGENTS.md forbids creating other admins by hand. | **Only `GET /api/admin/me`; no admin management endpoints in the MVP.** |
+| **A1** | "Tài khoản Admin" (plan BE-M6-06): create/list/deactivate Admin accounts? AGENTS.md forbids creating other admins by hand. | **Only `GET /api/v1/admin/me`; no admin management endpoints in the MVP.** |
 | **A2** | Dashboard definitions. Orders: by `created_at` or `scheduled_date`? "This week" start day? Shifts: which statuses are "in progress"? "Near SLA" threshold? | **Orders = `JOB_ORDER.created_at` falling today / this ISO week (Monday start) in `Asia/Ho_Chi_Minh` (G-3). Shifts in progress = assignments in `CHECKED_IN`, `IN_PROGRESS`, `AWAITING_ACCEPTANCE`; completed today = `COMPLETED` with `completed_at` today. Disputes open = `OPEN` + `IN_REVIEW`. Near SLA = open and `sla_due_at - now <= Admin.DisputeNearSlaHours`, config default 6 h** (the 6 h and the "Hoàn tất hôm nay" period were chosen by the designer in the Figma frame, **not decided by the leader**: needs confirmation). |
 | **A3** | Is a separate absence-report table needed (approved/rejected state)? | **No schema change: PENDING = `customer_absent_at` set and assignment not yet `ABSENT`; APPROVED = assignment `ABSENT` with `absence_fee_amount`; REJECTED derived from the audit log (`entity_type = JOB_ASSIGNMENT`, `field_name = absence_report`).** |
 | **A4** | What does "Bác yêu cầu" do to the assignment (PRD and Q10 only define approval)? | **Records the rejection and reason in the audit log and notifies the worker; the assignment is left as it is (the worker can continue if the customer shows up, M3 owns the next transition).** If a state transition is needed, the leader must define it. |

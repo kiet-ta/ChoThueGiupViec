@@ -47,9 +47,9 @@ An assignment that is not the caller's is **404**, never a `reason` (no existenc
 
 ### 2.1 Customer rates the worker (BE-M6-01, MOB-M6-01) — policy `CustomerOnly`
 
-**`GET /api/customers/me/assignments/{assignmentId}/rating-window`** -> 200 `data: RatingWindow`. 404 if the assignment does not exist or `customer_id` is not the caller.
+**`GET /api/v1/customers/me/assignments/{assignmentId}/rating-window`** -> 200 `data: RatingWindow`. 404 if the assignment does not exist or `customer_id` is not the caller.
 
-**`POST /api/customers/me/assignments/{assignmentId}/rating`** -> 201 `data: Rating`
+**`POST /api/v1/customers/me/assignments/{assignmentId}/rating`** -> 201 `data: Rating`
 ```json
 { "stars": 5, "criteria": { "punctuality": 5, "cleaningQuality": 4, "attitude": 5 }, "comment": "string | null" }
 ```
@@ -65,9 +65,9 @@ Effects: row inserted; `RatingSubmitted` published; the worker's rating average 
 
 ### 2.2 Worker rates the customer (BE-M6-01, MOB-M6-02) — policy `WorkerOnly`
 
-**`GET /api/workers/me/assignments/{assignmentId}/rating-window`** -> 200 `data: RatingWindow`. 404 if `worker_id` is not the caller.
+**`GET /api/v1/workers/me/assignments/{assignmentId}/rating-window`** -> 200 `data: RatingWindow`. 404 if `worker_id` is not the caller.
 
-**`POST /api/workers/me/assignments/{assignmentId}/rating`** -> 201 `data: Rating`
+**`POST /api/v1/workers/me/assignments/{assignmentId}/rating`** -> 201 `data: Rating`
 ```json
 { "stars": 4, "criteria": { "cooperation": 5, "workingConditions": 4 }, "comment": "string | null" }
 ```

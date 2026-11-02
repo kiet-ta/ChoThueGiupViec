@@ -1,15 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_elevation.dart';
 import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/dark_header.dart';
+import '../../../core/widgets/raised_panel.dart';
 import '../../../core/widgets/progress_ring.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
@@ -278,12 +282,22 @@ class _PaymentScreenState extends State<PaymentScreen>
   @override
   Widget build(BuildContext context) {
     final args = _args;
+    final payment = _payment;
+    final now = _now();
+    if (args != null &&
+        !_loading &&
+        _error == null &&
+        payment != null &&
+        phaseOf(payment, now) == PaymentPhase.waiting) {
+      return _waitingPage(payment, now);
+    }
     // MOB-UI-15: a pushed `NordicPage`; the amount is the one big number (DESIGN-SYSTEM §5 Detail).
     return NordicPage.pushed(
       title: 'Thanh toán',
       children: [
         const _SandboxBanner(),
-        if (args?.orderCode != null) ...[
+        if (args?.orderCode != null &&
+            _payment?.gateway.toUpperCase() != 'SEPAY') ...[
           const SizedBox(height: NordicSpace.lg),
           Text(
             'Mã đơn ${args!.orderCode}',
@@ -293,6 +307,82 @@ class _PaymentScreenState extends State<PaymentScreen>
         ],
         const SizedBox(height: NordicSpace.md),
         ..._body(args),
+      ],
+    );
+  }
+
+  Widget _waitingPage(Payment payment, DateTime now) {
+    const overlap = 64.0;
+    final details = payment.gateway.toUpperCase() == 'SEPAY'
+        ? _sePayWaiting(payment, now, header: true)
+        : _waiting(payment, now, header: true);
+    return NordicPage.pushed(
+      title: 'Thanh toán',
+      padding: EdgeInsets.zero,
+      fullWidthHeader: DarkHeader(
+        overlap: overlap,
+        appBarTitle: 'Thanh toán',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              purposeLabel(payment),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.onDarkMuted,
+              ),
+            ),
+            const SizedBox(height: NordicSpace.xs),
+            Text(
+              formatVnd(payment.amount),
+              key: const Key('payment-amount'),
+              style: NordicTypography.numberLarge.copyWith(
+                color: NordicColors.textInverse,
+              ),
+            ),
+            const SizedBox(height: NordicSpace.sm),
+            Row(
+              children: [
+                Text(
+                  'Hết hạn sau ',
+                  style: NordicTypography.bodyRegular.copyWith(
+                    color: NordicColors.onDarkMuted,
+                  ),
+                ),
+                Text(
+                  countdownText(timeLeft(payment, now)),
+                  key: const Key('payment-countdown'),
+                  style: NordicTypography.bodyRegular.copyWith(
+                    color: NordicColors.onDarkMuted,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      children: [
+        Transform.translate(
+          offset: const Offset(0, -overlap),
+          child: RaisedPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _SandboxBanner(),
+                if (_args?.orderCode != null &&
+                    payment.gateway.toUpperCase() != 'SEPAY') ...[
+                  const SizedBox(height: NordicSpace.sm),
+                  Text(
+                    'Mã đơn ${_args!.orderCode}',
+                    textAlign: TextAlign.center,
+                    style: NordicTypography.bodySmall,
+                  ),
+                ],
+                const SizedBox(height: NordicSpace.md),
+                ...details,
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -326,12 +416,143 @@ class _PaymentScreenState extends State<PaymentScreen>
 
     final now = _now();
     return switch (phaseOf(payment, now)) {
-      PaymentPhase.waiting => _waiting(payment, now),
+      PaymentPhase.waiting =>
+        payment.gateway.toUpperCase() == 'SEPAY'
+            ? _sePayWaiting(payment, now)
+            : _waiting(payment, now),
       PaymentPhase.paid => _paid(payment),
       PaymentPhase.expired => _expired(),
       PaymentPhase.refunded => _refunded(payment),
     };
   }
+
+  List<Widget> _sePayWaiting(
+    Payment payment,
+    DateTime now, {
+    bool header = false,
+  }) {
+    final qrUrl = payment.payUrl ?? payment.qrPayload;
+    final uri = Uri.tryParse(payment.qrPayload ?? '');
+    final code = uri?.queryParameters['des'];
+    final bank = uri?.queryParameters['bank'];
+    final account = uri?.queryParameters['acc'];
+    return [
+      NordicCard(
+        child: qrUrl == null || qrUrl.isEmpty
+            ? const _QrUnavailable()
+            : AspectRatio(
+                aspectRatio: 1,
+                child: Image.network(
+                  qrUrl,
+                  key: const Key('sepay-qr'),
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Mã QR chuyển khoản',
+                  loadingBuilder: (context, child, progress) => progress == null
+                      ? child
+                      : const Center(
+                          child: CircularProgressIndicator(
+                            color: NordicColors.primary,
+                          ),
+                        ),
+                  errorBuilder: (context, error, stackTrace) =>
+                      const _QrUnavailable(),
+                ),
+              ),
+      ),
+      const SizedBox(height: NordicSpace.md),
+      NordicCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Thông tin chuyển khoản',
+              style: NordicTypography.titleMedium,
+            ),
+            const SizedBox(height: NordicSpace.md),
+            if (bank != null && bank.isNotEmpty) ...[
+              _transferDetail('Ngân hàng', bank, bank, 'copy-bank'),
+              const SizedBox(height: NordicSpace.sm),
+            ],
+            if (account != null && account.isNotEmpty) ...[
+              _transferDetail('Số tài khoản', account, account, 'copy-account'),
+              const SizedBox(height: NordicSpace.sm),
+            ],
+            _transferDetail(
+              'Số tiền',
+              formatVnd(payment.amount),
+              payment.amount.toString(),
+              'copy-amount',
+            ),
+            const SizedBox(height: NordicSpace.sm),
+            _transferDetail(
+              'Nội dung chuyển khoản',
+              code == null || code.isEmpty
+                  ? 'Chưa có nội dung chuyển khoản'
+                  : code,
+              code,
+              'copy-content',
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: NordicSpace.md),
+      const Text(
+        'Chuyển đúng số tiền và nội dung. Hệ thống tự xác nhận sau ít phút.',
+        style: NordicTypography.bodySmall,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      if (!header)
+        _statBox(
+          icon: Icons.timer_outlined,
+          label: 'Hết hạn sau',
+          child: Text(
+            countdownText(timeLeft(payment, now)),
+            key: const Key('payment-countdown'),
+            style: NordicTypography.numberMedium,
+          ),
+        ),
+      if (_pollFailures >= 3) ...[
+        const SizedBox(height: NordicSpace.sm),
+        const Text(
+          pollTroubleMessage,
+          key: Key('payment-waiting-note'),
+          style: NordicTypography.bodySmall,
+        ),
+      ],
+    ];
+  }
+
+  Widget _transferDetail(
+    String label,
+    String value,
+    String? copy,
+    String key,
+  ) => Row(
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: NordicTypography.bodySmall),
+            const SizedBox(height: NordicSpace.xxs),
+            SelectableText(value, style: NordicTypography.titleSmall),
+          ],
+        ),
+      ),
+      if (copy != null && copy.isNotEmpty)
+        NordicButton(
+          key: Key(key),
+          label: 'Sao chép',
+          variant: NordicButtonVariant.ghost,
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: copy));
+            if (!mounted) return;
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('Đã sao chép $label')));
+          },
+        ),
+    ],
+  );
 
   /// Share of the QR's life still left (1 = just created), for the bar under the stats.
   double _lifeLeft(Payment payment, DateTime now) {
@@ -343,21 +564,45 @@ class _PaymentScreenState extends State<PaymentScreen>
     return (timeLeft(payment, now).inSeconds / total).clamp(0.0, 1.0);
   }
 
-  List<Widget> _waiting(Payment payment, DateTime now) {
+  List<Widget> _waiting(Payment payment, DateTime now, {bool header = false}) {
     final amount = formatVnd(payment.amount);
     return [
-      Text(
-        purposeLabel(payment),
-        textAlign: TextAlign.center,
-        style: NordicTypography.bodySmall,
-      ),
-      const SizedBox(height: NordicSpace.xs),
-      Text(
-        amount,
-        key: const Key('payment-amount'),
-        textAlign: TextAlign.center,
-        style: NordicTypography.numberLarge.copyWith(fontSize: 44.0),
-      ),
+      // The one raised block of the screen: what is paid and how much (DESIGN-SYSTEM §5 Detail).
+      if (!header)
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            color: NordicColors.contrastDark,
+            borderRadius: NordicRadius.cardAll,
+            boxShadow: NordicElevation.raised,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: NordicSpace.md,
+              vertical: NordicSpace.lg,
+            ),
+            child: Column(
+              children: [
+                Text(
+                  purposeLabel(payment),
+                  textAlign: TextAlign.center,
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.onDarkMuted,
+                  ),
+                ),
+                const SizedBox(height: NordicSpace.xs),
+                Text(
+                  amount,
+                  key: const Key('payment-amount'),
+                  textAlign: TextAlign.center,
+                  style: NordicTypography.numberLarge.copyWith(
+                    fontSize: 44.0,
+                    color: NordicColors.textInverse,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       const SizedBox(height: NordicSpace.lg),
       NordicCard(
         padding: const EdgeInsets.all(20.0),
@@ -389,10 +634,25 @@ class _PaymentScreenState extends State<PaymentScreen>
                 style: NordicTypography.bodyRegular,
               ),
             ),
+            if (payment.qrPayload != null && payment.qrPayload!.isNotEmpty)
+              NordicButton(
+                key: const Key('copy-qr-payload'),
+                label: 'Sao chép nội dung',
+                variant: NordicButtonVariant.secondary,
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(text: payment.qrPayload!),
+                  );
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Đã sao chép nội dung')),
+                  );
+                },
+              ),
             if (payment.payUrl != null) ...[
               const SizedBox(height: NordicSpace.sm),
               const Text(
-                'Trang thanh toán sandbox',
+                'Trang thanh toán thử',
                 style: NordicTypography.titleSmall,
               ),
               const SizedBox(height: NordicSpace.xxs),
@@ -405,7 +665,7 @@ class _PaymentScreenState extends State<PaymentScreen>
             ],
             const SizedBox(height: NordicSpace.sm),
             const Text(
-              'Ứng dụng chưa vẽ được mã QR dạng hình: sao chép nội dung trên để thanh toán thử.',
+              'Sao chép nội dung trên để thanh toán thử.',
               textAlign: TextAlign.center,
               style: NordicTypography.bodySmall,
             ),
@@ -415,18 +675,19 @@ class _PaymentScreenState extends State<PaymentScreen>
       const SizedBox(height: NordicSpace.md),
       Row(
         children: [
-          Expanded(
-            child: _statBox(
-              icon: Icons.timer_outlined,
-              label: 'Hết hạn sau',
-              child: Text(
-                countdownText(timeLeft(payment, now)),
-                key: const Key('payment-countdown'),
-                style: NordicTypography.numberMedium,
+          if (!header)
+            Expanded(
+              child: _statBox(
+                icon: Icons.timer_outlined,
+                label: 'Hết hạn sau',
+                child: Text(
+                  countdownText(timeLeft(payment, now)),
+                  key: const Key('payment-countdown'),
+                  style: NordicTypography.numberMedium,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: NordicSpace.sm),
+          if (!header) const SizedBox(width: NordicSpace.sm),
           Expanded(
             child: _statBox(
               icon: Icons.sync,
@@ -589,6 +850,20 @@ class _PaymentScreenState extends State<PaymentScreen>
       ),
     ),
   ];
+}
+
+class _QrUnavailable extends StatelessWidget {
+  const _QrUnavailable();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+    child: Text(
+      'Không tải được mã QR. Bạn vẫn có thể dùng thông tin bên dưới.',
+      key: Key('sepay-qr-unavailable'),
+      textAlign: TextAlign.center,
+      style: NordicTypography.bodyRegular,
+    ),
+  );
 }
 
 /// Decision Q04: every payment screen says, permanently, that no real money moves (ui-templates `.sandbox`).

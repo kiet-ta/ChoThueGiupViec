@@ -11,13 +11,13 @@ class WorkerExtensionService {
 
   /// Worker responds to extension request paid by customer (contract workers.md §2.6.1).
   ///
-  /// Sends `POST /api/workers/assignments/{assignmentId}/extension/respond` with `{ accept: bool }`.
+  /// Sends `POST /api/v1/workers/assignments/{assignmentId}/extension/respond` with `{ accept: bool }`.
   Future<ApiResponse<WorkerExtensionResponseDto>> respondExtension({
     required int assignmentId,
     required bool accept,
   }) {
     return _apiClient.post<WorkerExtensionResponseDto>(
-      '/api/workers/assignments/$assignmentId/extension/respond',
+      '/api/v1/workers/assignments/$assignmentId/extension/respond',
       body: {'accept': accept},
       fromJson: (json) =>
           WorkerExtensionResponseDto.fromJson(json as Map<String, dynamic>),

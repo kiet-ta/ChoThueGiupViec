@@ -14,7 +14,7 @@ class WorkersEkycService {
     SubmitEkycRequest request,
   ) {
     return _apiClient.post<EkycResultResponse>(
-      '/api/workers/me/ekyc',
+      '/api/v1/workers/me/ekyc',
       body: request.toJson(),
       fromJson: (json) =>
           EkycResultResponse.fromJson(json as Map<String, dynamic>),

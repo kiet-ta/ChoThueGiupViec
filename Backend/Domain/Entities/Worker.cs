@@ -50,6 +50,21 @@ public partial class Worker
     /// <summary>worker.current_lng DECIMAL(9,6) NULL</summary>
     public decimal? CurrentLng { get; set; }
 
+    /// <summary>worker.work_lat DECIMAL(9,6) NULL: base point of the work area the freelancer registered (decisions D24).</summary>
+    public decimal? WorkLat { get; set; }
+
+    /// <summary>worker.work_lng DECIMAL(9,6) NULL</summary>
+    public decimal? WorkLng { get; set; }
+
+    /// <summary>worker.work_radius_km TINYINT NULL: how far from the base point the worker accepts jobs (5, 10 or 15).</summary>
+    public byte? WorkRadiusKm { get; set; }
+
+    /// <summary>worker.work_districts NVARCHAR(500) NULL: district names joined by ';', shown to the worker only.</summary>
+    public string? WorkDistricts { get; set; }
+
+    /// <summary>worker.work_area_set_at DATETIME2 NULL</summary>
+    public DateTime? WorkAreaSetAt { get; set; }
+
     /// <summary>worker.bank_account_no VARCHAR(30) NULL</summary>
     public string? BankAccountNo { get; set; }
 

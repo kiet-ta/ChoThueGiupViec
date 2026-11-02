@@ -11,7 +11,7 @@ public sealed record EscrowTransactionPageDto(IReadOnlyList<EscrowTransactionDto
 
 /// <summary>Escrow of the agency (contract agencies.md 6, BE-M5-07, decisions Q09, policy PartnerOnly).</summary>
 [ApiController]
-[Route("api/agencies/escrow")]
+[Route("api/v1/agencies/escrow")]
 [Authorize(Policy = "PartnerOnly")]
 public class AgencyEscrowController(EscrowService service) : ControllerBase
 {
@@ -49,7 +49,7 @@ public class AgencyEscrowController(EscrowService service) : ControllerBase
 
 /// <summary>Admin side of the escrow appeals (decisions Q09, G-5): a manual decision; an accepted appeal appends a REVERSAL row.</summary>
 [ApiController]
-[Route("api/admin/escrow/appeals")]
+[Route("api/v1/admin/escrow/appeals")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminEscrowAppealsController(EscrowService service) : ControllerBase
 {

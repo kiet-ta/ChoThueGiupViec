@@ -14,7 +14,7 @@ public sealed record FallbackAnswerRequest(bool? Accept);
 /// waits for the customer's choice. Someone else's order answers 404; an order that is not waiting answers 409 with data.code.
 /// </summary>
 [ApiController]
-[Route("api/dispatch/orders/{orderId:long}/fallback")]
+[Route("api/v1/dispatch/orders/{orderId:long}/fallback")]
 [Authorize(Policy = "CustomerOnly")]
 public class CustomerFallbackController(ConsecutiveShiftFallbackService service) : ControllerBase
 {

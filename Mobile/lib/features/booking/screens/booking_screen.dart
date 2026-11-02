@@ -10,6 +10,8 @@ import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/pressable.dart';
+import '../../../core/widgets/raised_panel.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../customers/routes.dart';
 import '../../customers/models/favorite_worker.dart';
@@ -27,13 +29,17 @@ class BookingScreenArgs {
   final String? serviceTier;
   final int? addressId;
 
-  /// A favorite worker (ECONOMY only): ticked, and their busy days and shifts greyed out.
+  /// A favorite or a worker from a completed previous order (ECONOMY only).
   final int? preferredWorkerId;
+  final int? previousOrderId;
+  final String? previousWorkerName;
 
   const BookingScreenArgs({
     this.serviceTier,
     this.addressId,
     this.preferredWorkerId,
+    this.previousOrderId,
+    this.previousWorkerName,
   });
 }
 
@@ -54,6 +60,7 @@ class BookingScreen extends StatefulWidget {
 
   /// The customer's favorite workers and their free shifts; by default the Customers feature.
   final IBookingFavoriteSource? favorites;
+  final IRebookAvailabilitySource? rebookAvailability;
 
   /// The preselected choices; when null they are read from the route arguments.
   final BookingScreenArgs? args;
@@ -67,6 +74,7 @@ class BookingScreen extends StatefulWidget {
     this.onOrderCreated,
     this.onManageAddresses,
     this.favorites,
+    this.rebookAvailability,
   });
 
   @override
@@ -77,6 +85,7 @@ class _BookingScreenState extends State<BookingScreen> {
   late final IBookingService _service;
   late final IBookingAddressSource _addressSource;
   late final IBookingFavoriteSource _favoriteSource;
+  late final IRebookAvailabilitySource _rebookAvailability;
   late final List<DateTime> _days;
 
   final _noteController = TextEditingController();
@@ -101,6 +110,9 @@ class _BookingScreenState extends State<BookingScreen> {
   /// Favorites of the customer; empty (section hidden) until loaded or when the call failed.
   List<FavoriteWorker> _favorites = const [];
   int? _preferredWorkerId;
+  int? _previousOrderId;
+  int? _previousWorkerId;
+  String? _previousWorkerName;
 
   /// The preferred worker's free shifts ([freeShiftKey]); null when nobody is picked or not known (nothing greyed out).
   Set<String>? _free;
@@ -118,6 +130,8 @@ class _BookingScreenState extends State<BookingScreen> {
     _service = widget.service ?? BookingService();
     _addressSource = widget.addresses ?? CustomerAddressBookSource();
     _favoriteSource = widget.favorites ?? CustomerFavoriteSource();
+    _rebookAvailability =
+        widget.rebookAvailability ?? RebookAvailabilitySource();
     _days = selectableDates((widget.now ?? DateTime.now)());
     _load();
     _loadFavorites();
@@ -135,6 +149,11 @@ class _BookingScreenState extends State<BookingScreen> {
     _tier ??= args?.serviceTier;
     _addressId ??= args?.addressId;
     _preferredWorkerId ??= args?.preferredWorkerId;
+    _previousOrderId = args?.previousOrderId;
+    _previousWorkerId = args?.previousOrderId == null
+        ? null
+        : args?.preferredWorkerId;
+    _previousWorkerName = args?.previousWorkerName;
     // A favorite worker only works the freelancer segment.
     if (_preferredWorkerId != null) _tier ??= ServiceTier.economy;
   }
@@ -240,14 +259,19 @@ class _BookingScreenState extends State<BookingScreen> {
       setState(() => _favorites = list);
       final preferred = _preferredWorkerId;
       if (preferred == null) return;
-      if (list.any((w) => w.workerId == preferred)) {
+      if (list.any((w) => w.workerId == preferred) ||
+          (_previousOrderId != null && preferred == _previousWorkerId)) {
         _choosePreferred(preferred); // opened from the Yêu thích list
       } else {
         setState(_clearPreferred);
       }
     } on ApiException {
-      // No favorites section; booking works as before.
-      if (mounted) setState(_clearPreferred);
+      if (!mounted) return;
+      if (_previousOrderId != null && _preferredWorkerId == _previousWorkerId) {
+        await _choosePreferred(_previousWorkerId);
+      } else {
+        setState(_clearPreferred);
+      }
     }
   }
 
@@ -271,7 +295,9 @@ class _BookingScreenState extends State<BookingScreen> {
     if (workerId == null) return;
     final id = _freeRequest;
     try {
-      final free = await _favoriteSource.getFreeShifts(workerId);
+      final free = _previousOrderId != null && workerId == _previousWorkerId
+          ? await _rebookAvailability.getFreeShifts(_previousOrderId!, workerId)
+          : await _favoriteSource.getFreeShifts(workerId);
       if (!mounted || id != _freeRequest) return;
       setState(() {
         _free = free;
@@ -344,6 +370,9 @@ class _BookingScreenState extends State<BookingScreen> {
       preferredWorkerId: _tier == ServiceTier.economy
           ? _preferredWorkerId
           : null,
+      previousOrderId: _preferredWorkerId == _previousWorkerId
+          ? _previousOrderId
+          : null,
     );
 
     setState(() {
@@ -415,7 +444,7 @@ class _BookingScreenState extends State<BookingScreen> {
           ? [
               Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
                     missingChoice(
@@ -428,18 +457,15 @@ class _BookingScreenState extends State<BookingScreen> {
                         '${quote?.requiredWorkers ?? 0} người × ${formatVnd(quote?.unitPrice ?? 0)}',
                     style: NordicTypography.bodySmall,
                   ),
-                  Text(
-                    quote == null ? '–' : formatVnd(quote.totalAmount),
-                    key: const Key('booking-total'),
-                    style: NordicTypography.numberSmall,
+                  NordicButton(
+                    key: const Key('submit-order'),
+                    label: quote == null
+                        ? 'Đặt ca'
+                        : 'Đặt ca · ${formatVnd(quote.totalAmount)}',
+                    isLoading: _submitting,
+                    onPressed: _submitting ? null : _submit,
                   ),
                 ],
-              ),
-              NordicButton(
-                key: const Key('submit-order'),
-                label: 'Đặt ca',
-                isLoading: _submitting,
-                onPressed: _submitting ? null : _submit,
               ),
             ]
           : null,
@@ -468,25 +494,20 @@ class _BookingScreenState extends State<BookingScreen> {
 
     return [
       _heading('Gói dịch vụ'),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var i = 0; i < options.serviceTiers.length; i++) ...[
-            if (i > 0) const SizedBox(width: NordicSpace.sm),
-            Expanded(
-              child: _TierTile(
-                key: Key('tier-${options.serviceTiers[i]}'),
-                selected: _tier == options.serviceTiers[i],
-                title: tierLabel(options.serviceTiers[i]),
-                subtitle: tierDescription(options.serviceTiers[i], options),
-                onTap: () => _chooseTier(options.serviceTiers[i]),
-              ),
-            ),
-          ],
-        ],
-      ),
+      for (final tier in options.serviceTiers) ...[
+        _TierTile(
+          key: Key('tier-$tier'),
+          selected: _tier == tier,
+          tier: tier,
+          title: tierLabel(tier),
+          subtitle: tierDescription(tier, options),
+          onTap: () => _chooseTier(tier),
+        ),
+        const SizedBox(height: NordicSpace.sm),
+      ],
       _fieldError('serviceTier'),
-      if (_tier == ServiceTier.economy && _favorites.isNotEmpty)
+      if (_tier == ServiceTier.economy &&
+          (_favorites.isNotEmpty || _previousWorkerId != null))
         ..._favoriteSection(),
 
       _heading('Địa chỉ', top: NordicSpace.lg),
@@ -586,6 +607,7 @@ class _BookingScreenState extends State<BookingScreen> {
       _fieldError('customerNote'),
 
       _heading('Giá', top: NordicSpace.lg),
+      if (_quote == null) const Text('–', key: Key('booking-total')),
       _quoteCard(options),
       const SizedBox(height: NordicSpace.md),
 
@@ -643,16 +665,19 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
       );
     }
-    return NordicCard(
-      isHighlighted: true,
+    return RaisedPanel(
+      margin: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            formatVnd(quote.totalAmount),
-            key: const Key('quote-total'),
-            style: NordicTypography.numberMedium.copyWith(
-              color: NordicColors.primary,
+          KeyedSubtree(
+            key: const Key('booking-total'),
+            child: Text(
+              formatVnd(quote.totalAmount),
+              key: const Key('quote-total'),
+              style: NordicTypography.numberMedium.copyWith(
+                color: NordicColors.primary,
+              ),
             ),
           ),
           const SizedBox(height: NordicSpace.xs),
@@ -690,7 +715,12 @@ class _BookingScreenState extends State<BookingScreen> {
       note = 'Ngày và ca bị làm mờ là lúc người này bận. Hệ thống mời người này trước; nếu họ không nhận, sẽ tìm người khác gần bạn.';
     }
     return [
-      _heading('Người giúp việc yêu thích', top: NordicSpace.lg),
+      _heading(
+        _previousWorkerId == null
+            ? 'Người giúp việc yêu thích'
+            : 'Chọn người giúp việc',
+        top: NordicSpace.lg,
+      ),
       _ChoiceCard(
         key: const Key('favorite-none'),
         selected: preferred == null,
@@ -699,6 +729,20 @@ class _BookingScreenState extends State<BookingScreen> {
         icon: Icons.auto_awesome_outlined,
         onTap: () => _choosePreferred(null),
       ),
+      if (_previousWorkerId != null &&
+          !_favorites.any(
+            (worker) => worker.workerId == _previousWorkerId,
+          )) ...[
+        const SizedBox(height: NordicSpace.xs),
+        _ChoiceCard(
+          key: Key('favorite-$_previousWorkerId'),
+          selected: preferred == _previousWorkerId,
+          title: _previousWorkerName ?? 'Người làm trước đây',
+          subtitle: 'Người đã hoàn thành ca của bạn',
+          icon: Icons.person_outline,
+          onTap: () => _choosePreferred(_previousWorkerId),
+        ),
+      ],
       for (final worker in _favorites) ...[
         const SizedBox(height: NordicSpace.xs),
         _ChoiceCard(
@@ -777,7 +821,7 @@ BoxDecoration _tileDecoration(bool selected) => BoxDecoration(
   color: NordicColors.surface,
   borderRadius: NordicRadius.cardAll,
   border: Border.all(
-    color: selected ? NordicColors.primary : NordicColors.border,
+    color: selected ? NordicColors.primaryContainer : NordicColors.border,
     width: selected ? 2.0 : 1.0,
   ),
 );
@@ -785,6 +829,7 @@ BoxDecoration _tileDecoration(bool selected) => BoxDecoration(
 /// ui-templates `.tier`: one segment, its radio and its one-line explanation.
 class _TierTile extends StatelessWidget {
   final bool selected;
+  final String tier;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -792,6 +837,7 @@ class _TierTile extends StatelessWidget {
   const _TierTile({
     super.key,
     required this.selected,
+    required this.tier,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -808,7 +854,7 @@ class _TierTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: NordicRadius.cardAll,
         child: Container(
-          padding: const EdgeInsets.all(14.0),
+          padding: const EdgeInsets.all(NordicSpace.md),
           decoration: _tileDecoration(selected),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -820,7 +866,7 @@ class _TierTile extends StatelessWidget {
                   ),
                   Icon(
                     selected
-                        ? Icons.radio_button_checked
+                        ? Icons.check_circle_rounded
                         : Icons.radio_button_unchecked,
                     color: selected
                         ? NordicColors.primary
@@ -829,14 +875,30 @@ class _TierTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: NordicSpace.xs),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 11.0,
-                  height: 1.35,
-                  color: NordicColors.textSecondary,
+              if (tier == ServiceTier.economy)
+                const StatusPill('Giá tốt nhất', tone: PillTone.ok)
+              else if (tier == ServiceTier.premium)
+                const StatusPill(
+                  'Hỗ trợ thay thế khi có sự cố',
+                  tone: PillTone.ok,
                 ),
-              ),
+              const SizedBox(height: NordicSpace.xs),
+              Text(subtitle, style: NordicTypography.bodySmall),
+              if (tier == ServiceTier.economy) ...[
+                const SizedBox(height: NordicSpace.xs),
+                const Text(
+                  'Đơn có thể tự động hoàn tiền nếu khu vực hết người nhận ca.',
+                  style: NordicTypography.bodySmall,
+                ),
+              ] else if (tier == ServiceTier.premium) ...[
+                const SizedBox(height: NordicSpace.xs),
+                const Text(
+                  '• Đối tác cung cấp người làm theo lịch đã giữ.\n'
+                  '• Hỗ trợ điều phối thay thế khẩn cấp khi có sự cố; hoàn tiền nếu không tìm được người thay thế.\n'
+                  '• Bạn kiểm tra trực tiếp; người làm khắc phục tại chỗ trong 15–30 phút nếu cần.',
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
             ],
           ),
         ),
@@ -1041,10 +1103,10 @@ class _ChoiceCard extends StatelessWidget {
               ),
               Icon(
                 selected
-                    ? Icons.radio_button_checked
+                    ? Icons.check_circle_rounded
                     : Icons.radio_button_unchecked,
                 color: selected
-                    ? NordicColors.primary
+                    ? NordicColors.primaryContainer
                     : NordicColors.borderVariant,
               ),
             ],

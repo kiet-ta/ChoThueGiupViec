@@ -3,7 +3,12 @@ import '../models/booking_models.dart';
 
 /// What the order screens (history, tracking, cancel, "Làm lần 2") need from the server; a test can supply its own.
 abstract class IOrderService {
-  Future<OrderPage> listOrders({int page = 1, int pageSize = 20});
+  /// [status] asks the server for one order status only (booking.md 3.4); null lists every status.
+  Future<OrderPage> listOrders({
+    int page = 1,
+    int pageSize = 20,
+    String? status,
+  });
 
   Future<BookingOrder> getOrder(int orderId);
 
@@ -36,10 +41,18 @@ class OrderService implements IOrderService {
       BookingOrder.fromJson(json as Map<String, dynamic>);
 
   @override
-  Future<OrderPage> listOrders({int page = 1, int pageSize = 20}) async {
+  Future<OrderPage> listOrders({
+    int page = 1,
+    int pageSize = 20,
+    String? status,
+  }) async {
     final response = await _client.get<OrderPage>(
-      '/api/booking/orders',
-      queryParams: {'page': '$page', 'pageSize': '$pageSize'},
+      '/api/v1/booking/orders',
+      queryParams: {
+        'page': '$page',
+        'pageSize': '$pageSize',
+        'status': ?status,
+      },
       fromJson: (json) => OrderPage.fromJson(json as Map<String, dynamic>),
     );
     return _require(response.data, 'danh sách đơn');
@@ -48,7 +61,7 @@ class OrderService implements IOrderService {
   @override
   Future<BookingOrder> getOrder(int orderId) async => _require(
     (await _client.get<BookingOrder>(
-      '/api/booking/orders/$orderId',
+      '/api/v1/booking/orders/$orderId',
       fromJson: _order,
     )).data,
     'đơn',
@@ -57,7 +70,7 @@ class OrderService implements IOrderService {
   @override
   Future<OrderProgress> getProgress(int orderId) async {
     final response = await _client.get<OrderProgress>(
-      '/api/booking/orders/$orderId/progress',
+      '/api/v1/booking/orders/$orderId/progress',
       fromJson: (json) => OrderProgress.fromJson(json as Map<String, dynamic>),
     );
     return _require(response.data, 'tiến độ đơn');
@@ -66,7 +79,7 @@ class OrderService implements IOrderService {
   @override
   Future<BookingOptions> getOptions() async {
     final response = await _client.get<BookingOptions>(
-      '/api/booking/options',
+      '/api/v1/booking/options',
       fromJson: (json) => BookingOptions.fromJson(json as Map<String, dynamic>),
     );
     return _require(response.data, 'các lựa chọn đặt đơn');
@@ -76,7 +89,7 @@ class OrderService implements IOrderService {
   Future<BookingOrder> cancelOrder(int orderId, String reason) async =>
       _require(
         (await _client.post<BookingOrder>(
-          '/api/booking/orders/$orderId/cancel',
+          '/api/v1/booking/orders/$orderId/cancel',
           body: {'reason': reason},
           fromJson: _order,
         )).data,
@@ -90,7 +103,7 @@ class OrderService implements IOrderService {
     required double extraHours,
   }) async {
     final response = await _client.post<OrderExtension>(
-      '/api/booking/orders/$orderId/extensions',
+      '/api/v1/booking/orders/$orderId/extensions',
       body: {'assignmentId': assignmentId, 'extraHours': extraHours},
       fromJson: (json) => OrderExtension.fromJson(json as Map<String, dynamic>),
     );

@@ -2,16 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/location_wrapper.dart';
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/pressable.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/step_dots.dart';
 import '../models/incident_log.dart';
 import '../services/dispatch_service.dart';
 
 /// Screen for reporting force majeure incidents with camera evidence and GPS (MOB-M3-04, BR-10).
+/// MOB-UI-22 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage.pushed`, the send button in `actions`,
+/// tokens only, a failed step shakes its message.
 class IncidentReportScreen extends StatefulWidget {
   final int assignmentId;
   final DispatchService? dispatchService;
@@ -36,6 +43,9 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
   IncidentLog? _submittedIncident;
+
+  /// Bumped on every failure so the message shakes.
+  int _errors = 0;
 
   final Map<String, String> _incidentTypes = {
     'ACCIDENT': 'Tai nạn giao thông / Hỏng xe',
@@ -77,6 +87,14 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     }
   }
 
+  void _fail(String message) {
+    setState(() {
+      _isSubmitting = false;
+      _errors++;
+      _errorMessage = message;
+    });
+  }
+
   Future<void> _handleCapturePhoto() async {
     try {
       final photo = await _dispatchService.cameraWrapper.capturePhoto();
@@ -87,28 +105,22 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Không thể chụp ảnh: $e';
-        });
-      }
+      if (mounted) _fail('Chưa chụp được ảnh: $e');
     }
   }
 
   Future<void> _handleSubmitIncident() async {
     if (_capturedEvidence == null) {
-      setState(() {
-        _errorMessage = 'Vui lòng chụp ảnh bằng chứng hiện trường sự cố (bắt buộc theo BR-10)';
-      });
+      _fail(
+        'Bạn chưa chụp ảnh hiện trường. Hãy chụp ảnh bằng chứng trước khi gửi.',
+      );
       return;
     }
 
     if (_currentGps == null) {
       await _fetchLocation();
       if (_currentGps == null) {
-        setState(() {
-          _errorMessage = 'Không lấy được toạ độ GPS của sự cố';
-        });
+        if (mounted) _fail('Chưa lấy được vị trí của sự cố. Hãy thử lại.');
         return;
       }
     }
@@ -137,37 +149,35 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _isSubmitting = false;
-        _errorMessage = 'Gửi báo cáo sự cố thất bại: $e';
-      });
+      _fail('Chưa gửi được báo cáo sự cố: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Báo Cáo Sự Cố Bất Khả Kháng')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _submittedIncident != null
-              ? _buildSubmittedView()
-              : _buildFormView(),
-        ),
-      ),
-      bottomNavigationBar: _submittedIncident != null
-          ? null
-          : BottomActionBar(
-              children: [
-                NordicButton(
-                  key: const Key('submit_incident_button'),
-                  label: 'Gửi Báo Cáo Sự Cố',
-                  isLoading: _isSubmitting,
-                  onPressed: _isSubmitting ? null : _handleSubmitIncident,
-                ),
-              ],
-            ),
+    final submitted = _submittedIncident;
+    return NordicPage.pushed(
+      title: 'Báo sự cố',
+      actions: [
+        if (submitted == null)
+          NordicButton(
+            key: const Key('submit_incident_button'),
+            label: 'Gửi báo cáo',
+            isLoading: _isSubmitting,
+            onPressed: _isSubmitting ? null : _handleSubmitIncident,
+          )
+        else
+          NordicButton(
+            key: const Key('finish_incident_button'),
+            label: 'Đã hiểu',
+            onPressed: () {
+              Navigator.of(context).maybePop();
+            },
+          ),
+      ],
+      children: submitted != null
+          ? _buildSubmittedView(submitted)
+          : _buildFormView(),
     );
   }
 
@@ -178,294 +188,249 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     'OTHER': Icons.more_horiz,
   };
 
-  /// `.kind`: one tile of the 2 x 2 grid of incident types, the chosen one with a primary border.
+  /// One tile of the 2 x 2 grid of incident types, the chosen one with a primary border.
   Widget _kindTile(String code) {
     final on = _selectedType == code;
-    return InkWell(
-      key: Key('incident-kind-$code'),
-      borderRadius: BorderRadius.circular(16.0),
-      onTap: () => setState(() => _selectedType = code),
-      child: Container(
-        padding: EdgeInsets.all(on ? 13.0 : 14.0),
-        decoration: BoxDecoration(
-          color: NordicColors.surface,
-          borderRadius: BorderRadius.circular(16.0),
-          border: Border.all(
-            color: on ? NordicColors.primary : NordicColors.border,
-            width: on ? 2.0 : 1.0,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(_incidentIcons[code], color: NordicColors.primary),
-            const SizedBox(height: 10.0),
-            Text(
-              _incidentTypes[code]!,
-              style: NordicTypography.titleSmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+    return Pressable(
+      child: InkWell(
+        key: Key('incident-kind-$code'),
+        borderRadius: NordicRadius.cardAll,
+        onTap: () => setState(() => _selectedType = code),
+        child: Container(
+          padding: const EdgeInsets.all(NordicSpace.md),
+          decoration: BoxDecoration(
+            color: on ? NordicColors.primaryFixed : NordicColors.surface,
+            borderRadius: NordicRadius.cardAll,
+            border: Border.all(
+              color: on ? NordicColors.primary : NordicColors.border,
+              width: on ? 2.0 : 1.0,
             ),
-          ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(_incidentIcons[code], color: NordicColors.primary),
+              const SizedBox(height: NordicSpace.sm),
+              Text(
+                _incidentTypes[code]!,
+                style: NordicTypography.titleSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildFormView() {
+  List<Widget> _buildFormView() {
     final codes = _incidentTypes.keys.toList();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
-      children: [
-        const Text(
-          'Gặp sự cố trên đường / hiện trường?',
-          style: NordicTypography.h2,
-        ),
-        const SizedBox(height: 4.0),
-        const Text(
-          'Báo cáo kèm ảnh và GPS để được miễn phạt. Hệ thống tự động kích hoạt điều phối cứu hộ 5 phút.',
-          style: NordicTypography.bodySmall,
-        ),
-        const SizedBox(height: 16.0),
+    return [
+      const Text(
+        'Bạn gặp sự cố trên đường hay tại nơi làm?',
+        style: NordicTypography.h2,
+      ),
+      const SizedBox(height: NordicSpace.xxs),
+      const Text(
+        'Gửi báo cáo kèm ảnh và vị trí để được miễn phạt. Ứng dụng sẽ tìm người làm thay trong 5 phút.',
+        style: NordicTypography.bodySmall,
+      ),
+      const SizedBox(height: NordicSpace.md),
 
-        // Incident type: 2 x 2 tiles
-        Row(
+      // Incident type: 2 x 2 tiles
+      Row(
+        children: [
+          Expanded(child: _kindTile(codes[0])),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(child: _kindTile(codes[1])),
+        ],
+      ),
+      const SizedBox(height: NordicSpace.sm),
+      Row(
+        children: [
+          Expanded(child: _kindTile(codes[2])),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(child: _kindTile(codes[3])),
+        ],
+      ),
+
+      const SizedBox(height: NordicSpace.lg),
+      const Text('Mô tả', style: NordicTypography.titleSmall),
+      const SizedBox(height: NordicSpace.xs),
+      TextField(
+        key: const Key('incident_description_input'),
+        controller: _descriptionController,
+        maxLines: 3,
+        decoration: const InputDecoration(
+          hintText: 'Ví dụ: Xe bị thủng lốp tại ngã tư Cầu Giấy, đang tìm tiệm vá xe...',
+        ),
+      ),
+
+      const SizedBox(height: NordicSpace.lg),
+      const Text('Ảnh và vị trí', style: NordicTypography.titleSmall),
+      const SizedBox(height: NordicSpace.xs),
+      // Camera evidence & GPS
+      NordicCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: _kindTile(codes[0])),
-            const SizedBox(width: 12.0),
-            Expanded(child: _kindTile(codes[1])),
-          ],
-        ),
-        const SizedBox(height: 12.0),
-        Row(
-          children: [
-            Expanded(child: _kindTile(codes[2])),
-            const SizedBox(width: 12.0),
-            Expanded(child: _kindTile(codes[3])),
-          ],
-        ),
-
-        const SizedBox(height: 24.0),
-        const Text('MÔ TẢ', style: NordicTypography.caps),
-        const SizedBox(height: 8.0),
-        TextField(
-          key: const Key('incident_description_input'),
-          controller: _descriptionController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Ví dụ: Xe bị thủng lốp tại ngã tư Cầu Giấy, đang tìm tiệm vá xe...',
-          ),
-        ),
-
-        const SizedBox(height: 24.0),
-        const Text('ẢNH VÀ VỊ TRÍ', style: NordicTypography.caps),
-        const SizedBox(height: 8.0),
-        // Camera evidence & GPS
-        NordicCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              OutlinedButton.icon(
-                key: const Key('take_incident_photo_button'),
-                onPressed: _handleCapturePhoto,
-                icon: const Icon(Icons.add_a_photo_outlined),
-                label: Text(
-                  _capturedEvidence != null
-                      ? 'Chụp lại ảnh'
-                      : 'Chụp ảnh bằng chứng',
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14.0),
-                ),
-              ),
-              if (_capturedEvidence != null) ...[
-                const SizedBox(height: 8.0),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: NordicColors.primary,
-                      size: 16.0,
-                    ),
-                    const SizedBox(width: 6.0),
-                    Expanded(
-                      child: Text(
-                        'Đã chụp: ${_capturedEvidence!.path}',
-                        style: NordicTypography.bodySmall,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 12.0),
+            NordicButton(
+              key: const Key('take_incident_photo_button'),
+              variant: NordicButtonVariant.secondary,
+              icon: const Icon(Icons.add_a_photo_outlined, size: 18.0),
+              label: _capturedEvidence != null
+                  ? 'Chụp lại ảnh'
+                  : 'Chụp ảnh bằng chứng',
+              onPressed: _handleCapturePhoto,
+            ),
+            if (_capturedEvidence != null) ...[
+              const SizedBox(height: NordicSpace.xs),
               Row(
                 children: [
-                  Icon(
-                    _currentGps != null
-                        ? Icons.location_on
-                        : Icons.location_searching,
-                    color: _currentGps != null
-                        ? NordicColors.primary
-                        : NordicColors.accentAmber,
-                    size: 18.0,
+                  const Icon(
+                    Icons.check_circle,
+                    color: NordicColors.primary,
+                    size: 16.0,
                   ),
-                  const SizedBox(width: 8.0),
+                  const SizedBox(width: NordicSpace.xs),
                   Expanded(
                     child: Text(
-                      _isLoadingGps
-                          ? 'Đang định vị GPS...'
-                          : _currentGps != null
-                          ? 'GPS: ${_currentGps!.latitude.toStringAsFixed(4)}, ${_currentGps!.longitude.toStringAsFixed(4)}'
-                          : 'Chưa lấy được GPS',
+                      'Đã chụp: ${_capturedEvidence!.path}',
                       style: NordicTypography.bodySmall,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 16.0),
-
-        // What happens next
-        const NordicCard(
-          child: StepDots(
-            steps: [
-              StepItem('Báo', DotState.current),
-              StepItem('Tìm thợ thay', DotState.todo),
-              StepItem('Thợ mới', DotState.todo),
-            ],
-          ),
-        ),
-
-        if (_errorMessage != null) ...[
-          const SizedBox(height: 16.0),
-          Container(
-            padding: const EdgeInsets.all(12.0),
-            decoration: BoxDecoration(
-              color: NordicColors.errorContainer,
-              borderRadius: BorderRadius.circular(12.0),
+            const SizedBox(height: NordicSpace.sm),
+            Row(
+              children: [
+                Icon(
+                  _currentGps != null
+                      ? Icons.location_on
+                      : Icons.location_searching,
+                  color: _currentGps != null
+                      ? NordicColors.primary
+                      : NordicColors.accentAmber,
+                  size: 18.0,
+                ),
+                const SizedBox(width: NordicSpace.xs),
+                Expanded(
+                  child: Text(
+                    _isLoadingGps
+                        ? 'Đang lấy vị trí...'
+                        : _currentGps != null
+                        ? 'Vị trí: ${_currentGps!.latitude.toStringAsFixed(4)}, ${_currentGps!.longitude.toStringAsFixed(4)}'
+                        : 'Chưa lấy được vị trí',
+                    style: NordicTypography.bodySmall,
+                  ),
+                ),
+              ],
             ),
-            child: Text(
-              _errorMessage!,
-              style: NordicTypography.bodySmall.copyWith(
-                color: NordicColors.error,
+          ],
+        ),
+      ),
+      const SizedBox(height: NordicSpace.md),
+
+      // What happens next
+      const NordicCard(
+        child: StepDots(
+          steps: [
+            StepItem('Báo', DotState.current),
+            StepItem('Tìm người thay', DotState.todo),
+            StepItem('Người mới', DotState.todo),
+          ],
+        ),
+      ),
+
+      ErrorShake(
+        errors: _errors,
+        child: _errorMessage == null
+            ? const SizedBox.shrink()
+            : Padding(
+                padding: const EdgeInsets.only(top: NordicSpace.md),
+                child: Container(
+                  padding: const EdgeInsets.all(NordicSpace.sm),
+                  decoration: const BoxDecoration(
+                    color: NordicColors.errorContainer,
+                    borderRadius: NordicRadius.tileAll,
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    style: NordicTypography.bodySmall.copyWith(
+                      color: NordicColors.error,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+      ),
+    ];
+  }
+
+  Widget _row(String label, Widget value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(child: Text(label, style: NordicTypography.bodySmall)),
+        const SizedBox(width: NordicSpace.xs),
+        value,
       ],
     );
   }
 
-  Widget _buildSubmittedView() {
-    final incident = _submittedIncident!;
+  List<Widget> _buildSubmittedView(IncidentLog incident) {
+    final deadline =
+        '${incident.reDispatchDeadline.hour.toString().padLeft(2, '0')}:${incident.reDispatchDeadline.minute.toString().padLeft(2, '0')}';
+    return [
+      const SizedBox(height: NordicSpace.md),
+      const Icon(
+        Icons.shield_outlined,
+        size: 64.0,
+        color: NordicColors.primary,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      Text(
+        'Đã ghi nhận sự cố',
+        textAlign: TextAlign.center,
+        style: NordicTypography.h2.copyWith(color: NordicColors.primary),
+      ),
+      const SizedBox(height: NordicSpace.xs),
+      const Text(
+        'Ca làm của bạn đã được ghi nhận. Bạn được miễn phạt theo chính sách sự cố bất khả kháng.',
+        textAlign: TextAlign.center,
+        style: NordicTypography.bodyRegular,
+      ),
+      const SizedBox(height: NordicSpace.lg),
 
-    return ListView(
-      padding: const EdgeInsets.all(24.0),
-      children: [
-        const Icon(
-          Icons.shield_outlined,
-          size: 64.0,
-          color: NordicColors.primary,
-        ),
-        const SizedBox(height: 16.0),
-        Text(
-          'Đã Ghi Nhận Sự Cố Bất Khả Kháng',
-          textAlign: TextAlign.center,
-          style: NordicTypography.h2.copyWith(color: NordicColors.primary),
-        ),
-        const SizedBox(height: 8.0),
-        Text(
-          'Ca làm #${widget.assignmentId} đã được ghi nhận. Bạn được MIỄN PHẠT theo chính sách BR-10.',
-          textAlign: TextAlign.center,
-          style: NordicTypography.bodyRegular,
-        ),
-        const SizedBox(height: 24.0),
-
-        NordicCard(
-          isHighlighted: true,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Trạng thái miễn phạt:',
-                        style: NordicTypography.bodySmall,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0,
-                        vertical: 4.0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: NordicColors.success.withAlpha(20),
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      child: Text(
-                        'MIỄN PHẠT 100%',
-                        style: NordicTypography.labelSmall.copyWith(
-                          color: NordicColors.success,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Điều phối lại (5 phút):',
-                        style: NordicTypography.bodySmall,
-                      ),
-                    ),
-                    Text(
-                      incident.reDispatchStatus == 'SEARCHING'
-                          ? 'Đang tìm thợ'
-                          : incident.reDispatchStatus,
-                      style: NordicTypography.labelMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Hạn quét cứu hộ:',
-                        style: NordicTypography.bodySmall,
-                      ),
-                    ),
-                    Text(
-                      '${incident.reDispatchDeadline.hour.toString().padLeft(2, '0')}:${incident.reDispatchDeadline.minute.toString().padLeft(2, '0')}',
-                      style: NordicTypography.labelMedium,
-                    ),
-                  ],
-                ),
-              ],
+      NordicCard(
+        isHighlighted: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _row(
+              'Miễn phạt',
+              const StatusPill('Miễn phạt 100%', tone: PillTone.ok),
             ),
-          ),
+            const SizedBox(height: NordicSpace.sm),
+            _row(
+              'Tìm người làm thay (5 phút)',
+              Text(
+                incident.reDispatchStatus == 'SEARCHING'
+                    ? 'Đang tìm thợ'
+                    : incident.reDispatchStatus,
+                style: NordicTypography.titleSmall,
+              ),
+            ),
+            const SizedBox(height: NordicSpace.xs),
+            _row(
+              'Hạn tìm người thay',
+              Text(deadline, style: NordicTypography.titleSmall),
+            ),
+          ],
         ),
-        const SizedBox(height: 24.0),
-
-        NordicButton(
-          key: const Key('finish_incident_button'),
-          label: 'Đã Hiểu',
-          onPressed: () {
-            Navigator.of(context).maybePop();
-          },
-        ),
-      ],
-    );
+      ),
+    ];
   }
 }

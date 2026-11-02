@@ -18,7 +18,7 @@ void main() {
     testWidgets('renders favorite workers list, rating, and CTA buttons', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(390, 844);
+      tester.view.physicalSize = const Size(390, 1800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -35,8 +35,10 @@ void main() {
 
       expect(find.text('Yêu thích'), findsOneWidget);
       expect(find.text('Lê Thị Cúc'), findsOneWidget);
-      expect(find.text('Đặt ca'), findsWidgets);
-      expect(find.textContaining('ca hoàn thành'), findsWidgets);
+      expect(find.textContaining('Đặt với'), findsWidgets);
+      expect(find.textContaining('ca đã làm'), findsWidgets);
+      expect(find.byKey(const Key('favorites-count')), findsOneWidget);
+      expect(find.textContaining('Đặt với người quen'), findsOneWidget);
     });
 
     testWidgets('displays empty state when no favorite workers exist', (
@@ -88,7 +90,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Check snackbar with undo
-      expect(find.textContaining('Đã bỏ yêu thích'), findsOneWidget);
+      expect(find.textContaining('khỏi yêu thích'), findsOneWidget);
       expect(find.text('Hoàn tác'), findsOneWidget);
 
       // Tap undo
@@ -124,7 +126,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Đặt ca').first);
+      await tester.tap(find.textContaining('Đặt với').first);
       await tester.pumpAndSettle();
 
       expect(opened?.name, BookingRoutes.booking);

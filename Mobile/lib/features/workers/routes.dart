@@ -9,6 +9,7 @@ import 'screens/worker_extension_screen.dart';
 import 'screens/worker_photos_screen.dart';
 import 'screens/worker_screen.dart';
 import 'screens/worker_slots_screen.dart';
+import 'screens/worker_work_area_screen.dart';
 
 /// Route names owned by the Workers feature module.
 class WorkerRoutes {
@@ -17,6 +18,7 @@ class WorkerRoutes {
   static const String profile = '/workers/profile';
   static const String ekyc = '/workers/ekyc';
   static const String slots = '/workers/slots';
+  static const String workArea = '/workers/work-area';
   static const String execution = '/workers/execution';
   static const String photos = '/workers/photos';
   static const String extension = '/workers/extension';
@@ -33,6 +35,7 @@ class WorkersFeatureModule extends FeatureModule {
     WorkerRoutes.profile: (context) => const WorkerScreen(),
     WorkerRoutes.ekyc: (context) => const WorkerEkycScreen(),
     WorkerRoutes.slots: (context) => const WorkerSlotsScreen(),
+    WorkerRoutes.workArea: (context) => const WorkerWorkAreaScreen(),
     WorkerRoutes.execution: (context) => withAssignmentArgument(
       context,
       (id) => WorkerExecutionScreen(assignmentId: id),
