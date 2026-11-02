@@ -107,7 +107,9 @@ describe('redo and errors', () => {
   })
   it('maps failures', () => {
     assert.equal(afterShiftProblem({ status: 400, fieldErrors: { description: ['Quá dài.'] } }), 'Quá dài.')
-    assert.match(afterShiftProblem({ status: 409, message: 'A dispute already exists for this order.' }), /đã có khiếu nại/)
+    assert.equal(afterShiftProblem({ status: 409, message: 'The TIME TO FILE a dispute for this order has passed.' }), 'Đã quá 24 giờ sau ca nên không thể khiếu nại đơn này nữa.')
+    assert.equal(afterShiftProblem({ status: 409, message: 'There is NOTHING TO DISPUTE on this order yet.' }), 'Đơn này chưa có ca nào để khiếu nại. Bạn chỉ khiếu nại được khi thợ đã làm hoặc đang chờ nghiệm thu.')
+    assert.equal(afterShiftProblem({ status: 409, message: 'A dispute already exists for this order.' }), 'Đơn này đã có khiếu nại. Mỗi đơn chỉ có một khiếu nại.')
     assert.match(afterShiftProblem({ status: 409, message: 'The shift ended more than 24 h ago.' }), /không còn hợp lệ/)
     assert.match(afterShiftProblem({ status: 404 }), /Không tìm thấy/)
     assert.match(afterShiftProblem({ status: 500 }), /Đã có lỗi/)
