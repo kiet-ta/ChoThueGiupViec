@@ -6,7 +6,7 @@ using CommonService.Domain.Entities;
 
 namespace CommonService.Application.Features.Workers.Services;
 
-public sealed class WorkerWorkAreaService(
+public class WorkerWorkAreaService(
     IWorkerRepository workerRepository,
     ICurrentUser currentUser,
     IClock clock) : IWorkerWorkAreaService

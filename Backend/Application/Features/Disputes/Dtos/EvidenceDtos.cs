@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Disputes.Dtos;
 
 /// <summary>Body of the two POST .../disputes/evidence endpoints (contract disputes.md 2.1a). Nullable so a missing value is a 400 with a field message.</summary>
-public sealed class UploadEvidenceRequestDto
+public class UploadEvidenceRequestDto
 {
     public string? FileName { get; init; }
 
@@ -13,7 +13,7 @@ public sealed class UploadEvidenceRequestDto
 }
 
 /// <summary>A stored evidence photo: put <see cref="Url"/> into the <c>evidenceUrls</c> of the dispute.</summary>
-public sealed class EvidenceFileDto
+public class EvidenceFileDto
 {
     public string Path { get; init; } = string.Empty;
     public string Url { get; init; } = string.Empty;

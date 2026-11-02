@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Modules.Customers;
 
 /// <summary>Real <see cref="ICustomerFavoriteQuery"/> over the Customers module's own repository.</summary>
-public sealed class CustomerFavoriteQuery(IFavoriteWorkerRepository favorites) : ICustomerFavoriteQuery
+public class CustomerFavoriteQuery(IFavoriteWorkerRepository favorites) : ICustomerFavoriteQuery
 {
     public async Task<bool> IsFavoriteAsync(int customerId, int workerId, CancellationToken cancellationToken = default)
     {

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CommonService.Application.Features.Workers.Services;
 
-public sealed class WorkerBookingSlotService(
+public class WorkerBookingSlotService(
     IWorkerRepository workerRepository,
     ICurrentUser currentUser,
     IClock clock) : IWorkerBookingSlotService

@@ -69,7 +69,7 @@ public interface ISubscriptionRepository
 /// Subscription packages (BE-M5-02, decisions Q08, contract agencies.md): list, state and quota, purchase through the payment gateway,
 /// the Admin edit with its audit rows, and the quota guard other features call before adding workers.
 /// </summary>
-public sealed class SubscriptionService(
+public class SubscriptionService(
     ISubscriptionRepository repository,
     IPaymentRepository payments,
     IPaymentGateway gateway,
@@ -330,7 +330,7 @@ public sealed class SubscriptionService(
 /// subscription ACTIVE in one transaction, then <see cref="SubscriptionActivated"/>. A renewal starts the day after the running one ends.
 /// Idempotent: a repeat or a lost race returns false.
 /// </summary>
-public sealed class SubscriptionPaymentSettlement(
+public class SubscriptionPaymentSettlement(
     IPaymentRepository payments,
     ISubscriptionRepository subscriptions,
     IUnitOfWork unitOfWork,

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="ISubscriptionRepository"/>. Not verified against a live SQL Server on this host.</summary>
-public sealed class EfSubscriptionRepository(AppDbContext db) : ISubscriptionRepository
+public class EfSubscriptionRepository(AppDbContext db) : ISubscriptionRepository
 {
     public async Task<IReadOnlyList<SubscriptionPackage>> ListPackagesAsync(bool activeOnly, CancellationToken cancellationToken = default) =>
         await db.SubscriptionPackages.AsNoTracking()

@@ -10,7 +10,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>
 /// Result of scanning and ranking available candidates for a dispatch radius step.
 /// </summary>
-public sealed record SteppedScanStepResult
+public record SteppedScanStepResult
 {
     public required double RadiusKm { get; init; }
     public required int StepIndex { get; init; }
@@ -21,7 +21,7 @@ public sealed record SteppedScanStepResult
 /// <summary>
 /// Overall result of the stepped radius scan (5 -> 7 -> 10 km).
 /// </summary>
-public sealed record SteppedScanResult
+public record SteppedScanResult
 {
     public required ServiceTier ServiceTier { get; init; }
     public required IReadOnlyList<SteppedScanStepResult> StepsExecuted { get; init; }

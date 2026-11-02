@@ -4,10 +4,10 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Booking;
 
 /// <summary>The part of JOB_ORDER an extension request needs.</summary>
-public sealed record OrderForExtension(long OrderId, int CustomerId, JobOrderStatus OrderStatus, decimal TotalAmount, byte RequiredWorkers);
+public record OrderForExtension(long OrderId, int CustomerId, JobOrderStatus OrderStatus, decimal TotalAmount, byte RequiredWorkers);
 
 /// <summary>The part of JOB_ASSIGNMENT an extension request needs.</summary>
-public sealed record AssignmentForExtension(long AssignmentId, long OrderId, int WorkerId, JobAssignmentStatus AssignmentStatus);
+public record AssignmentForExtension(long AssignmentId, long OrderId, int WorkerId, JobAssignmentStatus AssignmentStatus);
 
 /// <summary>JOB_ORDER_EXTENSION access of the Booking module (BE-M2-08, contract booking.md 3.8).</summary>
 public interface IExtensionRepository

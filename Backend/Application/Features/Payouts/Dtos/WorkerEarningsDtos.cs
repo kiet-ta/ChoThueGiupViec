@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Payouts.Dtos;
 
 /// <summary>One job (or absence fee) of the month in the worker's income screen.</summary>
-public sealed class WorkerEarningJobDto
+public class WorkerEarningJobDto
 {
     public long AssignmentId { get; init; }
     public long OrderId { get; init; }
@@ -17,7 +17,7 @@ public sealed class WorkerEarningJobDto
 }
 
 /// <summary>The freelancer's income of one month (contract payouts.md 2.5).</summary>
-public sealed class WorkerEarningsDto
+public class WorkerEarningsDto
 {
     public string PeriodMonth { get; init; } = string.Empty;
     public int JobCount { get; init; }
@@ -32,7 +32,7 @@ public sealed class WorkerEarningsDto
     public List<WorkerEarningJobDto> Jobs { get; init; } = [];
 }
 
-public sealed class WorkerPayoutHistoryItemDto
+public class WorkerPayoutHistoryItemDto
 {
     public int BatchId { get; init; }
     public string PeriodMonth { get; init; } = string.Empty;
@@ -41,7 +41,7 @@ public sealed class WorkerPayoutHistoryItemDto
     public DateTime? TransferredAt { get; init; }
 }
 
-public sealed class WorkerPayoutHistoryPageDto
+public class WorkerPayoutHistoryPageDto
 {
     public List<WorkerPayoutHistoryItemDto> Items { get; init; } = [];
     public int Page { get; init; }

@@ -22,7 +22,7 @@ public class M5AcceptanceTests
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
     private static readonly DateOnly Today = new(2026, 10, 14);
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public Task Publish(object notification, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
@@ -30,7 +30,7 @@ public class M5AcceptanceTests
             where TNotification : INotification => Task.CompletedTask;
     }
 
-    private sealed class Wiring
+    private class Wiring
     {
         public SubscriptionTests.InMemorySubscriptions Subscriptions { get; } = new();
         public SubscriptionTests.InMemoryPayments Payments { get; }
@@ -186,7 +186,7 @@ public class M5AcceptanceTests
     }
 
     /// <summary>Capacity candidates built from the escrow state: one slot of agency 7, eligible only while ACTIVE with a score of at least 50.</summary>
-    private sealed class EscrowBackedCapacity(EscrowTests.InMemoryEscrow escrow) : ICapacityRepository
+    private class EscrowBackedCapacity(EscrowTests.InMemoryEscrow escrow) : ICapacityRepository
     {
         private readonly HashSet<long> _held = [];
 

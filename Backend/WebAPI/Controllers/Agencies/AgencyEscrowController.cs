@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CommonService.WebAPI.Controllers.Agencies;
 
 /// <summary>A page of the escrow ledger.</summary>
-public sealed record EscrowTransactionPageDto(IReadOnlyList<EscrowTransactionDto> Items, int Page, int PageSize, int Total);
+public record EscrowTransactionPageDto(IReadOnlyList<EscrowTransactionDto> Items, int Page, int PageSize, int Total);
 
 /// <summary>Escrow of the agency (contract agencies.md 6, BE-M5-07, decisions Q09, policy PartnerOnly).</summary>
 [ApiController]

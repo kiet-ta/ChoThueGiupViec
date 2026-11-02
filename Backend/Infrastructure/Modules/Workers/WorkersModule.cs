@@ -11,7 +11,7 @@ namespace CommonService.Infrastructure.Modules.Workers;
 /// <summary>
 /// Module registration for Workers (M4). Self-registers via IModule (BASE-02).
 /// </summary>
-public sealed class WorkersModule : IModule
+public class WorkersModule : IModule
 {
     public string Name => "Workers";
 

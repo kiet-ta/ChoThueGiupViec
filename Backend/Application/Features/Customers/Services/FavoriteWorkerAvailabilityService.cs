@@ -22,7 +22,7 @@ public interface IFavoriteWorkerAvailabilityService
 /// defaults to today .. today + Booking.MaxDaysAhead, the days the booking form offers. Slots come from the Workers port
 /// <see cref="IWorkerFreeShiftQuery"/>; this module never reads BOOKING_SLOT.
 /// </summary>
-public sealed class FavoriteWorkerAvailabilityService(
+public class FavoriteWorkerAvailabilityService(
     ICustomerFavoriteQuery favorites,
     IWorkerFreeShiftQuery shifts,
     IClock clock,

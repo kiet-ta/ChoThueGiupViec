@@ -17,7 +17,7 @@ public class DisputeServiceTests
     private const int WorkerId = 22;
     private const long OrderId = 900;
 
-    internal sealed class TestClock(DateTime utcNow) : IClock
+    internal class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow { get; set; } = utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -25,7 +25,7 @@ public class DisputeServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(UtcNow));
     }
 
-    internal sealed class MemoryDisputes : IDisputeRepository
+    internal class MemoryDisputes : IDisputeRepository
     {
         public Dictionary<long, DisputeOrderInfo> Orders { get; } = [];
         public List<DisputeTicket> Tickets { get; } = [];
@@ -126,7 +126,7 @@ public class DisputeServiceTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public MemoryDisputes Repo { get; } = new();
         public TestClock Clock { get; } = new(Now);

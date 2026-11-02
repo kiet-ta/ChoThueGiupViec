@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Admin.Dtos;
 
 /// <summary>One row of ADMIN_AUDIT_LOG as shown to an Admin (contract admin.md section 1, AuditLogEntry).</summary>
-public sealed class AuditLogEntryDto
+public class AuditLogEntryDto
 {
     public long LogId { get; init; }
 
@@ -21,7 +21,7 @@ public sealed class AuditLogEntryDto
 }
 
 /// <summary>The paged shape used by the admin list endpoints: { items, page, pageSize, total } (admin.md section 2.4).</summary>
-public sealed class AuditLogPageDto
+public class AuditLogPageDto
 {
     public IReadOnlyList<AuditLogEntryDto> Items { get; init; } = [];
     public int Page { get; init; }

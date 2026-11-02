@@ -3,7 +3,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>
 /// Candidate worker input model for dispatch matching score computation.
 /// </summary>
-public sealed record DispatchCandidate
+public record DispatchCandidate
 {
     public required long WorkerId { get; init; }
     public required string WorkerType { get; init; } // "FREELANCER" or "AGENCY"

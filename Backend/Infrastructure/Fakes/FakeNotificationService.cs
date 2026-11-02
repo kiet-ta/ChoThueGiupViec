@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Collects messages in memory.</summary>
-public sealed class FakeNotificationService : INotificationService
+public class FakeNotificationService : INotificationService
 {
     private readonly ConcurrentQueue<NotificationMessage> _sent = new();
 

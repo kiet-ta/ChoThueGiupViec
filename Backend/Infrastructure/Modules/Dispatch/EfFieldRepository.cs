@@ -12,7 +12,7 @@ namespace CommonService.Infrastructure.Modules.Dispatch;
 /// (<see cref="ICustomerAbsentRepository"/>), and the offer/address reads of <see cref="IWorkerDispatchQuery"/>. Status changes are
 /// conditional updates. Not verified against a live SQL Server on the Linux dev host.
 /// </summary>
-public sealed class EfFieldRepository(AppDbContext db) : IFieldCheckInRepository, ICustomerAbsentRepository, IWorkerDispatchQuery
+public class EfFieldRepository(AppDbContext db) : IFieldCheckInRepository, ICustomerAbsentRepository, IWorkerDispatchQuery
 {
     public async Task<JobAssignment?> GetAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default) =>
         await db.JobAssignments.AsNoTracking().FirstOrDefaultAsync(a => a.AssignmentId == assignmentId, cancellationToken);

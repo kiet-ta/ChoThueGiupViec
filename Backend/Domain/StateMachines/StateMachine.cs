@@ -1,7 +1,7 @@
 namespace CommonService.Domain.StateMachines;
 
 /// <summary>Raised when code asks for a state change that the machine does not allow. Handlers map it to HTTP 409.</summary>
-public sealed class InvalidStateTransitionException(string machine, string from, string to)
+public class InvalidStateTransitionException(string machine, string from, string to)
     : InvalidOperationException($"{machine}: transition {from} -> {to} is not allowed.")
 {
     public string Machine { get; } = machine;
@@ -10,7 +10,7 @@ public sealed class InvalidStateTransitionException(string machine, string from,
 }
 
 /// <summary>An explicit allow-list of transitions. Anything not listed is rejected.</summary>
-public sealed class StateMachine<TState> where TState : struct, Enum
+public class StateMachine<TState> where TState : struct, Enum
 {
     private readonly string _name;
     private readonly Dictionary<TState, HashSet<TState>> _next = [];

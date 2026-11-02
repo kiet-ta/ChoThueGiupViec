@@ -4,7 +4,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Payments.Services;
 
 /// <summary>An open sandbox payment as the development tool lists it.</summary>
-public sealed record DevPaymentDto(
+public record DevPaymentDto(
     long PaymentId, string Purpose, long? OrderId, int? SubscriptionId, int? AgencyId, decimal Amount, string GatewayTxnRef, DateTime CreatedAt);
 
 /// <summary>Read side of the development tool (UAT-PAY).</summary>
@@ -24,7 +24,7 @@ public static class DevPaymentErrorCodes
 /// pay without calling the callback by hand. It goes through <see cref="IIpnService"/>, hence through the real settlement of the purpose
 /// (order dispatch, escrow credit, subscription activation). The host decides where it is reachable (Development only).
 /// </summary>
-public sealed class DevPaymentService(IDevPaymentQuery query, IPaymentRepository payments, IIpnService ipn)
+public class DevPaymentService(IDevPaymentQuery query, IPaymentRepository payments, IIpnService ipn)
 {
     /// <summary>The reference prefix of the Fake gateway (<c>FakePaymentGateway</c>); a MoMo sandbox reference never has it.</summary>
     public const string FakeReferencePrefix = "FAKE-";

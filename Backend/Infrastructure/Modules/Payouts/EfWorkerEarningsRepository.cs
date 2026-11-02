@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Payouts;
 
 /// <summary>The freelancer's own income reads over <c>JOB_ASSIGNMENT</c>, <c>PAYOUT_BATCH</c> and <c>PAYOUT_ITEM</c>; every query is scoped to one worker id.</summary>
-public sealed class EfWorkerEarningsRepository(AppDbContext db) : IWorkerEarningsRepository
+public class EfWorkerEarningsRepository(AppDbContext db) : IWorkerEarningsRepository
 {
     public async Task<WorkerType?> GetWorkerTypeAsync(int workerId, CancellationToken cancellationToken = default)
     {

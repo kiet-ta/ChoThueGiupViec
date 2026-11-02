@@ -12,7 +12,7 @@ namespace CommonService.Application.Features.Payments.Services;
 /// Idempotent: an extension already DECLINED does nothing and is not refunded twice; an unpaid or expired extension is only marked.
 /// Known gap: if the refund fails it is logged as an error and NOT retried; a new worker for the next shift is M3's.
 /// </summary>
-public sealed class ExtensionDeclinedHandler(
+public class ExtensionDeclinedHandler(
     IPaymentRepository payments,
     IUnitOfWork unitOfWork,
     IExtensionRefundService refunds,

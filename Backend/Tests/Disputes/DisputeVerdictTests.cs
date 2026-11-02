@@ -23,7 +23,7 @@ public class DisputeVerdictTests
     private const int AdminId = 3;
     private const int DisputeId = 1;
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<DisputeResolved> Events { get; } = [];
 
@@ -38,7 +38,7 @@ public class DisputeVerdictTests
             Publish((object)notification, cancellationToken);
     }
 
-    private sealed class RefusingRefunds(string? message = "The wallet is closed.") : IRefundService
+    private class RefusingRefunds(string? message = "The wallet is closed.") : IRefundService
     {
         public int Calls { get; private set; }
 
@@ -49,7 +49,7 @@ public class DisputeVerdictTests
         }
     }
 
-    private sealed class TrackingUnitOfWork : IUnitOfWork
+    private class TrackingUnitOfWork : IUnitOfWork
     {
         public int Committed { get; private set; }
         public int RolledBack { get; private set; }
@@ -75,7 +75,7 @@ public class DisputeVerdictTests
         }
     }
 
-    private sealed class Harness
+    private class Harness
     {
         public DisputeServiceTests.MemoryDisputes Repo { get; } = new();
         public FakeRefundService Refunds { get; } = new();

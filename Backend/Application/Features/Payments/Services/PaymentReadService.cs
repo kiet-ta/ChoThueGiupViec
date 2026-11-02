@@ -16,7 +16,7 @@ public interface IPaymentReadService
     Task<IReadOnlyList<PaymentDto>> ListForOrderAsync(int customerId, long orderId, CancellationToken cancellationToken = default);
 }
 
-public sealed class PaymentReadService(IPaymentRepository payments, IOptions<BusinessRules> rules) : IPaymentReadService
+public class PaymentReadService(IPaymentRepository payments, IOptions<BusinessRules> rules) : IPaymentReadService
 {
     private readonly int _expiryMinutes = rules.Value.Payments.QrExpiryMinutes;
 

@@ -4,7 +4,7 @@ namespace CommonService.Application.Features.Workers.Dtos;
 /// One job booked for the signed-in worker (contract workers.md 2.3.3). Only the district of the address is returned: the
 /// street address, the coordinates and the customer's name or phone are not part of this read.
 /// </summary>
-public sealed record WorkerAssignmentResponse(
+public record WorkerAssignmentResponse(
     long AssignmentId,
     long OrderId,
     string OrderCode,

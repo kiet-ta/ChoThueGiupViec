@@ -17,7 +17,7 @@ namespace CommonService.Tests.Identity;
 
 public class OpenApiUpdateHelper
 {
-    private sealed class TestHostEnvironment : IWebHostEnvironment
+    private class TestHostEnvironment : IWebHostEnvironment
     {
         public string EnvironmentName { get; set; } = "Development";
         public string ApplicationName { get; set; } = "CommonService";

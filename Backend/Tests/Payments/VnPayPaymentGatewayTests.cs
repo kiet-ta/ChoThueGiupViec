@@ -16,7 +16,7 @@ namespace CommonService.Tests.Payments;
 /// VNPay sandbox adapter. No network and no real key: a stub handler captures the HTTP calls and the credentials below are made-up
 /// test values. Every expected signature is computed here, independently of the adapter, from the strings of VNPay's documentation.
 /// </summary>
-public sealed class VnPayPaymentGatewayTests
+public class VnPayPaymentGatewayTests
 {
     private const string Tmn = "TESTTMN1";
     private const string Secret = "test-secret-not-a-real-key";
@@ -32,7 +32,7 @@ public sealed class VnPayPaymentGatewayTests
         return string.Concat(hmac.ComputeHash(Encoding.UTF8.GetBytes(data)).Select(b => b.ToString("x2")));
     }
 
-    private sealed class StubHandler : HttpMessageHandler
+    private class StubHandler : HttpMessageHandler
     {
         private readonly Queue<string> _answers = new();
         public List<(string Url, JsonElement Body)> Calls { get; } = [];

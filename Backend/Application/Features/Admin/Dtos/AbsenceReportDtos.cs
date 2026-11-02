@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Admin.Dtos;
 
 /// <summary>An assignment where the worker pressed "customer absent" (contract admin.md section 1, <c>AbsenceReport</c>).</summary>
-public sealed class AbsenceReportDto
+public class AbsenceReportDto
 {
     public long AssignmentId { get; init; }
     public long OrderId { get; init; }
@@ -46,7 +46,7 @@ public sealed class AbsenceReportDto
     public List<string> BlockReasons { get; init; } = [];
 }
 
-public sealed class AbsenceReportPageDto
+public class AbsenceReportPageDto
 {
     public List<AbsenceReportDto> Items { get; init; } = [];
     public int Page { get; init; }
@@ -55,7 +55,7 @@ public sealed class AbsenceReportPageDto
 }
 
 /// <summary>Body of the reject endpoint.</summary>
-public sealed class RejectAbsenceRequestDto
+public class RejectAbsenceRequestDto
 {
     public string? Reason { get; init; }
 }

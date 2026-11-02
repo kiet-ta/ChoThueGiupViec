@@ -17,7 +17,7 @@ public class ShiftRosterTests
     private const string Morning = "SHIFT_MORNING";
     private const string Afternoon = "SHIFT_AFTERNOON";
 
-    private sealed class InMemoryRoster : IRosterRepository
+    private class InMemoryRoster : IRosterRepository
     {
         public Dictionary<int, (string Name, WorkStatus Status, int AgencyId)> Workers { get; } = new()
         {
@@ -77,7 +77,7 @@ public class ShiftRosterTests
         public void RemoveSlot(BookingSlot slot) => Slots.Remove(slot);
     }
 
-    private sealed class PassThroughUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
+    private class PassThroughUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;

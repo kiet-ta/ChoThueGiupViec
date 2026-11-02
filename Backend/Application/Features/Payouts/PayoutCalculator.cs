@@ -8,11 +8,11 @@ public readonly record struct PayeeKey(PayeeType Type, int Id);
 
 /// <summary>An assignment that may be paid out, as read from the flat <c>JOB_ASSIGNMENT</c> node.</summary>
 /// <param name="AbsenceFeeAmount">The approved customer-absence fee (decision Q10); only meaningful for <c>ABSENT</c>.</param>
-public sealed record PayoutAssignmentRow(
+public record PayoutAssignmentRow(
     long AssignmentId, int WorkerId, int? AgencyId, JobAssignmentStatus Status, decimal GrossAmount, decimal CommissionRate, decimal? AbsenceFeeAmount);
 
 /// <summary>One payout item computed for a payee.</summary>
-public sealed record PayoutLine(
+public record PayoutLine(
     PayeeKey Payee, int JobCount, decimal Gross, decimal Commission, decimal Penalty, decimal Net, IReadOnlyList<long> AssignmentIds);
 
 /// <summary>The money of one assignment: what is paid and what the platform keeps.</summary>

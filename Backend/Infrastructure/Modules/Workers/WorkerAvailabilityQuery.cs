@@ -10,7 +10,7 @@ namespace CommonService.Infrastructure.Modules.Workers;
 /// Used by Dispatch (M3) candidate scanner to find available Freelancers.
 /// Decisions D24: the search matches on the work area the freelancer registered (base point + radius), not on the last GPS point.
 /// </summary>
-public sealed class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoService) : IWorkerAvailabilityQuery
+public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoService) : IWorkerAvailabilityQuery
 {
     public async Task<IReadOnlyList<AvailableWorker>> FindAvailableFreelancersAsync(
         AvailabilityQuery query,

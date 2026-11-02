@@ -36,7 +36,7 @@ public class WorkerExtensionDatabaseTests
     private static AppDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options);
 
-    private sealed record Seeded(int WorkerId, int OtherWorkerId, int CustomerId, long OrderId, int SlotId, long AssignmentId, int ExtensionId);
+    private record Seeded(int WorkerId, int OtherWorkerId, int CustomerId, long OrderId, int SlotId, long AssignmentId, int ExtensionId);
 
     private static async Task<Worker> NewWorkerAsync(AppDbContext db, string name)
     {

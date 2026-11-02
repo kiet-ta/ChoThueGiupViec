@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="IWorkerImportRepository"/>. Not verified against a live SQL Server on this host.</summary>
-public sealed class EfWorkerImportRepository(AppDbContext db) : IWorkerImportRepository
+public class EfWorkerImportRepository(AppDbContext db) : IWorkerImportRepository
 {
     public async Task<DateTime?> GetGuaranteeSignedAtAsync(int agencyId, CancellationToken cancellationToken = default) =>
         await db.PartnerAgencies.AsNoTracking()

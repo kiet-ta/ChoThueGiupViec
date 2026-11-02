@@ -4,7 +4,7 @@ namespace CommonService.Application.Features.Customers.Dtos;
 /// Customer address returned by the address book endpoints (contract customers.md §1).
 /// totalAreaM2 is computed by the server: floorAreaM2 x numFloors (PRD §1.1).
 /// </summary>
-public sealed class AddressDto
+public class AddressDto
 {
     public int AddressId { get; set; }
     public string Label { get; set; } = string.Empty;

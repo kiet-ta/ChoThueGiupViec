@@ -2,7 +2,7 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Booking.Services;
 
-public sealed record CreateOrderRequest(
+public record CreateOrderRequest(
     int CustomerId,
     int AddressId,
     ServiceTier ServiceTier,
@@ -14,7 +14,7 @@ public sealed record CreateOrderRequest(
     long? PreviousOrderId = null);
 
 /// <summary>The <c>Order</c> shape of contract booking.md section 2 (times in UTC).</summary>
-public sealed record CreatedOrder(
+public record CreatedOrder(
     long OrderId,
     string OrderCode,
     ServiceTier ServiceTier,

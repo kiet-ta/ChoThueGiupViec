@@ -5,7 +5,7 @@ namespace CommonService.Application.Features.Booking;
 /// <param name="RequiredWorkers">1, or exactly 2 parallel Job Assignments for a large area (BR-02, decisions Q01: never 3+).</param>
 /// <param name="MaxHoursPerShift">Upper bound of one worker's shift (BR-01, <c>Shift.MaxHours</c>).</param>
 /// <param name="IsLargeArea">True when the area is over <c>Area.StandardMaxM2</c>.</param>
-public sealed record ShiftPlan(int RequiredWorkers, int MaxHoursPerShift, bool IsLargeArea);
+public record ShiftPlan(int RequiredWorkers, int MaxHoursPerShift, bool IsLargeArea);
 
 /// <summary>
 /// Pure shift rule (PRD BR-01/BR-02, decisions Q01): area &lt;= <c>Area.StandardMaxM2</c> -> 1 worker,

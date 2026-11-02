@@ -21,14 +21,14 @@ public class JobCompletionGuardTests
     private const int WorkerId = 7;
     private const int CustomerId = 21;
 
-    private sealed class User(int? id, UserRole? role, bool authenticated = true) : ICurrentUser
+    private class User(int? id, UserRole? role, bool authenticated = true) : ICurrentUser
     {
         public int? UserId { get; } = id;
         public UserRole? Role { get; } = role;
         public bool IsAuthenticated { get; } = authenticated;
     }
 
-    private sealed class NoPublisher : IPublisher
+    private class NoPublisher : IPublisher
     {
         public int Published { get; private set; }
 
@@ -46,7 +46,7 @@ public class JobCompletionGuardTests
     }
 
     /// <summary>One OFFERED assignment; only the members the guards use are implemented, a write is a test failure.</summary>
-    private sealed class AssignmentRepository(bool assignmentExists = true) : IWorkerRepository
+    private class AssignmentRepository(bool assignmentExists = true) : IWorkerRepository
     {
         public int AssignmentLookups { get; private set; }
 

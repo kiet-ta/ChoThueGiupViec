@@ -17,7 +17,7 @@ public static class AbsenceNotificationTopics
 /// BR-05: when a worker reports the customer absent, every active Admin is told so the approval queue is looked at. Best effort:
 /// a failure is logged and never reaches the code that published the event.
 /// </summary>
-public sealed class CustomerAbsentReportedNotificationHandler(
+public class CustomerAbsentReportedNotificationHandler(
     IAbsenceRepository absences,
     INotificationService notifications,
     ILogger<CustomerAbsentReportedNotificationHandler> logger) : INotificationHandler<CustomerAbsentReported>
@@ -53,7 +53,7 @@ public sealed class CustomerAbsentReportedNotificationHandler(
 /// When an Admin approves the absence, the customer learns the fee and the refund and the worker learns the compensation (Q10: 40 % to
 /// the worker, 60 % back to the customer). Best effort, like the handler above.
 /// </summary>
-public sealed class CustomerAbsentApprovedNotificationHandler(
+public class CustomerAbsentApprovedNotificationHandler(
     IAbsenceRepository absences,
     INotificationService notifications,
     ILogger<CustomerAbsentApprovedNotificationHandler> logger) : INotificationHandler<CustomerAbsentApproved>

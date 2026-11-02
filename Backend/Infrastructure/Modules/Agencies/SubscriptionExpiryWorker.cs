@@ -10,7 +10,7 @@ namespace CommonService.Infrastructure.Modules.Agencies;
 /// quota are locked, decisions Q08) and <see cref="SubscriptionReminderService"/> (expiry reminders, D16). A failing run is logged and
 /// never stops the loop.
 /// </summary>
-public sealed class SubscriptionExpiryWorker(IServiceScopeFactory scopeFactory, ILogger<SubscriptionExpiryWorker> logger) : BackgroundService
+public class SubscriptionExpiryWorker(IServiceScopeFactory scopeFactory, ILogger<SubscriptionExpiryWorker> logger) : BackgroundService
 {
     /// <summary>provenance: a lock is allowed to lag the end of the grace period by at most one hour; the sweep reads agencies with workers only.</summary>
     public static readonly TimeSpan SweepInterval = TimeSpan.FromHours(1);

@@ -15,14 +15,14 @@ using Xunit;
 namespace CommonService.Tests.Payments;
 
 /// <summary>BE-M2-04: payment QR of an order (contract payments.md 2.1), with in-memory ports.</summary>
-public sealed class PaymentQrServiceTests
+public class PaymentQrServiceTests
 {
     private const int CustomerId = 7;
     private const long OrderId = 42;
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime OrderCreatedAt = Now.AddMinutes(-5);
 
-    private sealed class TestClock(DateTime utcNow) : IClock
+    private class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -31,7 +31,7 @@ public sealed class PaymentQrServiceTests
     }
 
     /// <summary>Order and transaction tables in one; the unit of work assigns ids on save.</summary>
-    private sealed class InMemoryPayments : IPaymentRepository, IUnitOfWork
+    private class InMemoryPayments : IPaymentRepository, IUnitOfWork
     {
         private long _nextId = 1;
         private readonly List<PaymentTransaction> _pending = [];
@@ -108,7 +108,7 @@ public sealed class PaymentQrServiceTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class FailingGateway : IPaymentGateway
+    private class FailingGateway : IPaymentGateway
     {
         public Task<PaymentQr> CreateQrAsync(CreatePaymentRequest request, CancellationToken cancellationToken = default) =>
             throw new HttpRequestException("sandbox unreachable");
@@ -118,7 +118,7 @@ public sealed class PaymentQrServiceTests
         public Task<GatewayRefundResult> RefundAsync(string gatewayTxnRef, decimal amount, string reason, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public InMemoryPayments Db { get; } = new();
         public FakePaymentGateway Gateway { get; } = new();
@@ -360,14 +360,14 @@ public sealed class PaymentQrServiceTests
         Assert.Empty(f.Db.Saved);
     }
 
-    private sealed class StubUser(int? userId) : ICurrentUser
+    private class StubUser(int? userId) : ICurrentUser
     {
         public bool IsAuthenticated => userId.HasValue;
         public int? UserId => userId;
         public UserRole? Role => userId.HasValue ? UserRole.Customer : null;
     }
 
-    private sealed class StubService(Func<PaymentQrResult> result) : IPaymentQrService
+    private class StubService(Func<PaymentQrResult> result) : IPaymentQrService
     {
         public Task<PaymentQrResult> CreateOrderQrAsync(int customerId, long orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult(result());

@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Keeps files in memory.</summary>
-public sealed class FakeFileStorage : IFileStorage
+public class FakeFileStorage : IFileStorage
 {
     private readonly ConcurrentDictionary<string, byte[]> _files = new();
 

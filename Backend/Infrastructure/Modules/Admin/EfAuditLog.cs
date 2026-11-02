@@ -11,7 +11,7 @@ namespace CommonService.Infrastructure.Modules.Admin;
 /// unit of work, so it is committed or rolled back together with the change it records.
 /// Callers write the entry BEFORE their own SaveChangesAsync / IUnitOfWork commit.
 /// </summary>
-public sealed class EfAuditLog(AppDbContext db, IClock clock) : IAuditLog
+public class EfAuditLog(AppDbContext db, IClock clock) : IAuditLog
 {
     // Column sizes of ADMIN_AUDIT_LOG (AdminAuditLogConfiguration): an audit value is never truncated silently.
     internal const int MaxEntityType = 30;

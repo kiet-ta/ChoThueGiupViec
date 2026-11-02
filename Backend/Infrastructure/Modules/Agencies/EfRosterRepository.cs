@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="IRosterRepository"/>. Not verified against a live SQL Server on this host.</summary>
-public sealed class EfRosterRepository(AppDbContext db) : IRosterRepository
+public class EfRosterRepository(AppDbContext db) : IRosterRepository
 {
     public async Task<IReadOnlyDictionary<int, (string FullName, WorkStatus Status)>> GetAgencyWorkersAsync(
         int agencyId, IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default)

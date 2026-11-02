@@ -12,7 +12,7 @@ namespace CommonService.Infrastructure.Modules.Identity;
 /// Seeds the initial development admin account on startup (overview §10).
 /// Strictly runs in Development only; never logs the plain-text password.
 /// </summary>
-public sealed class AdminSeeder
+public class AdminSeeder
 {
     private readonly IConfiguration _configuration;
     private readonly IHostEnvironment _environment;

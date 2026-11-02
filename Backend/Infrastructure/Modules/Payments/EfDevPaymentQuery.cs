@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Payments;
 
 /// <summary>EF Core implementation of <see cref="IDevPaymentQuery"/> (UAT-PAY).</summary>
-public sealed class EfDevPaymentQuery(AppDbContext db) : IDevPaymentQuery
+public class EfDevPaymentQuery(AppDbContext db) : IDevPaymentQuery
 {
     public async Task<IReadOnlyList<DevPaymentDto>> ListPendingAsync(int take, CancellationToken cancellationToken = default)
     {

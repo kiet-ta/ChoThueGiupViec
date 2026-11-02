@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>In-memory favorites for tests and for running Booking before the Customers implementation is wired. Empty by default.</summary>
-public sealed class FakeCustomerFavoriteQuery : ICustomerFavoriteQuery
+public class FakeCustomerFavoriteQuery : ICustomerFavoriteQuery
 {
     private readonly ConcurrentDictionary<(int CustomerId, int WorkerId), bool> _favorites = new();
 

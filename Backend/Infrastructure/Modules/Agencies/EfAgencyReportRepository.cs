@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="IAgencyReportRepository"/>: filters on <c>agency_id</c> only, no JOIN (PRD 5.2). Not verified on a live SQL Server.</summary>
-public sealed class EfAgencyReportRepository(AppDbContext db) : IAgencyReportRepository
+public class EfAgencyReportRepository(AppDbContext db) : IAgencyReportRepository
 {
     public async Task<(IReadOnlyList<AgencyJobRow> Items, int Total)> ListJobsAsync(
         int agencyId, JobAssignmentStatus? status, int skip, int take, CancellationToken cancellationToken = default)

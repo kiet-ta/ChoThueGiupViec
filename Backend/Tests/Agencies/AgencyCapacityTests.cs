@@ -10,7 +10,7 @@ namespace CommonService.Tests.Agencies;
 /// In-memory <see cref="ICapacityRepository"/> with the semantics of the EF one: a hold is all-or-nothing and a slot can be held by one
 /// order only. <see cref="Eligible"/> stands for "ACTIVE agency with sla_score >= the minimum".
 /// </summary>
-internal sealed class InMemoryCapacityRepository : ICapacityRepository
+internal class InMemoryCapacityRepository : ICapacityRepository
 {
     private readonly object _gate = new();
     private readonly Dictionary<int, CapacitySlot> _slots = new();

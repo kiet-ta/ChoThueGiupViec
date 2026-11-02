@@ -13,7 +13,7 @@ namespace CommonService.Application.Features.Booking;
 /// stays ASSIGNED until the second one completes. Idempotent: a repeated event, an unknown order and an order in any other status change nothing.
 /// The event is published inside the customer's accept call, so this handler only acts on an ASSIGNED order and never throws for a state it does not handle.
 /// </summary>
-public sealed class JobCompletedHandler(
+public class JobCompletedHandler(
     IOrderRepository orders,
     IUnitOfWork unitOfWork,
     IClock clock,

@@ -10,7 +10,7 @@ namespace CommonService.Application.Features.Booking;
 /// The <c>Order</c> shape on the wire (contract booking.md section 2): enum values are the contract's UPPER_SNAKE strings
 /// (<c>ECONOMY</c>, <c>PENDING_PAYMENT</c>), not integers.
 /// </summary>
-public sealed record OrderDto(
+public record OrderDto(
     long OrderId,
     string OrderCode,
     string ServiceTier,
@@ -37,7 +37,7 @@ public sealed record OrderDto(
 }
 
 /// <summary><c>OrderSummary</c> of the history list (contract booking.md section 2).</summary>
-public sealed record OrderSummaryDto(
+public record OrderSummaryDto(
     long OrderId,
     string OrderCode,
     string ServiceTier,
@@ -48,10 +48,10 @@ public sealed record OrderSummaryDto(
     string OrderStatus,
     DateTime CreatedAt);
 
-public sealed record OrderPageDto(IReadOnlyList<OrderSummaryDto> Items, int Page, int PageSize, int Total);
+public record OrderPageDto(IReadOnlyList<OrderSummaryDto> Items, int Page, int PageSize, int Total);
 
 /// <summary>One visible assignment of <c>OrderProgress</c>. No worker phone here (Q17: phone visibility is Dispatch's rule).</summary>
-public sealed record ProgressAssignmentDto(
+public record ProgressAssignmentDto(
     long AssignmentId,
     int AssignmentSeq,
     int WorkerId,
@@ -62,17 +62,17 @@ public sealed record ProgressAssignmentDto(
     DateTime? CompletedAt);
 
 /// <summary><c>OrderProgress</c> (contract booking.md section 2).</summary>
-public sealed record OrderProgressDto(
+public record OrderProgressDto(
     long OrderId,
     string OrderStatus,
     int RequiredWorkers,
     IReadOnlyList<ProgressAssignmentDto> Assignments,
     ExtensionDto? Extension);
 
-public sealed record ShiftOptionDto(string ShiftCode, string StartLocal, string EndLocal);
+public record ShiftOptionDto(string ShiftCode, string StartLocal, string EndLocal);
 
 /// <summary>Answer of GET /api/booking/options (contract booking.md 3.1): the app hard-codes none of these (G-4).</summary>
-public sealed record BookingOptionsDto(
+public record BookingOptionsDto(
     IReadOnlyList<string> ServiceTiers,
     IReadOnlyList<ShiftOptionDto> Shifts,
     int PremiumMinLeadHours,
@@ -82,7 +82,7 @@ public sealed record BookingOptionsDto(
     bool Sandbox);
 
 /// <summary><c>PriceQuote</c> on the wire (contract booking.md section 2).</summary>
-public sealed record PriceQuoteDto(
+public record PriceQuoteDto(
     int AddressId,
     string ServiceTier,
     decimal TotalAreaM2,
@@ -93,7 +93,7 @@ public sealed record PriceQuoteDto(
     string Currency);
 
 /// <summary>Body of POST /api/booking/orders (contract booking.md 3.3). The optional preferred worker is a favorite or a worker from the caller's completed assignment (ECONOMY only).</summary>
-public sealed record CreateOrderBody(
+public record CreateOrderBody(
     int AddressId,
     string? ServiceTier,
     DateOnly? ScheduledDate,

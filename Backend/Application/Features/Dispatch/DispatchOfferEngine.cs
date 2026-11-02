@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 namespace CommonService.Application.Features.Dispatch;
 
 /// <summary>What Dispatch needs to know about a paid order (read by order id, so <see cref="OrderPaid"/> stays as M2 publishes it).</summary>
-public sealed record DispatchOrderContext(
+public record DispatchOrderContext(
     long OrderId,
     int CustomerId,
     ServiceTier ServiceTier,

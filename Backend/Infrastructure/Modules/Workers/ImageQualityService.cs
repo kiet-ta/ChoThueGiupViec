@@ -13,7 +13,7 @@ namespace CommonService.Infrastructure.Modules.Workers;
 /// A JPEG, PNG or WebP photo (WORKERS-PHOTO-01) is decoded with SkiaSharp and measured on its real pixels; a 24-bit BMP and the raw bytes of
 /// the Development stand-in (<see cref="JobPhotoStandIn"/>) keep the parsers they always had.
 /// </summary>
-public sealed class ImageQualityService : IImageQualityService
+public class ImageQualityService : IImageQualityService
 {
     /// <summary>
     /// A decoded photo takes 4 bytes per pixel, and a small file can claim a huge size (a decompression bomb): above this many pixels the

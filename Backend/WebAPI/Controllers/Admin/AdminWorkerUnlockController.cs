@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CommonService.WebAPI.Controllers.Admin;
 
 /// <summary>Body of the unlock: why the Admin unlocks the worker (written to the audit log, decision G-5).</summary>
-public sealed class WorkerUnlockRequest
+public class WorkerUnlockRequest
 {
     public string? Reason { get; init; }
 }

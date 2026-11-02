@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Disputes.Dtos;
 
 /// <summary>Body of the two POST .../disputes endpoints (contract disputes.md 2.1).</summary>
-public sealed class FileDisputeRequestDto
+public class FileDisputeRequestDto
 {
     /// <summary>Nullable so that a missing value is a validation error, not order 0.</summary>
     public long? OrderId { get; init; }
@@ -12,7 +12,7 @@ public sealed class FileDisputeRequestDto
 }
 
 /// <summary>Body of POST /api/admin/disputes/{id}/resolve (contract disputes.md 2.3). Text and nullable values so a bad one is a 400 with field messages.</summary>
-public sealed class ResolveDisputeRequestDto
+public class ResolveDisputeRequestDto
 {
     /// <summary>FREELANCER, AGENCY or CUSTOMER; null dismisses the dispute.</summary>
     public string? FaultParty { get; init; }
@@ -52,12 +52,12 @@ public class DisputeDto
 }
 
 /// <summary>The Admin's view: the same plus who took the ticket (<c>resolved_by</c>).</summary>
-public sealed class AdminDisputeDto : DisputeDto
+public class AdminDisputeDto : DisputeDto
 {
     public int? ResolvedBy { get; init; }
 }
 
-public sealed class DisputeWorkerDto
+public class DisputeWorkerDto
 {
     public int WorkerId { get; init; }
     public string FullName { get; init; } = string.Empty;
@@ -69,7 +69,7 @@ public sealed class DisputeWorkerDto
 }
 
 /// <summary>One row of the Admin queue (contract disputes.md section 1, DisputeSummary).</summary>
-public sealed class DisputeSummaryDto
+public class DisputeSummaryDto
 {
     public int DisputeId { get; init; }
     public long OrderId { get; init; }
@@ -93,7 +93,7 @@ public sealed class DisputeSummaryDto
     public bool AutoCancelled { get; init; }
 }
 
-public sealed class DisputePageDto
+public class DisputePageDto
 {
     public List<DisputeSummaryDto> Items { get; init; } = [];
     public int Page { get; init; }
@@ -101,7 +101,7 @@ public sealed class DisputePageDto
     public int Total { get; init; }
 }
 
-public sealed class ShiftTimelineEntryDto
+public class ShiftTimelineEntryDto
 {
     public DateTime At { get; init; }
 
@@ -114,7 +114,7 @@ public sealed class ShiftTimelineEntryDto
     public decimal? DistanceM { get; init; }
 }
 
-public sealed class DisputePhotoDto
+public class DisputePhotoDto
 {
     public long AssignmentId { get; init; }
 
@@ -128,7 +128,7 @@ public sealed class DisputePhotoDto
 }
 
 /// <summary>The case file of one dispute for the Admin console (contract disputes.md 2.2).</summary>
-public sealed class DisputeCaseFileDto
+public class DisputeCaseFileDto
 {
     public AdminDisputeDto Dispute { get; init; } = new();
     public DisputeSummaryDto Summary { get; init; } = new();

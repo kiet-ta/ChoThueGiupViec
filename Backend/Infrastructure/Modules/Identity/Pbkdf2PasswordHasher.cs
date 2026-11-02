@@ -8,7 +8,7 @@ namespace CommonService.Infrastructure.Modules.Identity;
 /// Format: <c>pbkdf2$sha256${iterations}${saltBase64}${hashBase64}</c>.
 /// Fits well within <c>VARCHAR(255)</c> (~88 chars).
 /// </summary>
-public sealed class Pbkdf2PasswordHasher : IPasswordHasher
+public class Pbkdf2PasswordHasher : IPasswordHasher
 {
     private const int SaltBytes = 16;
     private const int SubkeyBytes = 32;

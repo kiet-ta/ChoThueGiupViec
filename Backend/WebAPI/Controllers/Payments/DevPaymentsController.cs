@@ -43,4 +43,4 @@ public class DevPaymentsController(DevPaymentService service, IHostEnvironment e
 }
 
 /// <summary>Answer of the confirm call: <c>CONFIRMED</c> or, for a repeat, <c>ALREADY_PROCESSED</c>.</summary>
-public sealed record DevConfirmDto(string Result);
+public record DevConfirmDto(string Result);

@@ -10,7 +10,7 @@ namespace CommonService.Application.Features.Customers.Services;
 /// <summary>
 /// Implements GET/PUT /api/customers/me rules of contract customers.md §2.1 (BE-M1-04).
 /// </summary>
-public sealed class CustomerProfileService : ICustomerProfileService
+public class CustomerProfileService : ICustomerProfileService
 {
     private const int MaxFullNameLength = 100;
     private const int MaxEmailLength = 255;

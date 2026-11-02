@@ -36,7 +36,7 @@ public class AuditLogReadTests
         }
     }
 
-    private sealed class RecordingRepository : IAuditLogReadRepository
+    private class RecordingRepository : IAuditLogReadRepository
     {
         public AuditLogFilter? Filter { get; private set; }
         public int Page { get; private set; }
@@ -185,7 +185,7 @@ public class AuditLogReadTests
 
     // ---- controller -----------------------------------------------------------------------------
 
-    private sealed class StubQueries(AuditLogQueryResult result) : IAuditLogQueryService
+    private class StubQueries(AuditLogQueryResult result) : IAuditLogQueryService
     {
         public Task<AuditLogQueryResult> SearchAsync(string? entityType, string? entityId, string? actorType,
             string? from, string? to, string? page, string? pageSize, CancellationToken cancellationToken = default) =>

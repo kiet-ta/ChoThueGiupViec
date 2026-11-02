@@ -37,7 +37,7 @@ public class AdminDashboardTests
         }
     }
 
-    private sealed class TestClock(DateTime utcNow) : IClock
+    private class TestClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -110,7 +110,7 @@ public class AdminDashboardTests
 
     // ---- the service ----------------------------------------------------------------------------
 
-    private sealed class StubRepository(DashboardCounts counts) : IAdminDashboardRepository
+    private class StubRepository(DashboardCounts counts) : IAdminDashboardRepository
     {
         public DashboardWindow? Asked { get; private set; }
 
@@ -157,7 +157,7 @@ public class AdminDashboardTests
 
     // ---- controller -----------------------------------------------------------------------------
 
-    private sealed class StubService : IAdminDashboardService
+    private class StubService : IAdminDashboardService
     {
         public Task<DashboardDto> GetAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(new DashboardDto { Orders = new DashboardOrdersDto { Today = 4 } });
@@ -186,7 +186,7 @@ public class AdminDashboardTests
 
     private static int _dayCounter;
 
-    private sealed class Seed
+    private class Seed
     {
         public int CustomerId { get; set; }
         public int AddressId { get; set; }

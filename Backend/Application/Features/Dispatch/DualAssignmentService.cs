@@ -13,7 +13,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>
 /// Result of dual assignment initialization or fallback execution.
 /// </summary>
-public sealed record DualAssignmentResult
+public record DualAssignmentResult
 {
     public required bool Success { get; init; }
     public required long OrderId { get; init; }

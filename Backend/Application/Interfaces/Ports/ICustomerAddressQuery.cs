@@ -2,7 +2,7 @@ namespace CommonService.Application.Interfaces.Ports;
 
 /// <param name="AddressId">CUSTOMER_ADDRESS.address_id.</param>
 /// <param name="TotalAreaM2">S_total of the address (PRD 1.1), computed by the server.</param>
-public sealed record CustomerAddressInfo(int AddressId, decimal TotalAreaM2, decimal Latitude, decimal Longitude);
+public record CustomerAddressInfo(int AddressId, decimal TotalAreaM2, decimal Latitude, decimal Longitude);
 
 /// <summary>
 /// Booking's read access to the customer's address book (contract booking.md B2). Booking never reads CUSTOMER_ADDRESS itself.

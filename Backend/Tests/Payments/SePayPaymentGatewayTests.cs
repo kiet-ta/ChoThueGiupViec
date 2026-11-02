@@ -14,19 +14,19 @@ using Xunit;
 
 namespace CommonService.Tests.Payments;
 
-public sealed class SePayPaymentGatewayTests
+public class SePayPaymentGatewayTests
 {
     private const string Secret = "fake-test-secret";
     private const string Reference = "TA0123456789";
     private const long Now = 1800000000;
     private const string Body = "{\"transferType\":\"in\",\"code\":\"TA0123456789\",\"transferAmount\":260000}";
 
-    private sealed class Clock : TimeProvider
+    private class Clock : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => DateTimeOffset.FromUnixTimeSeconds(Now);
     }
 
-    private sealed class StubHandler(string response = "{}", HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
+    private class StubHandler(string response = "{}", HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
     {
         public int Calls { get; private set; }
         public string? Url { get; private set; }

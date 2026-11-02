@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>One fake agency (id 1) with a settable number of free slots; holds are atomic.</summary>
-public sealed class FakeAgencyCapacityService : IAgencyCapacityService
+public class FakeAgencyCapacityService : IAgencyCapacityService
 {
     private const int FakeAgencyId = 1;
 

@@ -9,7 +9,7 @@ namespace CommonService.Infrastructure.Modules.Agencies;
 /// Runs <see cref="AgencySwapService.ExpireDueAsync"/> every <see cref="SweepInterval"/>: a swap window past its deadline is handed to
 /// Dispatch (<c>AgencySwapWindowExpired</c>, decisions Q09). A failing run is logged and never stops the loop.
 /// </summary>
-public sealed class AgencySwapExpiryWorker(IServiceScopeFactory scopeFactory, ILogger<AgencySwapExpiryWorker> logger) : BackgroundService
+public class AgencySwapExpiryWorker(IServiceScopeFactory scopeFactory, ILogger<AgencySwapExpiryWorker> logger) : BackgroundService
 {
     /// <summary>provenance: the hand-over may lag the 30-minute deadline by at most this long; one indexed query per tick.</summary>
     public static readonly TimeSpan SweepInterval = TimeSpan.FromSeconds(30);

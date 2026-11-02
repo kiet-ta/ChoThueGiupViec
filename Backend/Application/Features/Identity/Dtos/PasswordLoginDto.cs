@@ -3,7 +3,7 @@ namespace CommonService.Application.Features.Identity.Dtos;
 /// <summary>
 /// Request payload for POST /api/auth/password/login (contract identity.md §2.3).
 /// </summary>
-public sealed class PasswordLoginDto
+public class PasswordLoginDto
 {
     /// <summary>ADMIN.email or PARTNER_AGENCY.contact_email.</summary>
     public string Email { get; set; } = string.Empty;

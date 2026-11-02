@@ -1,6 +1,6 @@
 namespace CommonService.Application.Features.Workers.Dtos;
 
-public sealed record RegisterWorkerRequest(
+public record RegisterWorkerRequest(
     string RegistrationToken,
     string FullName,
     string NationalId,
@@ -8,13 +8,13 @@ public sealed record RegisterWorkerRequest(
     string? Bio = null
 );
 
-public sealed record UpdateWorkerProfileRequest(
+public record UpdateWorkerProfileRequest(
     string FullName,
     string? AvatarUrl = null,
     string? Bio = null
 );
 
-public sealed record WorkerProfileResponse(
+public record WorkerProfileResponse(
     int WorkerId,
     string PhoneNumber,
     string FullName,
@@ -29,7 +29,7 @@ public sealed record WorkerProfileResponse(
     DateTime CreatedAt
 );
 
-public sealed record WorkerPublicProfileResponse(
+public record WorkerPublicProfileResponse(
     int WorkerId,
     string FullName,
     string? AvatarUrl,

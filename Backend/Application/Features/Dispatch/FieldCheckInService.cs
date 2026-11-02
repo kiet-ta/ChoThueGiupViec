@@ -11,7 +11,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>
 /// Result of a field check-in attempt (BR-04, decisions Q06).
 /// </summary>
-public sealed record FieldCheckInResult
+public record FieldCheckInResult
 {
     public required bool Success { get; init; }
     public required long AssignmentId { get; init; }

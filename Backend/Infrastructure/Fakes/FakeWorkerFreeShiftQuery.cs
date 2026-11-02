@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>In-memory free shifts for tests and for running Customers before the Workers implementation is wired. Empty by default.</summary>
-public sealed class FakeWorkerFreeShiftQuery : IWorkerFreeShiftQuery
+public class FakeWorkerFreeShiftQuery : IWorkerFreeShiftQuery
 {
     private readonly ConcurrentDictionary<int, ConcurrentBag<WorkerFreeShift>> _shifts = new();
 

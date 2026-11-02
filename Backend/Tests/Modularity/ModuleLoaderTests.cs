@@ -95,25 +95,25 @@ public class ModuleLoaderTests
         Assert.NotNull(provider.GetRequiredService<ICacheService>());
     }
 
-    private sealed class AlphaModule : IModule
+    private class AlphaModule : IModule
     {
         public string Name => "Alpha";
         public void ConfigureServices(IServiceCollection services, IConfiguration configuration) { }
     }
 
-    private sealed class ZetaModule : IModule
+    private class ZetaModule : IModule
     {
         public string Name => "Zeta";
         public void ConfigureServices(IServiceCollection services, IConfiguration configuration) { }
     }
 
-    private sealed class DuplicateNameModule : IModule
+    private class DuplicateNameModule : IModule
     {
         public string Name => "Fake";
         public void ConfigureServices(IServiceCollection services, IConfiguration configuration) { }
     }
 
-    private sealed class NoDefaultConstructorModule(int unused) : IModule
+    private class NoDefaultConstructorModule(int unused) : IModule
     {
         public string Name => $"NoCtor{unused}";
         public void ConfigureServices(IServiceCollection services, IConfiguration configuration) { }

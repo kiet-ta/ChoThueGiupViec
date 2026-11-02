@@ -6,7 +6,7 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Workers.Services;
 
-public sealed class WorkerAssignmentService(
+public class WorkerAssignmentService(
     IWorkerAssignmentRepository repository,
     ICurrentUser currentUser,
     IClock clock) : IWorkerAssignmentService

@@ -27,7 +27,7 @@ using Xunit;
 namespace CommonService.Tests.Payments;
 
 /// <summary>BE-M2-05: gateway IPN (contract payments.md 2.4), with in-memory ports (no DB).</summary>
-public sealed class SePayWebhookTests
+public class SePayWebhookTests
 {
     private const int CustomerId = 7;
     private const long OrderId = 42;
@@ -35,7 +35,7 @@ public sealed class SePayWebhookTests
     private const decimal Amount = 260000m;
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -43,7 +43,7 @@ public sealed class SePayWebhookTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         private readonly List<object> _published = [];
         public IReadOnlyList<object> Published { get { lock (_published) { return _published.ToArray(); } } }
@@ -58,7 +58,7 @@ public sealed class SePayWebhookTests
             where TNotification : INotification => Publish((object)notification, cancellationToken);
     }
 
-    private sealed class RecordingNotifications : INotificationService
+    private class RecordingNotifications : INotificationService
     {
         private readonly List<NotificationMessage> _sent = [];
         public bool Fail { get; set; }
@@ -77,7 +77,7 @@ public sealed class SePayWebhookTests
     }
 
     /// <summary>One lock makes the conditional update atomic like the SQL <c>WHERE txn_status = 'PENDING'</c>.</summary>
-    private sealed class InMemoryPayments : IPaymentRepository, IUnitOfWork
+    private class InMemoryPayments : IPaymentRepository, IUnitOfWork
     {
         private readonly object _gate = new();
         public Barrier? ReadBarrier { get; set; }
@@ -195,7 +195,7 @@ public sealed class SePayWebhookTests
         };
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public InMemoryPayments Db { get; } = new();
         public RecordingPublisher Publisher { get; } = new();
@@ -246,12 +246,12 @@ public sealed class SePayWebhookTests
     private const string Secret = "fake-webhook-secret";
     private const string Body = "{\"transferType\":\"in\",\"code\":\"TA0123456789\",\"transferAmount\":260000}";
 
-    private sealed class WebhookClock : TimeProvider
+    private class WebhookClock : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => new(Now);
     }
 
-    private sealed class RecordingIpn : IIpnService
+    private class RecordingIpn : IIpnService
     {
         public IReadOnlyDictionary<string, string>? Payload { get; private set; }
         public string? Raw { get; private set; }

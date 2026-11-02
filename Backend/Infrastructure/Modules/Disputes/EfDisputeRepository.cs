@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Disputes;
 
 /// <summary>DISPUTE_TICKET over EF Core plus the read-only joins of the Admin console (no navigation properties, 0-JOIN style).</summary>
-public sealed class EfDisputeRepository(AppDbContext db) : IDisputeRepository
+public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
 {
     // SQL Server: 2601 = duplicate key in a unique index, 2627 = unique constraint violation.
     private static readonly int[] UniqueViolationNumbers = [2601, 2627];

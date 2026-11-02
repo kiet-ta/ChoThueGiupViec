@@ -1,6 +1,6 @@
 namespace CommonService.Infrastructure.Modules.Payments.SePay;
 
-public sealed class SePayOptions
+public class SePayOptions
 {
     public const string SectionName = "SePay";
     public const string SandboxHost = "userapi-sandbox.sepay.vn";

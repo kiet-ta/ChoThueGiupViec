@@ -3,7 +3,7 @@ using CommonService.Domain.Entities;
 namespace CommonService.Application.Features.Agencies;
 
 /// <summary>The package in force for an agency on a day, and whether it is a Pro subscription in its grace days.</summary>
-public sealed record EffectivePackage(SubscriptionPackage Package, PartnerSubscription? Subscription, bool InGrace);
+public record EffectivePackage(SubscriptionPackage Package, PartnerSubscription? Subscription, bool InGrace);
 
 /// <summary>
 /// The pure subscription rules of decisions Q08, no I/O and no clock: which package is in force, and which workers are over the quota.

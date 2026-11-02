@@ -9,7 +9,7 @@ namespace CommonService.Application.Features.Customers.Services;
 /// Implements the favorite-workers rules of contract customers.md §2.3 (BE-M1-06). Worker display data and the
 /// existence check come only from the read port IWorkerProfileQuery (decisions Q21 C3); this module never reads WORKER.
 /// </summary>
-public sealed class CustomerFavoriteWorkerService : ICustomerFavoriteWorkerService
+public class CustomerFavoriteWorkerService : ICustomerFavoriteWorkerService
 {
     private readonly ICustomerRepository _customers;
     private readonly IFavoriteWorkerRepository _favorites;

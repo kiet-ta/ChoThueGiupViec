@@ -18,7 +18,7 @@ using Xunit;
 namespace CommonService.Tests.Payments;
 
 /// <summary>BE-M2-05: gateway IPN (contract payments.md 2.4), with in-memory ports (no DB).</summary>
-public sealed class IpnServiceTests
+public class IpnServiceTests
 {
     private const int CustomerId = 7;
     private const long OrderId = 42;
@@ -26,7 +26,7 @@ public sealed class IpnServiceTests
     private const decimal Amount = 260000m;
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -34,7 +34,7 @@ public sealed class IpnServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         private readonly List<object> _published = [];
         public IReadOnlyList<object> Published { get { lock (_published) { return _published.ToArray(); } } }
@@ -49,7 +49,7 @@ public sealed class IpnServiceTests
             where TNotification : INotification => Publish((object)notification, cancellationToken);
     }
 
-    private sealed class RecordingNotifications : INotificationService
+    private class RecordingNotifications : INotificationService
     {
         private readonly List<NotificationMessage> _sent = [];
         public bool Fail { get; set; }
@@ -68,7 +68,7 @@ public sealed class IpnServiceTests
     }
 
     /// <summary>One lock makes the conditional update atomic like the SQL <c>WHERE txn_status = 'PENDING'</c>.</summary>
-    private sealed class InMemoryPayments : IPaymentRepository, IUnitOfWork
+    private class InMemoryPayments : IPaymentRepository, IUnitOfWork
     {
         private readonly object _gate = new();
         public Barrier? ReadBarrier { get; set; }
@@ -186,7 +186,7 @@ public sealed class IpnServiceTests
         };
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public InMemoryPayments Db { get; } = new();
         public RecordingPublisher Publisher { get; } = new();
@@ -653,7 +653,7 @@ public sealed class IpnServiceTests
         Assert.Single(f.Publisher.Published);
     }
 
-    private sealed class StubIpn(IpnOutcome outcome) : IIpnService
+    private class StubIpn(IpnOutcome outcome) : IIpnService
     {
         public IReadOnlyDictionary<string, string>? LastPayload { get; private set; }
         public string? LastRaw { get; private set; }

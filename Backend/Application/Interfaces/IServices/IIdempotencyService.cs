@@ -3,7 +3,7 @@ namespace CommonService.Application.Interfaces.IServices;
 /// <summary>
 /// Result of an idempotent execution attempt.
 /// </summary>
-public sealed record IdempotencyExecutionResult<T>(
+public record IdempotencyExecutionResult<T>(
     bool IsCached,
     T? Value,
     bool Conflict = false);

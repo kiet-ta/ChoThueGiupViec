@@ -6,7 +6,7 @@ namespace CommonService.Application.Interfaces.Ports;
 /// <param name="RecipientRole">Who receives it.</param>
 /// <param name="RecipientId">Customer / worker / partner / admin id according to the role.</param>
 /// <param name="Topic">Machine-readable kind, for example <c>payment.status</c> or <c>job.tracking</c>.</param>
-public sealed record NotificationMessage(
+public record NotificationMessage(
     UserRole RecipientRole,
     int RecipientId,
     string Topic,

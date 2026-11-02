@@ -5,20 +5,20 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Agencies;
 
 /// <summary>One job of the agency (a <c>JOB_ASSIGNMENT</c> with its <c>agency_id</c>).</summary>
-public sealed record AgencyJobDto(
+public record AgencyJobDto(
     long AssignmentId, long OrderId, int WorkerId, string WorkerName, string ServiceTier, byte AssignmentSeq, string AssignmentStatus,
     decimal GrossAmount, decimal CommissionRate, decimal PayoutAmount, DateTime CreatedAt, DateTime? CompletedAt);
 
-public sealed record AgencyJobPageDto(IReadOnlyList<AgencyJobDto> Items, int Page, int PageSize, int Total);
+public record AgencyJobPageDto(IReadOnlyList<AgencyJobDto> Items, int Page, int PageSize, int Total);
 
 /// <summary>Per-worker performance of the period (Pro, contract agencies.md 8).</summary>
-public sealed record WorkerPerformanceDto(
+public record WorkerPerformanceDto(
     int WorkerId, string WorkerName, int Assigned, int Completed, int Cancelled, int Absent, int Incident, decimal PayoutTotal, decimal CompletionRate);
 
-public sealed record PerformanceReportDto(DateOnly From, DateOnly To, int TotalJobs, decimal PayoutTotal, IReadOnlyList<WorkerPerformanceDto> Workers);
+public record PerformanceReportDto(DateOnly From, DateOnly To, int TotalJobs, decimal PayoutTotal, IReadOnlyList<WorkerPerformanceDto> Workers);
 
 /// <summary>Raw counts of one worker over a period, as the repository groups them in one query.</summary>
-public sealed record WorkerPerformanceRow(int WorkerId, string WorkerName, int Assigned, int Completed, int Cancelled, int Absent, int Incident, decimal PayoutTotal);
+public record WorkerPerformanceRow(int WorkerId, string WorkerName, int Assigned, int Completed, int Cancelled, int Absent, int Incident, decimal PayoutTotal);
 
 public static class ReportErrorCodes
 {
@@ -40,7 +40,7 @@ public interface IAgencyReportRepository
 }
 
 /// <summary>A job row without the worker name.</summary>
-public sealed record AgencyJobRow(
+public record AgencyJobRow(
     long AssignmentId, long OrderId, int WorkerId, ServiceTier ServiceTier, byte AssignmentSeq, JobAssignmentStatus AssignmentStatus,
     decimal GrossAmount, decimal CommissionRate, decimal PayoutAmount, DateTime CreatedAt, DateTime? CompletedAt);
 
@@ -49,7 +49,7 @@ public sealed record AgencyJobRow(
 /// with <c>has_analytics</c> (Pro, decisions Q08) may read. The Verified Partner label and the priority-dispatch flag are read from the
 /// agency row and the package in force (<see cref="SubscriptionStateDto"/>).
 /// </summary>
-public sealed class AgencyReportService(
+public class AgencyReportService(
     IAgencyReportRepository repository,
     SubscriptionService subscriptions,
     ICurrentUser currentUser,

@@ -7,7 +7,7 @@ namespace CommonService.Application.Features.Agencies.Dtos;
 /// the leader decided not to add a separate column (docx/BE-M5-01-notes.md, decision 1). <c>bankName</c> and <c>bankAccountNo</c> are
 /// optional (both or neither): the account the payout is transferred to, also settable later with <c>PUT /api/agencies/me/bank</c>.
 /// </summary>
-public sealed record RegisterAgencyRequest(
+public record RegisterAgencyRequest(
     string? TaxCode,
     string? LegalName,
     string? LegalRepresentative,

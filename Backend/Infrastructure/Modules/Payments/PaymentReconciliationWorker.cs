@@ -11,7 +11,7 @@ namespace CommonService.Infrastructure.Modules.Payments;
 /// Runs <see cref="IPaymentReconciliationService"/> every <c>Payments.ReconcileIntervalSeconds</c> (contract payments.md 3.1).
 /// The first run happens after one interval. A failing run is logged and never stops the loop.
 /// </summary>
-public sealed class PaymentReconciliationWorker(
+public class PaymentReconciliationWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<BusinessRules> rules,
     ILogger<PaymentReconciliationWorker> logger) : BackgroundService

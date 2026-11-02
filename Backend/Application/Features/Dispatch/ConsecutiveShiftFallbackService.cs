@@ -45,7 +45,7 @@ public static class ConsecutiveShifts
 /// or <c>NOT_WAITING</c> (the order is in another state).
 /// </param>
 /// <param name="DeadlineUtc">AWAITING_CUSTOMER: the shift start (silence until then is a "no"). AWAITING_WORKER: end of the worker's window.</param>
-public sealed record FallbackStatusDto(
+public record FallbackStatusDto(
     long OrderId,
     string State,
     int? WorkerId,
@@ -54,7 +54,7 @@ public sealed record FallbackStatusDto(
     DateTime? DeadlineUtc);
 
 /// <param name="Outcome"><c>WORKER_ASKED</c> (the customer agreed; the worker must confirm) or <c>CANCELLED</c> (declined or not possible: cancelled and refunded).</param>
-public sealed record FallbackResponseDto(long OrderId, string Outcome, DateTime? WorkerDeadlineUtc, string? Message);
+public record FallbackResponseDto(long OrderId, string Outcome, DateTime? WorkerDeadlineUtc, string? Message);
 
 /// <summary>
 /// BR-02 fallback, customer side (contract dispatch.md 3.2, policy CustomerOnly): the order has one accepted seat and no candidate for the
@@ -62,7 +62,7 @@ public sealed record FallbackResponseDto(long OrderId, string Outcome, DateTime?
 /// confirm it within <c>Dispatch.FallbackConfirmSeconds</c>) or declines (AssignmentFailed: cancel + 100 % refund). Silence until the
 /// shift starts is a decline. An order that is not the caller's is a 404; an order that is not waiting is a 409.
 /// </summary>
-public sealed class ConsecutiveShiftFallbackService(
+public class ConsecutiveShiftFallbackService(
     IDispatchRepository repository,
     IClock clock,
     IMediator mediator,

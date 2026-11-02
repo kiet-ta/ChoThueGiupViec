@@ -10,7 +10,7 @@ namespace CommonService.Infrastructure.Modules.Ratings;
 /// Real <see cref="IWorkerReputation"/> (BE-M6-01b): the rating average comes from TWO_WAY_RATING (CUSTOMER ratings),
 /// the job counts from JOB_ASSIGNMENT (the flat shared node). Read-only, at most three queries per call.
 /// </summary>
-public sealed class EfWorkerReputation(AppDbContext db) : IWorkerReputation
+public class EfWorkerReputation(AppDbContext db) : IWorkerReputation
 {
     public async Task<WorkerReputationDto?> GetAsync(int workerId, CancellationToken cancellationToken = default)
     {

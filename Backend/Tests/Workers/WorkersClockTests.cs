@@ -37,20 +37,20 @@ public class WorkersClockTests
         return clock;
     }
 
-    private sealed class User(int id, UserRole role) : ICurrentUser
+    private class User(int id, UserRole role) : ICurrentUser
     {
         public int? UserId { get; } = id;
         public UserRole? Role { get; } = role;
         public bool IsAuthenticated => true;
     }
 
-    private sealed class FixedQuality : IImageQualityService
+    private class FixedQuality : IImageQualityService
     {
         public Task<ImageQualityResult> AssessAsync(Stream image, CancellationToken cancellationToken = default) =>
             Task.FromResult(new ImageQualityResult(250.0, true));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Events { get; } = [];
 
@@ -68,7 +68,7 @@ public class WorkersClockTests
     }
 
     /// <summary>Records what the services write; the assignment and the accepted photos are given by the test.</summary>
-    private sealed class ClockRepository(JobAssignment? assignment = null) : IWorkerRepository
+    private class ClockRepository(JobAssignment? assignment = null) : IWorkerRepository
     {
         public List<BookingSlot> AddedSlots { get; } = [];
         public List<JobPhoto> AddedPhotos { get; } = [];

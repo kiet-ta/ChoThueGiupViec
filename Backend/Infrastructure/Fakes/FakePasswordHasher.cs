@@ -5,7 +5,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Unsalted SHA-256 so tests are fast and deterministic. NOT for production: BASE-10 registers the real hasher.</summary>
-public sealed class FakePasswordHasher : IPasswordHasher
+public class FakePasswordHasher : IPasswordHasher
 {
     private const string Prefix = "fake$";
 

@@ -3,7 +3,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>
 /// Evaluation result of candidate worker matching score.
 /// </summary>
-public sealed record MatchingScoreResult
+public record MatchingScoreResult
 {
     public required long WorkerId { get; init; }
     public required double TotalScore { get; init; }

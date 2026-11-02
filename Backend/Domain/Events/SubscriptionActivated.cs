@@ -3,7 +3,7 @@ using MediatR;
 namespace CommonService.Domain.Events;
 
 /// <summary>Published by Agencies (M5) when a partner subscription is activated.</summary>
-public sealed record SubscriptionActivated(
+public record SubscriptionActivated(
     long SubId,
     int AgencyId,
     int PackageId,

@@ -113,7 +113,7 @@ public class WorkerImportTests
 
     // ---- the service
 
-    internal sealed class InMemoryImport : IWorkerImportRepository
+    internal class InMemoryImport : IWorkerImportRepository
     {
         public DateTime? GuaranteeSignedAt { get; set; }
         public string? GuaranteeUrl { get; private set; }
@@ -151,7 +151,7 @@ public class WorkerImportTests
         }
     }
 
-    private sealed class Quota(int allowed) : IWorkerQuotaGuard
+    private class Quota(int allowed) : IWorkerQuotaGuard
     {
         public Task EnsureCanAddWorkersAsync(int agencyId, int additionalWorkers, CancellationToken cancellationToken = default) =>
             additionalWorkers > allowed
@@ -159,7 +159,7 @@ public class WorkerImportTests
                 : Task.CompletedTask;
     }
 
-    internal sealed class PassThroughUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
+    internal class PassThroughUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;

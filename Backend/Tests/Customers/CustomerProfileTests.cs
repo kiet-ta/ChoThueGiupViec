@@ -47,7 +47,7 @@ public class CustomerProfileTests
     private static AppDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options);
 
-    private sealed class TestClock(DateTime initialUtc) : IClock
+    private class TestClock(DateTime initialUtc) : IClock
     {
         public DateTime UtcNow { get; set; } = initialUtc;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -56,7 +56,7 @@ public class CustomerProfileTests
     }
 
     /// <summary>One service graph on a real context, plus the customers a test created (removed on dispose).</summary>
-    private sealed class Fixture : IAsyncDisposable
+    private class Fixture : IAsyncDisposable
     {
         private readonly List<string> _phones = [];
 
@@ -370,7 +370,7 @@ public class CustomerProfileTests
 
     // ---- controller: id comes from ICurrentUser, status mapping (no database) ----
 
-    private sealed class RecordingProfileService : ICustomerProfileService
+    private class RecordingProfileService : ICustomerProfileService
     {
         public int? LastGetId { get; private set; }
         public int? LastUpdateId { get; private set; }
@@ -389,7 +389,7 @@ public class CustomerProfileTests
         }
     }
 
-    private sealed class TestUser(int? id) : ICurrentUser
+    private class TestUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id != null;
         public int? UserId => id;

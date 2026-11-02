@@ -1,6 +1,6 @@
 namespace CommonService.Application.Features.Customers.Services;
 
-public sealed class CustomerAddressResult<T>
+public class CustomerAddressResult<T>
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }

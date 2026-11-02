@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace CommonService.Application.Features.Workers.Services;
 
-public sealed class JobPhotoService(
+public class JobPhotoService(
     IWorkerRepository workerRepository,
     IImageQualityService imageQualityService,
     ICurrentUser currentUser,

@@ -14,7 +14,7 @@ namespace CommonService.Tests.Booking;
 /// BE-M2-13: a business 409 must carry <c>data: { "code": "..." }</c> on the wire (contracts booking.md 3.3, 3.7, 3.8; payments.md 2.1),
 /// so clients branch on the code and never on the message. These tests read the actual JSON the middleware writes.
 /// </summary>
-public sealed class BusinessCodeOnTheWireTests
+public class BusinessCodeOnTheWireTests
 {
     private static async Task<(int Status, JsonElement Body)> WriteAsync(Exception thrown, string accept = "application/json")
     {

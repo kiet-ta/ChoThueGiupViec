@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Workers;
 
 /// <summary>The extension ("Làm lần 2") of the order of an assignment, with the shift it extends.</summary>
-public sealed record ExtensionForWorker(
+public record ExtensionForWorker(
     int ExtensionId,
     long OrderId,
     int WorkerId,

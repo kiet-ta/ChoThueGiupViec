@@ -11,12 +11,12 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BE-M2-07: Booking cancels the order and refunds 100 % on AssignmentFailed (contract booking.md section 5).</summary>
-public sealed class AssignmentFailedHandlerTests
+public class AssignmentFailedHandlerTests
 {
     private const long OrderId = 42;
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -24,7 +24,7 @@ public sealed class AssignmentFailedHandlerTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
 
@@ -38,7 +38,7 @@ public sealed class AssignmentFailedHandlerTests
             where TNotification : INotification => Publish((object)notification, cancellationToken);
     }
 
-    private sealed class RecordingRefunds(bool succeed = true) : IRefundService
+    private class RecordingRefunds(bool succeed = true) : IRefundService
     {
         public List<RefundRequest> Requests { get; } = [];
 
@@ -49,7 +49,7 @@ public sealed class AssignmentFailedHandlerTests
         }
     }
 
-    private sealed class InMemoryOrders : IOrderRepository, IUnitOfWork
+    private class InMemoryOrders : IOrderRepository, IUnitOfWork
     {
         public Dictionary<long, JobOrder> Orders { get; } = [];
 
@@ -68,7 +68,7 @@ public sealed class AssignmentFailedHandlerTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public InMemoryOrders Db { get; } = new();
         public RecordingPublisher Publisher { get; } = new();

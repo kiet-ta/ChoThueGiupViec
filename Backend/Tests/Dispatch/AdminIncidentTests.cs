@@ -24,7 +24,7 @@ public class AdminIncidentTests
     public void The_stored_status_is_mapped_to_the_three_values_of_the_contract(string stored, string expected) =>
         Assert.Equal(expected, AdminIncidentStatus.ToContract(stored));
 
-    private sealed class Rows(params AdminIncidentDto[] items) : IAdminIncidentQuery
+    private class Rows(params AdminIncidentDto[] items) : IAdminIncidentQuery
     {
         public int? LastLimit { get; private set; }
 

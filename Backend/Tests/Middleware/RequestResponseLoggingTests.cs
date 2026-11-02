@@ -8,7 +8,7 @@ namespace CommonService.Tests.Middleware;
 
 public class RequestResponseLoggingTests
 {
-    private sealed class CapturingLogger : ILogger<RequestResponseLoggingMiddleware>
+    private class CapturingLogger : ILogger<RequestResponseLoggingMiddleware>
     {
         public List<string> Lines { get; } = new();
 

@@ -9,7 +9,7 @@ namespace CommonService.Infrastructure.Modules.Agencies;
 /// Runs <see cref="WorkerRetirementSweepService.SweepAsync"/> every <see cref="SweepInterval"/>: a retiring worker's future jobs go to the
 /// emergency rescue again, and a retiring worker without any job becomes retired. A failing run is logged and never stops the loop.
 /// </summary>
-public sealed class WorkerRetirementSweepWorker(IServiceScopeFactory scopeFactory, ILogger<WorkerRetirementSweepWorker> logger) : BackgroundService
+public class WorkerRetirementSweepWorker(IServiceScopeFactory scopeFactory, ILogger<WorkerRetirementSweepWorker> logger) : BackgroundService
 {
     /// <summary>provenance: leader decision 2026-10-25 (AGENCY-FIX-01), a lost rescue hand-over must not wait an hour for a shift that starts sooner.</summary>
     public static readonly TimeSpan SweepInterval = TimeSpan.FromMinutes(5);

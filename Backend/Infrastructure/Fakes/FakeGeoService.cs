@@ -3,7 +3,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Haversine distance, or a fixed value when a test wants one.</summary>
-public sealed class FakeGeoService : IGeoService
+public class FakeGeoService : IGeoService
 {
     private const double EarthRadiusMeters = 6_371_000d;
 

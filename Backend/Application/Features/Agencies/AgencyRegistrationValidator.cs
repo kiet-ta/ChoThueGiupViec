@@ -14,7 +14,7 @@ public static class AgencyErrorCodes
 }
 
 /// <summary>The request after validation: trimmed text, normalized phone and lower-cased email.</summary>
-public sealed record ValidatedAgencyRegistration(
+public record ValidatedAgencyRegistration(
     string TaxCode,
     string LegalName,
     string LegalRepresentative,

@@ -8,7 +8,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>
 /// Listens to OrderPaid event (published by Payments/Booking M2) and triggers the Dispatch Offer sequence (BR-03, Q07).
 /// </summary>
-public sealed class OrderPaidDispatchHandler : INotificationHandler<OrderPaid>
+public class OrderPaidDispatchHandler : INotificationHandler<OrderPaid>
 {
     private readonly DispatchOfferEngine _offerEngine;
     private readonly ILogger<OrderPaidDispatchHandler> _logger;

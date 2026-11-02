@@ -21,7 +21,7 @@ public interface IAdminDisputeService
 }
 
 /// <summary>Admin queue, case file and take of disputes (contract disputes.md 2.2-2.3, BE-M6-02a).</summary>
-public sealed class AdminDisputeService(IDisputeRepository disputes, IClock clock, IOptions<DisputeOptions> options) : IAdminDisputeService
+public class AdminDisputeService(IDisputeRepository disputes, IClock clock, IOptions<DisputeOptions> options) : IAdminDisputeService
 {
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;

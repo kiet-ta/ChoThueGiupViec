@@ -13,7 +13,7 @@ public class AbsenceNotificationTests
 {
     private static readonly DateTime Now = new(2026, 10, 9, 4, 0, 0, DateTimeKind.Utc);
 
-    private sealed class Reads : IAbsenceRepository
+    private class Reads : IAbsenceRepository
     {
         public List<int> Admins { get; } = [];
         public Dictionary<long, int> Customers { get; } = [];
@@ -34,7 +34,7 @@ public class AbsenceNotificationTests
             throw new NotSupportedException();
     }
 
-    private sealed class FailingNotifier : INotificationService
+    private class FailingNotifier : INotificationService
     {
         public int Calls { get; private set; }
 

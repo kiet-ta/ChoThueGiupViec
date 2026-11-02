@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CommonService.Infrastructure.Modules.Admin;
 
 /// <summary>Module registration for Admin (M6). Self-registers via IModule (BASE-02).</summary>
-public sealed class AdminModule : IModule
+public class AdminModule : IModule
 {
     public string Name => "Admin";
 

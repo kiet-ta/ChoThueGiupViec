@@ -50,7 +50,7 @@ public class WorkerRetirementSqlServerTests
 
     private static string Digits(int n) => new(Guid.NewGuid().ToByteArray().Select(b => (char)('0' + (b % 10))).ToArray()[..n]);
 
-    private sealed class Recorder : IPublisher
+    private class Recorder : IPublisher
     {
         public List<object> Published { get; } = [];
         public Task Publish(object notification, CancellationToken cancellationToken = default) { Published.Add(notification); return Task.CompletedTask; }
@@ -58,12 +58,12 @@ public class WorkerRetirementSqlServerTests
         { Published.Add(notification!); return Task.CompletedTask; }
     }
 
-    private sealed class NoQuota : IWorkerQuotaGuard
+    private class NoQuota : IWorkerQuotaGuard
     {
         public Task EnsureCanAddWorkersAsync(int agencyId, int additionalWorkers, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed record Seed(int AgencyId, int CustomerId, int AddressId);
+    private record Seed(int AgencyId, int CustomerId, int AddressId);
 
     private static async Task<Seed> SeedAgencyAsync()
     {

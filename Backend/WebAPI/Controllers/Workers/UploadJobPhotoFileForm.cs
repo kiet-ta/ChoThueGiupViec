@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CommonService.WebAPI.Controllers.Workers;
 
 /// <summary>Body of <c>POST /api/workers/assignments/{assignmentId}/photos</c> as <c>multipart/form-data</c> (contract workers.md 2.4.1).</summary>
-public sealed class UploadJobPhotoFileForm
+public class UploadJobPhotoFileForm
 {
     /// <summary>The photo: JPEG, PNG or WebP, at most 5 MB.</summary>
     [FromForm(Name = "file")]

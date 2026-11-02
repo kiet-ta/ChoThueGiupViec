@@ -11,7 +11,7 @@ namespace CommonService.Application.Features.Agencies.Handlers;
 /// <summary>
 /// Handler for GetAgencyWorkersQuery.
 /// </summary>
-public sealed class GetAgencyWorkersQueryHandler(
+public class GetAgencyWorkersQueryHandler(
     IAgencyRepository agencyRepository,
     ICurrentUser currentUser) : IRequestHandler<GetAgencyWorkersQuery, AgencyWorkerListResponse>
 {

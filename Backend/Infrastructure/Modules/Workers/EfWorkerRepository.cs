@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CommonService.Infrastructure.Modules.Workers;
 
-public sealed class EfWorkerRepository(AppDbContext dbContext) : IWorkerRepository
+public class EfWorkerRepository(AppDbContext dbContext) : IWorkerRepository
 {
     public async Task<Worker?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {

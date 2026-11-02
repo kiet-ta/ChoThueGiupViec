@@ -18,11 +18,11 @@ public interface IPayoutPenaltySource
 }
 
 /// <summary>An assignment was attached to another payout item while this one was being built; the unit of work must be undone.</summary>
-public sealed class PayoutClaimLostException(long assignmentId)
+public class PayoutClaimLostException(long assignmentId)
     : Exception($"Assignment {assignmentId} is already attached to another payout item.");
 
 /// <summary>A payout item to be stored; <c>AssignmentIds</c> are the assignments it pays.</summary>
-public sealed record NewPayoutItem(
+public record NewPayoutItem(
     PayeeType PayeeType,
     int? WorkerId,
     int? AgencyId,
@@ -35,7 +35,7 @@ public sealed record NewPayoutItem(
     IReadOnlyList<long> AssignmentIds);
 
 /// <summary>An assignment paid through an agency item, for the per-assignment export (decision Q18, question P5).</summary>
-public sealed record PayoutDetailRow(
+public record PayoutDetailRow(
     string AgencyName,
     long AssignmentId,
     long OrderId,
@@ -47,7 +47,7 @@ public sealed record PayoutDetailRow(
     DateTime DateUtc);
 
 /// <summary>A stored item with the payee name and bank name read from the worker or agency.</summary>
-public sealed record PayoutItemView(PayoutItem Item, string PayeeName, string? BankName);
+public record PayoutItemView(PayoutItem Item, string PayeeName, string? BankName);
 
 /// <summary>
 /// Persistence of PAYOUT_BATCH and PAYOUT_ITEM and the "0 JOIN" read of <c>JOB_ASSIGNMENT</c> (BE-M6-04). Name and bank columns of

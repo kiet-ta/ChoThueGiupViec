@@ -5,10 +5,10 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Agencies;
 
 /// <summary>The account the platform transfers the agency's payout to (<c>PARTNER_AGENCY.bank_name</c> / <c>bank_account_no</c>).</summary>
-public sealed record AgencyBankDto(string BankName, string BankAccountNo, bool IsSet);
+public record AgencyBankDto(string BankName, string BankAccountNo, bool IsSet);
 
 /// <summary>Body of <c>PUT /api/agencies/me/bank</c>: both fields are required there.</summary>
-public sealed record UpdateAgencyBankRequest(string? BankName, string? BankAccountNo);
+public record UpdateAgencyBankRequest(string? BankName, string? BankAccountNo);
 
 /// <summary>Persistence of the agency's bank account (M5 MAIN-FLOW-FIX).</summary>
 public interface IAgencyBankRepository
@@ -80,7 +80,7 @@ public static class AgencyBankValidator
 }
 
 /// <summary>The Partner reads and sets the account the agency's payout is transferred to (decisions D18, policy PartnerOnly).</summary>
-public sealed class AgencyBankService(IAgencyBankRepository repository, ICurrentUser currentUser)
+public class AgencyBankService(IAgencyBankRepository repository, ICurrentUser currentUser)
 {
     private int AgencyId => currentUser.UserId is int id && currentUser.Role == UserRole.Partner
         ? id

@@ -25,7 +25,7 @@ public enum IncidentResolutionStatus
 /// <summary>
 /// Request to report a force majeure incident by a worker (BR-10).
 /// </summary>
-public sealed record ReportIncidentRequest(
+public record ReportIncidentRequest(
     long AssignmentId,
     int WorkerId,
     string IncidentType,
@@ -37,7 +37,7 @@ public sealed record ReportIncidentRequest(
 /// <summary>
 /// Result of reporting an incident or handling its re-dispatch outcome.
 /// </summary>
-public sealed record IncidentResolutionResult
+public record IncidentResolutionResult
 {
     public required bool Success { get; init; }
     public required long AssignmentId { get; init; }

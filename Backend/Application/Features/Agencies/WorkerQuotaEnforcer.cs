@@ -10,7 +10,7 @@ namespace CommonService.Application.Features.Agencies;
 /// (most recently created first) are locked, never deleted; jobs already ASSIGNED are still carried out (a worker who is on site is left
 /// for the next sweep). Run by <c>SubscriptionExpiryWorker</c>. Unlocking after an upgrade is an Admin decision (Locked -&gt; Idle).
 /// </summary>
-public sealed class WorkerQuotaEnforcer(
+public class WorkerQuotaEnforcer(
     SubscriptionService subscriptions,
     ISubscriptionRepository repository,
     IUnitOfWork unitOfWork,

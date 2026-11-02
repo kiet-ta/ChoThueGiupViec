@@ -42,7 +42,7 @@ public class IdentityToCustomersFlowTests
         }
     }
 
-    private sealed class TestClock(DateTime initialUtc) : IClock
+    private class TestClock(DateTime initialUtc) : IClock
     {
         public DateTime UtcNow { get; set; } = initialUtc;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -50,7 +50,7 @@ public class IdentityToCustomersFlowTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(UtcNow));
     }
 
-    private sealed class CapturingOtpSender : IOtpSender
+    private class CapturingOtpSender : IOtpSender
     {
         public string? LastCode { get; private set; }
 
@@ -61,7 +61,7 @@ public class IdentityToCustomersFlowTests
         }
     }
 
-    private sealed class Flow : IAsyncDisposable
+    private class Flow : IAsyncDisposable
     {
         private readonly List<string> _phones = [];
         private readonly List<int> _workerIds = [];
@@ -161,7 +161,7 @@ public class IdentityToCustomersFlowTests
         }
     }
 
-    private sealed record AuthResult(string Phone, CommonService.Application.Features.Identity.Dtos.AuthResultDto Auth);
+    private record AuthResult(string Phone, CommonService.Application.Features.Identity.Dtos.AuthResultDto Auth);
 
     private static AddressRequestDto House(string label) => new()
     {

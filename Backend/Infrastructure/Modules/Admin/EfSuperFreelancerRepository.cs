@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Admin;
 
 /// <summary>Reads for the Super-Freelancer rules. The worker is tracked (it is changed and saved by the caller's unit of work).</summary>
-public sealed class EfSuperFreelancerRepository(AppDbContext db) : ISuperFreelancerRepository
+public class EfSuperFreelancerRepository(AppDbContext db) : ISuperFreelancerRepository
 {
     public Task<Worker?> FindWorkerAsync(int workerId, CancellationToken cancellationToken = default) =>
         db.Workers.FirstOrDefaultAsync(w => w.WorkerId == workerId, cancellationToken);

@@ -18,7 +18,7 @@ namespace CommonService.Infrastructure.Modules.Identity;
 /// <summary>
 /// Implements OTP and Refresh token flows per contract identity.md (§2.1, §2.2, §2.4, §2.5) and decisions Q06, Q16, Q20, SC-7.
 /// </summary>
-public sealed class OtpService : IOtpService
+public class OtpService : IOtpService
 {
     private readonly AppDbContext _db;
     private readonly IOtpSender _otpSender;

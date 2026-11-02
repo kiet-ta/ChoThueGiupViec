@@ -4,13 +4,13 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Admin.Services;
 
-public sealed class WorkerUnlockDto
+public class WorkerUnlockDto
 {
     public int WorkerId { get; init; }
     public string WorkStatus { get; init; } = string.Empty;
 }
 
-public sealed class WorkerUnlockResult
+public class WorkerUnlockResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }
@@ -56,7 +56,7 @@ public interface IWorkerUnlockService
 /// dispute verdict (BE-M6-02c), the cancellation rule (Q15) or a rejected eKYC. Only a freelancer whose eKYC is approved goes back to
 /// IDLE, so the unlock is never a way around eKYC; agency staff are locked by quota and unlocked by their agency.
 /// </summary>
-public sealed class WorkerUnlockService(IWorkerLockRepository workers, IAuditLog audit, IUnitOfWork unitOfWork) : IWorkerUnlockService
+public class WorkerUnlockService(IWorkerLockRepository workers, IAuditLog audit, IUnitOfWork unitOfWork) : IWorkerUnlockService
 {
     public const string NotFreelancer = "NOT_FREELANCER";
     public const string NotLocked = "NOT_LOCKED";

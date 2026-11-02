@@ -11,7 +11,7 @@ namespace CommonService.Application.Features.Payments.Services;
 /// the PENDING -> SUCCESS update (in <see cref="IPaymentSettlementService"/>) is conditional so concurrent identical IPNs
 /// produce one SUCCESS and one OrderPaid. Logs never contain the payload or any signature.
 /// </summary>
-public sealed class IpnService(
+public class IpnService(
     IPaymentGateway gateway,
     IPaymentRepository payments,
     IPaymentSettlementService settlement,

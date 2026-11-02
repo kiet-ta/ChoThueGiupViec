@@ -3,7 +3,7 @@ using Xunit;
 
 namespace CommonService.Tests.Dispatch;
 
-public sealed class MatchingScoreCalculatorTests
+public class MatchingScoreCalculatorTests
 {
     [Fact]
     public void CalculateScore_WithPerfectCandidate_ReturnsMaxScore()

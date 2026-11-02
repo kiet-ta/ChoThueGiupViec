@@ -27,7 +27,7 @@ public class JobPhotoRealUploadTests
     private const int WorkerId = 7;
     private const int CustomerId = 21;
 
-    private sealed class User(int id, UserRole role) : ICurrentUser
+    private class User(int id, UserRole role) : ICurrentUser
     {
         public int? UserId { get; } = id;
         public UserRole? Role { get; } = role;
@@ -35,7 +35,7 @@ public class JobPhotoRealUploadTests
     }
 
     /// <summary>Holds one assignment and the photos added to it; each added photo gets an id, as the database would.</summary>
-    private sealed class PhotoRepository : IWorkerRepository
+    private class PhotoRepository : IWorkerRepository
     {
         private long _nextPhotoId = 801;
 

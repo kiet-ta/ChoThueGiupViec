@@ -9,7 +9,7 @@ namespace CommonService.Infrastructure.Modules.Identity;
 /// Hosted service that runs database seeders on application startup.
 /// Seeds reference data in all environments, and dev admin strictly in Development only.
 /// </summary>
-public sealed class DatabaseSeederHostedService : IHostedService
+public class DatabaseSeederHostedService : IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHostEnvironment _environment;

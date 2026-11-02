@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace CommonService.Application.Features.Workers.Services;
 
-public sealed class WorkerEkycService(
+public class WorkerEkycService(
     IWorkerRepository workerRepository,
     IEkycProvider ekycProvider,
     ICurrentUser currentUser,

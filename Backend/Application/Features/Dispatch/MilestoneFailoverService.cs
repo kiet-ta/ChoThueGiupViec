@@ -28,7 +28,7 @@ public enum FailoverStatus
 /// <summary>
 /// Result of handling worker cancellation or failover notice for an Agency assignment.
 /// </summary>
-public sealed record MilestoneFailoverResult
+public record MilestoneFailoverResult
 {
     public required bool Success { get; init; }
     public required long AssignmentId { get; init; }

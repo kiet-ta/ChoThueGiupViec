@@ -4,7 +4,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Payments;
 
 /// <summary>The part of JOB_ORDER the payment needs (the Payments module never loads the whole order).</summary>
-public sealed record OrderForPayment(
+public record OrderForPayment(
     long OrderId,
     int CustomerId,
     string OrderCode,
@@ -13,7 +13,7 @@ public sealed record OrderForPayment(
     DateTime CreatedAt);
 
 /// <summary>The part of JOB_ORDER_EXTENSION (and its order) the payment needs (BE-M2-08).</summary>
-public sealed record ExtensionForPayment(
+public record ExtensionForPayment(
     int ExtensionId,
     long OrderId,
     string OrderCode,

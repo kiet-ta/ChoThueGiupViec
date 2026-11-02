@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Admin;
 
 /// <summary>Read-only dashboard counts over JOB_ORDER, JOB_ASSIGNMENT and DISPUTE_TICKET (contract admin.md 2.3, question A2).</summary>
-public sealed class EfAdminDashboardRepository(AppDbContext db) : IAdminDashboardRepository
+public class EfAdminDashboardRepository(AppDbContext db) : IAdminDashboardRepository
 {
     // DISPUTE_TICKET.dispute_status values of an unresolved ticket (disputes.md).
     private static readonly string[] OpenDisputeStatuses = ["OPEN", "IN_REVIEW"];

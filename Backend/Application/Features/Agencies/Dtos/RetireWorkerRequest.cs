@@ -6,7 +6,7 @@ namespace CommonService.Application.Features.Agencies.Dtos;
 /// <summary>
 /// Request to retire an agency worker, optionally with a replacement.
 /// </summary>
-public sealed class RetireWorkerRequest
+public class RetireWorkerRequest
 {
     /// <summary>
     /// Optional replacement worker. If provided as an existing worker ID, must belong to the same agency
@@ -25,7 +25,7 @@ public sealed class RetireWorkerRequest
 /// <summary>
 /// Replacement worker for retirement - either an existing worker or a new worker to create.
 /// </summary>
-public sealed class RetireWorkerReplacement
+public class RetireWorkerReplacement
 {
     /// <summary>Existing worker ID of the same agency.</summary>
     public int? ExistingWorkerId { get; set; }
@@ -37,7 +37,7 @@ public sealed class RetireWorkerReplacement
 /// <summary>
 /// New worker details for replacement (same validation as import row).
 /// </summary>
-public sealed class NewWorkerDetails
+public class NewWorkerDetails
 {
     /// <summary>Full name (required, max 100 chars).</summary>
     public string? FullName { get; set; }
@@ -58,7 +58,7 @@ public sealed class NewWorkerDetails
 /// <summary>
 /// Response for retiring a worker.
 /// </summary>
-public sealed class RetireWorkerResponse
+public class RetireWorkerResponse
 {
     /// <summary>The worker ID that was retired.</summary>
     public int WorkerId { get; set; }

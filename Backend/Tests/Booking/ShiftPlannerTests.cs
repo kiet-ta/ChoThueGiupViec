@@ -4,7 +4,7 @@ using Xunit;
 
 namespace CommonService.Tests.Booking;
 
-public sealed class ShiftPlannerTests
+public class ShiftPlannerTests
 {
     private static readonly BusinessRules Defaults = new();
 

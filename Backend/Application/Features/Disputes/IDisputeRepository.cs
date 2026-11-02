@@ -4,38 +4,38 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Disputes;
 
 /// <param name="ShiftEndLocal">Shift end as Asia/Ho_Chi_Minh local time (slot date + end time, decision G-3).</param>
-public sealed record DisputeAssignmentInfo(
+public record DisputeAssignmentInfo(
     long AssignmentId, int WorkerId, JobAssignmentStatus Status, DateTime? CompletedAtUtc, DateTime ShiftEndLocal);
 
-public sealed record DisputeOrderInfo(long OrderId, string OrderCode, int CustomerId, IReadOnlyList<DisputeAssignmentInfo> Assignments);
+public record DisputeOrderInfo(long OrderId, string OrderCode, int CustomerId, IReadOnlyList<DisputeAssignmentInfo> Assignments);
 
 /// <summary>The unresolved set and the due-date window of the Admin queue.</summary>
 /// <param name="Statuses">Only these statuses.</param>
 /// <param name="DueFromUtc">Inclusive lower bound of <c>sla_due_at</c> (null: none).</param>
 /// <param name="DueBeforeUtc">Exclusive upper bound of <c>sla_due_at</c> (null: none).</param>
-public sealed record DisputeQueueFilter(IReadOnlyList<string> Statuses, DateTime? DueFromUtc, DateTime? DueBeforeUtc);
+public record DisputeQueueFilter(IReadOnlyList<string> Statuses, DateTime? DueFromUtc, DateTime? DueBeforeUtc);
 
-public sealed record DisputeWorkerData(int WorkerId, string FullName, WorkerType WorkerType, string? AgencyName);
+public record DisputeWorkerData(int WorkerId, string FullName, WorkerType WorkerType, string? AgencyName);
 
-public sealed record DisputeSummaryData(long OrderId, string OrderCode, string CustomerName, IReadOnlyList<DisputeWorkerData> Workers);
+public record DisputeSummaryData(long OrderId, string OrderCode, string CustomerName, IReadOnlyList<DisputeWorkerData> Workers);
 
 /// <summary>A freelancer the verdict locked and the status it had before (written to the audit row).</summary>
-public sealed record LockedWorker(int WorkerId, WorkStatus PreviousStatus);
+public record LockedWorker(int WorkerId, WorkStatus PreviousStatus);
 
-public sealed record DisputeCheckInData(long AssignmentId, DateTime CheckedInAtUtc, bool GpsVerified, decimal DistanceM);
+public record DisputeCheckInData(long AssignmentId, DateTime CheckedInAtUtc, bool GpsVerified, decimal DistanceM);
 
 /// <param name="Url">The <c>JOB_PHOTO.image_url</c> column as stored: an address the worker gave, or a stored file path (<c>job-photos/...</c>).</param>
 /// <param name="PhotoId">Needed to turn a stored path into the address of its file (<c>JobPhotoFileRules.FileAddress</c>).</param>
-public sealed record DisputePhotoData(
+public record DisputePhotoData(
     long AssignmentId, string Phase, byte AngleNo, string Url, double VolScore, bool IsAccepted, DateTime CapturedAtUtc, long PhotoId = 0);
 
-public sealed record DisputeCaseData(
+public record DisputeCaseData(
     IReadOnlyList<DisputeCheckInData> CheckIns,
     IReadOnlyList<DisputePhotoData> Photos,
     IReadOnlyList<(long AssignmentId, DateTime CompletedAtUtc)> Completions);
 
 /// <summary>An assignment of the disputed order as the verdict needs it: who worked it, for which agency, and what it was worth.</summary>
-public sealed record DisputeVerdictAssignment(long AssignmentId, int WorkerId, int? AgencyId, decimal GrossAmount);
+public record DisputeVerdictAssignment(long AssignmentId, int WorkerId, int? AgencyId, decimal GrossAmount);
 
 /// <summary>
 /// Persistence of DISPUTE_TICKET and the read model of the Admin console (BE-M6-02a). Reads <c>JOB_ORDER</c>,

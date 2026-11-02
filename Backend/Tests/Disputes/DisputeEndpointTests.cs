@@ -70,7 +70,7 @@ public class DisputeEndpointTests
             Routes(typeof(AdminDisputesController)));
     }
 
-    private sealed class StubVerdicts(int status) : IDisputeVerdictService
+    private class StubVerdicts(int status) : IDisputeVerdictService
     {
         public (int Admin, int Dispute)? LastCall { get; private set; }
 
@@ -115,7 +115,7 @@ public class DisputeEndpointTests
         Assert.Null(verdicts.LastCall);
     }
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;
@@ -126,7 +126,7 @@ public class DisputeEndpointTests
 
     internal static readonly IDisputeEvidenceService Evidence = new DisputeEvidenceService(new FakeFileStorage());
 
-    private sealed class StubFiling(int status) : IDisputeFilingService
+    private class StubFiling(int status) : IDisputeFilingService
     {
         public (DisputeSide Side, int Caller)? LastCall { get; private set; }
 
@@ -213,7 +213,7 @@ public class DisputeEndpointTests
     internal static DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options;
 
-    internal sealed class FixedClock(DateTime utcNow) : IClock
+    internal class FixedClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -221,7 +221,7 @@ public class DisputeEndpointTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(utcNow));
     }
 
-    internal sealed record Seeded(
+    internal record Seeded(
         int AdminId, int CustomerId, int AddressId, int WorkerId, List<long> OrderIds, List<int> SlotIds, List<long> AssignmentIds);
 
     /// <summary>A customer, a worker and <paramref name="orders"/> orders with a COMPLETED assignment each (completed one hour before now).</summary>

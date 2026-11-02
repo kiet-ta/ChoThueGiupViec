@@ -4,7 +4,7 @@ namespace CommonService.Application.Features.Agencies.Dtos;
 /// Result of a successful registration. Never carries the password or its hash, and no access token: the agency signs in
 /// through the Partner login (identity.md §2.3) with <c>contactEmail</c> + password.
 /// </summary>
-public sealed record RegisterAgencyResponse(
+public record RegisterAgencyResponse(
     int AgencyId,
     string TaxCode,
     string LegalName,

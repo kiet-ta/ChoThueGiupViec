@@ -36,7 +36,7 @@ public class WorkerLocationTests
         }
     }
 
-    private sealed class User(int? id) : ICurrentUser
+    private class User(int? id) : ICurrentUser
     {
         public int? UserId { get; } = id;
         public UserRole? Role { get; } = UserRole.Worker;

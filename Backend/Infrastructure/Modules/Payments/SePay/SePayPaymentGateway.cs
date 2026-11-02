@@ -6,7 +6,7 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Infrastructure.Modules.Payments.SePay;
 
-public sealed class SePayPaymentGateway(HttpClient http, SePayOptions options, TimeProvider? timeProvider = null) : IPaymentGateway
+public class SePayPaymentGateway(HttpClient http, SePayOptions options, TimeProvider? timeProvider = null) : IPaymentGateway
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 

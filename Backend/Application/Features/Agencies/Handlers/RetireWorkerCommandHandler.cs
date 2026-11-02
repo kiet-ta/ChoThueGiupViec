@@ -8,7 +8,7 @@ namespace CommonService.Application.Features.Agencies.Handlers;
 /// <summary>
 /// Handler for RetireWorkerCommand.
 /// </summary>
-public sealed class RetireWorkerCommandHandler(
+public class RetireWorkerCommandHandler(
     WorkerRetirementService retirementService) : IRequestHandler<RetireWorkerCommand, RetireWorkerResponse>
 {
     public async Task<RetireWorkerResponse> Handle(RetireWorkerCommand request, CancellationToken cancellationToken)

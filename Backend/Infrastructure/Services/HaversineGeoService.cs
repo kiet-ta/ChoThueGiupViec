@@ -6,7 +6,7 @@ namespace CommonService.Infrastructure.Services;
 /// Real IGeoService calculating great-circle distances using the Haversine formula.
 /// Mean Earth radius: 6,371,000 meters.
 /// </summary>
-public sealed class HaversineGeoService : IGeoService
+public class HaversineGeoService : IGeoService
 {
     private const double EarthRadiusMeters = 6_371_000.0;
 

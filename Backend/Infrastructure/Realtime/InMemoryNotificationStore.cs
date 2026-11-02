@@ -6,7 +6,7 @@ namespace CommonService.Infrastructure.Realtime;
 /// Thread-safe in-memory circular storage for recent notifications.
 /// Retains up to 2,000 notifications to serve polling requests when WebSocket is disconnected.
 /// </summary>
-public sealed class InMemoryNotificationStore : INotificationStore
+public class InMemoryNotificationStore : INotificationStore
 {
     private const int MaxCapacity = 2000;
     private readonly ConcurrentQueue<NotificationMessageDto> _queue = new();

@@ -11,16 +11,16 @@ using Xunit;
 namespace CommonService.Tests.Payments;
 
 /// <summary>UAT-PAY: the development tool that finishes a Fake-gateway payment through the IPN path.</summary>
-public sealed class DevPaymentServiceTests
+public class DevPaymentServiceTests
 {
-    private sealed class Repo : PaymentRepositoryStub
+    private class Repo : PaymentRepositoryStub
     {
         public PaymentTransaction? Payment { get; set; }
         public override Task<PaymentTransaction?> GetPaymentAsync(long paymentId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Payment is not null && Payment.PaymentId == paymentId ? Payment : null);
     }
 
-    private sealed class Ipn : IIpnService
+    private class Ipn : IIpnService
     {
         public IpnOutcome Outcome { get; set; } = IpnOutcome.Accepted;
         public Dictionary<string, string>? Payload { get; private set; }
@@ -32,13 +32,13 @@ public sealed class DevPaymentServiceTests
         }
     }
 
-    private sealed class Query : IDevPaymentQuery
+    private class Query : IDevPaymentQuery
     {
         public Task<IReadOnlyList<DevPaymentDto>> ListPendingAsync(int take, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<DevPaymentDto>>([new DevPaymentDto(1, "ESCROWDEPOSIT", null, null, 9, 5_000_000m, "FAKE-x", DateTime.UtcNow)]);
     }
 
-    private sealed class Env(string name) : IHostEnvironment
+    private class Env(string name) : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = name;
         public string ApplicationName { get; set; } = "test";

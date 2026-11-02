@@ -31,7 +31,7 @@ public class RegisterAgencyCommandTests
 {
     private static readonly DateTime Now = new(2026, 10, 12, 8, 0, 0, DateTimeKind.Utc);
 
-    private sealed class FixedClock(DateTime utc) : IClock
+    private class FixedClock(DateTime utc) : IClock
     {
         public DateTime UtcNow => utc;
         public DateTime ToLocal(DateTime value) => value.AddHours(7);
@@ -39,7 +39,7 @@ public class RegisterAgencyCommandTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(utc));
     }
 
-    private sealed class StubAgencyRepository : IAgencyRepository
+    private class StubAgencyRepository : IAgencyRepository
     {
         public List<PartnerAgency> Rows { get; } = [];
         public List<Worker> WorkerRows { get; } = [];

@@ -3,10 +3,10 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Ratings;
 
 /// <summary>What <see cref="IWorkerRatingStore.SetAverageAsync"/> found on the worker row before it changed it.</summary>
-public sealed record WorkerAverageChange(decimal PreviousAverage, WorkerType WorkerType);
+public record WorkerAverageChange(decimal PreviousAverage, WorkerType WorkerType);
 
 /// <summary>One rating that a worker gave a customer (TWO_WAY_RATING, rater_role WORKER).</summary>
-public sealed record RecentCustomerRating(int WorkerId, byte Stars);
+public record RecentCustomerRating(int WorkerId, byte Stars);
 
 /// <summary>
 /// The two things the rating handlers need besides <see cref="IRatingRepository"/> (BE-M6 ADMIN-UAT-10): the rating average column of a worker

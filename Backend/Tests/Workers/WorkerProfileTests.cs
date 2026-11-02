@@ -254,7 +254,7 @@ public class WorkerProfileTests
         await transaction.RollbackAsync();
     }
 
-    private sealed class TestCurrentUser : ICurrentUser
+    private class TestCurrentUser : ICurrentUser
     {
         public int? UserId { get; set; }
         public UserRole? Role { get; set; } = UserRole.Worker;

@@ -2,7 +2,7 @@ using CommonService.Application.Features.Identity.Dtos;
 
 namespace CommonService.Application.Features.Identity.Services;
 
-public sealed class PasswordLoginResult
+public class PasswordLoginResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }

@@ -12,7 +12,7 @@ using Microsoft.Extensions.Options;
 
 namespace CommonService.Application.Features.Admin.Services;
 
-public sealed class AbsenceResult<T>
+public class AbsenceResult<T>
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }
@@ -66,7 +66,7 @@ public interface IAbsenceReportService
 /// ONE unit of work: the assignment goes CHECKED_IN to ABSENT with the 40 % fee, the 60 % is refunded, the decision is audited; then
 /// <see cref="CustomerAbsentApproved"/> is published.
 /// </summary>
-public sealed class AbsenceReportService(
+public class AbsenceReportService(
     IAbsenceRepository reports,
     IRefundService refunds,
     IAuditLog audit,
@@ -79,7 +79,7 @@ public sealed class AbsenceReportService(
     public const int MaxPageSize = 100;
 
     /// <summary>Thrown inside the unit of work to undo it; never leaves this class.</summary>
-    private sealed class ApprovalAbortedException(string message) : Exception(message);
+    private class ApprovalAbortedException(string message) : Exception(message);
 
     public async Task<AbsenceResult<AbsenceReportPageDto>> SearchAsync(
         string? status, string? page, string? pageSize, CancellationToken cancellationToken = default)

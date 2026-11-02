@@ -43,7 +43,7 @@ public class PayoutBatchDatabaseTests
     internal static DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options;
 
-    internal sealed class RecordingPublisher : IPublisher
+    internal class RecordingPublisher : IPublisher
     {
         public List<PayoutBatchClosed> Events { get; } = [];
 
@@ -63,7 +63,7 @@ public class PayoutBatchDatabaseTests
             new UnitOfWork(db), new PayoutBatchServiceTests.TestClock(Now), publisher ?? new RecordingPublisher());
 
     /// <summary>Everything one test seeded, so it can be removed.</summary>
-    internal sealed class Seed
+    internal class Seed
     {
         public int AdminId { get; set; }
         public int CustomerId { get; set; }

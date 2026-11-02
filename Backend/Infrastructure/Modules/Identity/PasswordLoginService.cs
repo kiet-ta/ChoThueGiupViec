@@ -16,7 +16,7 @@ namespace CommonService.Infrastructure.Modules.Identity;
 /// Implements Admin / Partner email + password login per contract identity.md §2.3 and decisions Q16, SC-1, SC-8.
 /// Lockout state lives in failed_login_count / locked_until on ADMIN and PARTNER_AGENCY (no cache).
 /// </summary>
-public sealed class PasswordLoginService : IPasswordLoginService
+public class PasswordLoginService : IPasswordLoginService
 {
     private const int MaxEmailLength = 255;
 

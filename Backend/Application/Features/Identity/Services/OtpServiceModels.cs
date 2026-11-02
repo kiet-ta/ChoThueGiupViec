@@ -2,7 +2,7 @@ using CommonService.Application.Features.Identity.Dtos;
 
 namespace CommonService.Application.Features.Identity.Services;
 
-public sealed class OtpRequestResult
+public class OtpRequestResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }
@@ -35,7 +35,7 @@ public sealed class OtpRequestResult
     };
 }
 
-public sealed class OtpVerifyResult
+public class OtpVerifyResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }
@@ -90,7 +90,7 @@ public sealed class OtpVerifyResult
     };
 }
 
-public sealed class RefreshResult
+public class RefreshResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }

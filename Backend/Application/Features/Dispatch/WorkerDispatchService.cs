@@ -6,7 +6,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Dispatch;
 
 /// <summary>Contract dispatch.md 2.1.</summary>
-public sealed record JobOfferDto(
+public record JobOfferDto(
     long AssignmentId,
     long OrderId,
     string ServiceTier,
@@ -24,13 +24,13 @@ public sealed record JobOfferDto(
     bool IsConsecutiveShift = false);
 
 /// <summary>Contract dispatch.md 3.1 accept response.</summary>
-public sealed record OfferAcceptedDto(long AssignmentId, string Status, DateTime? AcceptedAt, bool BookingSlotLocked);
+public record OfferAcceptedDto(long AssignmentId, string Status, DateTime? AcceptedAt, bool BookingSlotLocked);
 
 /// <summary>Contract dispatch.md 3.1 decline response.</summary>
-public sealed record OfferDeclinedDto(long AssignmentId, string Status);
+public record OfferDeclinedDto(long AssignmentId, string Status);
 
 /// <summary>Contract dispatch.md 2.2.</summary>
-public sealed record CheckInResultDto(
+public record CheckInResultDto(
     long CheckInId,
     long AssignmentId,
     DateTime? CheckedInAt,
@@ -42,10 +42,10 @@ public sealed record CheckInResultDto(
     bool IsCustomerConfirmed);
 
 /// <summary>Contract dispatch.md 3.1 calls/log response.</summary>
-public sealed record CallLoggedDto(long AssignmentId, int CallAttempts, DateTime LoggedAt);
+public record CallLoggedDto(long AssignmentId, int CallAttempts, DateTime LoggedAt);
 
 /// <summary>Contract dispatch.md 2.3.</summary>
-public sealed record CustomerAbsentReportDto(
+public record CustomerAbsentReportDto(
     long AssignmentId,
     DateTime? ReportedAt,
     DateTime CheckedInAt,
@@ -58,7 +58,7 @@ public sealed record CustomerAbsentReportDto(
     decimal CustomerRefundAmount);
 
 /// <summary>What the offer card shows, read in one query.</summary>
-public sealed record OfferView(
+public record OfferView(
     JobAssignment Assignment,
     DateOnly ScheduledDate,
     TimeOnly ShiftStart,
@@ -93,7 +93,7 @@ public static class DispatchErrorCodes
 /// Worker side of contract dispatch.md 3.1 (policy WorkerOnly): the caller is the worker in <see cref="ICurrentUser"/>. An assignment
 /// that does not exist or is not the caller's is a 404 (never reveal someone else's job); a state that forbids the action is a 409.
 /// </summary>
-public sealed class WorkerDispatchService(
+public class WorkerDispatchService(
     DispatchOfferEngine engine,
     FieldCheckInService checkIn,
     CustomerAbsentService absent,

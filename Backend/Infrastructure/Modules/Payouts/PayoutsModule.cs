@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CommonService.Infrastructure.Modules.Payouts;
 
 /// <summary>Module registration for Payouts (M6). Self-registers via IModule (BASE-02).</summary>
-public sealed class PayoutsModule : IModule
+public class PayoutsModule : IModule
 {
     public string Name => "Payouts";
 

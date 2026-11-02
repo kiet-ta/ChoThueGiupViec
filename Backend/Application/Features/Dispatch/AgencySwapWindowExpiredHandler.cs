@@ -9,7 +9,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// Listens to <see cref="AgencySwapWindowExpired"/> (published by Agencies M5 when the 30-minute self-swap window ends,
 /// or when notice is 2 hours or less) and triggers the Emergency Rescue flow in <see cref="MilestoneFailoverService"/>.
 /// </summary>
-public sealed class AgencySwapWindowExpiredHandler : INotificationHandler<AgencySwapWindowExpired>
+public class AgencySwapWindowExpiredHandler : INotificationHandler<AgencySwapWindowExpired>
 {
     private readonly MilestoneFailoverService _failoverService;
     private readonly IMilestoneFailoverRepository _repository;

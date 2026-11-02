@@ -11,7 +11,7 @@ namespace CommonService.Tests.Dispatch;
 
 public class CustomerAbsentServiceTests
 {
-    private sealed class InMemoryCustomerAbsentRepository : ICustomerAbsentRepository
+    private class InMemoryCustomerAbsentRepository : ICustomerAbsentRepository
     {
         private readonly Dictionary<long, JobAssignment> _assignments = new();
         private readonly Dictionary<long, CheckInLog> _logs = new();
@@ -68,7 +68,7 @@ public class CustomerAbsentServiceTests
         }
     }
 
-    private sealed class TestMediator : IMediator
+    private class TestMediator : IMediator
     {
         public readonly List<INotification> PublishedEvents = [];
 

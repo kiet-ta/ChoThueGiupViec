@@ -42,14 +42,14 @@ public class JobCompletionConcurrencyTests
     private static AppDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options);
 
-    private sealed class Customer_(int id) : ICurrentUser
+    private class Customer_(int id) : ICurrentUser
     {
         public int? UserId { get; } = id;
         public UserRole? Role => UserRole.Customer;
         public bool IsAuthenticated => true;
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         private int _published;
         public int Published => _published;
@@ -73,7 +73,7 @@ public class JobCompletionConcurrencyTests
     private const int StubWorkerId = 7;
     private const int StubCustomerId = 21;
 
-    private sealed class StubRepository(bool completeSucceeds) : IWorkerRepository
+    private class StubRepository(bool completeSucceeds) : IWorkerRepository
     {
         private JobAssignment _assignment = Build(JobAssignmentStatus.AwaitingAcceptance);
         public int CompleteCalls { get; private set; }
@@ -175,7 +175,7 @@ public class JobCompletionConcurrencyTests
 
     // ---- two requests, real database ------------------------------------------------------------------------------------------
 
-    private sealed record Seeded(int WorkerId, int CustomerId, long OrderId, int SlotId, long AssignmentId);
+    private record Seeded(int WorkerId, int CustomerId, long OrderId, int SlotId, long AssignmentId);
 
     /// <summary>A BUSY freelancer with an AWAITING_ACCEPTANCE assignment, committed so that other contexts see it.</summary>
     private static async Task<Seeded> SeedCommittedAsync(AppDbContext db)

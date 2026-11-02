@@ -4,7 +4,7 @@ namespace CommonService.Infrastructure.Modules.Payments.MoMo;
 /// The existing configuration section <c>MoMo</c> (appsettings.json holds placeholders only; real sandbox values come from
 /// user-secrets / environment, decisions G-6). Sandbox only, no real money (G-1).
 /// </summary>
-public sealed class MoMoOptions
+public class MoMoOptions
 {
     public const string SectionName = "MoMo";
 

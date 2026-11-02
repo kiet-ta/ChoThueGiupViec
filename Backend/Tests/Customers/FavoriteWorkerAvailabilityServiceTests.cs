@@ -8,20 +8,20 @@ using Xunit;
 namespace CommonService.Tests.Customers;
 
 /// <summary>customers.md 2.3: the free shifts of a favorite worker, for the booking form.</summary>
-public sealed class FavoriteWorkerAvailabilityServiceTests
+public class FavoriteWorkerAvailabilityServiceTests
 {
     private const int CustomerId = 7;
     private const int FavoriteId = 42;
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc); // 10:00 on 14/10 in Ho Chi Minh
     private static readonly DateOnly Today = new(2026, 10, 14);
 
-    private sealed class StubFavorites : ICustomerFavoriteQuery
+    private class StubFavorites : ICustomerFavoriteQuery
     {
         public Task<bool> IsFavoriteAsync(int customerId, int workerId, CancellationToken cancellationToken = default) =>
             Task.FromResult(customerId == CustomerId && workerId == FavoriteId);
     }
 
-    private sealed class StubShifts : IWorkerFreeShiftQuery
+    private class StubShifts : IWorkerFreeShiftQuery
     {
         public List<(int WorkerId, DateOnly From, DateOnly To)> Calls { get; } = [];
 

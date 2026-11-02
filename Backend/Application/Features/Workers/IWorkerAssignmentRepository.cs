@@ -3,7 +3,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Workers;
 
 /// <summary>An assignment of one worker with the date and shift of its slot and the district of its order (no navigation properties, 0-JOIN rule: the repository joins).</summary>
-public sealed record WorkerAssignmentRow(
+public record WorkerAssignmentRow(
     long AssignmentId,
     long OrderId,
     string OrderCode,

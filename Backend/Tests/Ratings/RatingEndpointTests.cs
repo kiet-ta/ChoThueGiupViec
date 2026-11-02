@@ -69,14 +69,14 @@ public class RatingEndpointTests
         Assert.Equal(("Submit", ("POST", "rating")), (actions[1].Name, actions[1].Verb));
     }
 
-    private sealed class FakeUser(int? id) : ICurrentUser
+    private class FakeUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id is not null;
         public int? UserId => id;
         public UserRole? Role => null;
     }
 
-    private sealed class StubService(int status, string? message = null) : IRatingService
+    private class StubService(int status, string? message = null) : IRatingService
     {
         public (RaterSide Side, int Caller, long Assignment)? LastCall { get; private set; }
 
@@ -121,7 +121,7 @@ public class RatingEndpointTests
 
     // A small adapter so one assertion covers ApiResponse<T> for any T.
     private interface IApiResponseMarker { bool Success { get; } }
-    private sealed record Marker(bool Success) : IApiResponseMarker;
+    private record Marker(bool Success) : IApiResponseMarker;
     private static IApiResponseMarker AsMarker(object? value) =>
         new Marker((bool)value!.GetType().GetProperty(nameof(ApiResponse<object>.Success))!.GetValue(value)!);
 
@@ -174,7 +174,7 @@ public class RatingEndpointTests
     private static DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options;
 
-    private sealed class FixedClock(DateTime utcNow) : IClock
+    private class FixedClock(DateTime utcNow) : IClock
     {
         public DateTime UtcNow => utcNow;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -182,7 +182,7 @@ public class RatingEndpointTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(utcNow));
     }
 
-    private sealed class NullPublisher : IPublisher
+    private class NullPublisher : IPublisher
     {
         public int Count;
         public Task Publish(object notification, CancellationToken cancellationToken = default)
@@ -199,7 +199,7 @@ public class RatingEndpointTests
         }
     }
 
-    private sealed record Seeded(int CustomerId, int WorkerId, int AddressId, long OrderId, int SlotId, long AssignmentId);
+    private record Seeded(int CustomerId, int WorkerId, int AddressId, long OrderId, int SlotId, long AssignmentId);
 
     /// <summary>One COMPLETED assignment with every row it needs (FKs), completed one hour before <paramref name="now"/>.</summary>
     private static async Task<Seeded> SeedCompletedAssignmentAsync(DateTime now)

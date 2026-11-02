@@ -12,14 +12,14 @@ using Xunit;
 namespace CommonService.Tests.Payments;
 
 /// <summary>BE-M2-07: real IRefundService (contract payments.md 3.4, P2), with in-memory ports (no DB).</summary>
-public sealed class RefundServiceTests
+public class RefundServiceTests
 {
     private const int CustomerId = 7;
     private const long OrderId = 42;
     private const decimal Paid = 260000m;
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -27,7 +27,7 @@ public sealed class RefundServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         private readonly List<object> _published = [];
         public bool Fail { get; set; }
@@ -48,7 +48,7 @@ public sealed class RefundServiceTests
             where TNotification : INotification => Publish((object)notification, cancellationToken);
     }
 
-    private sealed class RecordingNotifications : INotificationService
+    private class RecordingNotifications : INotificationService
     {
         private readonly List<NotificationMessage> _sent = [];
         public IReadOnlyList<NotificationMessage> Sent { get { lock (_sent) { return _sent.ToArray(); } } }
@@ -62,7 +62,7 @@ public sealed class RefundServiceTests
 
     public enum GatewayMode { Succeeds, Refuses, Unsupported, Throws }
 
-    private sealed class RefundGateway : IPaymentGateway
+    private class RefundGateway : IPaymentGateway
     {
         private readonly object _gate = new();
         public GatewayMode Mode { get; set; } = GatewayMode.Succeeds;
@@ -88,7 +88,7 @@ public sealed class RefundServiceTests
     }
 
     /// <summary>One lock makes reserve and revert atomic like the SQL conditional updates.</summary>
-    private sealed class InMemoryPayments : IPaymentRepository, IUnitOfWork
+    private class InMemoryPayments : IPaymentRepository, IUnitOfWork
     {
         private readonly object _gate = new();
         public Dictionary<long, OrderForPayment> Orders { get; } = [];
@@ -202,7 +202,7 @@ public sealed class RefundServiceTests
         };
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public InMemoryPayments Db { get; } = new();
         public RefundGateway Gateway { get; } = new();

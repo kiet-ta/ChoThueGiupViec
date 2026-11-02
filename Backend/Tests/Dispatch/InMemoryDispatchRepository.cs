@@ -9,7 +9,7 @@ namespace CommonService.Tests.Dispatch;
 /// (<c>AVAILABLE -&gt; HELD</c>), accept succeeds only once (<c>OFFERED -&gt; ASSIGNED</c>, slot <c>HELD -&gt; BOOKED</c>), close frees the slot.
 /// Like the EF update, an offer on a slot that was never registered with <see cref="AddSlot"/> fails (returns null).
 /// </summary>
-internal sealed class InMemoryDispatchRepository : IDispatchRepository
+internal class InMemoryDispatchRepository : IDispatchRepository
 {
     private readonly object _gate = new();
     private long _nextId = 100;

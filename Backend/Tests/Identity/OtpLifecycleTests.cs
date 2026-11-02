@@ -45,7 +45,7 @@ public class OtpLifecycleTests
     private static AppDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options);
 
-    private sealed class TestClock(DateTime initialUtc) : IClock
+    private class TestClock(DateTime initialUtc) : IClock
     {
         public DateTime UtcNow { get; set; } = initialUtc;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -53,7 +53,7 @@ public class OtpLifecycleTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(UtcNow));
     }
 
-    private sealed class CapturingOtpSender : IOtpSender
+    private class CapturingOtpSender : IOtpSender
     {
         public string? LastCode { get; private set; }
 
@@ -65,7 +65,7 @@ public class OtpLifecycleTests
     }
 
     /// <summary>One OTP service on a real context; removes the OTP, refresh-token, customer and worker rows of the phones it used.</summary>
-    private sealed class Fixture : IAsyncDisposable
+    private class Fixture : IAsyncDisposable
     {
         private readonly List<string> _phones = [];
 

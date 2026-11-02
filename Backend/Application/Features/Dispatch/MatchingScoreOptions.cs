@@ -5,7 +5,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>
 /// Configuration options and weights for the pure function MatchingScore algorithm (PRD §2.1, decisions Q14).
 /// </summary>
-public sealed class MatchingScoreOptions
+public class MatchingScoreOptions
 {
     public const string SectionName = "BusinessRules:Dispatch:MatchingScore";
 

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Ratings;
 
 /// <summary>TWO_WAY_RATING over EF Core. JOB_ASSIGNMENT is only read (flat shared node, no navigation properties).</summary>
-public sealed class EfRatingRepository(AppDbContext db) : IRatingRepository
+public class EfRatingRepository(AppDbContext db) : IRatingRepository
 {
     // SQL Server: 2601 = duplicate key in a unique index, 2627 = unique constraint violation.
     private static readonly int[] UniqueViolationNumbers = [2601, 2627];

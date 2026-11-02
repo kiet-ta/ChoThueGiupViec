@@ -13,7 +13,7 @@ namespace CommonService.Tests.Dispatch;
 
 public class DualAssignmentServiceTests
 {
-    private sealed class InMemoryDualAssignmentRepository : IDualAssignmentRepository
+    private class InMemoryDualAssignmentRepository : IDualAssignmentRepository
     {
         public Dictionary<long, JobOrder> Orders { get; } = new();
         public Dictionary<long, JobAssignment> Assignments { get; } = new();
@@ -62,7 +62,7 @@ public class DualAssignmentServiceTests
         }
     }
 
-    private sealed class MockClock : IClock
+    private class MockClock : IClock
     {
         public DateTime UtcNow { get; set; } = new DateTime(2026, 10, 15, 6, 0, 0, DateTimeKind.Utc);
         public DateTime LocalNow => UtcNow.AddHours(7);
@@ -71,7 +71,7 @@ public class DualAssignmentServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(LocalNow);
     }
 
-    private sealed class MockMediator : IMediator
+    private class MockMediator : IMediator
     {
         public List<INotification> PublishedEvents { get; } = new();
 
@@ -94,7 +94,7 @@ public class DualAssignmentServiceTests
         public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
-    private sealed class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
+    private class MockWorkerAvailabilityQuery : IWorkerAvailabilityQuery
     {
         public List<AvailableWorker> Workers { get; } = new();
 

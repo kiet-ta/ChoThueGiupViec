@@ -10,7 +10,7 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>DB-backed: runs against the local SQL Server like the other persistence tests; every change is rolled back.</summary>
-public sealed class PriceRuleRepositoryTests
+public class PriceRuleRepositoryTests
 {
     private const string ConnectionString =
         "Server=localhost;Database=ChoThueGiupViec;Integrated Security=True;TrustServerCertificate=True;";

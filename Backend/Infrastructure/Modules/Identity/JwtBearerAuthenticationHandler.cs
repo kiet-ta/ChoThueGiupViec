@@ -10,7 +10,7 @@ namespace CommonService.Infrastructure.Modules.Identity;
 /// Custom authentication handler validating Bearer JWT tokens via ITokenService (BE-M1-02).
 /// Enables native [Authorize], role requirements, and policies without third-party dependencies.
 /// </summary>
-public sealed class JwtBearerAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+public class JwtBearerAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     private readonly ITokenService _tokenService;
 

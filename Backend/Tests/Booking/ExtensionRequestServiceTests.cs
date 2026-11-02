@@ -13,7 +13,7 @@ using Xunit;
 namespace CommonService.Tests.Booking;
 
 /// <summary>BE-M2-08: "Làm lần 2" request (contract booking.md 3.8, BR-08), with in-memory ports (no DB).</summary>
-public sealed class ExtensionRequestServiceTests
+public class ExtensionRequestServiceTests
 {
     private const int CustomerId = 7;
     private const long OrderId = 42;
@@ -21,7 +21,7 @@ public sealed class ExtensionRequestServiceTests
     private const int WorkerId = 11;
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -29,7 +29,7 @@ public sealed class ExtensionRequestServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class InMemoryExtensions : IExtensionRepository, IUnitOfWork
+    private class InMemoryExtensions : IExtensionRepository, IUnitOfWork
     {
         private int _nextId = 1;
         private readonly List<JobOrderExtension> _pending = [];
@@ -71,7 +71,7 @@ public sealed class ExtensionRequestServiceTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public InMemoryExtensions Db { get; } = new();
 
@@ -217,14 +217,14 @@ public sealed class ExtensionRequestServiceTests
         Assert.Single(f.Db.Saved);
     }
 
-    private sealed class StubUser(int? userId) : ICurrentUser
+    private class StubUser(int? userId) : ICurrentUser
     {
         public bool IsAuthenticated => userId.HasValue;
         public int? UserId => userId;
         public UserRole? Role => userId.HasValue ? UserRole.Customer : null;
     }
 
-    private sealed class StubService : IExtensionRequestService
+    private class StubService : IExtensionRequestService
     {
         public Task<ExtensionDto> CreateAsync(int customerId, long orderId, CreateExtensionRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(new ExtensionDto(1, orderId, WorkerId, request.ExtraHours, 1m, ExtensionStatuses.PendingPayment, WorkerDecisions.Pending, Now, null));

@@ -11,13 +11,13 @@ public interface IFakeGreeter
     string Greet();
 }
 
-public sealed class FakeGreeter : IFakeGreeter
+public class FakeGreeter : IFakeGreeter
 {
     public string Greet() => "hello from the fake module";
 }
 
 /// <summary>A module that lives only in the test assembly: no shared file knows about it.</summary>
-public sealed class FakeModule : IModule
+public class FakeModule : IModule
 {
     public string Name => "Fake";
 

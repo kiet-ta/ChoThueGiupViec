@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Admin;
 
 /// <summary>Read-only query over ADMIN_AUDIT_LOG: no tracking, no write method.</summary>
-public sealed class EfAuditLogReadRepository(AppDbContext db) : IAuditLogReadRepository
+public class EfAuditLogReadRepository(AppDbContext db) : IAuditLogReadRepository
 {
     public async Task<(IReadOnlyList<AdminAuditLog> Items, int Total)> SearchAsync(
         AuditLogFilter filter, int page, int pageSize, CancellationToken cancellationToken = default)

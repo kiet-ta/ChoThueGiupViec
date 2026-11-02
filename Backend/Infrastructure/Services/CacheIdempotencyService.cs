@@ -6,7 +6,7 @@ namespace CommonService.Infrastructure.Services;
 /// Cache-backed implementation of IIdempotencyService.
 /// Works with InMemoryCacheService in single-instance/testing, and with Redis in production.
 /// </summary>
-public sealed class CacheIdempotencyService : IIdempotencyService
+public class CacheIdempotencyService : IIdempotencyService
 {
     private static readonly TimeSpan DefaultExpiry = TimeSpan.FromMinutes(10);
     private readonly ICacheService _cache;

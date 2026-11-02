@@ -8,7 +8,7 @@ namespace CommonService.Infrastructure.Modules.Workers;
 /// Real implementation of <see cref="IWorkerProfileQuery"/> querying the WORKER table via EF Core.
 /// Used by Customer module for favorite workers list (decisions Q21 C3).
 /// </summary>
-public sealed class WorkerProfileQuery(AppDbContext dbContext) : IWorkerProfileQuery
+public class WorkerProfileQuery(AppDbContext dbContext) : IWorkerProfileQuery
 {
     public async Task<WorkerProfileSummary?> GetAsync(int workerId, CancellationToken cancellationToken = default)
     {

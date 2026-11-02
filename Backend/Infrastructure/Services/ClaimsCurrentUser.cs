@@ -10,7 +10,7 @@ namespace CommonService.Infrastructure.Services;
 /// Parses userId from NameIdentifier, sub, or userId claims.
 /// Parses UserRole from Role or role claims.
 /// </summary>
-public sealed class ClaimsCurrentUser : ICurrentUser
+public class ClaimsCurrentUser : ICurrentUser
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
 

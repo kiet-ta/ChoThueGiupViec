@@ -13,7 +13,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>
 /// Result of reporting a customer absent (BR-05, Q10).
 /// </summary>
-public sealed record CustomerAbsentReportResult
+public record CustomerAbsentReportResult
 {
     public required bool Success { get; init; }
     public required long AssignmentId { get; init; }

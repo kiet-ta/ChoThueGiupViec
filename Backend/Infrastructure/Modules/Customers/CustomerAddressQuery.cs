@@ -7,7 +7,7 @@ namespace CommonService.Infrastructure.Modules.Customers;
 /// Real <see cref="ICustomerAddressQuery"/> (contract booking.md B2): Booking's read access to the address book, over the Customers
 /// module's own repository, so Booking never reads CUSTOMER_ADDRESS itself. Replaces <c>FakeCustomerAddressQuery</c>.
 /// </summary>
-public sealed class CustomerAddressQuery(ICustomerAddressRepository addresses) : ICustomerAddressQuery
+public class CustomerAddressQuery(ICustomerAddressRepository addresses) : ICustomerAddressQuery
 {
     public async Task<CustomerAddressInfo?> GetOwnedAsync(int customerId, int addressId, CancellationToken cancellationToken = default)
     {

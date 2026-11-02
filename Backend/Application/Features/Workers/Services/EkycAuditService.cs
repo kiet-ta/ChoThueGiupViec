@@ -8,7 +8,7 @@ namespace CommonService.Application.Features.Workers.Services;
 /// <summary>
 /// Implementation of eKYC sample audit logic (decisions.md Q05).
 /// </summary>
-public sealed class EkycAuditService(IOptions<BusinessRules> rulesOptions) : IEkycAuditService
+public class EkycAuditService(IOptions<BusinessRules> rulesOptions) : IEkycAuditService
 {
     private readonly BusinessRules _rules = rulesOptions.Value;
 

@@ -3,7 +3,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Tests.Booking;
 
 /// <summary>Records which orders had their Premium hold released; <see cref="ThrowOnRelease"/> makes the release fail.</summary>
-internal sealed class RecordingCapacity : IAgencyCapacityService
+internal class RecordingCapacity : IAgencyCapacityService
 {
     public List<long> ReleasedOrders { get; } = [];
     public bool ThrowOnRelease { get; set; }

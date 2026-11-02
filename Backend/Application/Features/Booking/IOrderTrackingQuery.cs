@@ -3,7 +3,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Booking;
 
 /// <summary>One JOB_ASSIGNMENT row of an order (BE-M2-10). Every row, whatever its status: hiding OFFERED / CANCELLED / REASSIGNED from the customer is the endpoint's rule (booking.md 2, Q22 D1).</summary>
-public sealed record AssignmentProgress(
+public record AssignmentProgress(
     long AssignmentId,
     byte AssignmentSeq,
     int WorkerId,
@@ -12,7 +12,7 @@ public sealed record AssignmentProgress(
     DateTime? CompletedAt);
 
 /// <summary>One JOB_ASSIGNMENT row of a customer (BE-M2-10).</summary>
-public sealed record CustomerAssignmentSummary(
+public record CustomerAssignmentSummary(
     long AssignmentId,
     long OrderId,
     byte AssignmentSeq,

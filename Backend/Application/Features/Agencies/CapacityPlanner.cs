@@ -4,10 +4,10 @@ namespace CommonService.Application.Features.Agencies;
 /// <param name="SlaScore">The agency's SLA score; a higher score is preferred between agencies of the same tier.</param>
 /// <param name="PriorityDispatch">The agency's active package has priority dispatch (Pro, decisions Q08).</param>
 /// <param name="CommissionRate">The commission rate of the agency's active package (decisions Q11).</param>
-public sealed record CapacitySlot(int SlotId, int AgencyId, decimal SlaScore, bool PriorityDispatch, decimal CommissionRate);
+public record CapacitySlot(int SlotId, int AgencyId, decimal SlaScore, bool PriorityDispatch, decimal CommissionRate);
 
 /// <summary>The slots one agency can staff an order with.</summary>
-public sealed record CapacityPlan(int AgencyId, decimal CommissionRate, IReadOnlyList<int> SlotIds);
+public record CapacityPlan(int AgencyId, decimal CommissionRate, IReadOnlyList<int> SlotIds);
 
 /// <summary>
 /// BE-M5-06a, the pure capacity rule (no database, no clock). Given the free slots of the eligible agencies, the one agency that can

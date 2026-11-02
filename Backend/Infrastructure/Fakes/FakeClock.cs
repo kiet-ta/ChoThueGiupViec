@@ -3,7 +3,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Follows the system clock until a test pins it with <see cref="Set"/>. Vietnam has no daylight saving: local time is UTC+7.</summary>
-public sealed class FakeClock : IClock
+public class FakeClock : IClock
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
     private DateTime? _pinned;

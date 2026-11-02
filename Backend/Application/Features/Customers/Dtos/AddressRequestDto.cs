@@ -5,7 +5,7 @@ namespace CommonService.Application.Features.Customers.Dtos;
 /// There is no totalAreaM2 on purpose: the server computes it and ignores any value the client sends.
 /// Numeric fields are nullable only so that a missing value is reported as a validation error instead of a silent 0.
 /// </summary>
-public sealed class AddressRequestDto
+public class AddressRequestDto
 {
     public string Label { get; set; } = string.Empty;
     public string AddressLine { get; set; } = string.Empty;

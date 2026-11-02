@@ -6,7 +6,7 @@ namespace CommonService.Application.Features.Dispatch;
 /// Active job offer record presented to a candidate worker, read from its <c>OFFERED</c> <see cref="JobAssignment"/>.
 /// Offers expire after exactly 30 seconds (BR-03, SC-9).
 /// </summary>
-public sealed record DispatchOffer
+public record DispatchOffer
 {
     public required long AssignmentId { get; init; }
     public required long OrderId { get; init; }
@@ -32,7 +32,7 @@ public sealed record DispatchOffer
 /// <summary>
 /// Result of an offer acceptance attempt.
 /// </summary>
-public sealed record OfferAcceptResult
+public record OfferAcceptResult
 {
     public required bool Success { get; init; }
     public string? ErrorMessage { get; init; }

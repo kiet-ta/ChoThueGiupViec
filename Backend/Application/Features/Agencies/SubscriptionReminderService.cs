@@ -8,7 +8,7 @@ namespace CommonService.Application.Features.Agencies;
 
 /// <summary>An active subscription that ends within the reminder window and has no later one behind it.</summary>
 /// <param name="ReminderDays">The threshold already reminded (7 or 1), null when none was sent yet.</param>
-public sealed record ExpiringSubscription(int SubscriptionId, int AgencyId, DateOnly EndDate, int? ReminderDays);
+public record ExpiringSubscription(int SubscriptionId, int AgencyId, DateOnly EndDate, int? ReminderDays);
 
 /// <summary>Persistence of the expiry reminder (M5-DECISIONS-1, SC-16).</summary>
 public interface ISubscriptionReminderRepository
@@ -33,7 +33,7 @@ public static class SubscriptionReminderTopics
 /// once each (the threshold is kept on the row). Run by <c>SubscriptionExpiryWorker</c>. The message is a realtime notification (decisions
 /// Q07: SignalR; push is deferred); the Subscription page shows the same warning.
 /// </summary>
-public sealed class SubscriptionReminderService(
+public class SubscriptionReminderService(
     ISubscriptionReminderRepository repository,
     INotificationService notifications,
     IUnitOfWork unitOfWork,

@@ -20,21 +20,21 @@ public class JobPhotoAtomicSaveTests
     private const long AssignmentId = 55;
     private const int WorkerId = 7;
 
-    private sealed class WorkerUser : ICurrentUser
+    private class WorkerUser : ICurrentUser
     {
         public int? UserId => WorkerId;
         public UserRole? Role => UserRole.Worker;
         public bool IsAuthenticated => true;
     }
 
-    private sealed class FixedQuality(bool accepted) : IImageQualityService
+    private class FixedQuality(bool accepted) : IImageQualityService
     {
         public Task<ImageQualityResult> AssessAsync(Stream image, CancellationToken cancellationToken = default) =>
             Task.FromResult(new ImageQualityResult(accepted ? 250.0 : 12.5, accepted));
     }
 
     /// <summary>Holds one assignment; each save is recorded as (photos added so far, status of the assignment at that moment).</summary>
-    private sealed class PhotoRepository : IWorkerRepository
+    private class PhotoRepository : IWorkerRepository
     {
         private readonly List<JobPhoto> _acceptedBefore;
 

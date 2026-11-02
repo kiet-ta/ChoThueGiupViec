@@ -7,7 +7,7 @@ namespace CommonService.Infrastructure.Services;
 /// Converts UTC to/from Asia/Ho_Chi_Minh (Indochina Time, UTC+7).
 /// Supports both Windows ("SE Asia Standard Time") and IANA ("Asia/Ho_Chi_Minh") timezone identifiers.
 /// </summary>
-public sealed class SystemClock : IClock
+public class SystemClock : IClock
 {
     private static readonly TimeZoneInfo LocalTimeZone = ResolveVietnamTimeZone();
 

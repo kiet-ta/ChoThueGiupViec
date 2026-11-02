@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CommonService.Infrastructure.Modules.Workers;
 
-public sealed class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssignmentRepository
+public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssignmentRepository
 {
     public async Task<IReadOnlyList<WorkerAssignmentRow>> GetForWorkerAsync(
         int workerId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>

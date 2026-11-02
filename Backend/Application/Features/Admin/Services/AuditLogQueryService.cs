@@ -6,7 +6,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Admin.Services;
 
 /// <summary>GET /api/admin/audit-logs rules of contract admin.md section 2.4 (BE-M6-09b).</summary>
-public sealed class AuditLogQueryService(IAuditLogReadRepository repository) : IAuditLogQueryService
+public class AuditLogQueryService(IAuditLogReadRepository repository) : IAuditLogQueryService
 {
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;

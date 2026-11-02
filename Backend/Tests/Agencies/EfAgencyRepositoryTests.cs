@@ -19,7 +19,7 @@ public class EfAgencyRepositoryTests
             .UseSqlServer("Server=localhost;Database=unused;Integrated Security=True;TrustServerCertificate=True;")
             .Options;
 
-    private sealed class FailingSaveContext(DbContextOptions<AppDbContext> options, Exception failure) : AppDbContext(options)
+    private class FailingSaveContext(DbContextOptions<AppDbContext> options, Exception failure) : AppDbContext(options)
     {
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
             Task.FromException<int>(failure);
@@ -78,7 +78,7 @@ public class EfAgencyRepositoryTests
         Assert.Same(agency, context.ChangeTracker.Entries<PartnerAgency>().Single().Entity);
     }
 
-    private sealed class CountingSaveContext(DbContextOptions<AppDbContext> options) : AppDbContext(options)
+    private class CountingSaveContext(DbContextOptions<AppDbContext> options) : AppDbContext(options)
     {
         public int Saves { get; private set; }
 

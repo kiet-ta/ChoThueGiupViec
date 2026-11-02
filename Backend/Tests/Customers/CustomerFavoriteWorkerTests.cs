@@ -50,7 +50,7 @@ public class CustomerFavoriteWorkerTests
 
     private static AppDbContext CreateContext() => new(Options());
 
-    private sealed class TestClock(DateTime initialUtc) : IClock
+    private class TestClock(DateTime initialUtc) : IClock
     {
         public DateTime UtcNow { get; set; } = initialUtc;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -59,7 +59,7 @@ public class CustomerFavoriteWorkerTests
     }
 
     /// <summary>Counts calls so the list can be shown to use one batched port call.</summary>
-    private sealed class CountingWorkerProfileQuery(IWorkerProfileQuery inner) : IWorkerProfileQuery
+    private class CountingWorkerProfileQuery(IWorkerProfileQuery inner) : IWorkerProfileQuery
     {
         public int GetCalls { get; private set; }
         public int GetManyCalls { get; private set; }
@@ -81,7 +81,7 @@ public class CustomerFavoriteWorkerTests
     }
 
     /// <summary>One service graph on a real context, plus the rows a test created (removed on dispose).</summary>
-    private sealed class Fixture : IAsyncDisposable
+    private class Fixture : IAsyncDisposable
     {
         private readonly List<int> _customerIds = [];
         private readonly List<int> _workerIds = [];
@@ -332,7 +332,7 @@ public class CustomerFavoriteWorkerTests
     }
 
     /// <summary>A context that inserts the same pair through another connection right before its own save: a deterministic double-click.</summary>
-    private sealed class RacingDbContext(DbContextOptions<AppDbContext> options, int customerId, int workerId, DateTime racerCreatedAt)
+    private class RacingDbContext(DbContextOptions<AppDbContext> options, int customerId, int workerId, DateTime racerCreatedAt)
         : AppDbContext(options)
     {
         private bool _raced;
@@ -461,7 +461,7 @@ public class CustomerFavoriteWorkerTests
 
     // ---- controller: ids from ICurrentUser, status mapping (no database) ----
 
-    private sealed class RecordingService : ICustomerFavoriteWorkerService
+    private class RecordingService : ICustomerFavoriteWorkerService
     {
         public int? LastCustomerId { get; private set; }
         public int? LastWorkerId { get; private set; }
@@ -489,7 +489,7 @@ public class CustomerFavoriteWorkerTests
         }
     }
 
-    private sealed class TestUser(int? id) : ICurrentUser
+    private class TestUser(int? id) : ICurrentUser
     {
         public bool IsAuthenticated => id != null;
         public int? UserId => id;

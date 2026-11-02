@@ -48,7 +48,7 @@ public class PasswordLoginTests
     private static AppDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options);
 
-    private sealed class TestClock(DateTime initialUtc) : IClock
+    private class TestClock(DateTime initialUtc) : IClock
     {
         public DateTime UtcNow { get; set; } = initialUtc;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -57,7 +57,7 @@ public class PasswordLoginTests
     }
 
     /// <summary>Owns one service graph plus the rows a test created, and removes them on dispose.</summary>
-    private sealed class Fixture : IAsyncDisposable
+    private class Fixture : IAsyncDisposable
     {
         private readonly List<string> _adminEmails = [];
         private readonly List<string> _partnerEmails = [];
@@ -476,13 +476,13 @@ public class PasswordLoginTests
 
     // ---- controller mapping (no database) ----
 
-    private sealed class StubPasswordLoginService(PasswordLoginResult result) : IPasswordLoginService
+    private class StubPasswordLoginService(PasswordLoginResult result) : IPasswordLoginService
     {
         public Task<PasswordLoginResult> LoginAsync(string email, string password, string roleString, CancellationToken ct = default) =>
             Task.FromResult(result);
     }
 
-    private sealed class NoopOtpService : IOtpService
+    private class NoopOtpService : IOtpService
     {
         public Task<OtpRequestResult> RequestOtpAsync(string phoneNumber, string roleString, string clientIp, CancellationToken ct = default) =>
             throw new NotSupportedException();
@@ -494,7 +494,7 @@ public class PasswordLoginTests
             throw new NotSupportedException();
     }
 
-    private sealed class AnonymousUser : ICurrentUser
+    private class AnonymousUser : ICurrentUser
     {
         public bool IsAuthenticated => false;
         public int? UserId => null;

@@ -15,13 +15,13 @@ using Xunit;
 namespace CommonService.Tests.Payments;
 
 /// <summary>BE-M2-05a: reconciliation job and QR expiry (contract payments.md 3.1, 3.3), with in-memory ports (no DB).</summary>
-public sealed class PaymentReconciliationServiceTests
+public class PaymentReconciliationServiceTests
 {
     private const int CustomerId = 7;
     private const decimal Amount = 260000m;
     private static readonly DateTime Now = new(2026, 10, 14, 3, 0, 0, DateTimeKind.Utc);
 
-    private sealed class TestClock : IClock
+    private class TestClock : IClock
     {
         public DateTime UtcNow => Now;
         public DateTime ToLocal(DateTime utc) => utc.AddHours(7);
@@ -29,7 +29,7 @@ public sealed class PaymentReconciliationServiceTests
         public DateOnly LocalToday => DateOnly.FromDateTime(ToLocal(Now));
     }
 
-    private sealed class RecordingPublisher : IPublisher
+    private class RecordingPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
 
@@ -43,7 +43,7 @@ public sealed class PaymentReconciliationServiceTests
             where TNotification : INotification => Publish((object)notification, cancellationToken);
     }
 
-    private sealed class NoNotifications : INotificationService
+    private class NoNotifications : INotificationService
     {
         public int Count { get; private set; }
 
@@ -55,7 +55,7 @@ public sealed class PaymentReconciliationServiceTests
     }
 
     /// <summary>The gateway answers per reference from a script; a reference in <see cref="Throwing"/> fails.</summary>
-    private sealed class ScriptedGateway : IPaymentGateway
+    private class ScriptedGateway : IPaymentGateway
     {
         public Dictionary<string, (PaymentStatus Status, decimal Amount)> Statuses { get; } = [];
         public HashSet<string> Throwing { get; } = [];
@@ -78,7 +78,7 @@ public sealed class PaymentReconciliationServiceTests
         public Task<GatewayRefundResult> RefundAsync(string gatewayTxnRef, decimal amount, string reason, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class InMemoryPayments : IPaymentRepository, IUnitOfWork
+    private class InMemoryPayments : IPaymentRepository, IUnitOfWork
     {
         public List<PaymentTransaction> Transactions { get; } = [];
         public Dictionary<long, JobOrder> Orders { get; } = [];
@@ -177,7 +177,7 @@ public sealed class PaymentReconciliationServiceTests
         public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
     }
 
-    private sealed class Fixture
+    private class Fixture
     {
         public InMemoryPayments Db { get; } = new();
         public ScriptedGateway Gateway { get; } = new();

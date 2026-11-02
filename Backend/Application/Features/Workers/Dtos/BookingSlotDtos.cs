@@ -1,12 +1,12 @@
 namespace CommonService.Application.Features.Workers.Dtos;
 
-public sealed record ToggleBookingSlotRequest(
+public record ToggleBookingSlotRequest(
     DateOnly SlotDate,
     string ShiftCode,
     bool IsActive
 );
 
-public sealed record BookingSlotResponse(
+public record BookingSlotResponse(
     int SlotId,
     int WorkerId,
     DateOnly SlotDate,

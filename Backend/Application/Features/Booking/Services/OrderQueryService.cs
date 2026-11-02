@@ -29,7 +29,7 @@ public interface IOrderQueryService
     Task<IReadOnlyList<WorkerFreeShift>> GetRebookAvailabilityAsync(int customerId, long orderId, int workerId, CancellationToken cancellationToken = default);
 }
 
-public sealed class OrderQueryService(
+public class OrderQueryService(
     IOrderRepository orders,
     IOrderTrackingQuery tracking,
     IExtensionRepository extensions,

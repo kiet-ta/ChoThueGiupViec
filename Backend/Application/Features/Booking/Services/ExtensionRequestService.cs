@@ -13,7 +13,7 @@ namespace CommonService.Application.Features.Booking.Services;
 /// The customer asks the worker on site to stay longer (BR-08, "Làm lần 2"), contract booking.md 3.8. Creates a PENDING_PAYMENT
 /// extension priced from the order's frozen unit price (Q01); the payment is <c>POST /api/payments/extensions/{id}/qr</c>.
 /// </summary>
-public sealed class ExtensionRequestService(
+public class ExtensionRequestService(
     IExtensionRepository extensions,
     IUnitOfWork unitOfWork,
     IClock clock,

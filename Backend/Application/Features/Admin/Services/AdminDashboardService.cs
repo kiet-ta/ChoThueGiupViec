@@ -13,7 +13,7 @@ public interface IAdminDashboardService
 /// The Admin operations dashboard (BE-M6-06b, contract admin.md 2.3 and question A2). Days and the ISO week are those of
 /// Asia/Ho_Chi_Minh (decision G-3) and are converted to UTC for the queries.
 /// </summary>
-public sealed class AdminDashboardService(IAdminDashboardRepository dashboard, IClock clock, IOptions<AdminDashboardOptions> options) : IAdminDashboardService
+public class AdminDashboardService(IAdminDashboardRepository dashboard, IClock clock, IOptions<AdminDashboardOptions> options) : IAdminDashboardService
 {
     public async Task<DashboardDto> GetAsync(CancellationToken cancellationToken = default)
     {

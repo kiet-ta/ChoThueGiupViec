@@ -14,7 +14,7 @@ namespace CommonService.Infrastructure.Modules.Dispatch;
 /// inside a transaction, so concurrent requests cannot both win.
 /// Not verified against a live SQL Server on the Linux dev host (no server there); covered by the owner's Windows run.
 /// </summary>
-public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMilestoneFailoverRepository
+public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMilestoneFailoverRepository
 {
     public async Task<DispatchOrderContext?> GetOrderContextAsync(long orderId, CancellationToken cancellationToken = default) =>
         await (
@@ -320,7 +320,7 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository,
         });
     }
 
-    private sealed class SlotNotHeldException : Exception;
+    private class SlotNotHeldException : Exception;
 
     // IMilestoneFailoverRepository implementation
 

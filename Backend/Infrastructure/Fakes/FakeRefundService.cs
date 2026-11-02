@@ -4,7 +4,7 @@ using CommonService.Application.Interfaces.Ports;
 namespace CommonService.Infrastructure.Fakes;
 
 /// <summary>Always succeeds and remembers the requests.</summary>
-public sealed class FakeRefundService : IRefundService
+public class FakeRefundService : IRefundService
 {
     private readonly ConcurrentQueue<RefundRequest> _requests = new();
 

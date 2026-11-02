@@ -2,7 +2,7 @@ using CommonService.Application.Features.Admin.Dtos;
 
 namespace CommonService.Application.Features.Admin.Services;
 
-public sealed class AuditLogQueryResult
+public class AuditLogQueryResult
 {
     public bool Success { get; init; }
     public int StatusCode { get; init; }

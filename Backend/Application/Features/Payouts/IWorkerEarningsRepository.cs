@@ -4,18 +4,18 @@ namespace CommonService.Application.Features.Payouts;
 
 /// <summary>One assignment of the worker that earned money in the month: a completed job or an approved absence fee.</summary>
 /// <param name="DateUtc"><c>completed_at</c> of a job, <c>updated_at</c> of an approved absence fee (the date the fee was approved).</param>
-public sealed record WorkerEarningRow(
+public record WorkerEarningRow(
     long AssignmentId, long OrderId, JobAssignmentStatus Status, decimal GrossAmount, decimal CommissionRate, decimal? AbsenceFeeAmount, DateTime DateUtc);
 
 /// <summary>The state of the month's payout batch for one worker.</summary>
 /// <param name="BatchStatus">DRAFT or CLOSED.</param>
 /// <param name="Item">The worker's item in that batch; null when the batch has none for the worker.</param>
-public sealed record WorkerBatchState(int BatchId, string BatchStatus, WorkerBatchItem? Item);
+public record WorkerBatchState(int BatchId, string BatchStatus, WorkerBatchItem? Item);
 
-public sealed record WorkerBatchItem(int JobCount, decimal GrossAmount, decimal CommissionAmount, decimal PenaltyAmount, decimal NetAmount);
+public record WorkerBatchItem(int JobCount, decimal GrossAmount, decimal CommissionAmount, decimal PenaltyAmount, decimal NetAmount);
 
 /// <summary>A closed batch item of the worker (the "payout history" screen).</summary>
-public sealed record WorkerPayoutHistoryRow(int BatchId, string PeriodMonth, decimal NetAmount, string ItemStatus, DateTime? TransferredAt);
+public record WorkerPayoutHistoryRow(int BatchId, string PeriodMonth, decimal NetAmount, string ItemStatus, DateTime? TransferredAt);
 
 /// <summary>
 /// Reads for the freelancer's own income screens (BE-M6-07). Every method is scoped to one worker id, so another worker's rows are never read.

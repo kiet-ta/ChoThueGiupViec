@@ -15,7 +15,7 @@ namespace CommonService.Application.Features.Agencies.Handlers;
 /// The agency starts with a zero escrow balance, so it is <c>PENDING</c> until a deposit reaches
 /// <c>Agency.MinEscrowBalance</c> (the deposit itself is BE-M5-07). <c>worker_quota</c> starts at 0 and is set by BE-M5-02.
 /// </summary>
-public sealed class RegisterAgencyCommandHandler(
+public class RegisterAgencyCommandHandler(
     IAgencyRepository agencies,
     IPasswordHasher passwordHasher,
     IClock clock,

@@ -25,7 +25,7 @@ namespace CommonService.Tests.Admin;
 /// </summary>
 public class M6AcceptanceTests
 {
-    private sealed class SilentPublisher : IPublisher
+    private class SilentPublisher : IPublisher
     {
         public List<object> Published { get; } = [];
 

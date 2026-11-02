@@ -67,7 +67,7 @@ public class M5SqlServerTests
         return s[..n];
     }
 
-    private sealed class World
+    private class World
     {
         public int AgencyId;
         public int CustomerId;
@@ -181,7 +181,7 @@ public class M5SqlServerTests
 
     private static IOptionsAdapter Rules() => new();
 
-    private sealed class IOptionsAdapter
+    private class IOptionsAdapter
     {
         public Microsoft.Extensions.Options.IOptions<BusinessRules> Options { get; } = MicrosoftOptions.Create(new BusinessRules());
     }
@@ -598,7 +598,7 @@ public class M5SqlServerTests
         Assert.Equal(new DateOnly(2026, 11, 13), state.Subscription!.EndDate);
     }
 
-    private sealed class NoopPublisher : IPublisher
+    private class NoopPublisher : IPublisher
     {
         public Task Publish(object notification, CancellationToken cancellationToken = default) => Task.CompletedTask;
 

@@ -9,7 +9,7 @@ namespace CommonService.Infrastructure.Fakes;
 /// In-memory gateway. IPN payload keys of this Fake (the real MoMo adapter reads MoMo's own documentation, decisions G-7):
 /// <c>gatewayTxnRef</c>, <c>amount</c>, <c>status</c> (<c>success</c> | <c>pending</c> | <c>expired</c>) and <c>signature</c> (valid only when it is <c>valid</c>).
 /// </summary>
-public sealed class FakePaymentGateway : IPaymentGateway
+public class FakePaymentGateway : IPaymentGateway
 {
     private readonly ConcurrentDictionary<string, (PaymentStatus Status, decimal Amount)> _transactions = new();
 

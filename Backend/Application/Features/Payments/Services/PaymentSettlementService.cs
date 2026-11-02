@@ -37,7 +37,7 @@ public interface IPaymentSettlementService
         long paymentId, PaymentPurpose purpose, long? orderId, int? extensionId, decimal amount, string rawBody, CancellationToken cancellationToken = default);
 }
 
-public sealed class PaymentSettlementService(
+public class PaymentSettlementService(
     IPaymentRepository payments,
     IUnitOfWork unitOfWork,
     IClock clock,

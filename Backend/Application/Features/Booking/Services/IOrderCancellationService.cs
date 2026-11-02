@@ -1,11 +1,11 @@
 namespace CommonService.Application.Features.Booking.Services;
 
 /// <summary>Body of POST /api/booking/orders/{orderId}/cancel (contract booking.md 3.7).</summary>
-public sealed record CancelOrderRequest(string? Reason);
+public record CancelOrderRequest(string? Reason);
 
 /// <param name="Order">The cancelled order (contract <c>Order</c> shape).</param>
 /// <param name="RefundProblem">Null when nothing had to be refunded or the refund was done; otherwise why the refund did NOT happen (the order is cancelled anyway).</param>
-public sealed record CancelOrderResult(CreatedOrder Order, string? RefundProblem);
+public record CancelOrderResult(CreatedOrder Order, string? RefundProblem);
 
 public static class CancelErrorCodes
 {

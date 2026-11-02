@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CommonService.Infrastructure.Modules.Agencies;
 
 /// <summary>EF Core implementation of <see cref="IEscrowRepository"/>. Not verified against a live SQL Server on this host.</summary>
-public sealed class EfEscrowRepository(AppDbContext db) : IEscrowRepository
+public class EfEscrowRepository(AppDbContext db) : IEscrowRepository
 {
     public async Task<AgencyEscrowRow?> GetAgencyAsync(int agencyId, CancellationToken cancellationToken = default)
     {
