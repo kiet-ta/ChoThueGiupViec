@@ -1,5 +1,6 @@
 using CommonService.Application.Features.Payments;
 using CommonService.Application.Features.Agencies;
+using CommonService.Application.Features.Agencies.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +18,8 @@ public class AgenciesModule : IModule
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IAgencyRepository, EfAgencyRepository>();
+        services.AddScoped<IAgencyRegistrationService, AgencyRegistrationService>();
+        services.AddScoped<IAgencyWorkerService, AgencyWorkerService>();
         services.AddScoped<ISubscriptionRepository, EfSubscriptionRepository>();
         services.AddScoped<SubscriptionService>();
         services.AddScoped<ISubscriptionReminderRepository, EfSubscriptionReminderRepository>();
