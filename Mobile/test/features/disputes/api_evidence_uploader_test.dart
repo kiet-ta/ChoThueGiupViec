@@ -175,7 +175,7 @@ void main() {
 
       expect(url, '/files/dispute-evidence/x.png');
       expect(seen.single.method, 'POST');
-      expect(seen.single.path, '/api/customers/me/disputes/evidence');
+      expect(seen.single.path, '/api/v1/customers/me/disputes/evidence');
       expect(seen.single.body, {
         'fileName': 'IMG_001.png',
         'contentType': 'image/png',
@@ -189,7 +189,7 @@ void main() {
         role: DisputeRole.worker,
       ).pickAndUpload();
 
-      expect(seen.single.path, '/api/workers/me/disputes/evidence');
+      expect(seen.single.path, '/api/v1/workers/me/disputes/evidence');
       expect(seen.single.body!['contentType'], 'image/jpeg');
       expect(seen.single.body!['fileName'], 'photo.jpg');
     });

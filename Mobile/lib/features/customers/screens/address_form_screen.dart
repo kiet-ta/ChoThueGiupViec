@@ -373,20 +373,15 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   ),
                 ),
                 const SizedBox(height: NordicSpace.md),
-                Material(
-                  color: NordicColors.surface,
-                  clipBehavior: Clip.antiAlias,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: NordicRadius.cardAll,
-                    side: BorderSide(color: NordicColors.border),
-                  ),
+                NordicCard(
+                  padding: EdgeInsets.zero,
                   child: SwitchListTile(
                     title: const Text(
                       'Dùng làm địa chỉ mặc định',
                       style: NordicTypography.titleSmall,
                     ),
                     value: _isDefault,
-                    activeThumbColor: Colors.white,
+                    activeThumbColor: NordicColors.textInverse,
                     activeTrackColor: NordicColors.primary,
                     onChanged: (val) => setState(() => _isDefault = val),
                   ),

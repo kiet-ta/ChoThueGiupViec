@@ -21,9 +21,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Màn Thi Công #2001'), findsOneWidget);
+      expect(find.text('Ca đang làm'), findsOneWidget);
       expect(find.text('Phòng khách & Bếp'), findsOneWidget);
-      expect(find.text('Thời Gian Thi Công'), findsOneWidget);
+      expect(find.text('Thời gian làm'), findsOneWidget);
       expect(find.text('01:00:00'), findsOneWidget);
 
       // The made-up checklist is gone: the API has none (issue #442).

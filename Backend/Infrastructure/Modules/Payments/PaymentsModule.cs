@@ -3,6 +3,7 @@ using CommonService.Application.Features.Payments.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using CommonService.Infrastructure.Modules.Payments.MoMo;
+using CommonService.Infrastructure.Modules.Payments.SePay;
 using CommonService.Infrastructure.Modules.Payments.VnPay;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +30,18 @@ public class PaymentsModule : IModule
         services.AddHostedService<PaymentReconciliationWorker>();
         AddMoMoGateway(services, configuration);
         AddVnPayGateway(services, configuration);
+        AddSePayGateway(services, configuration);
+    }
+
+    public static void AddSePayGateway(IServiceCollection services, IConfiguration configuration)
+    {
+        var options = configuration.GetSection(SePayOptions.SectionName).Get<SePayOptions>() ?? new SePayOptions();
+        if (!options.PointsAtSandbox) throw new InvalidOperationException("SePay API must use the sandbox host (G-1).");
+        if (!options.HasCredentials) return;
+        services.AddSingleton(options);
+        services.AddHttpClient<SePayPaymentGateway>(client => client.Timeout = TimeSpan.FromSeconds(30))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddTransient<IPaymentGateway>(sp => sp.GetRequiredService<SePayPaymentGateway>());
     }
 
     /// <summary>

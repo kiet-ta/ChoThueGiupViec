@@ -8,7 +8,7 @@ import {
   type AuthApi,
   type Timers,
 } from '../src/auth/auth-controller.ts'
-import { describeLoginError } from '../src/auth/login-errors.ts'
+import { describeLoginError, describeOtpError } from '../src/auth/login-errors.ts'
 import { createSessionStore, REFRESH_TOKEN_KEY, type AuthResult, type KeyValueStorage } from '../src/auth/session.ts'
 
 function memoryStorage(): KeyValueStorage & { data: Map<string, string> } {
@@ -72,10 +72,10 @@ describe('refresh delay', () => {
 })
 
 describe('access decision', () => {
-  it('maps only Admin and Partner to an area', () => {
+  it('maps the three web roles to their areas', () => {
     assert.equal(areaOfRole('Admin'), 'admin')
     assert.equal(areaOfRole('Partner'), 'partner')
-    assert.equal(areaOfRole('Customer'), null)
+    assert.equal(areaOfRole('Customer'), 'customer')
     assert.equal(areaOfRole('Worker'), null)
     assert.equal(areaOfRole(null), null)
   })
@@ -91,8 +91,12 @@ describe('access decision', () => {
     assert.deepEqual(decideAccess('Partner', 'admin', '/admin/payouts'), { kind: 'redirect', to: '/partner' })
   })
 
-  it('a role without any area here (Customer, Worker) is treated as not logged in', () => {
-    assert.deepEqual(decideAccess('Customer', 'admin', '/admin'), { kind: 'login', next: '/admin' })
+  it('redirects Customer to its area and treats Worker as not logged in', () => {
+    assert.deepEqual(decideAccess('Customer', 'admin', '/admin'), { kind: 'redirect', to: '/app' })
+    assert.deepEqual(decideAccess('Worker', 'admin', '/admin'), { kind: 'login', next: '/admin' })
+    assert.deepEqual(decideAccess('Customer', 'customer', '/app'), { kind: 'allow' })
+    assert.deepEqual(decideAccess('Admin', 'customer', '/app'), { kind: 'redirect', to: '/admin' })
+    assert.deepEqual(decideAccess(null, 'customer', '/app'), { kind: 'login', next: '/app' })
   })
 })
 
@@ -113,7 +117,7 @@ describe('safeNext (open redirect)', () => {
   })
 
   it('goes to login for a role without an area', () => {
-    assert.equal(safeNext('/admin', 'Customer'), '/login')
+    assert.equal(safeNext('/admin', 'Customer'), '/app')
   })
 })
 
@@ -285,5 +289,21 @@ describe('auth controller', () => {
     const { controller } = setup({ refresh: async () => result('A', 'R', 'Partner') }, storage)
     const session = await controller.bootstrap()
     assert.equal(areaOfRole(session?.user.role), 'partner')
+  })
+})
+
+describe('customer OTP errors and redirects', () => {
+  it('keeps only customer paths', () => {
+    assert.equal(safeNext('/app/orders?x=1', 'Customer'), '/app/orders?x=1')
+    assert.equal(safeNext('//evil.test/app', 'Customer'), '/app')
+    assert.equal(safeNext('/partner', 'Customer'), '/app')
+    assert.equal(safeNext('/app/%2e%2e/admin', 'Customer'), '/app')
+    assert.equal(safeNext('/app/%5cevil', 'Customer'), '/app')
+  })
+  it('maps validation, expired codes and retry headers', () => {
+    assert.deepEqual(describeOtpError({ status: 400, fieldErrors: { PhoneNumber: ['Sai số'] } }, 'phone').fields.phonenumber, ['Sai số'])
+    assert.match(describeOtpError({ status: 401 }, 'code').message!, /hết hạn/)
+    assert.match(describeOtpError({ status: 429, retryAfterSeconds: 30 }, 'phone').message!, /30 giây/)
+    assert.match(describeOtpError({ status: 429 }, 'code').message!, /mã mới/)
   })
 })

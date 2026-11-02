@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ký quỹ và SLA | TỔ ẤM</title>
+<link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js" defer></script>
+</head>
+<body data-role="agency" data-tab="escrow" data-crumb="Ký quỹ & SLA">
+<main class="page">
+  <div class="page-head"><div><div class="eyebrow">Đối tác · Ký quỹ</div><h1>Quỹ ký quỹ và điểm SLA</h1></div><div class="row"></div></div>
+  <div class="grid g3"><div class="card pad kpi"><div class="label">Số dư ký quỹ</div><div class="num">12.500.000 đ</div></div><div class="card pad kpi"><div class="label">Trạng thái</div><div class="num">Đang hoạt động</div></div><div class="card pad kpi"><div class="label">Điểm SLA</div><div class="num">92</div></div></div>
+  <div class="grid mt-16" style="grid-template-columns:1fr 1.3fr">
+    <div class="card pad"><div class="head"><h2>Nạp ký quỹ</h2></div>
+      <div class="field"><label>Số tiền (đ)</label><input class="input tnum" placeholder="5.000.000"></div>
+      <a class="btn block mt-16">Nạp tiền</a></div>
+    <div class="card pad"><div class="head"><h2>Sổ ký quỹ</h2></div>
+      <div class="table-wrap" style="border:0"><table class="table"><thead><tr><th>#</th><th>Nội dung</th><th class="r">Số tiền</th><th></th></tr></thead><tbody>
+        <tr><td class="tnum">#921</td><td>Nạp ký quỹ</td><td class="num" style="color:var(--primary)">+5.000.000</td><td></td></tr>
+        <tr><td class="tnum">#918</td><td>Phạt vắng mặt · ca #4710</td><td class="num" style="color:var(--error)">−300.000</td><td class="r"><a class="btn outline sm">Khiếu nại</a></td></tr>
+        <tr><td class="tnum">#902</td><td>Nạp ký quỹ</td><td class="num" style="color:var(--primary)">+10.000.000</td><td></td></tr>
+      </tbody></table></div></div>
+  </div>
+  <div class="card pad mt-16"><div class="head"><h2>Khiếu nại khoản #918</h2><a>Đóng</a></div>
+    <div class="field"><textarea class="textarea" rows="3" placeholder="Lý do khiếu nại (tối đa 500 ký tự)"></textarea></div>
+    <div class="row mt-16" style="justify-content:flex-end"><a class="btn">Gửi khiếu nại</a></div></div></main>
+</body>
+</html>

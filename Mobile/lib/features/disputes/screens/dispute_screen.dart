@@ -134,6 +134,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
         EmptyStateWidget(
           key: Key('dispute-empty'),
           title: 'Chưa có khiếu nại nào',
+          subtitle: 'Các khiếu nại đã gửi sẽ hiện ở đây.',
           icon: Icons.flag_outlined,
         ),
       ];
@@ -181,7 +182,9 @@ class _DisputeScreenState extends State<DisputeScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Đơn #${d.orderId} · ${categoryLabel(d.category)}',
+                    widget.role == DisputeRole.customer
+                        ? categoryLabel(d.category)
+                        : 'Đơn #${d.orderId} · ${categoryLabel(d.category)}',
                     style: NordicTypography.titleSmall,
                   ),
                 ),
@@ -198,7 +201,9 @@ class _DisputeScreenState extends State<DisputeScreen> {
             ),
             const SizedBox(height: NordicSpace.xxs),
             Text(
-              'Gửi lúc ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh',
+              widget.role == DisputeRole.customer
+                  ? 'Đơn #${d.orderId} · ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh'
+                  : 'Gửi lúc ${formatVietnamDateTime(d.createdAt)} · ${d.evidenceUrls.length} ảnh',
               style: NordicTypography.bodySmall,
             ),
             const SizedBox(height: NordicSpace.xs),
@@ -217,13 +222,22 @@ class _DisputeScreenState extends State<DisputeScreen> {
     );
   }
 
+  /// The customer reads the verdict in their own words (MOB-UI-17); the worker keeps the shared labels.
+  String _verdict(String? faultParty) => widget.role == DisputeRole.customer
+      ? switch (faultParty) {
+          'FREELANCER' => 'Lỗi thuộc về người làm',
+          'AGENCY' => 'Lỗi thuộc về công ty đối tác',
+          _ => faultLabel(faultParty),
+        }
+      : faultLabel(faultParty);
+
   /// The party sees the verdict only once it exists (contract 2.1).
   List<Widget> _outcome(Dispute d) {
     if (d.disputeStatus == Dispute.resolved) {
       return [
         const Divider(height: 32.0),
         Text(
-          faultLabel(d.faultParty),
+          _verdict(d.faultParty),
           key: Key('dispute-fault-${d.disputeId}'),
           style: NordicTypography.titleSmall,
         ),

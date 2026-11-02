@@ -11,7 +11,7 @@ namespace CommonService.WebAPI.Controllers.Workers;
 /// Customer job acceptance and rework request endpoints (contract workers.md §2.5.2 & §2.5.3).
 /// </summary>
 [ApiController]
-[Route("api/customers/assignments")]
+[Route("api/v1/customers/assignments")]
 public class CustomerAssignmentsController(IJobCompletionService completions) : ControllerBase
 {
     /// <summary>Customer confirms job completion (contract §2.5.2).</summary>

@@ -8,7 +8,7 @@ namespace CommonService.WebAPI.Controllers.Agencies;
 
 /// <summary>The agency's own jobs and performance report (contract agencies.md 8, BE-M5-08, decisions Q08, policy PartnerOnly).</summary>
 [ApiController]
-[Route("api/agencies")]
+[Route("api/v1/agencies")]
 [Authorize(Policy = "PartnerOnly")]
 public class AgencyReportsController(AgencyReportService service) : ControllerBase
 {

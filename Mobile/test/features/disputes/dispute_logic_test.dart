@@ -28,8 +28,8 @@ void main() {
     });
 
     test('each role calls its own endpoint prefix', () {
-      expect(DisputeRole.customer.pathPrefix, '/api/customers/me');
-      expect(DisputeRole.worker.pathPrefix, '/api/workers/me');
+      expect(DisputeRole.customer.pathPrefix, '/api/v1/customers/me');
+      expect(DisputeRole.worker.pathPrefix, '/api/v1/workers/me');
     });
   });
 

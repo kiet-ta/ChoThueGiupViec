@@ -9,7 +9,7 @@
 
 ## 1. Conventions & Role Policies
 
-- Base path: `/api/dispatch`.
+- Base path: `/api/v1/dispatch`.
 - Realtime Hub: `/hubs/dispatch` (SignalR WebSocket + Long Polling fallback, Q07).
 - Roles & Policies:
   - `WorkerOnly`: thợ thao tác nhận offer, check-in, gọi điện, báo vắng mặt, báo sự cố.
@@ -112,12 +112,12 @@ Báo cáo sự cố bất khả kháng trên đường hoặc tại nơi làm (B
 
 > Served by `WorkerDispatchController` (DISPATCH-WIRE-02, #311), except `incidents` (DISPATCH-WIRE-03). Ca không tồn tại hoặc không phải của thợ gọi -> `404`; trạng thái không cho phép -> `409` với `data.code` (decisions Q26 D6): `OFFER_EXPIRED`, `OFFER_NOT_OPEN`, `ORDER_NOT_DISPATCHING`, `ASSIGNMENT_STATE_INVALID`, `ABSENT_CONDITIONS_NOT_MET`, `ABSENT_ALREADY_REPORTED`. `decline` trả `"status": "DECLINED"` (nhãn của phản hồi); dòng `JOB_ASSIGNMENT` chuyển `CANCELLED` và chỗ đó được mời cho thợ kế tiếp.
 
-#### `GET /api/dispatch/offers/current`
+#### `GET /api/v1/dispatch/offers/current`
 Lấy job offer đang chờ thợ phản hồi (nếu có). Trả về `data = null` nếu thợ không có offer nào đang active.
 
 - Response 200: `ApiResponse<JobOfferDto | null>`
 
-#### `POST /api/dispatch/offers/{assignmentId}/accept`
+#### `POST /api/v1/dispatch/offers/{assignmentId}/accept`
 Thợ nhận ca làm việc trong cửa sổ 30s.
 
 - Response 200:
@@ -133,7 +133,7 @@ Thợ nhận ca làm việc trong cửa sổ 30s.
   - `404`: Không tìm thấy offer hoặc không thuộc về thợ.
   - `409`: Offer đã hết hạn 30s hoặc đơn đã được nhận bởi thợ khác (double-assign guard).
 
-#### `POST /api/dispatch/offers/{assignmentId}/decline`
+#### `POST /api/v1/dispatch/offers/{assignmentId}/decline`
 Thợ chủ động từ chối offer (chuyển ngay sang thợ kế tiếp trong pool matching mà không cần chờ hết 30s).
 
 - Request body:
@@ -150,7 +150,7 @@ Thợ chủ động từ chối offer (chuyển ngay sang thợ kế tiếp tron
 }
 ```
 
-#### `POST /api/dispatch/assignments/{assignmentId}/check-in`
+#### `POST /api/v1/dispatch/assignments/{assignmentId}/check-in`
 Check-in GPS tại hiện trường (BR-04). Lệch <= 100m tính là hợp lệ (`isGpsVerified: true`).
 
 - Request body:
@@ -166,7 +166,7 @@ Check-in GPS tại hiện trường (BR-04). Lệch <= 100m tính là hợp lệ
   - `404`: Assignment không tồn tại hoặc không thuộc thợ.
   - `409`: Trạng thái ca làm không phải `ASSIGNED`.
 
-#### `POST /api/dispatch/assignments/{assignmentId}/check-in/plate-photo`
+#### `POST /api/v1/dispatch/assignments/{assignmentId}/check-in/plate-photo`
 Thợ chụp ảnh biển số nhà / số căn hộ khi GPS bị lệch > 100m.
 
 - Request body: `multipart/form-data` hoặc JSON:
@@ -177,7 +177,7 @@ Thợ chụp ảnh biển số nhà / số căn hộ khi GPS bị lệch > 100m.
 ```
 - Response 200: `ApiResponse<CheckInResultDto>`
 
-#### `POST /api/dispatch/assignments/{assignmentId}/calls/log`
+#### `POST /api/v1/dispatch/assignments/{assignmentId}/calls/log`
 Ghi nhận 1 cuộc gọi liên hệ khách hàng qua hệ thống (Q17). Hệ thống tăng `CHECK_IN_LOG.call_attempts`.
 
 - Response 200:
@@ -189,7 +189,7 @@ Ghi nhận 1 cuộc gọi liên hệ khách hàng qua hệ thống (Q17). Hệ t
 }
 ```
 
-#### `POST /api/dispatch/assignments/{assignmentId}/absent`
+#### `POST /api/v1/dispatch/assignments/{assignmentId}/absent`
 Báo "Khách vắng mặt" (BR-05, Q10).
 Điều kiện bắt buộc:
 1. Đã check-in thành công.
@@ -200,7 +200,7 @@ Báo "Khách vắng mặt" (BR-05, Q10).
 - Mã lỗi:
   - `409`: Chưa đủ 15 phút hoặc chưa thực hiện đủ 2 cuộc gọi hệ thống (`CHECK_IN_LOG.call_attempts < 2`).
 
-#### `POST /api/dispatch/assignments/{assignmentId}/incidents`
+#### `POST /api/v1/dispatch/assignments/{assignmentId}/incidents`
 Báo sự cố bất khả kháng trên đường hoặc hiện trường (BR-10).
 
 - Request body:
@@ -220,7 +220,7 @@ Báo sự cố bất khả kháng trên đường hoặc hiện trường (BR-10
 
 ### 3.2 Dành cho Khách Hàng (`CustomerOnly`)
 
-#### `GET /api/dispatch/orders/{orderId}/status`
+#### `GET /api/v1/dispatch/orders/{orderId}/status`
 Khách hàng theo dõi realtime trạng thái điều phối đơn đặt.
 
 - Response 200:
@@ -246,7 +246,7 @@ Khách hàng theo dõi realtime trạng thái điều phối đơn đặt.
 ```
 *Lưu ý bảo mật (Q17): `workerPhone` chỉ hiển thị khi trạng thái là `ASSIGNED` hoặc `CHECKED_IN` trong ngày ca làm việc.*
 
-#### `POST /api/dispatch/assignments/{assignmentId}/check-in/confirm`
+#### `POST /api/v1/dispatch/assignments/{assignmentId}/check-in/confirm`
 Khách xác nhận thợ đã có mặt tại nhà khi GPS của thợ bị lệch > 100m (BR-04).
 
 - Response 200:
@@ -258,7 +258,7 @@ Khách xác nhận thợ đã có mặt tại nhà khi GPS của thợ bị lệ
 }
 ```
 
-#### `POST /api/dispatch/orders/{orderId}/incidents/accept-substitute`
+#### `POST /api/v1/dispatch/orders/{orderId}/incidents/accept-substitute`
 Khách đồng ý với thợ thay thế sau sự cố của thợ ban đầu.
 
 - Response 200:
@@ -270,7 +270,7 @@ Khách đồng ý với thợ thay thế sau sự cố của thợ ban đầu.
 }
 ```
 
-#### `POST /api/dispatch/orders/{orderId}/incidents/decline-substitute`
+#### `POST /api/v1/dispatch/orders/{orderId}/incidents/decline-substitute`
 Khách từ chối thợ thay thế hoặc quá 5 phút không tìm được thợ -> Hủy đơn và hoàn tiền 100%.
 
 - Response 200:
@@ -283,7 +283,7 @@ Khách từ chối thợ thay thế hoặc quá 5 phút không tìm được th�
 }
 ```
 
-#### `GET /api/dispatch/orders/{orderId}/fallback`
+#### `GET /api/v1/dispatch/orders/{orderId}/fallback`
 Đơn 2 thợ chỉ tìm được 1 thợ (BR-02 fallback, #310). Đơn không hủy mà chờ khách chọn: cho cùng một thợ làm 2 ca liên tiếp hay hủy + hoàn 100 %. Đơn của người khác -> `404`.
 
 - Response 200 (`state` = `AWAITING_CUSTOMER` | `AWAITING_WORKER` | `NOT_WAITING`):
@@ -299,7 +299,7 @@ Khách từ chối thợ thay thế hoặc quá 5 phút không tìm được th�
 ```
 `AWAITING_CUSTOMER`: `deadlineUtc` là giờ bắt đầu ca; khách im lặng đến lúc đó = từ chối. `AWAITING_WORKER`: khách đã đồng ý, `deadlineUtc` là hạn thợ xác nhận (120 giây). `NOT_WAITING`: các trường còn lại là `null`.
 
-#### `POST /api/dispatch/orders/{orderId}/fallback/respond`
+#### `POST /api/v1/dispatch/orders/{orderId}/fallback/respond`
 Khách trả lời câu hỏi "Chỉ có 1 thợ: thợ làm 2 ca liên tiếp?".
 
 - Request: `{ "accept": true }` (`accept` bắt buộc, thiếu -> `400`).
@@ -318,12 +318,12 @@ Khách trả lời câu hỏi "Chỉ có 1 thợ: thợ làm 2 ca liên tiếp?"
 
 ### 3.3 Dành cho Quản Trị Viên (`AdminOnly`)
 
-#### `GET /api/dispatch/admin/absent-reviews`
+#### `GET /api/v1/dispatch/admin/absent-reviews`
 Danh sách các ca báo khách vắng mặt đang chờ duyệt.
 
 - Response 200: `ApiResponse<List<CustomerAbsentReportDto>>`
 
-#### `POST /api/dispatch/admin/absent-reviews/{assignmentId}/approve`
+#### `POST /api/v1/dispatch/admin/absent-reviews/{assignmentId}/approve`
 Admin phê duyệt khách vắng mặt (Q10).
 Hệ thống xác thực nghiêm ngặt: GPS verified, wait >= 15 phút, calls >= 2.
 - Thợ nhận 40% `gross_amount` (`absence_fee_amount`) và chuyển trạng thái về `IDLE`.
@@ -341,7 +341,7 @@ Hệ thống xác thực nghiêm ngặt: GPS verified, wait >= 15 phút, calls >
 }
 ```
 
-#### `POST /api/dispatch/admin/absent-reviews/{assignmentId}/reject`
+#### `POST /api/v1/dispatch/admin/absent-reviews/{assignmentId}/reject`
 Admin từ chối báo cáo khách vắng mặt (nếu phát hiện gian lận).
 
 - Request body:
@@ -351,13 +351,13 @@ Admin từ chối báo cáo khách vắng mặt (nếu phát hiện gian lận).
 }
 ```
 
-#### `GET /api/dispatch/admin/incidents`
+#### `GET /api/v1/dispatch/admin/incidents`
 Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 
 - Response 200: `ApiResponse<List<IncidentLogDto>>`
 - **Implemented by ADMIN-UAT-05** (`AdminDispatchController`, `EfAdminIncidentQuery`): newest first, at most 200 rows, from `INCIDENT_LOG` joined with `JOB_ASSIGNMENT` (worker id). The stored `redispatch_status` is mapped to the contract values: `PENDING_REDISPATCH` -> `SEARCHING`, `REPLACED` -> `REASSIGNED`, `DECLINED_BY_CUSTOMER` and `TIMEOUT_CANCELLED` -> `FAILED`. `reDispatchDeadline` = `reportedAt` + `IncidentService.RedispatchWindowMinutes` (5). `substituteWorkerId` is always null: the table does not store it. **Known gap:** no HTTP endpoint lets a worker report an incident yet (`IncidentService` exists, `WorkerDispatchController` has no incident action), so the list is empty until one exists. The Admin console shows exactly this list; it no longer falls back to invented sample incidents.
 
-#### `POST /api/dispatch/admin/emergency-rescue`
+#### `POST /api/v1/dispatch/admin/emergency-rescue`
 Admin can thiệp điều phối "Cứu hộ khẩn cấp" (Super-Freelancer) khi Agency không có thợ thay thế (Pha 2, §2.5, Q12).
 
 > **Note:** Tự động "Cứu hộ khẩn cấp" (Pha 2 §2.5, Q09/Q12) được kích hoạt bằng event `AgencySwapWindowExpired` từ Agencies (M5) khi:

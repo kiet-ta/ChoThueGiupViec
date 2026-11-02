@@ -80,7 +80,7 @@ void main() {
       final options = await service.getOptions();
 
       expect(seen.single.method, 'GET');
-      expect(seen.single.path, '/api/booking/options');
+      expect(seen.single.path, '/api/v1/booking/options');
       expect(seen.single.auth, 'Bearer tok');
       expect(options.serviceTiers, ['ECONOMY', 'PREMIUM']);
       expect(options.shifts.single.shiftCode, 'SHIFT_MORNING');
@@ -89,6 +89,26 @@ void main() {
       expect(options.standardMaxAreaM2, 80);
       expect(options.paymentQrExpiryMinutes, 15);
       expect(options.sandbox, isTrue);
+    });
+
+    test('reads availability of a worker from a previous order', () async {
+      await answer(200, {
+        'success': true,
+        'data': [
+          {'date': '2026-10-15', 'shiftCode': 'SHIFT_MORNING'},
+        ],
+      });
+      final source = RebookAvailabilitySource(
+        client: ApiClient(
+          baseUrl: 'http://${server.address.host}:${server.port}',
+        ),
+      );
+      final shifts = await source.getFreeShifts(100, 42);
+      expect(
+        seen.single.path,
+        '/api/v1/booking/orders/100/workers/42/availability',
+      );
+      expect(shifts, {'2026-10-15|SHIFT_MORNING'});
     });
 
     test(
@@ -114,7 +134,7 @@ void main() {
           serviceTier: ServiceTier.premium,
         );
 
-        expect(seen.single.path, '/api/booking/price-quote');
+        expect(seen.single.path, '/api/v1/booking/price-quote');
         expect(seen.single.query, {'addressId': '3', 'serviceTier': 'PREMIUM'});
         expect(quote.requiredWorkers, 2);
         expect(quote.unitPrice, 390000);
@@ -163,7 +183,7 @@ void main() {
         );
 
         expect(seen.single.method, 'POST');
-        expect(seen.single.path, '/api/booking/orders');
+        expect(seen.single.path, '/api/v1/booking/orders');
         expect(jsonDecode(seen.single.body), {
           'addressId': 3,
           'serviceTier': 'PREMIUM',

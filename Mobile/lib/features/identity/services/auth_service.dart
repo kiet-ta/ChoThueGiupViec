@@ -40,7 +40,7 @@ class AuthService {
     return cleaned;
   }
 
-  /// Sends OTP request to /api/auth/otp/request
+  /// Sends OTP request to /api/v1/auth/otp/request
   Future<OtpRequestResult> requestOtp({
     required String phoneNumber,
     required AppRole role,
@@ -65,7 +65,7 @@ class AuthService {
     final envelope = await apiRequest(
       _client,
       'POST',
-      Uri.parse('$baseUrl/api/auth/otp/request'),
+      Uri.parse('$baseUrl/api/v1/auth/otp/request'),
       body: {'phoneNumber': normalized, 'role': roleStr},
       fallbackMessage: 'Không thể gửi mã OTP. Vui lòng thử lại.',
     );
@@ -86,7 +86,7 @@ class AuthService {
     return out;
   }
 
-  /// Creates the profile of a new worker (`POST /api/workers/register`, anonymous, with the registration token the OTP step stored).
+  /// Creates the profile of a new worker (`POST /api/v1/workers/register`, anonymous, with the registration token the OTP step stored).
   /// The answer carries no tokens: the worker signs in again afterwards. Throws [ApiException] (400 field errors, 409 already registered).
   Future<void> registerWorker({
     required String fullName,
@@ -108,7 +108,7 @@ class AuthService {
     await apiRequest(
       _client,
       'POST',
-      Uri.parse('$baseUrl/api/workers/register'),
+      Uri.parse('$baseUrl/api/v1/workers/register'),
       body: {
         'registrationToken': token,
         'fullName': fullName.trim(),
@@ -121,7 +121,7 @@ class AuthService {
     tokenStorage.clear();
   }
 
-  /// Verifies OTP code via /api/auth/otp/verify
+  /// Verifies OTP code via /api/v1/auth/otp/verify
   Future<VerifyOtpResponse> verifyOtp({
     required String phoneNumber,
     required AppRole role,
@@ -177,7 +177,7 @@ class AuthService {
       final envelope = await apiRequest(
         _client,
         'POST',
-        Uri.parse('$baseUrl/api/auth/otp/verify'),
+        Uri.parse('$baseUrl/api/v1/auth/otp/verify'),
         body: {'phoneNumber': normalized, 'role': roleStr, 'code': code.trim()},
         fallbackMessage: 'Xác thực không thành công.',
       );

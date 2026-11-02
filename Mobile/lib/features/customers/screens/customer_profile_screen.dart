@@ -118,7 +118,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             content: Text(
               'Đã lưu hồ sơ',
               style: TextStyle(
-                color: Colors.white,
+                color: NordicColors.textInverse,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -138,7 +138,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               e is ArgumentError
                   ? e.message.toString()
                   : 'Chưa lưu được hồ sơ. Thử lại nhé.',
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: NordicColors.textInverse),
             ),
           ),
         );
@@ -202,10 +202,6 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   Widget _buildProfileContent() {
     final profile = _profile!;
-    // A new customer has no score yet (0 from the server): start them at the full 5 instead of a discouraging 0.
-    final shown = profile.trustScore > 0
-        ? profile
-        : profile.copyWith(trustScore: 5.0);
 
     return Form(
       key: _formKey,
@@ -236,10 +232,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                           : PillTone.warn,
                       dot: true,
                     ),
-                    StatusPill(
-                      '${shown.trustScore.toStringAsFixed(1).replaceAll('.', ',')} • ${shown.trustScoreTierName}',
-                      tone: PillTone.warn,
-                    ),
+                    if (profile.trustScore > 0)
+                      StatusPill(
+                        '${profile.trustScore.toStringAsFixed(1).replaceAll('.', ',')} • ${profile.trustScoreTierName}',
+                        tone: PillTone.warn,
+                      ),
                   ],
                 ),
                 const SizedBox(height: NordicSpace.xs),
@@ -323,8 +320,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   Expanded(
                     child: Text(
                       profile.phoneNumber,
-                      style: const TextStyle(
-                        fontSize: 15.0,
+                      style: NordicTypography.titleSmall.copyWith(
                         color: NordicColors.textTitle,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),

@@ -51,5 +51,5 @@ public static class JobPhotoFileRules
     public static bool IsStoredPath(string imageUrl) => imageUrl.StartsWith(Folder + "/", StringComparison.Ordinal);
 
     /// <summary>The authenticated address of the stored file of a photo (the one the clients are given as <c>photoUrl</c>).</summary>
-    public static string FileAddress(long assignmentId, long photoId) => $"/api/workers/assignments/{assignmentId}/photos/{photoId}/file";
+    public static string FileAddress(long assignmentId, long photoId) => $"/api/v1/workers/assignments/{assignmentId}/photos/{photoId}/file";
 }

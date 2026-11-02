@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Payouts;
 /// <c>confirmed_by</c> comes from the token. No money moves in the system (decision G-1).
 /// </summary>
 [ApiController]
-[Route("api/admin/payout-batches")]
+[Route("api/v1/admin/payout-batches")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminPayoutBatchesController(IPayoutBatchService batches, ICurrentUser currentUser) : ControllerBase
 {

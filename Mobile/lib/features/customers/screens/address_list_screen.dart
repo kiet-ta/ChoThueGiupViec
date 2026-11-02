@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/grouped_list_card.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../models/customer_address.dart';
 import '../services/customer_address_service.dart';
@@ -224,16 +224,19 @@ class _AddressListScreenState extends State<AddressListScreen> {
             icon: Icons.location_on_outlined,
           )
         else
-          for (var i = 0; i < _addresses.length; i++) ...[
-            if (i > 0) const SizedBox(height: NordicSpace.sm),
-            AddressCard(
-              address: _addresses[i],
-              selected: _pick?.selectedAddressId == _addresses[i].addressId,
-              onSelect: () => _select(_addresses[i]),
-              onEdit: () => _navigateToEdit(_addresses[i]),
-              onDelete: () => _confirmDelete(_addresses[i]),
-            ),
-          ],
+          GroupedListCard.custom(
+            children: [
+              for (var i = 0; i < _addresses.length; i++)
+                AddressCard(
+                  address: _addresses[i],
+                  grouped: true,
+                  selected: _pick?.selectedAddressId == _addresses[i].addressId,
+                  onSelect: () => _select(_addresses[i]),
+                  onEdit: () => _navigateToEdit(_addresses[i]),
+                  onDelete: () => _confirmDelete(_addresses[i]),
+                ),
+            ],
+          ),
       ],
     );
   }

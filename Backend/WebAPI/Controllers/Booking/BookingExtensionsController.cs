@@ -9,7 +9,7 @@ namespace CommonService.WebAPI.Controllers.Booking;
 
 /// <summary>"Làm lần 2" (BR-08), contract booking.md 3.8. Policy CustomerOnly.</summary>
 [ApiController]
-[Route("api/booking/orders/{orderId:long}/extensions")]
+[Route("api/v1/booking/orders/{orderId:long}/extensions")]
 [Authorize(Policy = "CustomerOnly")]
 public class BookingExtensionsController(IExtensionRequestService service, ICurrentUser currentUser) : ControllerBase
 {

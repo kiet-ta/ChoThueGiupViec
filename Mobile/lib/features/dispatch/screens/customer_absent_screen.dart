@@ -2,16 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/progress_ring.dart';
 import '../models/customer_absent_report.dart';
 import '../services/dispatch_service.dart';
 
 /// Screen/dialog for reporting customer absence after 15m wait & >=2 calls (MOB-M3-03, BR-05, Q10).
+/// MOB-UI-22 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage.pushed`, the main button in `actions`,
+/// tokens only, a failed step shakes its message.
 class CustomerAbsentScreen extends StatefulWidget {
   final int assignmentId;
   final DateTime checkedInAt;
@@ -39,6 +44,9 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
   bool _isSubmittingReport = false;
   String? _errorMessage;
   CustomerAbsentReport? _absentReport;
+
+  /// Bumped on every failure so the message shakes.
+  int _errors = 0;
 
   @override
   void initState() {
@@ -78,7 +86,8 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
       if (!mounted) return;
       setState(() {
         _isLoggingCall = false;
-        _errorMessage = 'Ghi nhận cuộc gọi thất bại: $e';
+        _errors++;
+        _errorMessage = 'Chưa ghi nhận được cuộc gọi: $e';
       });
     }
   }
@@ -104,7 +113,8 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
       if (!mounted) return;
       setState(() {
         _isSubmittingReport = false;
-        _errorMessage = 'Báo vắng mặt không thành công: $e';
+        _errors++;
+        _errorMessage = 'Chưa báo vắng mặt được: $e';
       });
     }
   }
@@ -124,188 +134,163 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Báo Khách Vắng Mặt')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _absentReport != null
-              ? _buildSuccessView()
-              : _buildReportingView(),
-        ),
-      ),
-      bottomNavigationBar: _absentReport != null
-          ? null
-          : BottomActionBar(
-              children: [
-                NordicButton(
-                  key: const Key('report_absent_button'),
-                  label: _canReportAbsent
-                      ? 'Báo Vắng Mặt (40%)'
-                      : 'Chưa đủ điều kiện',
-                  variant: _canReportAbsent
-                      ? NordicButtonVariant.primary
-                      : NordicButtonVariant.secondary,
-                  isLoading: _isSubmittingReport,
-                  onPressed: _canReportAbsent && !_isSubmittingReport
-                      ? _handleReportAbsent
-                      : null,
-                ),
-              ],
-            ),
+    final report = _absentReport;
+    return NordicPage.pushed(
+      title: 'Báo gia chủ vắng',
+      actions: [
+        if (report == null)
+          NordicButton(
+            key: const Key('report_absent_button'),
+            label: _canReportAbsent
+                ? 'Báo vắng mặt (40%)'
+                : 'Chưa đủ điều kiện',
+            variant: _canReportAbsent
+                ? NordicButtonVariant.primary
+                : NordicButtonVariant.secondary,
+            isLoading: _isSubmittingReport,
+            onPressed: _canReportAbsent && !_isSubmittingReport
+                ? _handleReportAbsent
+                : null,
+          )
+        else
+          NordicButton(
+            key: const Key('finish_absent_screen_button'),
+            label: 'Hoàn tất',
+            onPressed: () {
+              Navigator.of(context).maybePop();
+            },
+          ),
+      ],
+      children: report != null
+          ? _buildSuccessView(report)
+          : _buildReportingView(),
     );
   }
 
-  Widget _buildReportingView() {
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
+  Widget _conditionRow({
+    required bool done,
+    required IconData pendingIcon,
+    required String title,
+    required String detail,
+  }) {
+    return Row(
       children: [
-        const Text('Khách hàng chưa mở cửa?', style: NordicTypography.h2),
-        const SizedBox(height: 4.0),
-        Text(
-          'Để đảm bảo quyền lợi và nhận bồi hoàn 40% giá trị ca, vui lòng tuân thủ 2 điều kiện bên dưới.',
-          style: NordicTypography.bodyRegular,
+        Icon(
+          done ? Icons.check_circle : pendingIcon,
+          color: done ? NordicColors.success : NordicColors.accentAmber,
+          size: 28.0,
         ),
-        const SizedBox(height: 16.0),
-        Row(
-          children: [
-            Expanded(
-              child: _ringCard(
-                value: _elapsedMinutes / 15,
-                big: '$_elapsedMinutes',
-                unit: '/ 15 phút',
-                label: 'Đã chờ',
-              ),
-            ),
-            const SizedBox(width: 12.0),
-            Expanded(
-              child: _ringCard(
-                value: _callAttempts / 2,
-                big: '$_callAttempts',
-                unit: '/ 2 lần',
-                label: 'Đã gọi',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12.0),
-
-        // Precondition 1: Wait >= 15 minutes
-        NordicCard(
-          isHighlighted: _hasWaited15Minutes,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Icon(
-                  _hasWaited15Minutes
-                      ? Icons.check_circle
-                      : Icons.hourglass_top_outlined,
-                  color: _hasWaited15Minutes
-                      ? NordicColors.success
-                      : NordicColors.accentAmber,
-                  size: 28.0,
-                ),
-                const SizedBox(width: 12.0),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '1. Chờ tối thiểu 15 phút tại nơi làm',
-                        style: NordicTypography.labelMedium,
-                      ),
-                      const SizedBox(height: 4.0),
-                      Text(
-                        'Đã chờ: $_elapsedMinutes / 15 phút (từ ${_checkedInAt.hour.toString().padLeft(2, '0')}:${_checkedInAt.minute.toString().padLeft(2, '0')})',
-                        style: NordicTypography.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        const SizedBox(width: NordicSpace.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: NordicTypography.titleSmall),
+              const SizedBox(height: NordicSpace.xxs),
+              Text(detail, style: NordicTypography.bodySmall),
+            ],
           ),
         ),
-        const SizedBox(height: 12.0),
-
-        // Precondition 2: At least 2 call attempts
-        NordicCard(
-          isHighlighted: _hasMade2Calls,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      _hasMade2Calls
-                          ? Icons.check_circle
-                          : Icons.phone_callback_outlined,
-                      color: _hasMade2Calls
-                          ? NordicColors.success
-                          : NordicColors.accentAmber,
-                      size: 28.0,
-                    ),
-                    const SizedBox(width: 12.0),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '2. Gọi ít nhất 2 cuộc qua hệ thống',
-                            style: NordicTypography.labelMedium,
-                          ),
-                          const SizedBox(height: 4.0),
-                          Text(
-                            'Số cuộc gọi đã thực hiện: $_callAttempts / 2',
-                            style: NordicTypography.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12.0),
-                OutlinedButton.icon(
-                  key: const Key('call_customer_button'),
-                  onPressed: _isLoggingCall ? null : _handleCallCustomer,
-                  icon: const Icon(Icons.phone),
-                  label: Text(
-                    _isLoggingCall
-                        ? 'Đang kết nối...'
-                        : 'Gọi khách (${widget.customerPhoneMasked})',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16.0),
-
-        if (_errorMessage != null) ...[
-          Container(
-            padding: const EdgeInsets.all(12.0),
-            margin: const EdgeInsets.only(bottom: 16.0),
-            decoration: BoxDecoration(
-              color: NordicColors.errorContainer,
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: NordicColors.error),
-            ),
-            child: Text(
-              _errorMessage!,
-              style: NordicTypography.bodySmall.copyWith(
-                color: NordicColors.error,
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }
 
-  /// `.card.center` with a [ProgressRing]: the big number inside, the small unit under it, a label below.
+  List<Widget> _buildReportingView() {
+    final h = _checkedInAt.hour.toString().padLeft(2, '0');
+    final m = _checkedInAt.minute.toString().padLeft(2, '0');
+    return [
+      const Text('Gia chủ chưa mở cửa?', style: NordicTypography.h2),
+      const SizedBox(height: NordicSpace.xxs),
+      const Text(
+        'Để nhận bồi hoàn 40% giá trị ca, bạn cần làm đủ 2 việc bên dưới.',
+        style: NordicTypography.bodyRegular,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      Row(
+        children: [
+          Expanded(
+            child: _ringCard(
+              value: _elapsedMinutes / 15,
+              big: '$_elapsedMinutes',
+              unit: '/ 15 phút',
+              label: 'Đã chờ',
+            ),
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: _ringCard(
+              value: _callAttempts / 2,
+              big: '$_callAttempts',
+              unit: '/ 2 lần',
+              label: 'Đã gọi',
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: NordicSpace.sm),
+
+      // Precondition 1: Wait >= 15 minutes
+      NordicCard(
+        isHighlighted: _hasWaited15Minutes,
+        child: _conditionRow(
+          done: _hasWaited15Minutes,
+          pendingIcon: Icons.hourglass_top_outlined,
+          title: '1. Chờ ít nhất 15 phút tại nơi làm',
+          detail: 'Đã chờ: $_elapsedMinutes / 15 phút (từ $h:$m)',
+        ),
+      ),
+      const SizedBox(height: NordicSpace.sm),
+
+      // Precondition 2: At least 2 call attempts
+      NordicCard(
+        isHighlighted: _hasMade2Calls,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _conditionRow(
+              done: _hasMade2Calls,
+              pendingIcon: Icons.phone_callback_outlined,
+              title: '2. Gọi ít nhất 2 cuộc qua ứng dụng',
+              detail: 'Số cuộc gọi đã thực hiện: $_callAttempts / 2',
+            ),
+            const SizedBox(height: NordicSpace.sm),
+            NordicButton(
+              key: const Key('call_customer_button'),
+              variant: NordicButtonVariant.secondary,
+              icon: const Icon(Icons.phone, size: 18.0),
+              label: _isLoggingCall
+                  ? 'Đang kết nối...'
+                  : 'Gọi gia chủ (${widget.customerPhoneMasked})',
+              onPressed: _isLoggingCall ? null : _handleCallCustomer,
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: NordicSpace.md),
+
+      ErrorShake(
+        errors: _errors,
+        child: _errorMessage == null
+            ? const SizedBox.shrink()
+            : Container(
+                padding: const EdgeInsets.all(NordicSpace.sm),
+                decoration: BoxDecoration(
+                  color: NordicColors.errorContainer,
+                  borderRadius: NordicRadius.fieldAll,
+                  border: Border.all(color: NordicColors.error),
+                ),
+                child: Text(
+                  _errorMessage!,
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.error,
+                  ),
+                ),
+              ),
+      ),
+    ];
+  }
+
+  /// A card with a [ProgressRing]: the big number inside, the small unit under it, a label below.
   Widget _ringCard({
     required double value,
     required String big,
@@ -327,127 +312,73 @@ class _CustomerAbsentScreenState extends State<CustomerAbsentScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 8.0),
+          const SizedBox(height: NordicSpace.xs),
           Text(label, style: NordicTypography.titleSmall),
         ],
       ),
     );
   }
 
-  Widget _buildSuccessView() {
-    final report = _absentReport!;
-
-    return ListView(
-      padding: const EdgeInsets.all(24.0),
+  Widget _summaryRow(String label, String value, {TextStyle? valueStyle}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Icon(
-          Icons.verified_outlined,
-          size: 64.0,
-          color: NordicColors.success,
-        ),
-        const SizedBox(height: 16.0),
-        Text(
-          'Đã Gửi Báo Cáo Khách Vắng Mặt',
-          textAlign: TextAlign.center,
-          style: NordicTypography.h2.copyWith(color: NordicColors.primary),
-        ),
-        const SizedBox(height: 8.0),
-        Text(
-          'Báo cáo ca làm #${widget.assignmentId} đã được chuyển tới Admin phê duyệt bồi hoàn.',
-          textAlign: TextAlign.center,
-          style: NordicTypography.bodyRegular,
-        ),
-        const SizedBox(height: 24.0),
-
-        NordicCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Chi tiết thanh toán bồi hoàn (BR-05):',
-                  style: NordicTypography.labelMedium,
-                ),
-                const SizedBox(height: 12.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Thời gian chờ:',
-                      style: NordicTypography.bodySmall,
-                    ),
-                    Text(
-                      '${report.elapsedMinutes} phút',
-                      style: NordicTypography.labelMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Cuộc gọi liên hệ:',
-                        style: NordicTypography.bodySmall,
-                      ),
-                    ),
-                    Text(
-                      '${report.callAttempts} cuộc',
-                      style: NordicTypography.labelMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8.0),
-                const Divider(color: NordicColors.border, height: 1.0),
-                const SizedBox(height: 8.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Tỷ lệ bồi hoàn thợ:',
-                      style: NordicTypography.bodySmall,
-                    ),
-                    Text(
-                      '${(report.workerFeeRate * 100).round()}%',
-                      style: NordicTypography.labelMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Số tiền bồi hoàn thợ nhận:',
-                        style: NordicTypography.labelMedium,
-                      ),
-                    ),
-                    const SizedBox(width: 8.0),
-                    Text(
-                      _formatCurrency(report.absenceFeeAmount),
-                      style: NordicTypography.h3.copyWith(
-                        color: NordicColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 24.0),
-
-        NordicButton(
-          key: const Key('finish_absent_screen_button'),
-          label: 'Hoàn tất',
-          onPressed: () {
-            Navigator.of(context).maybePop();
-          },
-        ),
+        Expanded(child: Text(label, style: NordicTypography.bodySmall)),
+        const SizedBox(width: NordicSpace.xs),
+        Text(value, style: valueStyle ?? NordicTypography.titleSmall),
       ],
     );
+  }
+
+  List<Widget> _buildSuccessView(CustomerAbsentReport report) {
+    return [
+      const SizedBox(height: NordicSpace.md),
+      const Icon(
+        Icons.verified_outlined,
+        size: 64.0,
+        color: NordicColors.success,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      Text(
+        'Đã gửi báo cáo gia chủ vắng',
+        textAlign: TextAlign.center,
+        style: NordicTypography.h2.copyWith(color: NordicColors.primary),
+      ),
+      const SizedBox(height: NordicSpace.xs),
+      const Text(
+        'Báo cáo đã được chuyển tới quản trị viên để duyệt bồi hoàn.',
+        textAlign: TextAlign.center,
+        style: NordicTypography.bodyRegular,
+      ),
+      const SizedBox(height: NordicSpace.lg),
+
+      NordicCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Chi tiết bồi hoàn', style: NordicTypography.titleSmall),
+            const SizedBox(height: NordicSpace.sm),
+            _summaryRow('Thời gian chờ', '${report.elapsedMinutes} phút'),
+            const SizedBox(height: NordicSpace.xs),
+            _summaryRow('Cuộc gọi liên hệ', '${report.callAttempts} cuộc'),
+            const SizedBox(height: NordicSpace.xs),
+            const Divider(color: NordicColors.border, height: 1.0),
+            const SizedBox(height: NordicSpace.xs),
+            _summaryRow(
+              'Tỷ lệ bồi hoàn',
+              '${(report.workerFeeRate * 100).round()}%',
+            ),
+            const SizedBox(height: NordicSpace.xs),
+            _summaryRow(
+              'Số tiền bạn nhận',
+              _formatCurrency(report.absenceFeeAmount),
+              valueStyle: NordicTypography.titleMedium.copyWith(
+                color: NordicColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 }

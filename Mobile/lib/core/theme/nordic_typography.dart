@@ -13,8 +13,10 @@ import 'nordic_colors.dart';
 class NordicTypography {
   NordicTypography._();
 
-  static const String fontFamily = 'Plus Jakarta Sans';
-  static const String headlineFontFamily = 'Newsreader';
+  /// Mobile redesign 2026-10-30: one family, Be Vietnam Pro (built for Vietnamese diacritics), for
+  /// everything; `headlineFontFamily` is kept as a name so existing styles keep compiling.
+  static const String fontFamily = 'Be Vietnam Pro';
+  static const String headlineFontFamily = 'Be Vietnam Pro';
 
   /// DESIGN.md headline-lg (40 px).
   static const TextStyle headlineLg = TextStyle(
@@ -118,9 +120,10 @@ class NordicTypography {
   /// `.greet`: the Home greeting.
   static const TextStyle greeting = TextStyle(
     fontFamily: headlineFontFamily,
-    fontSize: 30.0,
-    fontWeight: FontWeight.w600,
+    fontSize: 28.0,
+    fontWeight: FontWeight.w700,
     height: 1.15,
+    letterSpacing: -0.56,
     color: NordicColors.textTitle,
   );
 
@@ -128,8 +131,9 @@ class NordicTypography {
   static const TextStyle numberLarge = TextStyle(
     fontFamily: headlineFontFamily,
     fontSize: 34.0,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
     height: 1.0,
+    letterSpacing: -0.68,
     color: NordicColors.textTitle,
     fontFeatures: [FontFeature.tabularFigures()],
   );
@@ -138,8 +142,9 @@ class NordicTypography {
   static const TextStyle numberMedium = TextStyle(
     fontFamily: headlineFontFamily,
     fontSize: 26.0,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
     height: 1.0,
+    letterSpacing: -0.52,
     color: NordicColors.textTitle,
     fontFeatures: [FontFeature.tabularFigures()],
   );
@@ -148,8 +153,9 @@ class NordicTypography {
   static const TextStyle numberSmall = TextStyle(
     fontFamily: headlineFontFamily,
     fontSize: 20.0,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
     height: 1.0,
+    letterSpacing: -0.40,
     color: NordicColors.textTitle,
     fontFeatures: [FontFeature.tabularFigures()],
   );

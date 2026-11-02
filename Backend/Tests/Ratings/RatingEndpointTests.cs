@@ -43,8 +43,8 @@ public class RatingEndpointTests
     // ---- controllers ----------------------------------------------------------------------------
 
     [Theory]
-    [InlineData(typeof(CustomerRatingsController), "CustomerOnly", "api/customers/me/assignments/{assignmentId:long}")]
-    [InlineData(typeof(WorkerRatingsController), "WorkerOnly", "api/workers/me/assignments/{assignmentId:long}")]
+    [InlineData(typeof(CustomerRatingsController), "CustomerOnly", "api/v1/customers/me/assignments/{assignmentId:long}")]
+    [InlineData(typeof(WorkerRatingsController), "WorkerOnly", "api/v1/workers/me/assignments/{assignmentId:long}")]
     public void Each_controller_has_its_role_policy_and_the_contract_route(Type controller, string policy, string route)
     {
         Assert.Equal(policy, controller.GetCustomAttribute<AuthorizeAttribute>()!.Policy);

@@ -1,4 +1,4 @@
-/// `state` values of `GET /api/dispatch/orders/{orderId}/fallback` (dispatch.md 3.2).
+/// `state` values of `GET /api/v1/dispatch/orders/{orderId}/fallback` (dispatch.md 3.2).
 class FallbackState {
   static const awaitingCustomer = 'AWAITING_CUSTOMER';
   static const awaitingWorker = 'AWAITING_WORKER';
@@ -7,7 +7,7 @@ class FallbackState {
   FallbackState._();
 }
 
-/// `outcome` values of `POST /api/dispatch/orders/{orderId}/fallback/respond`.
+/// `outcome` values of `POST /api/v1/dispatch/orders/{orderId}/fallback/respond`.
 class FallbackOutcome {
   static const workerAsked = 'WORKER_ASKED';
   static const cancelled = 'CANCELLED';

@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/bottom_action_bar.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/widgets/nordic_button.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../routes.dart';
 import '../services/workers_photos_service.dart';
 
@@ -88,7 +89,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Đã gửi nghiệm thu. Chờ khách hàng xác nhận.'),
+          content: Text('Đã gửi nghiệm thu. Chờ gia chủ xác nhận.'),
         ),
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
@@ -96,9 +97,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       messenger.showSnackBar(
-        SnackBar(
-          content: Text('Gửi nghiệm thu không thành công: ${e.message}'),
-        ),
+        SnackBar(content: Text('Chưa gửi được nghiệm thu: ${e.message}')),
       );
     }
   }
@@ -111,114 +110,103 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
         _elapsedSeconds >= (maxSeconds - 1800); // within 30 mins of 4h limit
     final color = isNearLimit ? NordicColors.error : NordicColors.primary;
 
-    return Scaffold(
-      appBar: AppBar(title: Text('Màn Thi Công #${widget.assignmentId}')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 24.0),
-            children: [
-              if (widget.workZone != null) ...[
-                Text(widget.workZone!, style: NordicTypography.h2),
-                const SizedBox(height: 16.0),
-              ],
-              // Elapsed ring: the one big number of the screen.
-              Center(
-                child: SizedBox(
+    return NordicPage.pushed(
+      title: 'Ca đang làm',
+      actions: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            NordicButton(
+              label: 'Chụp ảnh trước và sau',
+              variant: NordicButtonVariant.primary,
+              icon: const Icon(Icons.photo_camera_outlined, size: 18.0),
+              onPressed: () => Navigator.of(
+                context,
+              ).pushNamed(WorkerRoutes.photos, arguments: widget.assignmentId),
+            ),
+            const SizedBox(height: NordicSpace.xs),
+            NordicButton(
+              key: const Key('submit_completion_button'),
+              label: _isSubmitting ? 'Đang gửi…' : 'Gửi nghiệm thu',
+              variant: NordicButtonVariant.secondary,
+              onPressed: _isSubmitting ? null : _submitCompletion,
+            ),
+          ],
+        ),
+      ],
+      children: [
+        if (widget.workZone != null) ...[
+          Text(widget.workZone!, style: NordicTypography.h2),
+          const SizedBox(height: NordicSpace.md),
+        ],
+        // Elapsed ring: the one big number of the screen.
+        Center(
+          child: SizedBox(
+            width: 220.0,
+            height: 220.0,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
                   width: 220.0,
                   height: 220.0,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 220.0,
-                        height: 220.0,
-                        child: CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 14.0,
-                          strokeCap: StrokeCap.round,
-                          backgroundColor: NordicColors.surfaceContainer,
-                          valueColor: AlwaysStoppedAnimation<Color>(color),
-                        ),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Thời Gian Thi Công',
-                            style: NordicTypography.bodySmall,
-                          ),
-                          const SizedBox(height: 6.0),
-                          Text(
-                            _formatDuration(_elapsedSeconds),
-                            style: NordicTypography.numberLarge.copyWith(
-                              color: color,
-                            ),
-                          ),
-                          const SizedBox(height: 6.0),
-                          Text(
-                            '/ ${widget.maxShiftMinutes ~/ 60}:00 giờ',
-                            style: NordicTypography.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ],
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 14.0,
+                    strokeCap: StrokeCap.round,
+                    backgroundColor: NordicColors.surfaceContainer,
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12.0),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Đã làm: ${(_elapsedSeconds / 60).toStringAsFixed(0)} phút',
-                    style: NordicTypography.bodySmall,
-                  ),
-                  IconButton.outlined(
-                    key: const Key('execution-toggle-timer'),
-                    icon: Icon(
-                      _isTimerRunning
-                          ? Icons.pause_circle_filled
-                          : Icons.play_circle_filled,
-                      color: NordicColors.primary,
-                      size: 28.0,
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Thời gian làm',
+                      style: NordicTypography.bodySmall,
                     ),
-                    onPressed: _toggleTimer,
-                    tooltip: _isTimerRunning ? 'Tạm dừng' : 'Tiếp tục',
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(height: NordicSpace.xxs),
+                    Text(
+                      _formatDuration(_elapsedSeconds),
+                      style: NordicTypography.numberLarge.copyWith(
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: NordicSpace.xxs),
+                    Text(
+                      '/ ${widget.maxShiftMinutes ~/ 60}:00 giờ',
+                      style: NordicTypography.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-      bottomNavigationBar: BottomActionBar(
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              NordicButton(
-                label: 'Chụp Ảnh Before / After (VoL)',
-                variant: NordicButtonVariant.primary,
-                icon: const Icon(Icons.photo_camera_outlined, size: 18.0),
-                onPressed: () => Navigator.of(context).pushNamed(
-                  WorkerRoutes.photos,
-                  arguments: widget.assignmentId,
-                ),
+        const SizedBox(height: NordicSpace.sm),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Đã làm: ${(_elapsedSeconds / 60).toStringAsFixed(0)} phút',
+              style: NordicTypography.bodySmall,
+            ),
+            IconButton.outlined(
+              key: const Key('execution-toggle-timer'),
+              icon: Icon(
+                _isTimerRunning
+                    ? Icons.pause_circle_filled
+                    : Icons.play_circle_filled,
+                color: NordicColors.primary,
+                size: 28.0,
               ),
-              const SizedBox(height: 8.0),
-              NordicButton(
-                key: const Key('submit_completion_button'),
-                label: _isSubmitting ? 'Đang gửi…' : 'Gửi Nghiệm Thu Ca Làm',
-                variant: NordicButtonVariant.secondary,
-                onPressed: _isSubmitting ? null : _submitCompletion,
-              ),
-            ],
-          ),
-        ],
-      ),
+              onPressed: _toggleTimer,
+              tooltip: _isTimerRunning ? 'Tạm dừng' : 'Tiếp tục',
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

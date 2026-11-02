@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/core/widgets/grouped_list_card.dart';
 import 'package:mobile/features/customers/screens/address_form_screen.dart';
 import 'package:mobile/features/customers/screens/address_list_screen.dart';
 import 'package:mobile/features/customers/services/customer_address_service.dart';
@@ -36,7 +37,34 @@ void main() {
       expect(find.text('Mặc định'), findsOneWidget);
       expect(find.text('Thêm địa chỉ'), findsOneWidget);
       expect(find.text('m²'), findsWidgets);
+      expect(find.byType(GroupedListCard), findsOneWidget);
     });
+
+    for (final width in [360.0, 428.0]) {
+      testWidgets('address list fits at $width with larger text', (
+        tester,
+      ) async {
+        tester.view.physicalSize = Size(width, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(1.3)),
+              child: child!,
+            ),
+            home: AddressListScreen(addressService: service),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets('navigates to AddressFormScreen when tap Thêm Địa Chỉ Mới', (
       tester,

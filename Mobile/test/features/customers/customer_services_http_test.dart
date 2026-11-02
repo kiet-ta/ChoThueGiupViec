@@ -71,7 +71,7 @@ void main() {
     test('200 lists the server addresses and sends the Bearer token', () async {
       backend.on(
         'GET',
-        '/api/customers/me/addresses',
+        '/api/v1/customers/me/addresses',
         200,
         FakeBackend.ok([addressJson]),
       );
@@ -81,7 +81,7 @@ void main() {
       expect(list.map((a) => a.addressId), [55]);
       expect(list.single.totalAreaM2, 100);
       expect(
-        backend.authHeaders['GET /api/customers/me/addresses'],
+        backend.authHeaders['GET /api/v1/customers/me/addresses'],
         'Bearer tok-123',
       );
     });
@@ -89,7 +89,7 @@ void main() {
     test('401 on the list throws the server message instead of showing mock addresses', () async {
       backend.on(
         'GET',
-        '/api/customers/me/addresses',
+        '/api/v1/customers/me/addresses',
         401,
         FakeBackend.error('Phiên đăng nhập đã hết hạn.'),
       );
@@ -105,7 +105,7 @@ void main() {
       () async {
         backend.on(
           'POST',
-          '/api/customers/me/addresses',
+          '/api/v1/customers/me/addresses',
           400,
           FakeBackend.error('Dữ liệu không hợp lệ.', {
             'errors': {
@@ -132,7 +132,7 @@ void main() {
     test('500 on delete throws instead of removing locally', () async {
       backend.on(
         'DELETE',
-        '/api/customers/me/addresses/55',
+        '/api/v1/customers/me/addresses/55',
         500,
         FakeBackend.error('Lỗi máy chủ.'),
       );
@@ -164,7 +164,7 @@ void main() {
     test('200 lists the server favorites', () async {
       backend.on(
         'GET',
-        '/api/customers/me/favorite-workers',
+        '/api/v1/customers/me/favorite-workers',
         200,
         FakeBackend.ok([
           {
@@ -181,7 +181,7 @@ void main() {
 
       expect(list.single.workerId, 9);
       expect(
-        backend.authHeaders['GET /api/customers/me/favorite-workers'],
+        backend.authHeaders['GET /api/v1/customers/me/favorite-workers'],
         'Bearer tok-123',
       );
     });
@@ -189,7 +189,7 @@ void main() {
     test('401 on the list throws instead of showing mock workers', () async {
       backend.on(
         'GET',
-        '/api/customers/me/favorite-workers',
+        '/api/v1/customers/me/favorite-workers',
         401,
         FakeBackend.error('Chưa đăng nhập.'),
       );
@@ -203,7 +203,7 @@ void main() {
     test('404 on add throws instead of inventing a worker', () async {
       backend.on(
         'PUT',
-        '/api/customers/me/favorite-workers/77',
+        '/api/v1/customers/me/favorite-workers/77',
         404,
         FakeBackend.error('Không tìm thấy thợ.'),
       );
@@ -224,7 +224,7 @@ void main() {
     test('200 returns the server profile', () async {
       backend.on(
         'GET',
-        '/api/customers/me',
+        '/api/v1/customers/me',
         200,
         FakeBackend.ok({
           'customerId': 3,
@@ -238,13 +238,13 @@ void main() {
       final profile = await service().getProfile();
 
       expect(profile.fullName, 'Đỗ Minh Khang');
-      expect(backend.authHeaders['GET /api/customers/me'], 'Bearer tok-123');
+      expect(backend.authHeaders['GET /api/v1/customers/me'], 'Bearer tok-123');
     });
 
     test('401 on get throws instead of showing the mock profile', () async {
       backend.on(
         'GET',
-        '/api/customers/me',
+        '/api/v1/customers/me',
         401,
         FakeBackend.error('Chưa đăng nhập.'),
       );
@@ -258,7 +258,7 @@ void main() {
     test('400 on update throws instead of updating locally', () async {
       backend.on(
         'PUT',
-        '/api/customers/me',
+        '/api/v1/customers/me',
         400,
         FakeBackend.error('Email không hợp lệ.', {
           'errors': {
@@ -277,7 +277,7 @@ void main() {
           ),
         ),
       );
-      expect(backend.requestBodies['PUT /api/customers/me'], {
+      expect(backend.requestBodies['PUT /api/v1/customers/me'], {
         'fullName': 'Khang',
         'email': 'k@example.com',
       });

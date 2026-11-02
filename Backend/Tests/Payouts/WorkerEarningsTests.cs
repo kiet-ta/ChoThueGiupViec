@@ -368,7 +368,7 @@ public class WorkerEarningsTests
     {
         var type = typeof(WorkerEarningsController);
         Assert.Equal("WorkerOnly", type.GetCustomAttribute<AuthorizeAttribute>()!.Policy);
-        Assert.Equal("api/workers/me", type.GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/workers/me", type.GetCustomAttribute<RouteAttribute>()!.Template);
 
         var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
         Assert.All(methods, m => Assert.Null(m.GetCustomAttribute<AllowAnonymousAttribute>()));

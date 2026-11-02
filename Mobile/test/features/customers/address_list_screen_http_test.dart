@@ -30,7 +30,7 @@ void main() {
         await backend.start();
         backend.on(
           'GET',
-          '/api/customers/me/addresses',
+          '/api/v1/customers/me/addresses',
           401,
           FakeBackend.error('Phiên đăng nhập đã hết hạn.'),
         );

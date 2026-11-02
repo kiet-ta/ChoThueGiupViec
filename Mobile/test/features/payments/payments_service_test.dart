@@ -67,7 +67,7 @@ void main() {
       final payment = await service.createOrderQr(42);
 
       expect(seen.single.method, 'POST');
-      expect(seen.single.path, '/api/payments/orders/42/qr');
+      expect(seen.single.path, '/api/v1/payments/orders/42/qr');
       expect(seen.single.body, isEmpty);
       expect(payment.paymentId, 5);
       expect(payment.amount, 260000);
@@ -104,7 +104,7 @@ void main() {
 
       final payment = await service.createExtensionQr(9);
 
-      expect(seen.single.path, '/api/payments/extensions/9/qr');
+      expect(seen.single.path, '/api/v1/payments/extensions/9/qr');
       expect(payment.purpose, 'EXTENSION');
       expect(payment.extensionId, 9);
       expect(payment.orderId, isNull);
@@ -127,7 +127,7 @@ void main() {
       final payment = await service.getPayment(5);
 
       expect(seen.single.method, 'GET');
-      expect(seen.single.path, '/api/payments/5');
+      expect(seen.single.path, '/api/v1/payments/5');
       expect(payment.isPaid, isTrue);
       expect(payment.qrPayload, isNull);
       expect(payment.paidAt, DateTime.utc(2026, 10, 14, 3, 2));

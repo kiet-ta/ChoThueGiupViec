@@ -14,11 +14,11 @@
 
 | Capability | Candidate endpoint | Access | Source-backed behavior |
 |---|---|---|---|
-| Read catalog | `GET /api/skills` | `WorkerOnly` / `PartnerOnly` candidate | Return selectable catalog entries. Filtering, ordering and pagination are not specified. |
-| Create catalog entry | `POST /api/admin/skills` | `AdminOnly` candidate | Admin manages the normalized catalog (PRD §2.7). Exact fields/validation are open. |
-| Update catalog entry | `PATCH /api/admin/skills/{skillId}` | `AdminOnly` candidate | Admin manages the catalog; whether entries may be renamed, deactivated, or deleted is open. |
-| Read worker's skills | `GET /api/workers/{workerId}/skills` | Owner `WorkerOnly`; `PartnerOnly` for an Agency-owned worker is a candidate | Read `WorkerSkill` assignments. Enforce ownership; exact actor capabilities need approval. |
-| Replace worker's skill selections | `PUT /api/workers/{workerId}/skills` | Owner `WorkerOnly`; `PartnerOnly` for an Agency-owned worker is a candidate | Select catalog entries by ID and record years of experience and review status conceptually (PRD §2.7, M5 plan). Whether workers, Agencies, or both can write is unresolved. |
+| Read catalog | `GET /api/v1/skills` | `WorkerOnly` / `PartnerOnly` candidate | Return selectable catalog entries. Filtering, ordering and pagination are not specified. |
+| Create catalog entry | `POST /api/v1/admin/skills` | `AdminOnly` candidate | Admin manages the normalized catalog (PRD §2.7). Exact fields/validation are open. |
+| Update catalog entry | `PATCH /api/v1/admin/skills/{skillId}` | `AdminOnly` candidate | Admin manages the catalog; whether entries may be renamed, deactivated, or deleted is open. |
+| Read worker's skills | `GET /api/v1/workers/{workerId}/skills` | Owner `WorkerOnly`; `PartnerOnly` for an Agency-owned worker is a candidate | Read `WorkerSkill` assignments. Enforce ownership; exact actor capabilities need approval. |
+| Replace worker's skill selections | `PUT /api/v1/workers/{workerId}/skills` | Owner `WorkerOnly`; `PartnerOnly` for an Agency-owned worker is a candidate | Select catalog entries by ID and record years of experience and review status conceptually (PRD §2.7, M5 plan). Whether workers, Agencies, or both can write is unresolved. |
 
 These route names, methods, and access rules are not source-backed API facts; the leader must approve or replace them. There is no free-text `skill_tags` endpoint or `LIKE`-based matching.
 
@@ -26,7 +26,7 @@ These route names, methods, and access rules are not source-backed API facts; th
 
 Examples below map only to existing `SKILL` and `WORKER_SKILL` columns. Routes, writable fields, and status codes remain proposals for approval.
 
-`POST /api/admin/skills` candidate request:
+`POST /api/v1/admin/skills` candidate request:
 ```json
 {
   "skillCode": "TBD",
@@ -37,9 +37,9 @@ Examples below map only to existing `SKILL` and `WORKER_SKILL` columns. Routes, 
 ```
 Candidate response: **201** with the created catalog item. Known constraints are the existing field types/lengths and unique `skill_code`; exact format, category values, and duplicate-code response are open.
 
-`PATCH /api/admin/skills/{skillId}` candidate request contains only fields being changed from `skillCode`, `skillName`, `category`, and `description`. Candidate response: **200** with the catalog item. Whether code changes or `isActive` changes are allowed is open.
+`PATCH /api/v1/admin/skills/{skillId}` candidate request contains only fields being changed from `skillCode`, `skillName`, `category`, and `description`. Candidate response: **200** with the catalog item. Whether code changes or `isActive` changes are allowed is open.
 
-`PUT /api/workers/{workerId}/skills` candidate request:
+`PUT /api/v1/workers/{workerId}/skills` candidate request:
 ```json
 {
   "skills": [

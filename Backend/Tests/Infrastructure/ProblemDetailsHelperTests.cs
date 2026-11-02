@@ -16,20 +16,20 @@ public class ProblemDetailsHelperTests
         };
         var ex = new ValidationException(errors);
 
-        var problem = ProblemDetailsHelper.FromException(ex, "/api/auth/otp/request");
+        var problem = ProblemDetailsHelper.FromException(ex, "/api/v1/auth/otp/request");
 
         var valProblem = Assert.IsType<ValidationProblemDetails>(problem);
         Assert.Equal(400, valProblem.Status);
         Assert.Equal(2, valProblem.Errors.Count);
         Assert.True(valProblem.Errors.ContainsKey("phoneNumber"));
-        Assert.Equal("/api/auth/otp/request", valProblem.Instance);
+        Assert.Equal("/api/v1/auth/otp/request", valProblem.Instance);
     }
 
     [Fact]
     public void FromException_with_NotFoundException_maps_to_404()
     {
         var ex = new NotFoundException("Order", 101);
-        var problem = ProblemDetailsHelper.FromException(ex, "/api/orders/101");
+        var problem = ProblemDetailsHelper.FromException(ex, "/api/v1/orders/101");
 
         Assert.Equal(404, problem.Status);
         Assert.Equal("Not Found", problem.Title);

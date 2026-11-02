@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Payouts;
 /// worker can only ever read their own money.
 /// </summary>
 [ApiController]
-[Route("api/workers/me")]
+[Route("api/v1/workers/me")]
 [Authorize(Policy = "WorkerOnly")]
 public class WorkerEarningsController(IWorkerEarningsService earnings, ICurrentUser currentUser) : ControllerBase
 {

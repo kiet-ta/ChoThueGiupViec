@@ -3,7 +3,7 @@ import { ApiError } from '@/services/api'
 import { fileErrorMessage, parseFileName } from './view'
 import type { ExportType } from './types'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 /**
  * Downloads one bank transfer file (contract payouts.md 2.3). The success answer is the `.xlsx` itself, not the JSON envelope, so

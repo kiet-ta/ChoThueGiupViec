@@ -1,3 +1,5 @@
+using CommonService.Application.Common.Options;
+
 namespace CommonService.Application.Features.Dispatch;
 
 /// <summary>
@@ -6,6 +8,9 @@ namespace CommonService.Application.Features.Dispatch;
 public sealed class MatchingScoreOptions
 {
     public const string SectionName = "BusinessRules:Dispatch:MatchingScore";
+
+    /// <summary>The Q14 exclusion numbers live in <c>BusinessRules.Rating.MinAvgAfterJobs</c>; the defaults below are read from there.</summary>
+    private static readonly RatingMinAvgAfterJobsRules RatingExclusion = new();
 
     /// <summary>
     /// Weight for geographical proximity (closer candidates receive higher score). Default 0.40 (40%).
@@ -30,10 +35,10 @@ public sealed class MatchingScoreOptions
     /// <summary>
     /// Minimum average rating required for workers with >= MinJobsForRatingFilter (decisions Q14).
     /// </summary>
-    public decimal MinRatingThreshold { get; set; } = 4.00m;
+    public decimal MinRatingThreshold { get; set; } = RatingExclusion.Rating;
 
     /// <summary>
     /// Minimum completed jobs count before the rating exclusion filter takes effect (decisions Q14: >= 10 jobs).
     /// </summary>
-    public int MinJobsForRatingFilter { get; set; } = 10;
+    public int MinJobsForRatingFilter { get; set; } = RatingExclusion.Jobs;
 }
