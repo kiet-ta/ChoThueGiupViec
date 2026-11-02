@@ -48,13 +48,13 @@ class CustomerProfileService {
   }) => apiRequest(
     _httpClient,
     method,
-    Uri.parse('$baseUrl/api/customers/me'),
+    Uri.parse('$baseUrl/api/v1/customers/me'),
     bearerToken: _tokenStorage.accessToken,
     body: body,
     fallbackMessage: fallbackMessage,
   );
 
-  /// GET /api/customers/me
+  /// GET /api/v1/customers/me
   Future<CustomerProfile> getProfile() async {
     if (!isMock) {
       final envelope = await _call('GET', 'Không tải được hồ sơ.');
@@ -63,7 +63,7 @@ class CustomerProfileService {
     return _mockProfile;
   }
 
-  /// PUT /api/customers/me
+  /// PUT /api/v1/customers/me
   Future<CustomerProfile> updateProfile({
     required String fullName,
     String? email,

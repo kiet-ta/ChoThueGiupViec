@@ -12,7 +12,7 @@ namespace CommonService.WebAPI.Controllers.Workers;
 /// Worker profile management endpoints (contract workers.md §2.1 & §2.2).
 /// </summary>
 [ApiController]
-[Route("api/workers")]
+[Route("api/v1/workers")]
 public class WorkersController(
     IWorkerProfileService profiles,
     IWorkerEkycService ekyc,

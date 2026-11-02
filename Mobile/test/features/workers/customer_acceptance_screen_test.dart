@@ -18,7 +18,7 @@ JobPhotoDto photo(String phase, int angle, int id) => JobPhotoDto(
   assignmentId: 55,
   photoPhase: phase,
   angleNo: angle,
-  photoUrl: '/api/workers/assignments/55/photos/$id/file',
+  photoUrl: '/api/v1/workers/assignments/55/photos/$id/file',
   volScore: 142.5,
   isAccepted: true,
   uploadedAt: DateTime(2026, 10, 21, 9),
@@ -160,7 +160,7 @@ void main() {
           tester.widget<Image>(find.byType(Image).last).image as NetworkImage;
       expect(
         fullPhoto.url,
-        'http://api.test/api/workers/assignments/55/photos/11/file',
+        'http://api.test/api/v1/workers/assignments/55/photos/11/file',
       );
       expect(fullPhoto.headers?['Authorization'], 'Bearer tok');
 
@@ -186,8 +186,8 @@ void main() {
             .map((i) => i.image as NetworkImage)
             .toList();
         expect(images.map((i) => i.url), [
-          'http://api.test/api/workers/assignments/55/photos/11/file',
-          'http://api.test/api/workers/assignments/55/photos/12/file',
+          'http://api.test/api/v1/workers/assignments/55/photos/11/file',
+          'http://api.test/api/v1/workers/assignments/55/photos/12/file',
         ]);
         expect(
           images.every((i) => i.headers?['Authorization'] == 'Bearer tok'),
@@ -200,7 +200,7 @@ void main() {
           tester
               .widgetList<Image>(find.byType(Image))
               .map((i) => (i.image as NetworkImage).url),
-          ['http://api.test/api/workers/assignments/55/photos/13/file'],
+          ['http://api.test/api/v1/workers/assignments/55/photos/13/file'],
         );
         expect(
           find.text('Chưa có ảnh'),

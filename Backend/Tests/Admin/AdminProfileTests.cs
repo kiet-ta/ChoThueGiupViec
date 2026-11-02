@@ -126,7 +126,7 @@ public class AdminProfileTests
     {
         var type = typeof(AdminProfileController);
         Assert.Equal("AdminOnly", type.GetCustomAttribute<AuthorizeAttribute>()!.Policy);
-        Assert.Equal("api/admin/me", type.GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/admin/me", type.GetCustomAttribute<RouteAttribute>()!.Template);
 
         var actions = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly).ToList();
         var action = Assert.Single(actions);

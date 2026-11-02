@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Disputes;
 /// the customer id comes from the token. An order or dispute that is not the caller's is a 404.
 /// </summary>
 [ApiController]
-[Route("api/customers/me/disputes")]
+[Route("api/v1/customers/me/disputes")]
 [Authorize(Policy = "CustomerOnly")]
 public class CustomerDisputesController(IDisputeFilingService disputes, IDisputeEvidenceService evidence, ICurrentUser currentUser) : ControllerBase
 {

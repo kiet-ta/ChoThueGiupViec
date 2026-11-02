@@ -376,7 +376,7 @@ public class SuperFreelancerTests
     {
         var type = typeof(AdminSuperFreelancerController);
         Assert.Equal("AdminOnly", type.GetCustomAttribute<AuthorizeAttribute>()!.Policy);
-        Assert.Equal("api/admin/workers/{workerId:int}/super-freelancer", type.GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/admin/workers/{workerId:int}/super-freelancer", type.GetCustomAttribute<RouteAttribute>()!.Template);
 
         var verbs = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .SelectMany(m => m.GetCustomAttributes<HttpMethodAttribute>().SelectMany(a => a.HttpMethods))

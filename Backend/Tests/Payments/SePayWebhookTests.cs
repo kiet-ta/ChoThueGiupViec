@@ -293,7 +293,7 @@ public sealed class SePayWebhookTests
     private static async Task<(int Status, string Body)> Send(Fixture fixture, string body = Body, string? signature = null, long? timestamp = null, bool headers = true)
     {
         var context = new DefaultHttpContext();
-        context.Request.Path = "/api/payments/ipn/sepay";
+        context.Request.Path = "/api/v1/payments/ipn/sepay";
         context.Request.Method = "POST";
         context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
         var seconds = timestamp ?? new DateTimeOffset(Now).ToUnixTimeSeconds();

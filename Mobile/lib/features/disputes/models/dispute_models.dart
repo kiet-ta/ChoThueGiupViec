@@ -4,8 +4,9 @@
 enum DisputeRole { customer, worker }
 
 extension DisputeRoleX on DisputeRole {
-  String get pathPrefix =>
-      this == DisputeRole.customer ? '/api/customers/me' : '/api/workers/me';
+  String get pathPrefix => this == DisputeRole.customer
+      ? '/api/v1/customers/me'
+      : '/api/v1/workers/me';
 }
 
 /// Allowed `category` values (D1). `ABSENT_FEE` is the customer disputing a customer-absent fee (Q10), so only a customer sees it.

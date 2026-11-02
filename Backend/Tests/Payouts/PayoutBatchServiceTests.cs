@@ -647,7 +647,7 @@ public class PayoutBatchServiceTests
     {
         var type = typeof(AdminPayoutBatchesController);
         Assert.Equal("AdminOnly", type.GetCustomAttribute<AuthorizeAttribute>()!.Policy);
-        Assert.Equal("api/admin/payout-batches", type.GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/admin/payout-batches", type.GetCustomAttribute<RouteAttribute>()!.Template);
 
         var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
         Assert.All(methods, m => Assert.Null(m.GetCustomAttribute<AllowAnonymousAttribute>()));

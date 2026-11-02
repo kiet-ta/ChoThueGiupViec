@@ -2,7 +2,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_response.dart';
 import '../models/worker_assignment_models.dart';
 
-/// Reads the jobs booked for the signed-in worker (contract workers.md §2.3.3, `GET /api/workers/me/assignments`).
+/// Reads the jobs booked for the signed-in worker (contract workers.md §2.3.3, `GET /api/v1/workers/me/assignments`).
 class WorkersAssignmentsService {
   final ApiClient _apiClient;
 
@@ -15,7 +15,7 @@ class WorkersAssignmentsService {
     required String endDate,
   }) {
     return _apiClient.get<List<WorkerAssignmentDto>>(
-      '/api/workers/me/assignments',
+      '/api/v1/workers/me/assignments',
       queryParams: {'startDate': startDate, 'endDate': endDate},
       fromJson: (json) {
         if (json is List) {

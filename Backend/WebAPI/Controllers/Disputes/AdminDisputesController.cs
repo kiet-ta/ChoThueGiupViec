@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Disputes;
 /// the admin id comes from the token. and the verdict (resolve, BE-M6-02b).
 /// </summary>
 [ApiController]
-[Route("api/admin/disputes")]
+[Route("api/v1/admin/disputes")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminDisputesController(IAdminDisputeService disputes, IDisputeVerdictService verdicts, ICurrentUser currentUser) : ControllerBase
 {

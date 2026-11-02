@@ -379,7 +379,7 @@ public class RegisterAgencyCommandTests
         Assert.NotNull(method.GetCustomAttribute<AllowAnonymousAttribute>());
         Assert.Null(method.GetCustomAttribute<AuthorizeAttribute>());
         Assert.Null(typeof(AgenciesController).GetCustomAttribute<AuthorizeAttribute>());
-        Assert.Equal("api/agencies", typeof(AgenciesController).GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/agencies", typeof(AgenciesController).GetCustomAttribute<RouteAttribute>()!.Template);
         Assert.Equal("registration", method.GetCustomAttribute<HttpPostAttribute>()!.Template);
     }
 

@@ -571,7 +571,7 @@ public class CustomerFavoriteWorkerTests
     {
         var type = typeof(CustomerFavoriteWorkersController);
 
-        Assert.Equal("api/customers/me/favorite-workers", type.GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/customers/me/favorite-workers", type.GetCustomAttribute<RouteAttribute>()!.Template);
         Assert.Equal("{workerId:int}", type.GetMethod(nameof(CustomerFavoriteWorkersController.Add))!.GetCustomAttribute<HttpPutAttribute>()!.Template);
         Assert.Equal("{workerId:int}", type.GetMethod(nameof(CustomerFavoriteWorkersController.Remove))!.GetCustomAttribute<HttpDeleteAttribute>()!.Template);
         Assert.NotNull(type.GetMethod(nameof(CustomerFavoriteWorkersController.List))!.GetCustomAttribute<HttpGetAttribute>());

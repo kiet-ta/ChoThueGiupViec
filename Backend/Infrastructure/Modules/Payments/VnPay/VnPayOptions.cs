@@ -3,7 +3,7 @@ namespace CommonService.Infrastructure.Modules.Payments.VnPay;
 /// <summary>
 /// Configuration section <c>VnPay</c>. Nothing is committed: <c>TmnCode</c> and <c>HashSecret</c> come from user-secrets / environment
 /// (<c>VnPay__TmnCode</c>, <c>VnPay__HashSecret</c>, <c>VnPay__ReturnUrl</c>; decisions G-6). Sandbox only, no real money (G-1).
-/// The IPN URL is not sent with a payment: it is set in the VNPay merchant portal and must point at <c>/api/payments/ipn/vnpay</c>.
+/// The IPN URL is not sent with a payment: it is set in the VNPay merchant portal and must point at <c>/api/v1/payments/ipn/vnpay</c>.
 /// </summary>
 public sealed class VnPayOptions
 {

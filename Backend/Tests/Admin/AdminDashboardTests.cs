@@ -168,7 +168,7 @@ public class AdminDashboardTests
     {
         var type = typeof(AdminDashboardController);
         Assert.Equal("AdminOnly", type.GetCustomAttribute<AuthorizeAttribute>()!.Policy);
-        Assert.Equal("api/admin/dashboard", type.GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/admin/dashboard", type.GetCustomAttribute<RouteAttribute>()!.Template);
         var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
         Assert.All(methods, m => Assert.Null(m.GetCustomAttribute<AllowAnonymousAttribute>()));
         Assert.Equal(["GET"], methods.SelectMany(m => m.GetCustomAttributes<HttpMethodAttribute>().Select(a => a.HttpMethods.Single())).ToArray());

@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Customers;
 /// and uses the id from the token (ICurrentUser), never from the URL or body. Add and remove are idempotent.
 /// </summary>
 [ApiController]
-[Route("api/customers/me/favorite-workers")]
+[Route("api/v1/customers/me/favorite-workers")]
 [Authorize(Policy = "CustomerOnly")]
 public class CustomerFavoriteWorkersController : ControllerBase
 {

@@ -22,8 +22,8 @@ import '../workers/services/workers_slots_service.dart';
 import '../workers/services/workers_work_area_service.dart';
 
 /// The worker's Hôm nay tab: the month's earnings and finished jobs from
-/// `GET /api/workers/me/earnings`, and the next 7 days of on/off slots from `GET /api/workers/me/slots`.
-/// The header shows the worker's name from `GET /api/workers/me` (`Thợ #id` until it loads). A cell of the week grid
+/// `GET /api/v1/workers/me/earnings`, and the next 7 days of on/off slots from `GET /api/v1/workers/me/slots`.
+/// The header shows the worker's name from `GET /api/v1/workers/me` (`Thợ #id` until it loads). A cell of the week grid
 /// opens the Lịch tab on that day. Every section loads on its own; a failed call leaves its numbers as "–".
 /// Not shown (README "needs API"): the next job, booked cells, the lifetime job count.
 /// MOB-UI-20 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage.tab`, tokens only, pressable cells.

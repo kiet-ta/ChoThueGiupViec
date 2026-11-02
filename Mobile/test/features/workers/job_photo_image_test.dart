@@ -41,14 +41,14 @@ void main() {
     'a stored photo is an Image.network with the file address and the Bearer header',
     (tester) async {
       await tester.pumpWidget(
-        host(photo('/api/workers/assignments/2001/photos/801/file')),
+        host(photo('/api/v1/workers/assignments/2001/photos/801/file')),
       );
 
       final image = tester.widget<Image>(find.byType(Image));
       final provider = image.image as NetworkImage;
       expect(
         provider.url,
-        'http://api.example:5004/api/workers/assignments/2001/photos/801/file',
+        'http://api.example:5004/api/v1/workers/assignments/2001/photos/801/file',
       );
       expect(provider.headers, {'Authorization': 'Bearer tok'});
     },
@@ -58,7 +58,7 @@ void main() {
     'a photo that cannot be loaded shows the placeholder instead of breaking the screen',
     (tester) async {
       await tester.pumpWidget(
-        host(photo('/api/workers/assignments/2001/photos/801/file')),
+        host(photo('/api/v1/workers/assignments/2001/photos/801/file')),
       );
       await tester.pumpAndSettle(); // the test HTTP client answers 400
 

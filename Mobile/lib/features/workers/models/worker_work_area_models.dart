@@ -29,7 +29,7 @@ class WorkerWorkArea {
   }
 }
 
-/// Body of `PUT /api/workers/me/work-area`.
+/// Body of `PUT /api/v1/workers/me/work-area`.
 class SaveWorkAreaRequest {
   final double latitude;
   final double longitude;

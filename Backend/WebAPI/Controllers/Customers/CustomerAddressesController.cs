@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Customers;
 /// and uses the id from the token (ICurrentUser), never from the URL or body. Another customer's address is a 404.
 /// </summary>
 [ApiController]
-[Route("api/customers/me/addresses")]
+[Route("api/v1/customers/me/addresses")]
 [Authorize(Policy = "CustomerOnly")]
 public class CustomerAddressesController : ControllerBase
 {

@@ -26,7 +26,7 @@ public sealed class MoMoPaymentGatewayTests
     private const string Access = "test-access";
     private const string Secret = "test-secret-not-a-real-key";
     private const string Create = "https://test-payment.momo.vn/v2/gateway/api/create";
-    private const string Ipn = "https://example.test/api/payments/ipn/momo";
+    private const string Ipn = "https://example.test/api/v1/payments/ipn/momo";
     private const string Redirect = "https://example.test/return";
     private static readonly DateTime Expires = new(2026, 10, 14, 3, 15, 0, DateTimeKind.Utc);
 
@@ -394,8 +394,8 @@ public sealed class MoMoPaymentGatewayTests
             ["AccessKey"] = "MOMO_SANDBOX_ACCESS_KEY",
             ["SecretKey"] = "MOMO_SANDBOX_SECRET_KEY_PLACEHOLDER",
             ["Endpoint"] = Create,
-            ["IpnUrl"] = "http://localhost:5004/api/payments/ipn/momo",
-            ["RedirectUrl"] = "http://localhost:5004/api/payments/momo-return",
+            ["IpnUrl"] = "http://localhost:5004/api/v1/payments/ipn/momo",
+            ["RedirectUrl"] = "http://localhost:5004/api/v1/payments/momo-return",
         };
         var services = new ServiceCollection();
 

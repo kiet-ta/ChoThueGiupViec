@@ -2,7 +2,7 @@
 import '../../../core/network/api_client.dart';
 import '../models/booking_models.dart';
 
-/// The contract's business codes of POST /api/booking/orders (booking.md 3.3).
+/// The contract's business codes of POST /api/v1/booking/orders (booking.md 3.3).
 class BookingErrorCode {
   static const shiftInPast = 'SHIFT_IN_PAST';
   static const premiumLeadTime = 'PREMIUM_LEAD_TIME';

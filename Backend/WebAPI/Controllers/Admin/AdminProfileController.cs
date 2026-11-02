@@ -10,7 +10,7 @@ namespace CommonService.WebAPI.Controllers.Admin;
 
 /// <summary>The signed-in Admin (contract admin.md section 2.1). Policy AdminOnly; the id comes from the token.</summary>
 [ApiController]
-[Route("api/admin/me")]
+[Route("api/v1/admin/me")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminProfileController(IAdminProfileService profiles, ICurrentUser currentUser) : ControllerBase
 {

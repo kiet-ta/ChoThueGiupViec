@@ -63,11 +63,11 @@ All endpoints require `Authorization: Bearer <accessToken>` with policy **`Custo
 
 ### 2.1 Profile (BE-M1-04)
 
-**`GET /api/customers/me`** -> 200 `data: CustomerProfile`. 404 only if the row was removed (should not happen).
+**`GET /api/v1/customers/me`** -> 200 `data: CustomerProfile`. 404 only if the row was removed (should not happen).
 
 A `CUSTOMER` row is created by the first successful OTP login (`identity.md` §2.2) with: `phone_number` from the login, `full_name` empty string until the customer sets it (C1), `email` null, `otp_verified_at = now`, `trust_score` = `Customer.InitialTrustScore` (C2), `account_status` = `ACTIVE` (`identity.md` O6), `created_at = updated_at = now (UTC)`.
 
-**`PUT /api/customers/me`** (full replace of the editable fields)
+**`PUT /api/v1/customers/me`** (full replace of the editable fields)
 ```json
 { "fullName": "string", "email": "string | null" }
 ```
@@ -83,9 +83,9 @@ A `CUSTOMER` row is created by the first successful OTP login (`identity.md` §2
 
 **S_total (PRD §1.1):** `totalAreaM2 = floorAreaM2 x numFloors`, computed **by the server** (the drawio column `total_area_m2` is a computed column). The client never sends `totalAreaM2`; if it does, the value is ignored. The result is rounded to 2 decimals (round half away from zero, same rule as G-2) and returned in every `Address`.
 
-**`GET /api/customers/me/addresses`** -> 200 `data: Address[]` ordered default first, then `createdAt` descending. Empty list is a valid 200.
+**`GET /api/v1/customers/me/addresses`** -> 200 `data: Address[]` ordered default first, then `createdAt` descending. Empty list is a valid 200.
 
-**`POST /api/customers/me/addresses`** -> 201 `data: Address`
+**`POST /api/v1/customers/me/addresses`** -> 201 `data: Address`
 ```json
 {
   "label": "string",
@@ -119,25 +119,25 @@ Validation (all failures -> 400):
 
 Default address rules: the customer's **first** address becomes default automatically (`isDefault` in the request is ignored). Sending `isDefault = true` on a later address makes it the default and clears the flag on the previous default **in the same transaction**; there is never more than one default per customer.
 
-**`GET /api/customers/me/addresses/{addressId}`** -> 200 `data: Address`. 404 if it does not exist **or belongs to another customer**.
+**`GET /api/v1/customers/me/addresses/{addressId}`** -> 200 `data: Address`. 404 if it does not exist **or belongs to another customer**.
 
-**`PUT /api/customers/me/addresses/{addressId}`** (full replace; same body and validation as POST) -> 200 `data: Address`. 404 as above. Editing an address does **not** change existing orders: orders freeze their own price at creation (decisions Q01) and the area used for that order was read at order time.
+**`PUT /api/v1/customers/me/addresses/{addressId}`** (full replace; same body and validation as POST) -> 200 `data: Address`. 404 as above. Editing an address does **not** change existing orders: orders freeze their own price at creation (decisions Q01) and the area used for that order was read at order time.
 
-**`DELETE /api/customers/me/addresses/{addressId}`** -> 200 `data: null`. 404 as above. 409 when the address is referenced by an order (`JOB_ORDER.address_id` is a foreign key, drawio): the address cannot be removed while orders point at it (C5). If the default address is deleted, the most recently created remaining address becomes default (none left -> no default).
+**`DELETE /api/v1/customers/me/addresses/{addressId}`** -> 200 `data: null`. 404 as above. 409 when the address is referenced by an order (`JOB_ORDER.address_id` is a foreign key, drawio): the address cannot be removed while orders point at it (C5). If the default address is deleted, the most recently created remaining address becomes default (none left -> no default).
 
 ### 2.3 Favorite workers (BE-M1-06)
 
-**`GET /api/customers/me/favorite-workers`** -> 200 `data: FavoriteWorker[]` ordered by `addedAt` descending.
+**`GET /api/v1/customers/me/favorite-workers`** -> 200 `data: FavoriteWorker[]` ordered by `addedAt` descending.
 
-**`PUT /api/customers/me/favorite-workers/{workerId}`** -> 200 `data: FavoriteWorker`. **Idempotent**: adding a worker already in the list returns the existing row, changes nothing, no error (double-click safe).
+**`PUT /api/v1/customers/me/favorite-workers/{workerId}`** -> 200 `data: FavoriteWorker`. **Idempotent**: adding a worker already in the list returns the existing row, changes nothing, no error (double-click safe).
 
 | Status | Condition |
 |---|---|
 | 404 | no `WORKER` with that id (existence check through `IWorkerProfileQuery`, C3) |
 
-**`DELETE /api/customers/me/favorite-workers/{workerId}`** -> 200 `data: null`. Idempotent: removing a worker that is not in the list is still 200.
+**`DELETE /api/v1/customers/me/favorite-workers/{workerId}`** -> 200 `data: null`. Idempotent: removing a worker that is not in the list is still 200.
 
-**`GET /api/customers/me/favorite-workers/{workerId}/availability?from=yyyy-MM-dd&to=yyyy-MM-dd`** -> 200 `data: FreeShift[]`, ordered by date then shift:
+**`GET /api/v1/customers/me/favorite-workers/{workerId}/availability?from=yyyy-MM-dd&to=yyyy-MM-dd`** -> 200 `data: FreeShift[]`, ordered by date then shift:
 ```json
 [{ "date": "2026-10-15", "shiftCode": "SHIFT_MORNING" }]
 ```

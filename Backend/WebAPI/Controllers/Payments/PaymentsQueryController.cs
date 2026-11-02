@@ -9,7 +9,7 @@ namespace CommonService.WebAPI.Controllers.Payments;
 
 /// <summary>Customer reads of payments (contract payments.md 2.3): the polling fallback when the realtime socket is down. Policy CustomerOnly.</summary>
 [ApiController]
-[Route("api/payments")]
+[Route("api/v1/payments")]
 [Authorize(Policy = "CustomerOnly")]
 public class PaymentsQueryController(IPaymentReadService service, ICurrentUser currentUser) : ControllerBase
 {

@@ -81,7 +81,7 @@ void main() {
         );
 
         expect(seen.single.method, 'POST');
-        expect(seen.single.path, '/api/customers/me/disputes');
+        expect(seen.single.path, '/api/v1/customers/me/disputes');
         expect(seen.single.body, {
           'orderId': 42,
           'category': 'QUALITY',
@@ -110,7 +110,7 @@ void main() {
         ),
       );
 
-      expect(seen.single.path, '/api/workers/me/disputes');
+      expect(seen.single.path, '/api/v1/workers/me/disputes');
     });
 
     test('lists the own disputes of the role', () async {
@@ -123,7 +123,7 @@ void main() {
       final items = await service.listMine(DisputeRole.worker);
 
       expect(seen.single.method, 'GET');
-      expect(seen.single.path, '/api/workers/me/disputes');
+      expect(seen.single.path, '/api/v1/workers/me/disputes');
       expect(items.map((d) => d.disputeId), [2, 1]);
     });
 
