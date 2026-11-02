@@ -8,7 +8,7 @@ namespace CommonService.WebAPI.Controllers.Agencies;
 
 /// <summary>The account the agency's payout is transferred to (MAIN-FLOW-FIX, decisions D18, policy PartnerOnly).</summary>
 [ApiController]
-[Route("api/agencies/me/bank")]
+[Route("api/v1/agencies/me/bank")]
 [Authorize(Policy = "PartnerOnly")]
 public class AgencyBankController(AgencyBankService service) : ControllerBase
 {

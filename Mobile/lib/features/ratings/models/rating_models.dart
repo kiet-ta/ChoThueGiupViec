@@ -13,8 +13,9 @@ class RatingCriterion {
 
 extension RatingRoleX on RatingRole {
   /// `customers/me` or `workers/me`: the policy of the endpoint follows the role of the signed-in person.
-  String get pathPrefix =>
-      this == RatingRole.customer ? '/api/customers/me' : '/api/workers/me';
+  String get pathPrefix => this == RatingRole.customer
+      ? '/api/v1/customers/me'
+      : '/api/v1/workers/me';
 
   /// The criteria are fixed by decision Q14: the server rejects any other key and any missing key.
   List<RatingCriterion> get criteria => this == RatingRole.customer

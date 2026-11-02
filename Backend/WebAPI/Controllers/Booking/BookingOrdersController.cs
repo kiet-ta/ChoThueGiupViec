@@ -10,7 +10,7 @@ namespace CommonService.WebAPI.Controllers.Booking;
 
 /// <summary>Customer booking endpoints (contract booking.md 3.1 to 3.6). Policy CustomerOnly; someone else's order or address is 404.</summary>
 [ApiController]
-[Route("api/booking")]
+[Route("api/v1/booking")]
 [Authorize(Policy = "CustomerOnly")]
 public class BookingOrdersController(IOrderQueryService service, ICurrentUser currentUser) : ControllerBase
 {

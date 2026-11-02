@@ -10,7 +10,7 @@ namespace CommonService.WebAPI.Controllers.Agencies;
 
 /// <summary>Partner Agency endpoints (contract agencies.md).</summary>
 [ApiController]
-[Route("api/agencies")]
+[Route("api/v1/agencies")]
 public class AgenciesController(ISender sender) : ControllerBase
 {
     /// <summary>

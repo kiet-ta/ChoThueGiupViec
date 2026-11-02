@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Payments;
 /// The exact MoMo format is BE-M2-06 (G-7); until then the body is a flat JSON object of the Fake gateway's keys.
 /// </summary>
 [ApiController]
-[Route("api/payments/ipn")]
+[Route("api/v1/payments/ipn")]
 [AllowAnonymous]
 public class PaymentIpnController(IIpnService ipn) : ControllerBase
 {

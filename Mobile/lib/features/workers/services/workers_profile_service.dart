@@ -3,7 +3,7 @@ import '../../../core/network/api_client.dart';
 /// What the Tài khoản tab needs from the profile: the name and whether the worker belongs to an agency.
 typedef WorkerSummary = ({String? fullName, bool agencyWorker});
 
-/// Reads the signed-in worker's profile (contract workers.md §2.1.2, `GET /api/workers/me`).
+/// Reads the signed-in worker's profile (contract workers.md §2.1.2, `GET /api/v1/workers/me`).
 class WorkersProfileService {
   final ApiClient _apiClient;
 
@@ -18,7 +18,7 @@ class WorkersProfileService {
   /// The worker's `fullName`, or null when the profile has none.
   Future<String?> getFullName() async {
     final response = await _apiClient.get<String?>(
-      '/api/workers/me',
+      '/api/v1/workers/me',
       fromJson: _nameOf,
     );
     return response.data;
@@ -28,7 +28,7 @@ class WorkersProfileService {
   /// A call that fails throws, like [getFullName].
   Future<WorkerSummary> getSummary() async {
     final response = await _apiClient.get<WorkerSummary>(
-      '/api/workers/me',
+      '/api/v1/workers/me',
       fromJson: (json) => (
         fullName: _nameOf(json),
         agencyWorker: json is Map<String, dynamic> && json['agencyId'] != null,

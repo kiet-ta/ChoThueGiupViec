@@ -2,7 +2,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_response.dart';
 import '../models/worker_work_area_models.dart';
 
-/// Reads and saves where the freelancer works (contract workers.md §2.3B, `GET` / `PUT /api/workers/me/work-area`).
+/// Reads and saves where the freelancer works (contract workers.md §2.3B, `GET` / `PUT /api/v1/workers/me/work-area`).
 class WorkersWorkAreaService {
   final ApiClient _apiClient;
 
@@ -12,7 +12,7 @@ class WorkersWorkAreaService {
   /// The registered area; nothing registered is a successful answer with `isSet` false.
   Future<ApiResponse<WorkerWorkArea>> getWorkArea() {
     return _apiClient.get<WorkerWorkArea>(
-      '/api/workers/me/work-area',
+      '/api/v1/workers/me/work-area',
       fromJson: (json) => json is Map<String, dynamic>
           ? WorkerWorkArea.fromJson(json)
           : const WorkerWorkArea.empty(),
@@ -24,7 +24,7 @@ class WorkersWorkAreaService {
     SaveWorkAreaRequest request,
   ) {
     return _apiClient.put<WorkerWorkArea>(
-      '/api/workers/me/work-area',
+      '/api/v1/workers/me/work-area',
       body: request.toJson(),
       fromJson: (json) => WorkerWorkArea.fromJson(json as Map<String, dynamic>),
     );

@@ -24,7 +24,7 @@ void main() {
     test('getCurrentOffer parses 200 JSON envelope from backend', () async {
       backend.on(
         'GET',
-        '/api/dispatch/offers/current',
+        '/api/v1/dispatch/offers/current',
         200,
         FakeBackend.ok({
           'assignmentId': 1001,
@@ -56,7 +56,7 @@ void main() {
     test('getCurrentOffer returns null when 404 or data is null', () async {
       backend.on(
         'GET',
-        '/api/dispatch/offers/current',
+        '/api/v1/dispatch/offers/current',
         200,
         FakeBackend.ok(null),
       );
@@ -65,10 +65,10 @@ void main() {
       expect(offer, isNull);
     });
 
-    test('acceptOffer sends POST /api/dispatch/offers/1001/accept and parses result', () async {
+    test('acceptOffer sends POST /api/v1/dispatch/offers/1001/accept and parses result', () async {
       backend.on(
         'POST',
-        '/api/dispatch/offers/1001/accept',
+        '/api/v1/dispatch/offers/1001/accept',
         200,
         FakeBackend.ok({
           'assignmentId': 1001,
@@ -85,23 +85,20 @@ void main() {
       expect(result.bookingSlotLocked, isTrue);
     });
 
-    test(
-      'declineOffer sends POST /api/dispatch/offers/1001/decline with reason',
-      () async {
-        backend.on(
-          'POST',
-          '/api/dispatch/offers/1001/decline',
-          200,
-          FakeBackend.ok({'assignmentId': 1001, 'status': 'DECLINED'}),
-        );
+    test('declineOffer sends POST /api/v1/dispatch/offers/1001/decline with reason', () async {
+      backend.on(
+        'POST',
+        '/api/v1/dispatch/offers/1001/decline',
+        200,
+        FakeBackend.ok({'assignmentId': 1001, 'status': 'DECLINED'}),
+      );
 
-        await service.declineOffer(1001, reason: 'Không kịp giờ');
+      await service.declineOffer(1001, reason: 'Không kịp giờ');
 
-        expect(
-          backend.requestBodies['POST /api/dispatch/offers/1001/decline'],
-          {'reason': 'Không kịp giờ'},
-        );
-      },
-    );
+      expect(
+        backend.requestBodies['POST /api/v1/dispatch/offers/1001/decline'],
+        {'reason': 'Không kịp giờ'},
+      );
+    });
   });
 }

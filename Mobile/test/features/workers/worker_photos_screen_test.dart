@@ -74,7 +74,7 @@ class RecordingPhotosService extends WorkersPhotosService {
         photoPhase: request.photoPhase,
         angleNo: request.angleNo,
         photoUrl:
-            '/api/workers/assignments/$assignmentId/photos/${9000 + uploads.length}/file',
+            '/api/v1/workers/assignments/$assignmentId/photos/${9000 + uploads.length}/file',
         volScore: 142.5,
         isAccepted: true,
         uploadedAt: DateTime(2026, 10, 21, 9),

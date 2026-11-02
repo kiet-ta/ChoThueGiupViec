@@ -57,8 +57,8 @@ void main() {
     });
 
     test('each role calls its own endpoint prefix and only the worker rating is internal', () {
-      expect(RatingRole.customer.pathPrefix, '/api/customers/me');
-      expect(RatingRole.worker.pathPrefix, '/api/workers/me');
+      expect(RatingRole.customer.pathPrefix, '/api/v1/customers/me');
+      expect(RatingRole.worker.pathPrefix, '/api/v1/workers/me');
       expect(RatingRole.customer.isInternalOnly, isFalse);
       expect(RatingRole.worker.isInternalOnly, isTrue);
     });

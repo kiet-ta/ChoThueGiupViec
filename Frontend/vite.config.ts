@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        '/api': { target: apiTarget, changeOrigin: true },
+        '/api': { target: apiTarget, changeOrigin: true }, // also forwards /api/v1 (PLATFORM-01)
         // Stored photos (job photos, dispute evidence) are served by the backend as /files/...
         '/files': { target: apiTarget, changeOrigin: true },
       },

@@ -12,7 +12,7 @@ namespace CommonService.WebAPI.Controllers.Payments;
 /// </summary>
 [ApiController]
 [ApiExplorerSettings(IgnoreApi = true)]
-[Route("api/dev/payments")]
+[Route("api/v1/dev/payments")]
 [AllowAnonymous]
 public class DevPaymentsController(DevPaymentService service, IHostEnvironment environment) : ControllerBase
 {

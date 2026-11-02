@@ -66,7 +66,7 @@ void main() {
       () async {
         backend.on(
           'POST',
-          '/api/workers/register',
+          '/api/v1/workers/register',
           201,
           FakeBackend.ok({'workerId': 5, 'kycStatus': 'PENDING'}),
         );
@@ -78,7 +78,7 @@ void main() {
           bio: '',
         );
 
-        expect(backend.requestBodies['POST /api/workers/register'], {
+        expect(backend.requestBodies['POST /api/v1/workers/register'], {
           'registrationToken': 'reg-token',
           'fullName': 'Nguyen Van A',
           'nationalId': '079300000001',
@@ -91,7 +91,7 @@ void main() {
     test('a 409 is reported with its status', () async {
       backend.on(
         'POST',
-        '/api/workers/register',
+        '/api/v1/workers/register',
         409,
         FakeBackend.error('A worker with this phone number is registered.'),
       );

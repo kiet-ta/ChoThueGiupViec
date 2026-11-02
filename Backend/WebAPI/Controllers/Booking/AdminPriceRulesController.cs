@@ -12,7 +12,7 @@ namespace CommonService.WebAPI.Controllers.Booking;
 /// <c>GET /api/admin/audit-logs?entityType=PRICE_RULE</c> (admin.md 2.4, decisions B12).
 /// </summary>
 [ApiController]
-[Route("api/admin/price-rules")]
+[Route("api/v1/admin/price-rules")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminPriceRulesController(IPriceRuleAdminService service, ICurrentUser currentUser) : ControllerBase
 {

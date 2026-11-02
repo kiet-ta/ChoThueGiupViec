@@ -41,9 +41,9 @@ public class DisputeEndpointTests
     // ---- controllers ----------------------------------------------------------------------------
 
     [Theory]
-    [InlineData(typeof(CustomerDisputesController), "CustomerOnly", "api/customers/me/disputes")]
-    [InlineData(typeof(WorkerDisputesController), "WorkerOnly", "api/workers/me/disputes")]
-    [InlineData(typeof(AdminDisputesController), "AdminOnly", "api/admin/disputes")]
+    [InlineData(typeof(CustomerDisputesController), "CustomerOnly", "api/v1/customers/me/disputes")]
+    [InlineData(typeof(WorkerDisputesController), "WorkerOnly", "api/v1/workers/me/disputes")]
+    [InlineData(typeof(AdminDisputesController), "AdminOnly", "api/v1/admin/disputes")]
     public void Each_controller_has_its_policy_and_the_contract_route(Type controller, string policy, string route)
     {
         Assert.Equal(policy, controller.GetCustomAttribute<AuthorizeAttribute>()!.Policy);

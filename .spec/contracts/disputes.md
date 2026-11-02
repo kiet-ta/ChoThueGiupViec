@@ -45,7 +45,7 @@
 
 ### 2.1 Customer and Worker file a dispute (BE-M6-02, MOB-M6-03)
 
-**`POST /api/customers/me/disputes`** (policy `CustomerOnly`) and **`POST /api/workers/me/disputes`** (policy `WorkerOnly`) -> 201 `data: Dispute`
+**`POST /api/v1/customers/me/disputes`** (policy `CustomerOnly`) and **`POST /api/v1/workers/me/disputes`** (policy `WorkerOnly`) -> 201 `data: Dispute`
 ```json
 { "orderId": 0, "category": "string", "description": "string", "evidenceUrls": ["string"] }
 ```
@@ -63,7 +63,7 @@ Effects: `dispute_status = OPEN`, `sla_due_at = created_at + 48 h` (drawio note:
 
 > The leader gave no answer on how a dispute photo reaches the server and set a deadline, so this is the smallest upload that makes a photo real. It is listed here before the code, as AGENTS.md requires, and he can replace it.
 
-**`POST /api/customers/me/disputes/evidence`** (policy `CustomerOnly`) and **`POST /api/workers/me/disputes/evidence`** (policy `WorkerOnly`) -> 201 `data: { path, url, sizeBytes }`
+**`POST /api/v1/customers/me/disputes/evidence`** (policy `CustomerOnly`) and **`POST /api/v1/workers/me/disputes/evidence`** (policy `WorkerOnly`) -> 201 `data: { path, url, sizeBytes }`
 ```json
 { "fileName": "photo.jpg", "contentType": "image/jpeg", "contentBase64": "..." }
 ```
@@ -71,13 +71,13 @@ JSON with base64 because the mobile `ApiClient` is JSON-only (M4's photo upload 
 
 **`GET /files/dispute-evidence/{fileName}`** -> 200 the image, 404 otherwise. Anonymous on purpose: a browser sends no bearer header for `<img>`, and the Admin console shows the photos that way; the name holds a server-chosen GUID, so only somebody given the address can ask for it. Only that folder, only a name of letters, digits, `.`, `_`, `-` with a `.jpg`/`.png`/`.webp` extension; `X-Content-Type-Options: nosniff`. Known limits: no antivirus or EXIF stripping, no cleaning of photos of disputes that are never filed.
 
-**`GET /api/customers/me/disputes`** and **`GET /api/workers/me/disputes`** -> 200 `data: Dispute[]` (own disputes only), newest first. **`GET .../disputes/{disputeId}`** -> 200 `data: Dispute`, 404 if not the caller's. The party sees the verdict (`faultParty`, `compensationAmount`) once `RESOLVED`.
+**`GET /api/v1/customers/me/disputes`** and **`GET /api/v1/workers/me/disputes`** -> 200 `data: Dispute[]` (own disputes only), newest first. **`GET .../disputes/{disputeId}`** -> 200 `data: Dispute`, 404 if not the caller's. The party sees the verdict (`faultParty`, `compensationAmount`) once `RESOLVED`.
 
 ### 2.2 Admin queue and case file (WEB-M6-01) — policy `AdminOnly`
 
-**`GET /api/admin/disputes?status=&priority=&nearSla=&page=&pageSize=`** -> 200 `data: { items: DisputeSummary[], page, pageSize, total }`. Default `status = OPEN,IN_REVIEW`, sorted by `slaDueAt` ascending. `nearSla = true` keeps only unresolved disputes with `slaDueAt - now <= Admin.DisputeNearSlaHours` (see `admin.md` **A2**; the dashboard uses this filter). `pageSize` max 100, default 20. Unresolved total is what the dashboard shows as "Tranh chấp tồn".
+**`GET /api/v1/admin/disputes?status=&priority=&nearSla=&page=&pageSize=`** -> 200 `data: { items: DisputeSummary[], page, pageSize, total }`. Default `status = OPEN,IN_REVIEW`, sorted by `slaDueAt` ascending. `nearSla = true` keeps only unresolved disputes with `slaDueAt - now <= Admin.DisputeNearSlaHours` (see `admin.md` **A2**; the dashboard uses this filter). `pageSize` max 100, default 20. Unresolved total is what the dashboard shows as "Tranh chấp tồn".
 
-**`GET /api/admin/disputes/{disputeId}`** -> 200
+**`GET /api/v1/admin/disputes/{disputeId}`** -> 200
 ```json
 {
   "dispute": { "...Dispute" },
@@ -91,9 +91,9 @@ JSON with base64 because the mobile `ApiClient` is JSON-only (M4's photo upload 
 
 ### 2.3 Admin handles a case (BE-M6-02)
 
-**`POST /api/admin/disputes/{disputeId}/take`** -> 200 `data: Dispute` (`OPEN -> IN_REVIEW`, records `resolved_by` = the admin as the handler). 409 if not `OPEN`.
+**`POST /api/v1/admin/disputes/{disputeId}/take`** -> 200 `data: Dispute` (`OPEN -> IN_REVIEW`, records `resolved_by` = the admin as the handler). 409 if not `OPEN`.
 
-**`POST /api/admin/disputes/{disputeId}/resolve`** -> 200 `data: Dispute`
+**`POST /api/v1/admin/disputes/{disputeId}/resolve`** -> 200 `data: Dispute`
 ```json
 { "faultParty": "FREELANCER | AGENCY | CUSTOMER | null", "compensationAmount": 0, "lockWorker": false, "note": "string" }
 ```

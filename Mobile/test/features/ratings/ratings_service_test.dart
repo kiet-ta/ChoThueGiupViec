@@ -71,7 +71,7 @@ void main() {
         expect(seen.single.method, 'GET');
         expect(
           seen.single.path,
-          '/api/customers/me/assignments/7/rating-window',
+          '/api/v1/customers/me/assignments/7/rating-window',
         );
         expect(window.canRate, isTrue);
         expect(window.secondsRemaining, 3600);
@@ -92,7 +92,10 @@ void main() {
 
       final window = await service.getWindow(RatingRole.worker, 9);
 
-      expect(seen.single.path, '/api/workers/me/assignments/9/rating-window');
+      expect(
+        seen.single.path,
+        '/api/v1/workers/me/assignments/9/rating-window',
+      );
       expect(window.reason, 'ALREADY_RATED');
     });
 
@@ -114,7 +117,7 @@ void main() {
       );
 
       expect(seen.single.method, 'POST');
-      expect(seen.single.path, '/api/workers/me/assignments/9/rating');
+      expect(seen.single.path, '/api/v1/workers/me/assignments/9/rating');
       expect(seen.single.body, {
         'stars': 4,
         'criteria': {'cooperation': 5, 'workingConditions': 3},

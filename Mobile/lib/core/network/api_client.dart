@@ -346,7 +346,7 @@ class ApiClient {
     }
   }
 
-  /// The full address of an API [path] such as `/api/workers/assignments/1/photos/2/file`.
+  /// The full address of an API [path] such as `/api/v1/workers/assignments/1/photos/2/file`.
   String resolveUrl(String path) => _buildUri(path).toString();
 
   /// The `Authorization` header of the signed-in person (empty when signed out), for a file that only an API route serves.
@@ -360,7 +360,7 @@ class ApiClient {
     if (refreshToken == null) return false;
 
     try {
-      final refreshUri = _buildUri('/api/auth/refresh');
+      final refreshUri = _buildUri('/api/v1/auth/refresh');
       final request = await _httpClient
           .openUrl('POST', refreshUri)
           .timeout(timeout);

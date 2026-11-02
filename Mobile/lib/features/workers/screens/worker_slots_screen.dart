@@ -24,7 +24,7 @@ import '../services/workers_slots_service.dart';
 /// Implements MOB-M4-02: weekly grid toggle for Sáng/Chiều/Tối shifts.
 /// MOB-UI-20 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage` (tab, or pushed when it has a back route),
 /// tokens only, pressable day tiles, a retry state when the week cannot be loaded.
-/// MOB-WORKER-ORDERS-01 (#551): the jobs booked for the worker (`GET /api/workers/me/assignments`) show in the same
+/// MOB-WORKER-ORDERS-01 (#551): the jobs booked for the worker (`GET /api/v1/workers/me/assignments`) show in the same
 /// week: a marker on the day, the job under its shift (the shift is locked, it has an order), and a sheet with the
 /// details and the next step (check in, continue).
 class WorkerSlotsScreen extends StatefulWidget {

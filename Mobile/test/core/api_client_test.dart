@@ -106,7 +106,7 @@ void main() {
 
         server.listen((HttpRequest request) {
           expect(request.method, 'GET');
-          expect(request.uri.path, '/api/test');
+          expect(request.uri.path, '/api/v1/test');
           expect(
             request.headers.value('authorization'),
             'Bearer my_bearer_token',
@@ -124,7 +124,7 @@ void main() {
           request.response.close();
         });
 
-        final res = await client.get<Map<String, dynamic>>('/api/test');
+        final res = await client.get<Map<String, dynamic>>('/api/v1/test');
 
         expect(res.success, isTrue);
         expect(res.data?['greeting'], 'hello');
@@ -151,7 +151,7 @@ void main() {
       });
 
       final res = await client.post<Map<String, dynamic>>(
-        '/api/items',
+        '/api/v1/items',
         body: {'title': 'Clean'},
       );
 
@@ -180,7 +180,7 @@ void main() {
         });
 
         try {
-          await client.post('/api/validate', body: {});
+          await client.post('/api/v1/validate', body: {});
           fail('Should throw ApiException');
         } on ApiException catch (e) {
           expect(e.statusCode, 400);
@@ -210,7 +210,7 @@ void main() {
         });
 
         try {
-          await client.get('/api/limited');
+          await client.get('/api/v1/limited');
           fail('Should throw ApiException');
         } on ApiException catch (e) {
           expect(e.statusCode, 429);

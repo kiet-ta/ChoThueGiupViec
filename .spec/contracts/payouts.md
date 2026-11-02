@@ -48,7 +48,7 @@
 
 ### 2.1 Build the monthly batch (BE-M6-04)
 
-**`POST /api/admin/payout-batches`** -> 201 (new) or 200 (existing) `data: PayoutBatch`
+**`POST /api/v1/admin/payout-batches`** -> 201 (new) or 200 (existing) `data: PayoutBatch`
 ```json
 { "periodMonth": "2026-10" }
 ```
@@ -65,12 +65,12 @@ Aggregation (PRD §5.2, one table, 0 JOIN): select `JOB_ASSIGNMENT` rows with `a
 
 ### 2.2 Read batches
 
-**`GET /api/admin/payout-batches?page=&pageSize=`** -> 200 `data: { items: PayoutBatch[], page, pageSize, total }`, newest month first.
-**`GET /api/admin/payout-batches/{batchId}?payeeType=&page=&pageSize=`** -> 200 `data: { batch: PayoutBatch, items: PayoutItem[], page, pageSize, total, warnings: ["string"] }`. `warnings` lists items without bank data (**P4**). 404 if missing.
+**`GET /api/v1/admin/payout-batches?page=&pageSize=`** -> 200 `data: { items: PayoutBatch[], page, pageSize, total }`, newest month first.
+**`GET /api/v1/admin/payout-batches/{batchId}?payeeType=&page=&pageSize=`** -> 200 `data: { batch: PayoutBatch, items: PayoutItem[], page, pageSize, total, warnings: ["string"] }`. `warnings` lists items without bank data (**P4**). 404 if missing.
 
 ### 2.3 Bank export (BE-M6-05, WEB-M6-03)
 
-**`GET /api/admin/payout-batches/{batchId}/export?type=freelancer|agency-summary|agency-detail`** -> 200 **file** (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment`). This is the only response that is not the JSON envelope (Q18). Errors still use the envelope. 400 for an unknown `type`; 404 if missing.
+**`GET /api/v1/admin/payout-batches/{batchId}/export?type=freelancer|agency-summary|agency-detail`** -> 200 **file** (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment`). This is the only response that is not the JSON envelope (Q18). Errors still use the envelope. 400 for an unknown `type`; 404 if missing.
 
 | `type` | Columns (Q18) |
 |---|---|
@@ -89,7 +89,7 @@ Bank-specific transfer formats are deferred (Q18). The file is also stored throu
 
 ### 2.4 Confirm disbursement (BE-M6-04)
 
-**`POST /api/admin/payout-batches/{batchId}/confirm`** -> 200 `data: PayoutBatch`. Sets `batch_status = CLOSED`, `confirmed_by` = caller, `confirmed_at` = `IClock.UtcNow`, every item `TRANSFERRED`, then publishes `PayoutBatchClosed { batchId, periodMonth, totalAmount }`. 409 if already `CLOSED` or the batch has no items. Idempotent guard: a second call never changes anything. Confirming a month that is not over is rejected (**P2**).
+**`POST /api/v1/admin/payout-batches/{batchId}/confirm`** -> 200 `data: PayoutBatch`. Sets `batch_status = CLOSED`, `confirmed_by` = caller, `confirmed_at` = `IClock.UtcNow`, every item `TRANSFERRED`, then publishes `PayoutBatchClosed { batchId, periodMonth, totalAmount }`. 409 if already `CLOSED` or the batch has no items. Idempotent guard: a second call never changes anything. Confirming a month that is not over is rejected (**P2**).
 
 **How 2.1 and 2.4 are implemented (BE-M6-04, ticket #136):**
 - The month is read in `Asia/Ho_Chi_Minh` and queried in UTC: for `2026-10` the range is `[2026-09-30T17:00Z, 2026-10-31T17:00Z)`. "Finished" means the Ho Chi Minh calendar has left the month, not the UTC date.
@@ -102,7 +102,7 @@ Bank-specific transfer formats are deferred (Q18). The file is also stored throu
 
 ### 2.5 Worker income (BE-M6-07, MOB-M6-04) — policy `WorkerOnly`
 
-**`GET /api/workers/me/earnings?month=YYYY-MM`** -> 200
+**`GET /api/v1/workers/me/earnings?month=YYYY-MM`** -> 200
 ```json
 {
   "periodMonth": "YYYY-MM",
@@ -117,7 +117,7 @@ Bank-specific transfer formats are deferred (Q18). The file is also stored throu
 ```
 Computed from the caller's own `COMPLETED` assignments (same formula as 2.1, not stored), so it is available before the batch exists; `payoutStatus` shows the batch state. Only for `worker_type = FREELANCER` (80% net, Q11); an `AGENCY_STAFF` worker gets 403 because the agency, not the worker, is paid (PRD §4.4 step 3). `month` defaults to the current month; a future month is 400.
 
-**`GET /api/workers/me/payouts?page=&pageSize=`** -> 200 `data: { items: [ { batchId, periodMonth, netAmount, itemStatus, transferredAt } ], page, pageSize, total }` — the worker's own closed items (the "Lịch sử giải ngân" screen).
+**`GET /api/v1/workers/me/payouts?page=&pageSize=`** -> 200 `data: { items: [ { batchId, periodMonth, netAmount, itemStatus, transferredAt } ], page, pageSize, total }` — the worker's own closed items (the "Lịch sử giải ngân" screen).
 
 **How 2.5 is implemented (BE-M6-07, ticket #140):**
 - The worker id always comes from the token; every query is scoped to it (`IWorkerEarningsRepository`), so no worker can read another's money. `earnings` is 404 for an unknown worker and 403 for `AGENCY_STAFF`; `payouts` answers an empty list for agency staff (they have no items of their own).

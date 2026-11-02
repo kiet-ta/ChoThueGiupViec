@@ -11,7 +11,7 @@ namespace CommonService.WebAPI.Controllers.Workers;
 /// Admin eKYC manual review and sample audit queue endpoints (contract workers.md §2.2.2 &amp; §2.2.3).
 /// </summary>
 [ApiController]
-[Route("api/admin/workers")]
+[Route("api/v1/admin/workers")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminWorkersEkycController(IWorkerEkycService ekyc) : ControllerBase
 {
