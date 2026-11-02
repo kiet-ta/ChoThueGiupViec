@@ -3,6 +3,10 @@
 import { formatVnd } from '../../../lib/format.ts'
 import type { BookingOptions, FreeShift, OrderSummary, ServiceTier, ShiftOption } from './types.ts'
 
+export function firstName(fullName: string): string {
+  return fullName.trim().split(/\s+/).at(-1) ?? ''
+}
+
 export const NOTE_MAX_LENGTH = 500
 const VN_OFFSET_MS = 7 * 3600_000
 const OPEN_STATUSES = ['PENDING_PAYMENT', 'PAID', 'DISPATCHING', 'ASSIGNED']

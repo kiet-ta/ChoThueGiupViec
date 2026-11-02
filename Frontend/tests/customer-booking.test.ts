@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { bookingProblem, dayText, nextOrder, shiftBlockedReason, shiftStart, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
+import { bookingProblem, dayText, firstName, nextOrder, shiftBlockedReason, shiftStart, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
 import type { OrderSummary } from '../src/features/customer/booking/types.ts'
 
 const morning = { shiftCode: 'SHIFT_MORNING', startLocal: '08:00', endLocal: '12:00' }
@@ -8,6 +8,16 @@ const opts = { premiumMinLeadHours: 4 }
 const order = (over: Partial<OrderSummary>): OrderSummary => ({
   orderId: 1, orderCode: 'GV1', serviceTier: 'ECONOMY', scheduledDate: '2026-11-03', shiftCode: 'SHIFT_MORNING',
   requiredWorkers: 1, totalAmount: 260000, orderStatus: 'PAID', createdAt: '2026-11-01T00:00:00Z', ...over,
+})
+
+describe('firstName', () => {
+  it('uses the last word of a trimmed name', () => {
+    assert.equal(firstName(''), '')
+    assert.equal(firstName('  '), '')
+    assert.equal(firstName('Lan'), 'Lan')
+    assert.equal(firstName('Nguyễn Thị Lan'), 'Lan')
+    assert.equal(firstName('  Nguyễn   Thị  Lan  '), 'Lan')
+  })
 })
 
 describe('vietnam dates', () => {

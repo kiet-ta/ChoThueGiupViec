@@ -60,7 +60,7 @@ export function OrderDetailPage() {
   if (!order || !progress) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
 
   const actions = orderActions(order.orderStatus, progress.assignments, progress.extension, now)
-  const steps = timeline(order.orderStatus, order.orderStatus === 'CANCELLED' && progress.assignments.length > 0)
+  const steps = timeline(order.orderStatus, order.orderStatus === 'CANCELLED' && progress.assignments.length > 0, progress.assignments)
   const ext = progress.extension
 
   async function confirmCancel() {

@@ -64,6 +64,13 @@ describe('timeline', () => {
     assert.deepEqual(states('ASSIGNED'), ['done', 'done', 'current', 'todo'])
     assert.deepEqual(states('COMPLETED'), ['done', 'done', 'done', 'done'])
   })
+  it('labels the assigned step from visible assignments without changing its state', () => {
+    const step = (workers: ProgressAssignment[]) => timeline('ASSIGNED', false, workers)[2]
+    assert.deepEqual(step([worker('ASSIGNED'), worker('CHECKED_IN')]), { key: 'assigned', label: 'Có thợ, chờ đến giờ làm', state: 'current' })
+    assert.equal(step([worker('ASSIGNED'), worker('IN_PROGRESS')]).label, 'Thợ đang làm')
+    assert.equal(step([worker('IN_PROGRESS'), worker('AWAITING_ACCEPTANCE')]).label, 'Chờ bạn nghiệm thu')
+    assert.equal(step([]).label, 'Có thợ, chờ đến giờ làm')
+  })
   it('marks where a cancelled order stopped', () => {
     assert.deepEqual(states('CANCELLED'), ['cancelled', 'todo', 'todo', 'todo'])
     assert.deepEqual(states('CANCELLED', true), ['done', 'cancelled', 'todo', 'todo'])

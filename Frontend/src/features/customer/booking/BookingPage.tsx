@@ -68,8 +68,6 @@ export function BookingPage() {
   useEffect(() => {
     if (addressId === null) return
     let cancelled = false
-    setQuoteError(null)
-    setQuotes({})
     for (const t of ['ECONOMY', 'PREMIUM'] as ServiceTier[]) {
       bookingApi
         .quote(addressId, t)
@@ -133,7 +131,7 @@ export function BookingPage() {
           <h2 className="text-lg font-semibold">2. Địa chỉ</h2>
           {addresses.length === 0
             ? <p className="mt-4 text-sm text-stone-500">Bạn chưa có địa chỉ nào. Hãy thêm địa chỉ trong ứng dụng TỔ ẤM rồi quay lại.</p>
-            : <div className="mt-4 space-y-3">{addresses.map((a) => <button key={a.addressId} type="button" aria-pressed={addressId === a.addressId} className={choice(addressId === a.addressId)} onClick={() => setAddressId(a.addressId)}>
+            : <div className="mt-4 space-y-3">{addresses.map((a) => <button key={a.addressId} type="button" aria-pressed={addressId === a.addressId} className={choice(addressId === a.addressId)} onClick={() => { if (addressId !== a.addressId) { setQuotes({}); setQuoteError(null); setAddressId(a.addressId) } }}>
               {radio(addressId === a.addressId)}<Home size={18} className="mt-0.5 text-[#1a2f25]" />
               <span><b>{a.label}</b><span className="block text-sm text-stone-500">{a.addressLine} · {a.district} · {a.totalAreaM2} m²</span></span>
             </button>)}</div>}

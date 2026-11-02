@@ -3,13 +3,15 @@ import { Link } from 'react-router-dom'
 import { CalendarClock, CircleAlert, Loader, Plus } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
+import { accountApi } from '../account/api'
 import { bookingApi } from '../booking/api'
 import type { CustomerAddress, OrderSummary, PriceQuote, ServiceTier, ShiftOption } from '../booking/types'
-import { dayText, nextOrder, shiftLabel, shiftRange, statusLabel, tierLabel } from '../booking/view'
+import { dayText, firstName, nextOrder, shiftLabel, shiftRange, statusLabel, tierLabel } from '../booking/view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 
 export function HomePage() {
+  const [name, setName] = useState('')
   const [orders, setOrders] = useState<OrderSummary[] | null>(null)
   const [address, setAddress] = useState<CustomerAddress | null>(null)
   const [quotes, setQuotes] = useState<Partial<Record<ServiceTier, PriceQuote>>>({})
@@ -19,6 +21,7 @@ export function HomePage() {
 
   useEffect(() => {
     let cancelled = false
+    accountApi.profile().then((profile) => { if (!cancelled) setName(firstName(profile.fullName)) }).catch(() => undefined)
     bookingApi.orders().then((page) => !cancelled && setOrders(page.items)).catch((e: unknown) => !cancelled && setError(e instanceof ApiError ? e.message : 'Không tải được danh sách đơn.'))
     bookingApi.options().then((o) => !cancelled && setShifts(o.shifts)).catch(() => undefined)
     bookingApi.addresses().then((list) => {
@@ -40,7 +43,7 @@ export function HomePage() {
 
   return <div>
     <div className="flex flex-wrap items-end justify-between gap-4">
-      <div><h1 className="text-3xl font-semibold">Xin chào</h1><p className="mt-2 text-stone-500">Ca sắp tới và đặt nhanh trong một màn hình.</p></div>
+      <div><h1 className="text-3xl font-semibold">Xin chào{name && ` ${name}`}</h1><p className="mt-2 text-stone-500">Ca sắp tới và đặt nhanh trong một màn hình.</p></div>
       <Link to="/app/booking" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#1a2f25] px-4 font-semibold text-white"><Plus size={16} />Đặt ca mới</Link>
     </div>
     {error && <p role="alert" className="mt-6 flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p>}
