@@ -1,18 +1,16 @@
 using System.Reflection;
-using CommonService.Application;
 using CommonService.Application.Common.Models;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Agencies;
-using CommonService.Application.Features.Agencies.Commands;
 using CommonService.Application.Features.Agencies.Dtos;
-using CommonService.Application.Features.Agencies.Handlers;
+using CommonService.Application.Features.Agencies.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Modules.Agencies;
 using CommonService.Infrastructure.Modules.Identity;
 using CommonService.WebAPI.Controllers.Agencies;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,10 +22,11 @@ using Xunit;
 namespace CommonService.Tests.Agencies;
 
 /// <summary>
-/// BE-M5-01 use case: handler with a stub repository (no database, Golden Rule), the MediatR pipeline with the module
-/// wiring, and the controller contract. Uses the real PBKDF2 hasher: it is pure CPU, no I/O.
+/// BE-M5-01 use case: application service with a stub repository (no database, Golden Rule), the module wiring,
+/// and the controller contract. Uses the real PBKDF2 hasher: it is pure CPU, no I/O.
+/// REFACTOR-02 (#584): the MediatR command/handler became <see cref="AgencyRegistrationService"/>.
 /// </summary>
-public class RegisterAgencyCommandTests
+public class AgencyRegistrationServiceTests
 {
     private static readonly DateTime Now = new(2026, 10, 12, 8, 0, 0, DateTimeKind.Utc);
 
@@ -123,6 +122,13 @@ public class RegisterAgencyCommandTests
             Task.FromResult(0);
     }
 
+    private sealed class FixedUser(int? userId, UserRole? role) : ICurrentUser
+    {
+        public bool IsAuthenticated => userId is not null;
+        public int? UserId => userId;
+        public UserRole? Role => role;
+    }
+
     private static RegisterAgencyRequest ValidRequest() => new(
         "0312345678", "Cong ty TNHH Don Dep ABC", "Nguyen Van A", "0901234567", "Partner@Example.com", "Abcdefgh12");
 
@@ -133,17 +139,17 @@ public class RegisterAgencyCommandTests
         return rules;
     }
 
-    private static RegisterAgencyCommandHandler Handler(StubAgencyRepository repo, BusinessRules? rules = null) =>
+    private static AgencyRegistrationService Service(StubAgencyRepository repo, BusinessRules? rules = null) =>
         new(repo, new Pbkdf2PasswordHasher(), new FixedClock(Now), Microsoft.Extensions.Options.Options.Create(rules ?? new BusinessRules()));
 
-    // ---- handler ---------------------------------------------------------------------------------------------
+    // ---- service ---------------------------------------------------------------------------------------------
 
     [Fact]
     public async Task Registration_creates_a_pending_agency_with_zero_escrow_and_no_quota()
     {
         var repo = new StubAgencyRepository();
 
-        var result = await Handler(repo).Handle(new RegisterAgencyCommand(ValidRequest()), default);
+        var result = await Service(repo).RegisterAsync(ValidRequest());
 
         var row = Assert.Single(repo.Rows);
         Assert.Equal("PENDING", row.AgencyStatus);
@@ -170,7 +176,7 @@ public class RegisterAgencyCommandTests
             ContactEmail = " Partner@Example.COM "
         };
 
-        await Handler(repo).Handle(new RegisterAgencyCommand(request), default);
+        await Service(repo).RegisterAsync(request);
 
         var row = Assert.Single(repo.Rows);
         Assert.Equal("0312345678-001", row.TaxCode);
@@ -188,7 +194,7 @@ public class RegisterAgencyCommandTests
             r.Agency.MinEscrowBalance = 0m;
         });
 
-        await Handler(repo, rules).Handle(new RegisterAgencyCommand(ValidRequest()), default);
+        await Service(repo, rules).RegisterAsync(ValidRequest());
 
         var row = Assert.Single(repo.Rows);
         Assert.Equal(77.50m, row.SlaScore);
@@ -201,7 +207,7 @@ public class RegisterAgencyCommandTests
         var repo = new StubAgencyRepository();
         var hasher = new Pbkdf2PasswordHasher();
 
-        var result = await Handler(repo).Handle(new RegisterAgencyCommand(ValidRequest()), default);
+        var result = await Service(repo).RegisterAsync(ValidRequest());
 
         var row = Assert.Single(repo.Rows);
         Assert.NotNull(row.PasswordHash);
@@ -221,7 +227,7 @@ public class RegisterAgencyCommandTests
     {
         var repo = new StubAgencyRepository();
 
-        var result = await Handler(repo).Handle(new RegisterAgencyCommand(ValidRequest()), default);
+        var result = await Service(repo).RegisterAsync(ValidRequest());
 
         var data = result.Data!;
         Assert.Equal(1, data.AgencyId);
@@ -239,11 +245,11 @@ public class RegisterAgencyCommandTests
     public async Task Duplicate_tax_code_is_a_409_with_a_machine_readable_code()
     {
         var repo = new StubAgencyRepository();
-        await Handler(repo).Handle(new RegisterAgencyCommand(ValidRequest()), default);
+        await Service(repo).RegisterAsync(ValidRequest());
 
         var second = ValidRequest() with { ContactEmail = "other@example.com", TaxCode = " 0312345678 " };
         var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            Handler(repo).Handle(new RegisterAgencyCommand(second), default));
+            Service(repo).RegisterAsync(second));
 
         Assert.Equal("AGENCY_TAX_CODE_EXISTS", ex.Code);
         Assert.Equal(1, repo.AddCalls);
@@ -253,11 +259,11 @@ public class RegisterAgencyCommandTests
     public async Task Duplicate_email_ignores_case_and_surrounding_spaces()
     {
         var repo = new StubAgencyRepository();
-        await Handler(repo).Handle(new RegisterAgencyCommand(ValidRequest()), default);
+        await Service(repo).RegisterAsync(ValidRequest());
 
         var second = ValidRequest() with { TaxCode = "0412345678", ContactEmail = "  PARTNER@example.com " };
         var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            Handler(repo).Handle(new RegisterAgencyCommand(second), default));
+            Service(repo).RegisterAsync(second));
 
         Assert.Equal("AGENCY_EMAIL_EXISTS", ex.Code);
         Assert.Equal(1, repo.AddCalls);
@@ -267,10 +273,10 @@ public class RegisterAgencyCommandTests
     public async Task Tax_code_is_checked_before_email_when_both_exist()
     {
         var repo = new StubAgencyRepository();
-        await Handler(repo).Handle(new RegisterAgencyCommand(ValidRequest()), default);
+        await Service(repo).RegisterAsync(ValidRequest());
 
         var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            Handler(repo).Handle(new RegisterAgencyCommand(ValidRequest()), default));
+            Service(repo).RegisterAsync(ValidRequest()));
 
         Assert.Equal("AGENCY_TAX_CODE_EXISTS", ex.Code);
     }
@@ -282,7 +288,7 @@ public class RegisterAgencyCommandTests
         var bad = new RegisterAgencyRequest(new string('9', 100), "", "", "not-a-phone", "not-an-email", "a");
 
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-            Handler(repo).Handle(new RegisterAgencyCommand(bad), default));
+            Service(repo).RegisterAsync(bad));
 
         Assert.Equal(6, ex.Errors.Count);
         Assert.Equal(0, repo.AddCalls);
@@ -295,7 +301,7 @@ public class RegisterAgencyCommandTests
         var repo = new StubAgencyRepository();
 
         var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-            Handler(repo).Handle(new RegisterAgencyCommand(null), default));
+            Service(repo).RegisterAsync(null));
 
         Assert.Contains("request", ex.Errors.Keys);
     }
@@ -309,39 +315,36 @@ public class RegisterAgencyCommandTests
         };
 
         var ex = await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            Handler(repo).Handle(new RegisterAgencyCommand(ValidRequest()), default));
+            Service(repo).RegisterAsync(ValidRequest()));
 
         Assert.Equal("AGENCY_TAX_CODE_EXISTS", ex.Code);
     }
 
-    // ---- MediatR pipeline + module wiring --------------------------------------------------------------------
-
-    private static ServiceProvider Pipeline(StubAgencyRepository repo, BusinessRules? rules = null)
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddApplication();
-        services.AddSingleton<IOptions<BusinessRules>>(Microsoft.Extensions.Options.Options.Create(rules ?? new BusinessRules()));
-        services.AddSingleton<IClock>(new FixedClock(Now));
-        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
-        services.AddSingleton<IAgencyRepository>(repo);
-        return services.BuildServiceProvider();
-    }
+    // ---- module wiring ---------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task Command_is_dispatched_to_the_handler_through_mediatr()
+    public async Task Agencies_module_resolves_the_registration_service_without_mediatr()
     {
         var repo = new StubAgencyRepository();
-        await using var provider = Pipeline(repo);
+        var services = new ServiceCollection();
+        new AgenciesModule().ConfigureServices(services, new ConfigurationBuilder().Build());
+        services.AddSingleton<IOptions<BusinessRules>>(Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        services.AddSingleton<IClock>(new FixedClock(Now));
+        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddSingleton<IAgencyRepository>(repo); // replaces the EF repository: no database (Golden Rule)
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
 
-        var result = await provider.GetRequiredService<ISender>().Send(new RegisterAgencyCommand(ValidRequest()));
+        var service = scope.ServiceProvider.GetRequiredService<IAgencyRegistrationService>();
+        var result = await service.RegisterAsync(ValidRequest());
 
+        Assert.IsType<AgencyRegistrationService>(service);
         Assert.True(result.Success);
         Assert.Single(repo.Rows);
     }
 
     [Fact]
-    public void Agencies_module_registers_the_ef_repository()
+    public void Agencies_module_registers_the_ef_repository_and_the_application_services()
     {
         var services = new ServiceCollection();
 
@@ -350,7 +353,41 @@ public class RegisterAgencyCommandTests
         var descriptor = Assert.Single(services, d => d.ServiceType == typeof(IAgencyRepository));
         Assert.Equal(typeof(EfAgencyRepository), descriptor.ImplementationType);
         Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+        var registration = Assert.Single(services, d => d.ServiceType == typeof(IAgencyRegistrationService));
+        Assert.Equal(typeof(AgencyRegistrationService), registration.ImplementationType);
+        Assert.Equal(ServiceLifetime.Scoped, registration.Lifetime);
+        var workers = Assert.Single(services, d => d.ServiceType == typeof(IAgencyWorkerService));
+        Assert.Equal(typeof(AgencyWorkerService), workers.ImplementationType);
+        Assert.Equal(ServiceLifetime.Scoped, workers.Lifetime);
+        Assert.Single(services, d => d.ServiceType == typeof(WorkerRetirementService));
         Assert.Equal("Agencies", new AgenciesModule().Name);
+    }
+
+    // ---- worker list -----------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Worker_list_returns_only_the_workers_of_the_calling_agency()
+    {
+        var repo = new StubAgencyRepository();
+        await repo.CreateAgencyStaffAsync(7, new NewWorkerDetails { PhoneNumber = "0901000001", NationalId = "001000000001", FullName = "Tran Thi B" }, Now);
+        await repo.CreateAgencyStaffAsync(8, new NewWorkerDetails { PhoneNumber = "0901000002", NationalId = "001000000002", FullName = "Le Van C" }, Now);
+        var service = new AgencyWorkerService(repo, new FixedUser(7, UserRole.Partner));
+
+        var result = await service.GetWorkersAsync(1, 20, null);
+
+        var item = Assert.Single(result.Items);
+        Assert.Equal("Tran Thi B", item.FullName);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(7, UserRole.Customer)]
+    [InlineData(7, UserRole.Worker)]
+    public async Task Worker_list_is_forbidden_to_anyone_but_a_partner_agency(int? userId, UserRole? role)
+    {
+        var service = new AgencyWorkerService(new StubAgencyRepository(), new FixedUser(userId, role));
+
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => service.GetWorkersAsync(1, 20, null));
     }
 
     // ---- controller ------------------------------------------------------------------------------------------
@@ -359,8 +396,8 @@ public class RegisterAgencyCommandTests
     public async Task Controller_returns_201_with_the_response_envelope()
     {
         var repo = new StubAgencyRepository();
-        await using var provider = Pipeline(repo);
-        var controller = new AgenciesController(provider.GetRequiredService<ISender>());
+        // Register does not touch the worker list or the retirement service.
+        var controller = new AgenciesController(Service(repo), new AgencyWorkerService(repo, new FixedUser(null, null)), null!);
 
         var action = await controller.Register(ValidRequest(), default);
 

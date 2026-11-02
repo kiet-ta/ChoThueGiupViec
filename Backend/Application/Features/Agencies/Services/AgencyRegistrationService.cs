@@ -1,33 +1,30 @@
 using CommonService.Application.Common.Models;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
-using CommonService.Application.Features.Agencies.Commands;
 using CommonService.Application.Features.Agencies.Dtos;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
-using MediatR;
 using Microsoft.Extensions.Options;
 
-namespace CommonService.Application.Features.Agencies.Handlers;
+namespace CommonService.Application.Features.Agencies.Services;
 
 /// <summary>
 /// Creates a <c>PARTNER_AGENCY</c> row from a public registration (decisions Q09, Q16; leader decisions for BE-M5-01).
 /// The agency starts with a zero escrow balance, so it is <c>PENDING</c> until a deposit reaches
 /// <c>Agency.MinEscrowBalance</c> (the deposit itself is BE-M5-07). <c>worker_quota</c> starts at 0 and is set by BE-M5-02.
 /// </summary>
-public sealed class RegisterAgencyCommandHandler(
+public class AgencyRegistrationService(
     IAgencyRepository agencies,
     IPasswordHasher passwordHasher,
     IClock clock,
-    IOptions<BusinessRules> options)
-    : IRequestHandler<RegisterAgencyCommand, ApiResponse<RegisterAgencyResponse>>
+    IOptions<BusinessRules> options) : IAgencyRegistrationService
 {
-    public async Task<ApiResponse<RegisterAgencyResponse>> Handle(
-        RegisterAgencyCommand command,
-        CancellationToken cancellationToken)
+    public async Task<ApiResponse<RegisterAgencyResponse>> RegisterAsync(
+        RegisterAgencyRequest? request,
+        CancellationToken cancellationToken = default)
     {
         var rules = options.Value;
-        var input = AgencyRegistrationValidator.Validate(command.Request, rules.Auth.MinPasswordLength);
+        var input = AgencyRegistrationValidator.Validate(request, rules.Auth.MinPasswordLength);
 
         if (await agencies.TaxCodeExistsAsync(input.TaxCode, cancellationToken))
         {

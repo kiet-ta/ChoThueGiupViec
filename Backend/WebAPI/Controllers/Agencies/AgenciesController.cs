@@ -1,7 +1,7 @@
 using CommonService.Application.Common.Models;
-using CommonService.Application.Features.Agencies.Commands;
+using CommonService.Application.Features.Agencies;
 using CommonService.Application.Features.Agencies.Dtos;
-using MediatR;
+using CommonService.Application.Features.Agencies.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +11,10 @@ namespace CommonService.WebAPI.Controllers.Agencies;
 /// <summary>Partner Agency endpoints (contract agencies.md).</summary>
 [ApiController]
 [Route("api/v1/agencies")]
-public class AgenciesController(ISender sender) : ControllerBase
+public class AgenciesController(
+    IAgencyRegistrationService registrationService,
+    IAgencyWorkerService workerService,
+    WorkerRetirementService retirementService) : ControllerBase
 {
     /// <summary>
     /// Public self-service registration of a Partner Agency (BE-M5-01; leader decision). The agency is created
@@ -25,7 +28,7 @@ public class AgenciesController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register([FromBody] RegisterAgencyRequest? request, CancellationToken ct)
     {
-        var result = await sender.Send(new RegisterAgencyCommand(request), ct);
+        var result = await registrationService.RegisterAsync(request, ct);
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
@@ -43,7 +46,7 @@ public class AgenciesController(ISender sender) : ControllerBase
         [FromQuery] string? status = null,
         CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetAgencyWorkersQuery(page, pageSize, status), ct);
+        var result = await workerService.GetWorkersAsync(page, pageSize, status, ct);
         return Ok(result);
     }
 
@@ -63,7 +66,7 @@ public class AgenciesController(ISender sender) : ControllerBase
         [FromBody] RetireWorkerRequest? request,
         CancellationToken ct = default)
     {
-        var result = await sender.Send(new RetireWorkerCommand(workerId, request ?? new RetireWorkerRequest()), ct);
+        var result = await retirementService.RetireWorkerAsync(workerId, request ?? new RetireWorkerRequest(), ct);
         return Ok(result);
     }
 }
