@@ -45,7 +45,7 @@
 
 ### 2.1 Customer and Worker file a dispute (BE-M6-02, MOB-M6-03)
 
-**`POST /api/customers/me/disputes`** (policy `CustomerOnly`) and **`POST /api/workers/me/disputes`** (policy `WorkerOnly`) -> 201 `data: Dispute`
+**`POST /api/v1/customers/me/disputes`** (policy `CustomerOnly`) and **`POST /api/v1/workers/me/disputes`** (policy `WorkerOnly`) -> 201 `data: Dispute`
 ```json
 { "orderId": 0, "category": "string", "description": "string", "evidenceUrls": ["string"] }
 ```
@@ -63,7 +63,7 @@ Effects: `dispute_status = OPEN`, `sla_due_at = created_at + 48 h` (drawio note:
 
 > The leader gave no answer on how a dispute photo reaches the server and set a deadline, so this is the smallest upload that makes a photo real. It is listed here before the code, as AGENTS.md requires, and he can replace it.
 
-**`POST /api/customers/me/disputes/evidence`** (policy `CustomerOnly`) and **`POST /api/workers/me/disputes/evidence`** (policy `WorkerOnly`) -> 201 `data: { path, url, sizeBytes }`
+**`POST /api/v1/customers/me/disputes/evidence`** (policy `CustomerOnly`) and **`POST /api/v1/workers/me/disputes/evidence`** (policy `WorkerOnly`) -> 201 `data: { path, url, sizeBytes }`
 ```json
 { "fileName": "photo.jpg", "contentType": "image/jpeg", "contentBase64": "..." }
 ```
@@ -71,13 +71,13 @@ JSON with base64 because the mobile `ApiClient` is JSON-only (M4's photo upload 
 
 **`GET /files/dispute-evidence/{fileName}`** -> 200 the image, 404 otherwise. Anonymous on purpose: a browser sends no bearer header for `<img>`, and the Admin console shows the photos that way; the name holds a server-chosen GUID, so only somebody given the address can ask for it. Only that folder, only a name of letters, digits, `.`, `_`, `-` with a `.jpg`/`.png`/`.webp` extension; `X-Content-Type-Options: nosniff`. Known limits: no antivirus or EXIF stripping, no cleaning of photos of disputes that are never filed.
 
-**`GET /api/customers/me/disputes`** and **`GET /api/workers/me/disputes`** -> 200 `data: Dispute[]` (own disputes only), newest first. **`GET .../disputes/{disputeId}`** -> 200 `data: Dispute`, 404 if not the caller's. The party sees the verdict (`faultParty`, `compensationAmount`) once `RESOLVED`.
+**`GET /api/v1/customers/me/disputes`** and **`GET /api/v1/workers/me/disputes`** -> 200 `data: Dispute[]` (own disputes only), newest first. **`GET .../disputes/{disputeId}`** -> 200 `data: Dispute`, 404 if not the caller's. The party sees the verdict (`faultParty`, `compensationAmount`) once `RESOLVED`.
 
 ### 2.2 Admin queue and case file (WEB-M6-01) — policy `AdminOnly`
 
-**`GET /api/admin/disputes?status=&priority=&nearSla=&page=&pageSize=`** -> 200 `data: { items: DisputeSummary[], page, pageSize, total }`. Default `status = OPEN,IN_REVIEW`, sorted by `slaDueAt` ascending. `nearSla = true` keeps only unresolved disputes with `slaDueAt - now <= Admin.DisputeNearSlaHours` (see `admin.md` **A2**; the dashboard uses this filter). `pageSize` max 100, default 20. Unresolved total is what the dashboard shows as "Tranh chấp tồn".
+**`GET /api/v1/admin/disputes?status=&priority=&nearSla=&page=&pageSize=`** -> 200 `data: { items: DisputeSummary[], page, pageSize, total }`. Default `status = OPEN,IN_REVIEW`, sorted by `slaDueAt` ascending. `nearSla = true` keeps only unresolved disputes with `slaDueAt - now <= Admin.DisputeNearSlaHours` (see `admin.md` **A2**; the dashboard uses this filter). `pageSize` max 100, default 20. Unresolved total is what the dashboard shows as "Tranh chấp tồn".
 
-**`GET /api/admin/disputes/{disputeId}`** -> 200
+**`GET /api/v1/admin/disputes/{disputeId}`** -> 200
 ```json
 {
   "dispute": { "...Dispute" },
@@ -89,11 +89,13 @@ JSON with base64 because the mobile `ApiClient` is JSON-only (M4's photo upload 
 ```
 `shiftTimeline`, `checklist` and `photos` are **read from other modules** (check-in log: M3, job photos: M4) and need a read port that does not exist yet: see **D6**. The admin sees the customer's description and `evidenceUrls` from this module directly.
 
+**`photos[].url` (ADMIN-UAT-11).** The address the console can load. A photo the worker uploaded as a file is stored as a path (`job-photos/...`, `JOB_PHOTO.image_url`), which is no address: it is answered as `/api/v1/workers/assignments/{assignmentId}/photos/{photoId}/file` (the same rule as `workers.md` 2.4.2, `JobPhotoFileRules.FileAddress`), an address that needs the Admin's Bearer token (the console loads it through the API client, not through a bare `<img>`); an address the worker gave (`https://...`) is answered unchanged.
+
 ### 2.3 Admin handles a case (BE-M6-02)
 
-**`POST /api/admin/disputes/{disputeId}/take`** -> 200 `data: Dispute` (`OPEN -> IN_REVIEW`, records `resolved_by` = the admin as the handler). 409 if not `OPEN`.
+**`POST /api/v1/admin/disputes/{disputeId}/take`** -> 200 `data: Dispute` (`OPEN -> IN_REVIEW`, records `resolved_by` = the admin as the handler). 409 if not `OPEN`.
 
-**`POST /api/admin/disputes/{disputeId}/resolve`** -> 200 `data: Dispute`
+**`POST /api/v1/admin/disputes/{disputeId}/resolve`** -> 200 `data: Dispute`
 ```json
 { "faultParty": "FREELANCER | AGENCY | CUSTOMER | null", "compensationAmount": 0, "lockWorker": false, "note": "string" }
 ```
@@ -129,7 +131,7 @@ Absence-fee reversal (Q10): if the customer disputes an absence fee within 24 h 
 | **D1** | `category VARCHAR(15)` allowed values. PRD lists "hỏng đồ, mất vệ sinh, thái độ"; Figma shows "Chất lượng kém / Thái độ / Hư hỏng tài sản / Phí vắng mặt tự động". | **`QUALITY`, `ATTITUDE`, `PROPERTY_DAMAGE`, `ABSENT_FEE`, `OTHER`.** |
 | **D2** | `DISPUTE_TICKET` has `order_id` only, but fault is per worker (a two-worker order could mix a Freelancer and an Agency worker). | **One verdict per dispute; it applies to every assignment of the order. A mixed-fault order is out of the MVP.** If the leader wants per-assignment disputes, M1 adds an `assignment_id` column (schema change). |
 | **D3** | PRD says SLA 24-48 h by priority; drawio says `sla_due_at = +48 h`; Figma shows High/Medium/Low priority. No rule for priority. | **`sla_due_at = created_at + 48 h` for all; `priority` derived from remaining time: HIGH < 6 h, MEDIUM < 24 h, else LOW** (thresholds are config keys `Disputes.PriorityHighHours`, `Disputes.PriorityMediumHours`, proposed, not decided). |
-| **D4** | "Within 24 h after the shift" (PRD §4.3): measured from `completed_at` or the shift end? A customer can dispute before completion ("Từ chối & Khiếu nại" during acceptance, Figma timeline). | **Allowed from check-in until `max(completed_at, shift end) + Dispute.FileWindowHours` (24).** |
+| **D4** | "Within 24 h after the shift" (PRD §4.3): measured from `completed_at` or the shift end? A customer can dispute before completion ("Từ chối & Khiếu nại" during acceptance, Figma timeline). | **Allowed from check-in until `max(completed_at, shift end) + Dispute.FileWindowHours` (24).** When every assignment of the order is `ABSENT` (an absence-fee dispute) the window is `Absence.CustomerDisputeHours` (Q10, 24 by default) instead (ADMIN-UAT-10: the key existed but nothing read it). |
 | **D5** | Duplicate disputes; auto-created dispute for the absence fee ("Auto-Cancelled Dispute" in Figma). | **One ticket per order, enforced by the database (`UNIQUE(order_id)`, `DisputeTicketConfiguration.cs:17`): the first filing by either side wins, a second one is a 409. Replaces the earlier default "one unresolved per (order, raiser)", which the schema contradicts.** The system does not auto-create disputes; the Figma tag is shown only when `category = ABSENT_FEE`. If both sides must be able to file, the schema needs a change (M1). |
 | **D6** | Case file needs check-in log (M3), photos/VoL (M4) and checklist: modules may not read each other's tables. | **New read port `IDisputeEvidenceQuery` returning timeline, checklist and photos by `orderId` (implementer M3/M4 or M1 via the shared flat `JOB_ASSIGNMENT` data), added through a Scope exception on BASE-03.** Until then Fake. |
 | **D7** | If the customer is at fault, may the platform charge a fee? PRD only defines the 40% absence rule. | **No extra charge (nothing is invented); `CUSTOMER` fault is only recorded.** |

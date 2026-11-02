@@ -174,6 +174,64 @@ public class SteppedRadiusDispatchScanner
         };
     }
 
+    /// <summary>How many free workers the preferred-worker lookup reads at the widest radius; the query sorts by distance.</summary>
+    private const int PreferredLookupLimit = 1000;
+
+    /// <summary>
+    /// The customer's preferred (favorite) worker as a candidate for the order, or null when that worker is not free for the shift,
+    /// is farther than the widest radius step (BR-03, 10 km) or fails the same eligibility rules as every other candidate (tier,
+    /// Q14 rating floor). The radius is the smallest step that reaches the worker.
+    /// </summary>
+    public async Task<(DispatchCandidate Candidate, MatchingScoreResult ScoreResult, double RadiusKm)?> FindWorkerCandidateAsync(
+        ServiceTier serviceTier,
+        DateOnly date,
+        string shiftCode,
+        GeoPoint location,
+        long workerId,
+        CancellationToken cancellationToken = default)
+    {
+        var radiusSteps = _businessRules.Dispatch.RadiusStepsKm;
+        if (radiusSteps == null || radiusSteps.Length == 0)
+        {
+            radiusSteps = [5.0, 7.0, 10.0];
+        }
+
+        var maxRadius = radiusSteps.Max();
+        var available = await _workerAvailabilityQuery.FindAvailableFreelancersAsync(
+            new AvailabilityQuery(date, shiftCode, location, maxRadius, PreferredLookupLimit),
+            cancellationToken);
+        var worker = available.FirstOrDefault(w => w.WorkerId == workerId);
+        if (worker == null)
+        {
+            return null;
+        }
+
+        WorkerProfileSummary? profile = null;
+        if (_workerProfileQuery != null)
+        {
+            var profiles = await _workerProfileQuery.GetManyAsync([worker.WorkerId], cancellationToken);
+            profile = profiles.TryGetValue(worker.WorkerId, out var p) ? p : null;
+        }
+
+        var candidate = new DispatchCandidate
+        {
+            WorkerId = worker.WorkerId,
+            WorkerType = "FREELANCER", // AvailabilityQuery returns freelancers
+            AgencyId = null,
+            SlotId = worker.SlotId,
+            DistanceKm = worker.DistanceKm,
+            RatingAvg = profile?.RatingAvg ?? 5.0m,
+            CompletedJobs = profile?.CompletedJobs ?? 0,
+        };
+
+        var radius = radiusSteps.Where(r => r >= worker.DistanceKm).DefaultIfEmpty(maxRadius).Min();
+        var ranked = MatchingScoreCalculator.RankCandidates(
+            FilterCandidatesByServiceTier([candidate], serviceTier),
+            radius,
+            _matchingScoreOptions);
+        return ranked.Count == 0 ? null : (ranked[0].Candidate, ranked[0].Result, radius);
+    }
+
     /// <summary>
     /// Enforces service tier constraints:
     /// - Economy: strictly FREELANCER, never AGENCY (PRD §2.1).

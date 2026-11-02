@@ -104,9 +104,9 @@ Value lists for `ext_status` / `worker_decision`: see **B5** (the columns are st
 { "ruleId": 0, "serviceTier": "ECONOMY", "areaBracket": "UP_TO_30", "unitPrice": 0, "isActive": true, "updatedAt": "ISO-8601 UTC", "updatedBy": 0 }
 ```
 
-## 3. Customer endpoints (`CustomerOnly`, base `/api/booking`)
+## 3. Customer endpoints (`CustomerOnly`, base `/api/v1/booking`)
 
-### 3.1 `GET /api/booking/options`
+### 3.1 `GET /api/v1/booking/options`
 Static booking choices so the app hard-codes nothing (G-4). 200 `data`:
 ```json
 {
@@ -118,7 +118,7 @@ Static booking choices so the app hard-codes nothing (G-4). 200 `data`:
 ```
 (values from `BusinessRules`: `Premium.MinLeadHours`, `Shift.MaxHours`, `Area.StandardMaxM2`, `Payments.QrExpiryMinutes`; `sandbox` is always `true` in the MVP, G-1.)
 
-### 3.2 `GET /api/booking/price-quote?addressId=&serviceTier=` (BE-M2-02, MOB-M2-02)
+### 3.2 `GET /api/v1/booking/price-quote?addressId=&serviceTier=` (BE-M2-02, MOB-M2-02)
 Shows the fixed price **before** paying (PRD §4.1, Q01). 200 `data`: `PriceQuote`. Read only, creates nothing; the price is only frozen by 3.3.
 
 | Status | Condition |
@@ -127,20 +127,24 @@ Shows the fixed price **before** paying (PRD §4.1, Q01). 200 `data`: `PriceQuot
 | 404 | address does not exist or is not the caller's |
 | 500 | no active `PRICE_RULE` row for the pair (seed data broken; never guessed) |
 
-### 3.3 `POST /api/booking/orders` (BE-M2-01, BE-M2-02, BE-M2-03)
+### 3.3 `POST /api/v1/booking/orders` (BE-M2-01, BE-M2-02, BE-M2-03)
+
+For rebooking, `GET /api/v1/booking/orders/{orderId}/workers/{workerId}/availability` returns `data` as an array of `{ "date": "yyyy-MM-dd", "shiftCode": "string" }` for the booking window. The order must belong to the caller and have a COMPLETED assignment for that worker; either mismatch returns 404. This read does not add a favorite.
 Request
 ```json
 {
   "addressId": 0, "serviceTier": "ECONOMY | PREMIUM",
   "scheduledDate": "2026-10-15", "shiftCode": "SHIFT_MORNING",
-  "customerNote": "string | null", "requiredSkill": "string | null"
+  "customerNote": "string | null", "requiredSkill": "string | null",
+  "preferredWorkerId": "int | null", "previousOrderId": "long | null"
 }
 ```
+`preferredWorkerId` (optional, ECONOMY only): one of the caller's favorite workers (`customers.md` 2.3), or a worker with a COMPLETED assignment on the caller's `previousOrderId`. The latter does not change the caller's favorites. Dispatch offers that worker the first open seat before the 5 -> 7 -> 10 km scan, when they have not had the order yet, are free for the shift, within 10 km and pass the usual eligibility; otherwise (or after a decline / timeout) dispatch goes on as usual. It is a wish, not a guarantee. Stored in `JOB_ORDER.preferred_worker_id` (INT NULL, plain id).
 Response **201** `data`: `Order` (`orderStatus = PENDING_PAYMENT`). The client then asks for the QR (`payments.md` §2.1).
 
 Rules (in this order; nothing is written when one fails):
-1. Validation (400, O5): `addressId` > 0; `serviceTier` and `shiftCode` from §1.2/§1.3; `scheduledDate` a date; `customerNote` <= 500 chars (column `NVARCHAR(500)`); `requiredSkill` <= 100 chars and only allowed for `PREMIUM` (see **B6**).
-2. The address must belong to the caller (404 otherwise), read through a port, never from `CUSTOMER_ADDRESS` (`customers.md` §3; see **B2**). `areaSnapshotM2` = its `totalAreaM2` at this moment.
+1. Validation (400, O5): `addressId` > 0; `serviceTier` and `shiftCode` from §1.2/§1.3; `scheduledDate` a date; `customerNote` <= 500 chars (column `NVARCHAR(500)`); `requiredSkill` <= 100 chars and only allowed for `PREMIUM` (see **B6**); `preferredWorkerId` > 0 and only allowed for `ECONOMY`.
+2. The address must belong to the caller (404 otherwise), read through a port, never from `CUSTOMER_ADDRESS` (`customers.md` §3; see **B2**). `areaSnapshotM2` = its `totalAreaM2` at this moment. A `preferredWorkerId` must be a favorite or have a COMPLETED assignment on the caller's `previousOrderId` (404 otherwise). `previousOrderId`, when provided, must be positive and requires `preferredWorkerId` (400 otherwise).
 3. Shift start must be in the future (409 `SHIFT_IN_PAST`). See **B3** for an Economy lead time / booking horizon.
 4. `PREMIUM`: shift start >= now + `Premium.MinLeadHours` (4) (Q13) else **409** `PREMIUM_LEAD_TIME`.
 5. `requiredWorkers` and `totalAmount` from §1.3 (BE-M2-01 pure function + BE-M2-02 price lookup).
@@ -150,21 +154,21 @@ Rules (in this order; nothing is written when one fails):
 | Status | Condition |
 |---|---|
 | 400 | validation (O5) |
-| 404 | address not found / not owned |
+| 404 | address not found / not owned; `preferredWorkerId` is neither a favorite nor a completed worker on the caller's previous order |
 | 409 | `data.code` = `SHIFT_IN_PAST` \| `PREMIUM_LEAD_TIME` \| `FULLY_BOOKED` |
 
 Business 409s carry `data: { "code": "<CODE>" }` so clients branch on the code, never on `message` (same pattern as `admin.md` `failedCriteria`).
 
-### 3.4 `GET /api/booking/orders?status=&page=&pageSize=` (BE-M2-10, MOB-M2-06)
+### 3.4 `GET /api/v1/booking/orders?status=&page=&pageSize=` (BE-M2-10, MOB-M2-06)
 Caller's history from `JOB_ORDER WHERE customer_id = :me` (0 JOIN), newest `createdAt` first. `status` optional, one value of §1.1. `pageSize` default 20, max 100. 200 `data: { items: OrderSummary[], page, pageSize, total }`. 400 on an unknown `status`.
 
-### 3.5 `GET /api/booking/orders/{orderId}` (MOB-M2-04)
+### 3.5 `GET /api/v1/booking/orders/{orderId}` (MOB-M2-04)
 200 `data`: `Order`. 404 if not the caller's.
 
-### 3.6 `GET /api/booking/orders/{orderId}/progress` (BE-M2-10, MOB-M2-04)
-200 `data`: `OrderProgress`. 404 if not the caller's. Realtime: the app subscribes to SignalR topic `job.tracking` on `/hubs/notifications` (Q07); every order status change sends `NotificationMessage { RecipientRole = Customer, Topic = "job.tracking", Data = { orderId, orderStatus } }` and the app re-reads this endpoint. Polling this endpoint is the fallback. Overlap with `GET /api/dispatch/orders/{orderId}/status`: **B9**.
+### 3.6 `GET /api/v1/booking/orders/{orderId}/progress` (BE-M2-10, MOB-M2-04)
+200 `data`: `OrderProgress`. 404 if not the caller's. Realtime: the app subscribes to SignalR topic `job.tracking` on `/hubs/notifications` (Q07); every order status change sends `NotificationMessage { RecipientRole = Customer, Topic = "job.tracking", Data = { orderId, orderStatus } }` and the app re-reads this endpoint. Polling this endpoint is the fallback. Overlap with `GET /api/v1/dispatch/orders/{orderId}/status`: **B9**.
 
-### 3.7 `POST /api/booking/orders/{orderId}/cancel` (BE-M2-09, Q15)
+### 3.7 `POST /api/v1/booking/orders/{orderId}/cancel` (BE-M2-09, Q15)
 Request `{ "reason": "string (1-255)" }`. Response 200 `data`: `Order` (`CANCELLED`, `cancelReason` = reason).
 
 | Order status at cancel | Money (Q15) |
@@ -185,7 +189,7 @@ Request `{ "reason": "string (1-255)" }`. Response 200 `data`: `Order` (`CANCELL
 | 404 | order not found / not owned |
 | 409 | `INVALID_STATE` (see table) |
 
-### 3.8 `POST /api/booking/orders/{orderId}/extensions` (BE-M2-08, BR-08, "Làm lần 2")
+### 3.8 `POST /api/v1/booking/orders/{orderId}/extensions` (BE-M2-08, BR-08, "Làm lần 2")
 Request `{ "assignmentId": 0, "extraHours": 0.0 }`. Response **201** `data`: `Extension` (`extStatus = PENDING_PAYMENT`, `workerDecision = PENDING`). The client then asks for its QR (`payments.md` §2.2).
 
 Rules:
@@ -202,10 +206,10 @@ Rules:
 
 ## 4. Admin endpoints (`AdminOnly`, BE-M2-02a, WEB-M2-01)
 
-### 4.1 `GET /api/admin/price-rules`
+### 4.1 `GET /api/v1/admin/price-rules`
 200 `data: PriceRule[]` (all 6 rows of Q01, ordered by `serviceTier`, `areaBracket`).
 
-### 4.2 `PUT /api/admin/price-rules/{ruleId}`
+### 4.2 `PUT /api/v1/admin/price-rules/{ruleId}`
 Request `{ "unitPrice": 0, "reason": "string (1-255)" }`. Response 200 `data`: `PriceRule`.
 - `unitPrice` > 0, whole VND (no decimals), <= 9,999,999,999,999,999 (`DECIMAL(18,2)`). `reason` required, non-empty (Q01, G-5).
 - In **one DB transaction** (G-5): update `unit_price`, `updated_at = now`, `updated_by = <admin id>` and write one `ADMIN_AUDIT_LOG` row through `IAuditLog`: `actorType = ADMIN`, `adminId`, `entityType = PRICE_RULE`, `entityId = <ruleId>`, `fieldName = unit_price`, `oldValue`, `newValue`, `reason`.
@@ -218,7 +222,7 @@ Request `{ "unitPrice": 0, "reason": "string (1-255)" }`. Response 200 `data`: `
 | 404 | `ruleId` unknown |
 
 ### 4.3 Price change history (read-only)
-No new endpoint: the Admin UI reads `GET /api/admin/audit-logs?entityType=PRICE_RULE&entityId=&page=&pageSize=` (`admin.md` §2.4, owner M6), which already returns who, when, old/new value and reason. Booking does not read `ADMIN_AUDIT_LOG` (M6's table). If the leader wants a Booking-owned endpoint instead: **B12**.
+No new endpoint: the Admin UI reads `GET /api/v1/admin/audit-logs?entityType=PRICE_RULE&entityId=&page=&pageSize=` (`admin.md` §2.4, owner M6), which already returns who, when, old/new value and reason. Booking does not read `ADMIN_AUDIT_LOG` (M6's table). If the leader wants a Booking-owned endpoint instead: **B12**.
 
 ## 5. Events
 Records are those of `Backend/Domain/Events/*.cs` (BASE-04); this contract does not change them.
@@ -243,7 +247,7 @@ Records are those of `Backend/Domain/Events/*.cs` (BASE-04); this contract does 
 | **B6** | `requiredSkill` (`JOB_ORDER.required_skill`, PRD §2.5 skill label) - free text or a Skill catalog id (M5)? | Premium only, a skill **name** from M5's catalog, validated through M5 when its contract exists; until then optional and not validated. |
 | **B7** | `order_code` format (`VARCHAR(20)`, UNIQUE) is not defined. | `GV` + `yyMMdd` (local date) + 6 random uppercase alphanumerics, e.g. `GV261015K3P9QZ` (14 chars); retry on UNIQUE clash. |
 | **B8** | `IAgencyCapacityService` returns a `ReservationId` that must survive until payment/expiry, but `JOB_ORDER` has no column for it. | M5 keys the reservation by `orderId` (new port parameter) so Booking stores nothing; otherwise a new nullable column `JOB_ORDER.capacity_reservation_id` (M1 schema change). |
-| **B9** | `GET /api/dispatch/orders/{orderId}/status` (`dispatch.md` §3.2, draft) overlaps with §3.6. | Keep both: §3.6 is the order view (status + assignments); Dispatch's endpoint covers only the live search (radius, offers). The app's tracking screen reads §3.6. |
+| **B9** | `GET /api/v1/dispatch/orders/{orderId}/status` (`dispatch.md` §3.2, draft) overlaps with §3.6. | Keep both: §3.6 is the order view (status + assignments); Dispatch's endpoint covers only the live search (radius, offers). The app's tracking screen reads §3.6. |
 | **B10** | Q15 late cancel (<= 2 h, `ASSIGNED`): the 40 % goes to the worker, but `JOB_ASSIGNMENT` only has `absence_fee_amount` (BR-05), and refund of 60 % needs a partial refund record (`payments.md` P2). | Reuse no column for a different meaning; M1 adds `JOB_ASSIGNMENT.cancel_fee_amount DECIMAL(18,2) NULL`, M3 sets the assignment to `CANCELLED`. Not implemented until answered. |
 | **B11** | Allowed `extraHours` for "Làm lần 2" (column `DECIMAL(3,1)`). Also `ExtensionPaid.ExtraHours` is `int` and `ExtensionId` is `long` while the entity has `decimal` / `int`. | `extraHours` from 0.5 to `Shift.MaxHours` (4) in 0.5 steps; M1 changes `ExtensionPaid.ExtraHours` to `decimal` (BASE-04 Scope exception). |
-| **B12** | Q01 says "Admin can list the change log"; plan BE-M2-02a says "endpoint xem lịch sử". | Reuse M6's `GET /api/admin/audit-logs?entityType=PRICE_RULE` (§4.3); no duplicate endpoint. |
+| **B12** | Q01 says "Admin can list the change log"; plan BE-M2-02a says "endpoint xem lịch sử". | Reuse M6's `GET /api/v1/admin/audit-logs?entityType=PRICE_RULE` (§4.3); no duplicate endpoint. |

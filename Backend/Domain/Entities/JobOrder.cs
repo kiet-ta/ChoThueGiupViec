@@ -32,6 +32,12 @@ public partial class JobOrder
     /// <summary>job_order.required_workers TINYINT</summary>
     public byte RequiredWorkers { get; set; }
 
+    /// <summary>
+    /// job_order.preferred_worker_id INT NULL: the favorite worker the customer picked (ECONOMY only, booking.md 3.3). Dispatch offers the
+    /// first seat to this worker before the radius scan when they are still free and eligible; it is a wish, not a guarantee.
+    /// </summary>
+    public int? PreferredWorkerId { get; set; }
+
     /// <summary>job_order.required_skill NVARCHAR(100) NULL</summary>
     public string? RequiredSkill { get; set; }
 

@@ -17,7 +17,7 @@ class PayoutsService implements IPayoutsService {
   @override
   Future<Earnings> getEarnings(String month) async {
     final response = await _client.get<Earnings>(
-      '/api/workers/me/earnings',
+      '/api/v1/workers/me/earnings',
       queryParams: {'month': month},
       fromJson: (json) => Earnings.fromJson(json as Map<String, dynamic>),
     );
@@ -34,7 +34,7 @@ class PayoutsService implements IPayoutsService {
     int pageSize = 20,
   }) async {
     final response = await _client.get<PayoutHistoryPage>(
-      '/api/workers/me/payouts',
+      '/api/v1/workers/me/payouts',
       queryParams: {'page': '$page', 'pageSize': '$pageSize'},
       fromJson: (json) =>
           PayoutHistoryPage.fromJson(json as Map<String, dynamic>),

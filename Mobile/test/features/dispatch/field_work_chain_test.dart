@@ -65,7 +65,7 @@ void main() {
       );
       await tester.pump();
 
-      final photos = find.text('Chụp Ảnh Before / After (VoL)');
+      final photos = find.text('Chụp ảnh trước và sau');
       await tapVisible(tester, photos);
       await tester.pumpAndSettle();
       expect(pushed.single.name, WorkerRoutes.photos);
@@ -80,7 +80,7 @@ void main() {
       await tester.pump();
       expect(service.submitted, [7]);
       expect(
-        find.text('Đã gửi nghiệm thu. Chờ khách hàng xác nhận.'),
+        find.text('Đã gửi nghiệm thu. Chờ gia chủ xác nhận.'),
         findsOneWidget,
       );
     },

@@ -66,12 +66,12 @@ void main() {
     });
 
     test(
-      'shares the device position with PUT /api/workers/me/location',
+      'shares the device position with PUT /api/v1/workers/me/location',
       () async {
         final res = await service.shareCurrentLocation();
 
         expect(methods, ['PUT']);
-        expect(paths, ['/api/workers/me/location']);
+        expect(paths, ['/api/v1/workers/me/location']);
         expect(auth, ['Bearer worker_token']);
         expect(requests.single, {'latitude': 10.7765, 'longitude': 106.7005});
         expect(res.success, isTrue);

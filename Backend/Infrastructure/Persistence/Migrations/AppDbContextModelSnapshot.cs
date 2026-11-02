@@ -1036,6 +1036,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(20)")
                         .HasColumnName("order_status");
 
+                    b.Property<int?>("PreferredWorkerId")
+                        .HasColumnType("int")
+                        .HasColumnName("preferred_worker_id");
+
                     b.Property<string>("RequiredSkill")
                         .HasMaxLength(100)
                         .IsUnicode(true)
@@ -2067,6 +2071,29 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("DATETIME2")
                         .HasColumnName("updated_at");
+
+                    b.Property<DateTime?>("WorkAreaSetAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("work_area_set_at");
+
+                    b.Property<string>("WorkDistricts")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("work_districts");
+
+                    b.Property<decimal?>("WorkLat")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("DECIMAL(9,6)")
+                        .HasColumnName("work_lat");
+
+                    b.Property<decimal?>("WorkLng")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("DECIMAL(9,6)")
+                        .HasColumnName("work_lng");
+
+                    b.Property<byte?>("WorkRadiusKm")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("work_radius_km");
 
                     b.Property<string>("WorkStatus")
                         .IsRequired()

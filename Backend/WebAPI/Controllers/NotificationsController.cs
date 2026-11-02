@@ -11,7 +11,7 @@ namespace CommonService.WebAPI.Controllers;
 /// Used by clients when WebSocket / SignalR connection is unavailable.
 /// </summary>
 [ApiController]
-[Route("api/notifications")]
+[Route("api/v1/notifications")]
 public class NotificationsController : ControllerBase
 {
     private readonly INotificationStore _store;

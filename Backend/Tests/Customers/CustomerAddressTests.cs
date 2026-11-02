@@ -916,7 +916,7 @@ public class CustomerAddressTests
     [Fact]
     public void Controller_routes_match_the_contract()
     {
-        Assert.Equal("api/customers/me/addresses", typeof(CustomerAddressesController).GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/customers/me/addresses", typeof(CustomerAddressesController).GetCustomAttribute<RouteAttribute>()!.Template);
     }
 
     [Fact]

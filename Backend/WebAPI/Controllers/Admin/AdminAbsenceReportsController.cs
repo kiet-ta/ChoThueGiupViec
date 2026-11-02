@@ -13,7 +13,7 @@ namespace CommonService.WebAPI.Controllers.Admin;
 /// admin id for the audit row comes from the token.
 /// </summary>
 [ApiController]
-[Route("api/admin/absence-reports")]
+[Route("api/v1/admin/absence-reports")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminAbsenceReportsController(IAbsenceReportService reports, ICurrentUser currentUser) : ControllerBase
 {

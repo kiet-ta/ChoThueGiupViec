@@ -16,6 +16,18 @@ const String sandboxBannerText = 'SANDBOX – no real money';
 /// How often the screen asks the server for the payment status (the contract's polling fallback, payments.md 2.3).
 const Duration defaultPollInterval = Duration(seconds: 3);
 
+/// How long a sandbox (Fake gateway) payment waits before the screen confirms it by itself.
+const Duration defaultSandboxAutoConfirmDelay = Duration(seconds: 5);
+
+/// Only a waiting payment of the Fake gateway can be confirmed by the app (backend `DevPaymentService`: FAKE- references only).
+bool isSandboxAutoConfirmable(Payment payment) =>
+    payment.sandbox &&
+    payment.gateway.toUpperCase() == 'FAKE' &&
+    payment.txnStatus == PaymentTxnStatus.pending;
+
+String sandboxAutoConfirmNote(Duration delay) =>
+    'Sandbox: thanh toán tự được xác nhận sau ${delay.inSeconds} giây.';
+
 /// What the customer is looking at.
 enum PaymentPhase {
   /// Waiting for the payment; the QR is valid.

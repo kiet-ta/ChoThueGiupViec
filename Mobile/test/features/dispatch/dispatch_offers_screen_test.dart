@@ -36,10 +36,10 @@ void main() {
         // District
         expect(find.text('Quận Cầu Giấy'), findsOneWidget);
         // Net earnings header & amount (208.000 đ)
-        expect(find.text('THỰC NHẬN SAU HOA HỒNG'), findsOneWidget);
+        expect(find.text('Thực nhận'), findsOneWidget);
         expect(find.text('208.000 đ'), findsOneWidget);
         // Commission 20%
-        expect(find.text('Hoa hồng 20%'), findsOneWidget);
+        expect(find.textContaining('Phí 20%'), findsOneWidget);
         // Action buttons
         expect(find.byKey(const Key('accept_offer_button')), findsOneWidget);
         expect(find.byKey(const Key('decline_offer_button')), findsOneWidget);
@@ -65,10 +65,7 @@ void main() {
         await tester.tap(acceptButton);
         await tester.pumpAndSettle();
 
-        expect(
-          find.textContaining('Nhận cuốc thành công! Mã ca làm #1001'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('Đã nhận việc'), findsOneWidget);
       },
     );
 
@@ -110,8 +107,8 @@ void main() {
       await tester.pumpWidget(createScreen());
       await tester.pumpAndSettle();
 
-      expect(find.text('Chưa có cuốc mới'), findsOneWidget);
-      expect(find.textContaining('Hệ thống đang quét'), findsOneWidget);
+      expect(find.text('Chưa có việc mới'), findsOneWidget);
+      expect(find.textContaining('Ứng dụng đang tìm việc'), findsOneWidget);
     });
     testWidgets(
       'an offer made after the screen opened shows up without a tap; polling stops on dispose',
@@ -127,7 +124,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('Chưa có cuốc mới'), findsOneWidget);
+        expect(find.text('Chưa có việc mới'), findsOneWidget);
 
         await tester.pump(const Duration(seconds: 5));
         await tester.pumpAndSettle();

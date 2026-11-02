@@ -7,6 +7,7 @@ import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/screens/booking_screen.dart';
 import 'package:mobile/features/booking/services/booking_service.dart';
+import 'package:mobile/features/customers/models/favorite_worker.dart';
 
 const _options = BookingOptions(
   serviceTiers: ['ECONOMY', 'PREMIUM'],
@@ -124,13 +125,54 @@ class FakeAddresses implements IBookingAddressSource {
   }
 }
 
+/// The favorites and their free shifts; empty by default, so the section stays hidden and nothing goes to the network.
+class FakeFavorites implements IBookingFavoriteSource {
+  List<FavoriteWorker> list;
+  Set<String> free;
+  final freeAsked = <int>[];
+
+  FakeFavorites([this.list = const [], this.free = const {}]);
+
+  @override
+  Future<List<FavoriteWorker>> getFavorites() => Future.value(list);
+
+  @override
+  Future<Set<String>> getFreeShifts(int workerId) {
+    freeAsked.add(workerId);
+    return Future.value(free);
+  }
+}
+
+class FakeRebookAvailability implements IRebookAvailabilitySource {
+  final requested = <(int, int)>[];
+
+  @override
+  Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
+    requested.add((orderId, workerId));
+    return {'2026-10-15|SHIFT_MORNING'};
+  }
+}
+
+const _mai = FavoriteWorker(
+  workerId: 42,
+  fullName: 'Nguyễn Thị Mai',
+  ratingAvg: 4.9,
+  completedJobs: 142,
+  workStatus: 'IDLE',
+);
+
 Future<List<BookingOrder>> pumpBooking(
   WidgetTester tester,
   FakeBookingService service, {
   FakeAddresses? addresses,
   VoidCallback? onManageAddresses,
+  BookingScreenArgs? args,
+  FakeFavorites? favorites,
+  IRebookAvailabilitySource? rebookAvailability,
+  double width = 390,
+  double textScale = 1.0,
 }) async {
-  tester.view.physicalSize = const Size(390, 3200);
+  tester.view.physicalSize = Size(width, 3200);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(() {
     tester.view.resetPhysicalSize();
@@ -140,12 +182,20 @@ Future<List<BookingOrder>> pumpBooking(
   await tester.pumpWidget(
     MaterialApp(
       theme: NordicTheme.lightTheme,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       home: BookingScreen(
         service: service,
         addresses: addresses ?? FakeAddresses(),
         now: () => DateTime.utc(2026, 10, 14, 3),
         onOrderCreated: opened.add,
         onManageAddresses: onManageAddresses,
+        args: args,
+        favorites: favorites ?? FakeFavorites(),
+        rebookAvailability: rebookAvailability,
       ),
     ),
   );
@@ -166,6 +216,22 @@ String textOf(WidgetTester tester, String key) =>
 
 void main() {
   group('BookingScreen (MOB-M2-01, MOB-M2-02)', () {
+    for (final width in [360.0, 428.0]) {
+      testWidgets(
+        'lays out without overflow at ${width.toInt()} px with text scale 1.3',
+        (tester) async {
+          await pumpBooking(
+            tester,
+            FakeBookingService(),
+            width: width,
+            textScale: 1.3,
+          );
+
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
     testWidgets(
       'offers both segments, explained, with the lead time from the options',
       (tester) async {
@@ -173,7 +239,7 @@ void main() {
 
         expect(find.byKey(const Key('tier-ECONOMY')), findsOneWidget);
         expect(find.byKey(const Key('tier-PREMIUM')), findsOneWidget);
-        expect(find.textContaining('Thợ tự do'), findsOneWidget);
+        expect(find.textContaining('Người làm tự do'), findsOneWidget);
         expect(find.textContaining('ít nhất 4 giờ'), findsOneWidget);
       },
     );
@@ -185,9 +251,200 @@ void main() {
 
         expect(find.textContaining('1 Lê Lợi · 50 m²'), findsOneWidget);
         expect(find.textContaining('9 Hai Bà Trưng · 90 m²'), findsOneWidget);
-        expect(find.text('Ca sáng · 08:00–12:00'), findsOneWidget);
-        expect(find.text('Ca tối · 17:30–20:30'), findsOneWidget);
+        expect(find.bySemanticsLabel('Ca sáng · 08:00–12:00'), findsOneWidget);
+        expect(find.bySemanticsLabel('Ca tối · 17:30–20:30'), findsOneWidget);
+        expect(find.text('08:00'), findsOneWidget);
+        expect(find.text('→ 20:30'), findsOneWidget);
         expect(find.byKey(const Key('day-2026-10-14')), findsOneWidget);
+      },
+    );
+
+    testWidgets('Economy offers the favorite workers; Premium does not', (
+      tester,
+    ) async {
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        favorites: FakeFavorites([_mai]),
+      );
+      expect(find.byKey(const Key('favorite-42')), findsNothing);
+
+      await tapKey(tester, 'tier-ECONOMY');
+      expect(find.byKey(const Key('favorite-none')), findsOneWidget);
+      expect(find.byKey(const Key('favorite-42')), findsOneWidget);
+
+      await tapKey(tester, 'tier-PREMIUM');
+      expect(find.byKey(const Key('favorite-42')), findsNothing);
+    });
+
+    testWidgets(
+      'rebooking selects a previous worker without adding a favorite',
+      (tester) async {
+        final service = FakeBookingService();
+        final availability = FakeRebookAvailability();
+        await pumpBooking(
+          tester,
+          service,
+          rebookAvailability: availability,
+          args: const BookingScreenArgs(
+            preferredWorkerId: 42,
+            previousOrderId: 100,
+            previousWorkerName: 'Nguyễn Thị Mai',
+          ),
+        );
+        expect(availability.requested, [(100, 42)]);
+        expect(find.byKey(const Key('favorite-42')), findsOneWidget);
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'submit-order');
+        expect(service.created.single.previousOrderId, 100);
+        expect(service.created.single.preferredWorkerId, 42);
+      },
+    );
+
+    testWidgets(
+      'picking a favorite greys out the days and shifts they are busy, and sends them',
+      (tester) async {
+        final service = FakeBookingService();
+        final favorites = FakeFavorites([_mai], {'2026-10-15|SHIFT_MORNING'});
+        await pumpBooking(tester, service, favorites: favorites);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'favorite-42');
+        expect(favorites.freeAsked, [42]);
+        expect(find.byKey(const Key('favorite-note')), findsOneWidget);
+
+        // Pressable has its own Opacity (1.0 at rest): a busy tile is the faded one.
+        Finder faded(String key) => find.descendant(
+          of: find.byKey(Key(key)),
+          matching: find.byWidgetPredicate(
+            (w) => w is Opacity && w.opacity < 0.5,
+          ),
+        );
+        expect(faded('day-2026-10-14'), findsOneWidget);
+        expect(faded('day-2026-10-15'), findsNothing);
+
+        // A busy day cannot be chosen.
+        await tapKey(tester, 'day-2026-10-14');
+        await tapKey(tester, 'submit-order');
+        expect(textOf(tester, 'booking-hint'), contains('ngày'));
+
+        await tapKey(tester, 'day-2026-10-15');
+        expect(faded('shift-SHIFT_MORNING'), findsNothing);
+        expect(faded('shift-SHIFT_EVENING'), findsOneWidget);
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'submit-order');
+
+        expect(service.created.single.preferredWorkerId, 42);
+        expect(service.created.single.toJson()['preferredWorkerId'], 42);
+      },
+    );
+
+    testWidgets(
+      'opened from the favorites list, the worker and the Economy segment are ticked',
+      (tester) async {
+        final service = FakeBookingService();
+        final favorites = FakeFavorites([_mai], {'2026-10-15|SHIFT_MORNING'});
+        await pumpBooking(
+          tester,
+          service,
+          favorites: favorites,
+          args: const BookingScreenArgs(preferredWorkerId: 42),
+        );
+
+        expect(service.quotes.single.tier, 'ECONOMY');
+        expect(favorites.freeAsked, [42]);
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('favorite-42')),
+            matching: find.byIcon(Icons.check_circle_rounded),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('favorite-note')), findsOneWidget);
+      },
+    );
+
+    testWidgets('a preselected worker who is no longer a favorite is dropped', (
+      tester,
+    ) async {
+      final favorites = FakeFavorites([_mai]);
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        favorites: favorites,
+        args: const BookingScreenArgs(preferredWorkerId: 7),
+      );
+
+      expect(favorites.freeAsked, isEmpty);
+      expect(find.byKey(const Key('favorite-note')), findsNothing);
+    });
+
+    testWidgets(
+      'opened from a quick-booking tile, the segment and address are ticked',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(
+          tester,
+          service,
+          args: const BookingScreenArgs(
+            serviceTier: ServiceTier.premium,
+            addressId: 2,
+          ),
+        );
+
+        expect(service.quotes.single, (addressId: 2, tier: 'PREMIUM'));
+        expect(find.byKey(const Key('quote-total')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a preselected segment or address that does not exist is dropped',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(
+          tester,
+          service,
+          args: const BookingScreenArgs(serviceTier: 'GOLD', addressId: 99),
+        );
+
+        expect(service.quotes, isEmpty);
+        await tapKey(tester, 'tier-ECONOMY');
+        expect(service.quotes.single, (addressId: 1, tier: 'ECONOMY'));
+      },
+    );
+
+    testWidgets(
+      'opened from a quick-booking tile, the segment and address are ticked',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(
+          tester,
+          service,
+          args: const BookingScreenArgs(
+            serviceTier: ServiceTier.premium,
+            addressId: 2,
+          ),
+        );
+
+        expect(service.quotes.single, (addressId: 2, tier: 'PREMIUM'));
+        expect(find.byKey(const Key('quote-total')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a preselected segment or address that does not exist is dropped',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(
+          tester,
+          service,
+          args: const BookingScreenArgs(serviceTier: 'GOLD', addressId: 99),
+        );
+
+        expect(service.quotes, isEmpty);
+        await tapKey(tester, 'tier-ECONOMY');
+        expect(service.quotes.single, (addressId: 1, tier: 'ECONOMY'));
       },
     );
 
@@ -206,11 +463,11 @@ void main() {
         expect(textOf(tester, 'quote-total'), '260.000 đ');
         expect(
           textOf(tester, 'quote-breakdown'),
-          '260.000 đ × 1 thợ · Economy',
+          '260.000 đ × 1 người · Cơ bản',
         );
         expect(
           textOf(tester, 'quote-workers-note'),
-          '1 thợ, một ca tối đa 4 giờ.',
+          '1 người, một ca tối đa 4 giờ.',
         );
       },
     );
@@ -231,9 +488,9 @@ void main() {
         expect(textOf(tester, 'quote-total'), '780.000 đ');
         expect(
           textOf(tester, 'quote-breakdown'),
-          '390.000 đ × 2 thợ · Premium',
+          '390.000 đ × 2 người · Cao cấp',
         );
-        expect(textOf(tester, 'quote-workers-note'), contains('cần 2 thợ'));
+        expect(textOf(tester, 'quote-workers-note'), contains('cần 2 người'));
       },
     );
 
@@ -259,7 +516,7 @@ void main() {
         await pumpBooking(tester, service);
 
         await tapKey(tester, 'submit-order');
-        expect(textOf(tester, 'booking-hint'), contains('phân khúc'));
+        expect(textOf(tester, 'booking-hint'), contains('gói'));
 
         await tapKey(tester, 'tier-ECONOMY');
         await tapKey(tester, 'submit-order');

@@ -23,16 +23,16 @@ class FallbackService implements IFallbackService {
   @override
   Future<FallbackStatus> getStatus(int orderId) async {
     final response = await _client.get<FallbackStatus>(
-      '/api/dispatch/orders/$orderId/fallback',
+      '/api/v1/dispatch/orders/$orderId/fallback',
       fromJson: (json) => FallbackStatus.fromJson(json as Map<String, dynamic>),
     );
-    return _require(response.data, 'trạng thái chọn thợ');
+    return _require(response.data, 'trạng thái chọn người làm');
   }
 
   @override
   Future<FallbackResponse> respond(int orderId, {required bool accept}) async {
     final response = await _client.post<FallbackResponse>(
-      '/api/dispatch/orders/$orderId/fallback/respond',
+      '/api/v1/dispatch/orders/$orderId/fallback/respond',
       body: {'accept': accept},
       fromJson: (json) =>
           FallbackResponse.fromJson(json as Map<String, dynamic>),

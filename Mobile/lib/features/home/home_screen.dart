@@ -1,23 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/models/user_role.dart';
+import '../../core/motion/nordic_motion.dart';
 import '../../core/theme/nordic_colors.dart';
 import '../../core/theme/nordic_typography.dart';
-import '../../core/widgets/eyebrow_badge.dart';
-import '../../core/widgets/nordic_button.dart';
-import '../../core/widgets/nordic_card.dart';
-import '../../core/widgets/trust_badge.dart';
-import '../customers/screens/address_list_screen.dart';
-import '../customers/screens/customer_profile_screen.dart';
-import '../customers/screens/favorite_workers_screen.dart';
-import '../booking/routes.dart';
 import '../identity/screens/phone_input_screen.dart';
 import '../identity/services/token_storage.dart';
-import '../workers/routes.dart';
+import 'customer_shell.dart';
 import 'home_actions.dart';
+import 'worker_shell.dart';
 
-/// Main Welcome Screen of TỔ ẤM — Nordic Care Mobile application.
-/// Strictly conforms to the 390x844 mobile viewport specification.
+/// Root screen of TỔ ẤM — Nordic Care (390x844 frame).
+/// Signed out: the welcome with a brand hero and one card per role (MOB-UI-08).
+/// Signed-in customer: [CustomerShell] with the bottom navigation (MOB-UI-02).
+/// Signed-in worker: [WorkerShell] with its bottom navigation (MOB-UI-03).
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -26,8 +24,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  AppRole _selectedRole = AppRole.customer;
-
   /// The signed-in user, or null: the Home shows the actions of this role (MOB-NAV).
   AuthUserView? get _session {
     final storage = TokenStorage();
@@ -36,28 +32,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return AuthUserView(user.role, user.id);
   }
 
-  @override
-  void initState() {
-    super.initState();
-    final role = _session?.role;
-    if (role == SessionRoles.worker) _selectedRole = AppRole.worker;
-  }
-
   /// Back from a pushed screen (the login in particular): show the state of the session as it is now.
   void _refresh() {
     if (!mounted) return;
-    setState(() {
-      final role = _session?.role;
-      if (role == SessionRoles.worker) {
-        _selectedRole = AppRole.worker;
-      } else if (role == SessionRoles.customer) {
-        _selectedRole = AppRole.customer;
-      }
-    });
-  }
-
-  void _open(String route) {
-    Navigator.of(context).pushNamed(route).then((_) => _refresh());
+    setState(() {});
   }
 
   void _openLogin(AppRole role) {
@@ -72,608 +50,424 @@ class _HomeScreenState extends State<HomeScreen> {
     _refresh();
   }
 
-  Widget _sessionPanel(AuthUserView session) {
-    final actions = homeActionsFor(session.role);
-    final isWorker = session.role == SessionRoles.worker;
-    return NordicCard(
-      isHighlighted: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isWorker ? Icons.engineering_rounded : Icons.person_rounded,
-                color: NordicColors.primary,
-              ),
-              const SizedBox(width: 8.0),
-              Expanded(
-                child: Text(
-                  isWorker ? 'Thợ #${session.id}' : 'Khách hàng #${session.id}',
-                  style: NordicTypography.h3,
+  @override
+  Widget build(BuildContext context) {
+    final session = _session;
+    if (session?.role == SessionRoles.customer) {
+      return CustomerShell(onSignOut: _signOut);
+    }
+    if (session?.role == SessionRoles.worker) {
+      return WorkerShell(onSignOut: _signOut, workerId: session!.id);
+    }
+    return _welcome();
+  }
+
+  /// Signed out (MOB-UI-08): brand hero on top; low on the screen, within thumb reach, one
+  /// large card per role saying what that role does in the app, then the sign-in method.
+  /// Scrolls on a short screen.
+  Widget _welcome() {
+    return Scaffold(
+      backgroundColor: NordicColors.canvas,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 390.0),
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 40,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Expanded(child: _WelcomeHero()),
+                        const SizedBox(height: 28),
+                        const Text('BẠN LÀ AI?', style: NordicTypography.caps),
+                        const SizedBox(height: 12),
+                        _RoleCard(
+                          key: const Key('welcome-customer'),
+                          icon: Icons.cleaning_services_outlined,
+                          title: 'Tôi cần giúp việc',
+                          filled: true,
+                          onTap: () => _openLogin(AppRole.customer),
+                        ),
+                        const SizedBox(height: 12),
+                        _RoleCard(
+                          key: const Key('welcome-worker'),
+                          icon: Icons.work_outline,
+                          title: 'Tôi là người giúp việc',
+                          filled: false,
+                          onTap: () => _openLogin(AppRole.worker),
+                        ),
+                        const SizedBox(height: 20),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.lock_outline,
+                              size: 14,
+                              color: NordicColors.textSecondary,
+                            ),
+                            SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Đăng nhập bằng số điện thoại và mã OTP',
+                                style: NordicTypography.bodySmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              TextButton(
-                key: const Key('home-sign-out'),
-                onPressed: _signOut,
-                child: const Text('Đăng xuất'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4.0),
-          for (final action in actions)
-            // Own Material: the card paints a background that would hide the ink of the tile.
-            Material(
-              type: MaterialType.transparency,
-              child: ListTile(
-                key: Key('home-action-${action.route}'),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                leading: Icon(action.icon, color: NordicColors.primary),
-                title: Text(action.label, style: NordicTypography.labelMedium),
-                subtitle: Text(
-                  action.subtitle,
-                  style: NordicTypography.bodySmall,
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _open(action.route),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Photos of the welcome slideshow (Unsplash License, assets/images/welcome/CREDITS.txt) and the
+/// work each one shows (spec: cleaning shifts; the worker brings the tool kit, ADR-0010).
+const _welcomePhotos = [
+  (
+    'assets/images/welcome/mop-living-room.jpg',
+    Icons.cleaning_services_outlined,
+    'Lau sàn',
+  ),
+  (
+    'assets/images/welcome/vacuum-sofa.jpg',
+    Icons.weekend_outlined,
+    'Hút bụi sofa',
+  ),
+  (
+    'assets/images/welcome/broom-kitchen.jpg',
+    Icons.kitchen_outlined,
+    'Dọn bếp',
+  ),
+  (
+    'assets/images/welcome/caddy-stairs.jpg',
+    Icons.handyman_outlined,
+    'Thợ mang đủ dụng cụ',
+  ),
+];
+
+/// The brand block of the welcome: housework photos fill the whole card as a slideshow, the logo
+/// on top and the caption, dots and promise at the bottom sit on them. The card grows to fill
+/// the height the role cards leave free.
+///
+/// The slideshow moves on to the next photo every [_interval] (sliding, or jumping when the
+/// platform asks for reduced motion), can be swiped and loops without end. The photos are
+/// decorative: hidden from screen readers.
+class _WelcomeHero extends StatefulWidget {
+  const _WelcomeHero();
+
+  @override
+  State<_WelcomeHero> createState() => _WelcomeHeroState();
+}
+
+class _WelcomeHeroState extends State<_WelcomeHero> {
+  static const _interval = Duration(milliseconds: 3500);
+  static final _slideCurve = SpringCurve(NordicMotion.standard);
+
+  final _pages = PageController();
+  Timer? _timer;
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(_interval, (_) => _next());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    for (final (asset, _, _) in _welcomePhotos) {
+      precacheImage(AssetImage(asset), context);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pages.dispose();
+    super.dispose();
+  }
+
+  void _next() {
+    if (!mounted || !_pages.hasClients) return;
+    final target = (_pages.page?.round() ?? _page) + 1;
+    if (NordicMotion.reduced(context)) {
+      _pages.jumpToPage(target);
+    } else {
+      // The standard spring (MOB-UI-12): starts gently, settles without overshoot.
+      _pages.animateToPage(
+        target,
+        duration: NordicMotion.standard.settleDuration,
+        curve: _slideCurve,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = _page % _welcomePhotos.length;
+    final (_, icon, caption) = _welcomePhotos[current];
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Stack(
+        children: [
+          // Positioned layers do not count in the card's height: the content below sets it.
+          Positioned.fill(
+            child: ExcludeSemantics(
+              // No item count: the pages go on for ever, page n shows photo n % length.
+              child: PageView.builder(
+                controller: _pages,
+                onPageChanged: (page) => setState(() => _page = page),
+                itemBuilder: (context, page) => Image.asset(
+                  _welcomePhotos[page % _welcomePhotos.length].$1,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+          // Darker top and bottom so the white logo name and text stay readable on any photo.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0, 0.3, 0.5, 1],
+                    colors: [
+                      NordicColors.contrastDark.withValues(alpha: 0.45),
+                      NordicColors.contrastDark.withValues(alpha: 0),
+                      NordicColors.contrastDark.withValues(alpha: 0.1),
+                      NordicColors.contrastDark.withValues(alpha: 0.82),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // The text lets swipes through to the photos.
+          IgnorePointer(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: double.infinity,
+                minHeight: 380,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _brand(),
+                    const SizedBox(height: 120),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _caption(icon, caption),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        for (var i = 0; i < _welcomePhotos.length; i++)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            margin: const EdgeInsets.only(left: 5),
+                            width: i == current ? 18 : 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: NordicColors.textInverse.withValues(
+                                alpha: i == current ? 1 : 0.55,
+                              ),
+                              borderRadius: BorderRadius.circular(9999),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _promise(),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 34.0,
-              height: 34.0,
-              decoration: BoxDecoration(
-                color: NordicColors.primary,
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              child: const Icon(
-                Icons.home_rounded,
-                color: Colors.white,
-                size: 20.0,
-              ),
-            ),
-            const SizedBox(width: 10.0),
-            Text(
-              'TỔ ẤM',
-              style: NordicTypography.h2.copyWith(
-                letterSpacing: 0.5,
-                color: NordicColors.primary,
-              ),
-            ),
-            const SizedBox(width: 6.0),
-            Text(
-              'Nordic Care',
-              style: NordicTypography.bodySmall.copyWith(
-                color: NordicColors.secondaryAccent,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 12.0,
-            ),
-            children: [
-              // Eyebrow badge
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: EyebrowBadge(text: 'Tiêu Chuẩn Dọn Dẹp Bắc Âu'),
-              ),
-              const SizedBox(height: 12.0),
-
-              // Hero headline
-              RichText(
-                text: TextSpan(
-                  style: NordicTypography.h1,
-                  children: [
-                    const TextSpan(text: 'Thảnh thơi trở về '),
-                    TextSpan(
-                      text: 'tổ ấm',
-                      style: NordicTypography.h1.copyWith(
-                        color: NordicColors.primary,
-                      ),
-                    ),
-                    const TextSpan(text: ' sạch trong lành.'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              const Text(
-                'Dịch vụ giúp việc tiêu chuẩn vệ sinh Bắc Âu: minh bạch, đúng giờ, an tâm tuyệt đối.',
-                style: NordicTypography.bodyRegular,
-              ),
-              const SizedBox(height: 16.0),
-
-              // 4 Trust badges wrap
-              const Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children: [
-                  TrustBadge(text: 'Thợ mang 100% đồ nghề'),
-                  TrustBadge(text: 'Nghiệm thu tại chỗ & dọn lại'),
-                  TrustBadge(text: 'Bảo hiểm an tâm 50 triệu'),
-                  TrustBadge(text: 'Minh bạch - Không phụ phí'),
-                ],
-              ),
-              const SizedBox(height: 24.0),
-
-              if (_session != null) ...[
-                _sessionPanel(_session!),
-                const SizedBox(height: 24.0),
-              ],
-
-              // Role selector toggle
-              Text(
-                'Chọn vai trò trải nghiệm:',
-                style: NordicTypography.labelMedium,
-              ),
-              const SizedBox(height: 8.0),
-              Container(
-                padding: const EdgeInsets.all(4.0),
-                decoration: BoxDecoration(
-                  color: NordicColors.surfaceSubtle,
-                  borderRadius: BorderRadius.circular(9999.0),
-                  border: Border.all(color: NordicColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedRole = AppRole.customer),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(vertical: 10.0),
-                          decoration: BoxDecoration(
-                            color: _selectedRole == AppRole.customer
-                                ? NordicColors.surface
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(9999.0),
-                            boxShadow: _selectedRole == AppRole.customer
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.05,
-                                      ),
-                                      blurRadius: 4.0,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Khách Hàng',
-                              style: TextStyle(
-                                fontSize: 13.0,
-                                fontWeight: _selectedRole == AppRole.customer
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: _selectedRole == AppRole.customer
-                                    ? NordicColors.primary
-                                    : NordicColors.textBody,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedRole = AppRole.worker),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(vertical: 10.0),
-                          decoration: BoxDecoration(
-                            color: _selectedRole == AppRole.worker
-                                ? NordicColors.surface
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(9999.0),
-                            boxShadow: _selectedRole == AppRole.worker
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.05,
-                                      ),
-                                      blurRadius: 4.0,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Chuyên Viên / Thợ',
-                              style: TextStyle(
-                                fontSize: 13.0,
-                                fontWeight: _selectedRole == AppRole.worker
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: _selectedRole == AppRole.worker
-                                    ? NordicColors.primary
-                                    : NordicColors.textBody,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20.0),
-
-              // Mode active container
-              if (_selectedRole == AppRole.customer) ...[
-                // Customer section
-                NordicCard(
-                  isHighlighted: true,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            color: NordicColors.accentAmber,
-                            size: 20.0,
-                          ),
-                          const SizedBox(width: 4.0),
-                          Expanded(
-                            child: Text(
-                              'GÓI ĐƯỢC CHỌN NHIỀU NHẤT',
-                              style: NordicTypography.labelSmall,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6.0),
-                      Text('Căn Hộ Chung Cư', style: NordicTypography.h3),
-                      const SizedBox(height: 4.0),
-                      Text('240.000 đ', style: NordicTypography.priceHighlight),
-                      const Text(
-                        'Ca 3 giờ tiêu chuẩn • Hút bụi khe hẹp sofa, gầm giường',
-                        style: NordicTypography.bodySmall,
-                      ),
-                      const SizedBox(height: 14.0),
-                      NordicButton(
-                        label: 'Đặt Ca Ngay',
-                        width: double.infinity,
-                        onPressed: () {
-                          final route = routeWhenSignedIn(
-                            sessionRole: _session?.role,
-                            needed: SessionRoles.customer,
-                            route: BookingRoutes.booking,
-                          );
-                          if (route != null) {
-                            _open(route);
-                          } else {
-                            _openLogin(AppRole.customer);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12.0),
-                NordicCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Nhà Phố Liền Kề & Biệt Thự',
-                        style: NordicTypography.h3,
-                      ),
-                      const SizedBox(height: 4.0),
-                      Text('360.000 đ', style: NordicTypography.priceHighlight),
-                      const Text(
-                        'Ca 4 giờ • Khử khuẩn sinh học và nghiệm thu quang học',
-                        style: NordicTypography.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12.0),
-                NordicCard(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40.0,
-                        height: 40.0,
-                        decoration: BoxDecoration(
-                          color: NordicColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: const Icon(
-                          Icons.location_on_rounded,
-                          color: NordicColors.primary,
-                          size: 22.0,
-                        ),
-                      ),
-                      const SizedBox(width: 12.0),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Sổ Địa Chỉ Của Bạn',
-                              style: NordicTypography.h3,
-                            ),
-                            Text(
-                              'Quản lý địa chỉ, loại nhà & toạ độ GPS',
-                              style: NordicTypography.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      NordicButton(
-                        label: 'Quản Lý',
-                        variant: NordicButtonVariant.secondary,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AddressListScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12.0),
-                NordicCard(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40.0,
-                        height: 40.0,
-                        decoration: BoxDecoration(
-                          color: NordicColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: const Icon(
-                          Icons.favorite_rounded,
-                          color: NordicColors.primary,
-                          size: 22.0,
-                        ),
-                      ),
-                      const SizedBox(width: 12.0),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Thợ Quen Yêu Thích',
-                              style: NordicTypography.h3,
-                            ),
-                            Text(
-                              'Chuyên viên uy tín bạn đã lưu để đặt lại',
-                              style: NordicTypography.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      NordicButton(
-                        label: 'Danh Sách',
-                        variant: NordicButtonVariant.secondary,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const FavoriteWorkersScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12.0),
-                NordicCard(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40.0,
-                        height: 40.0,
-                        decoration: BoxDecoration(
-                          color: NordicColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: const Icon(
-                          Icons.person_outline_rounded,
-                          color: NordicColors.primary,
-                          size: 22.0,
-                        ),
-                      ),
-                      const SizedBox(width: 12.0),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Hồ Sơ Cá Nhân', style: NordicTypography.h3),
-                            Text(
-                              'Thông tin tài khoản, điểm tin cậy & email',
-                              style: NordicTypography.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      NordicButton(
-                        label: 'Xem & Sửa',
-                        variant: NordicButtonVariant.secondary,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const CustomerProfileScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                // Worker section
-                NordicCard(
-                  isHighlighted: true,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.work_history_rounded,
-                            color: NordicColors.primary,
-                          ),
-                          const SizedBox(width: 8.0),
-                          Expanded(
-                            child: Text(
-                              'Bàn Điều Phối Ca Làm',
-                              style: NordicTypography.h3,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8.0),
-                      const Text(
-                        'Nhận cuốc 30s đếm ngược, định vị GPS hiện trường và nghiệm thu minh bạch.',
-                        style: NordicTypography.bodyRegular,
-                      ),
-                      const SizedBox(height: 14.0),
-                      NordicButton(
-                        label: 'Vào Trực Ca',
-                        width: double.infinity,
-                        onPressed: () {
-                          final route = routeWhenSignedIn(
-                            sessionRole: _session?.role,
-                            needed: SessionRoles.worker,
-                            route: WorkerRoutes.slots,
-                          );
-                          if (route != null) {
-                            _open(route);
-                          } else {
-                            _openLogin(AppRole.worker);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 24.0),
-
-              // High-contrast Dark Green Anchor: Trụ cột an tâm
-              Container(
-                padding: const EdgeInsets.all(20.0),
-                decoration: BoxDecoration(
-                  color: NordicColors.contrastDark,
-                  borderRadius: BorderRadius.circular(20.0),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TRỤ CỘT AN TÂM',
-                      style: NordicTypography.labelSmall.copyWith(
-                        color: NordicColors.secondaryAccent,
-                      ),
-                    ),
-                    const SizedBox(height: 6.0),
-                    Text(
-                      'Chăm sóc tổ ấm theo tiêu chuẩn an toàn cao nhất',
-                      style: NordicTypography.h3.copyWith(color: Colors.white),
-                    ),
-                    const SizedBox(height: 16.0),
-                    _buildDarkPillar(
-                      '01',
-                      'Lý lịch & tay nghề',
-                      '100% chuyên viên xác thực eKYC và đào tạo.',
-                    ),
-                    const SizedBox(height: 12.0),
-                    _buildDarkPillar(
-                      '02',
-                      'Đúng giờ & chuẩn vị trí',
-                      'Kiểm tra GPS hiện trường sai số ≤ 100m.',
-                    ),
-                    const SizedBox(height: 12.0),
-                    _buildDarkPillar(
-                      '03',
-                      'Nghiệm thu quang học',
-                      'Chụp ảnh trước/sau và đánh giá hài lòng.',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDarkPillar(String number, String title, String desc) {
+  Widget _brand() {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          number,
-          style: const TextStyle(
-            fontSize: 16.0,
-            fontWeight: FontWeight.w700,
-            color: NordicColors.secondaryAccent,
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: NordicColors.primary,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.home_outlined,
+            color: NordicColors.textInverse,
+            size: 24,
           ),
         ),
-        const SizedBox(width: 12.0),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14.0,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 2.0),
-              Text(
-                desc,
-                style: const TextStyle(
-                  fontSize: 12.0,
-                  color: Color(0xFFC2C8BF),
-                  height: 1.4,
-                ),
-              ),
-            ],
+        const SizedBox(width: 12),
+        Text(
+          'TỔ ẤM',
+          style: NordicTypography.titleMedium.copyWith(
+            letterSpacing: 1.2,
+            color: NordicColors.textInverse,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _promise() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Narrow box: the promise breaks after the comma, one half per line.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 210),
+          child: Text(
+            'Nhà sạch, lòng nhẹ.',
+            style: NordicTypography.greeting.copyWith(
+              fontSize: 38,
+              color: NordicColors.textInverse,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Đặt người giúp việc theo từng ca.',
+          style: NordicTypography.bodyRegular.copyWith(
+            color: NordicColors.textInverse.withValues(alpha: 0.88),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _caption(IconData icon, String caption) {
+    return Container(
+      key: const Key('welcome-photo-caption'),
+      padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
+      decoration: BoxDecoration(
+        color: NordicColors.surface,
+        borderRadius: BorderRadius.circular(9999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: NordicColors.primary),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              caption,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: NordicTypography.labelMedium.copyWith(
+                color: NordicColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One role of the welcome: icon, title, chevron (no description line, MOB-UI-12).
+/// [filled] is the primary (green) card; the other is a white card with a border.
+class _RoleCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final bool filled;
+  final VoidCallback onTap;
+
+  const _RoleCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.filled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = filled
+        ? NordicColors.textInverse
+        : NordicColors.textTitle;
+    final muted = filled
+        ? NordicColors.textInverse.withValues(alpha: 0.82)
+        : NordicColors.textSecondary;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(22),
+      side: filled
+          ? BorderSide.none
+          : const BorderSide(color: NordicColors.border),
+    );
+    return Semantics(
+      button: true,
+      child: Material(
+        color: filled ? NordicColors.primary : NordicColors.surface,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: filled
+                        ? NordicColors.textInverse.withValues(alpha: 0.16)
+                        : NordicColors.primaryFixed.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 24,
+                    color: filled
+                        ? NordicColors.textInverse
+                        : NordicColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: NordicTypography.titleSmall.copyWith(
+                      fontSize: 17,
+                      color: foreground,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right, color: muted),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

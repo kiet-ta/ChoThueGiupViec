@@ -92,7 +92,7 @@ void main() {
       (tester) async {
         await pumpScreen(tester, FakeRatingsService(), name: 'Nguyễn Thị Mai');
 
-        expect(find.text('Đánh giá thợ Nguyễn Thị Mai'), findsOneWidget);
+        expect(find.text('Đánh giá người làm Nguyễn Thị Mai'), findsOneWidget);
         expect(find.text('Còn 47 giờ 12 phút'), findsOneWidget);
         expect(find.text('Đúng giờ'), findsOneWidget);
         expect(find.text('Chất lượng dọn dẹp'), findsOneWidget);
@@ -172,7 +172,7 @@ void main() {
         expect(sent.comment, 'Dọn rất kỹ');
         expect(find.byKey(const Key('rating-thanks')), findsOneWidget);
         expect(
-          find.textContaining('góp vào điểm uy tín của thợ'),
+          find.textContaining('góp vào điểm uy tín của người làm'),
           findsOneWidget,
         );
       },

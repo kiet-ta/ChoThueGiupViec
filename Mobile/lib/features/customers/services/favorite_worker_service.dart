@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/favorite_worker.dart';
+import '../models/worker_free_shift.dart';
 import '../../../core/network/api_config.dart';
 
 /// Service managing customer favorite workers matching .spec/contracts/customers.md §2.3.
@@ -71,12 +72,12 @@ class FavoriteWorkerService {
   ) => apiRequest(
     _httpClient,
     method,
-    Uri.parse('$baseUrl/api/customers/me/favorite-workers$path'),
+    Uri.parse('$baseUrl/api/v1/customers/me/favorite-workers$path'),
     bearerToken: _tokenStorage.accessToken,
     fallbackMessage: fallbackMessage,
   );
 
-  /// GET /api/customers/me/favorite-workers
+  /// GET /api/v1/customers/me/favorite-workers
   Future<List<FavoriteWorker>> getFavoriteWorkers() async {
     if (!isMock) {
       final envelope = await _call(
@@ -99,7 +100,7 @@ class FavoriteWorkerService {
     return sorted;
   }
 
-  /// PUT /api/customers/me/favorite-workers/{workerId} (Idempotent)
+  /// PUT /api/v1/customers/me/favorite-workers/{workerId} (Idempotent)
   Future<FavoriteWorker> addFavoriteWorker(int workerId) async {
     if (!isMock) {
       final envelope = await _call(
@@ -128,7 +129,37 @@ class FavoriteWorkerService {
     return newWorker;
   }
 
-  /// DELETE /api/customers/me/favorite-workers/{workerId} (Idempotent)
+  /// GET /api/v1/customers/me/favorite-workers/{workerId}/availability: the shifts the worker is free for over the
+  /// booking window (the server's default range).
+  Future<List<WorkerFreeShift>> getFreeShifts(int workerId) async {
+    if (!isMock) {
+      final envelope = await _call(
+        'GET',
+        '/$workerId/availability',
+        'Không tải được lịch trống của người này.',
+      );
+      final data = envelope['data'] as List<dynamic>? ?? [];
+      return data
+          .map((item) => WorkerFreeShift.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    // Mock: free every morning and afternoon of the next two weeks.
+    final today = DateTime.now();
+    return [
+      for (var i = 0; i <= 14; i++)
+        for (final shift in const ['SHIFT_MORNING', 'SHIFT_AFTERNOON'])
+          WorkerFreeShift(
+            date: _dateKey(today.add(Duration(days: i))),
+            shiftCode: shift,
+          ),
+    ];
+  }
+
+  static String _dateKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// DELETE /api/v1/customers/me/favorite-workers/{workerId} (Idempotent)
   Future<void> removeFavoriteWorker(int workerId) async {
     if (!isMock) {
       await _call('DELETE', '/$workerId', 'Bỏ yêu thích thất bại.');

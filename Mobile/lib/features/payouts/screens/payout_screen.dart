@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../../disputes/models/dispute_models.dart';
 import '../../disputes/routes.dart';
@@ -20,6 +23,8 @@ import 'payout_history_screen.dart';
 
 /// Worker income of one month (MOB-M6-04); contract payouts.md 2.5.
 /// There is no wallet (open question P6): the figure is "Thu nhập tháng này", paid once a month in a batch (Q04).
+/// MOB-UI-23 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage` (tab, or pushed when it has a back route), the net
+/// amount is the one big number, tokens only.
 class PayoutScreen extends StatefulWidget {
   final IPayoutsService? service;
 
@@ -119,35 +124,30 @@ class _PayoutScreenState extends State<PayoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(title: const Text('Thu Nhập & Quyết Toán')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 16.0,
-            ),
-            children: [
-              const EyebrowBadge(text: 'Thu Nhập Minh Bạch'),
-              const SizedBox(height: 12.0),
-              _monthSelector(),
-              const SizedBox(height: 16.0),
-              ..._content(),
-            ],
-          ),
-        ),
-      ),
-    );
+    final pushed = ModalRoute.of(context)?.canPop ?? false;
+    final children = [
+      _monthSelector(),
+      const SizedBox(height: NordicSpace.md),
+      ..._content(),
+    ];
+    return pushed
+        ? NordicPage.pushed(
+            title: 'Thu nhập',
+            onRefresh: _load,
+            children: children,
+          )
+        : NordicPage.tab(
+            title: 'Thu nhập',
+            onRefresh: _load,
+            children: children,
+          );
   }
 
   Widget _monthSelector() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(
+        IconButton.outlined(
           key: const Key('earnings-prev'),
           tooltip: 'Tháng trước',
           onPressed: canGoPrevious(_month) ? () => _go(-1) : null,
@@ -156,9 +156,9 @@ class _PayoutScreenState extends State<PayoutScreen> {
         Text(
           monthLabel(_month),
           key: const Key('earnings-month'),
-          style: NordicTypography.h3,
+          style: NordicTypography.titleSmall,
         ),
-        IconButton(
+        IconButton.outlined(
           key: const Key('earnings-next'),
           tooltip: 'Tháng sau',
           onPressed: canGoNext(_month, _currentMonth) ? () => _go(1) : null,
@@ -189,11 +189,17 @@ class _PayoutScreenState extends State<PayoutScreen> {
     final e = _earnings!;
     return [
       _summary(e),
-      const SizedBox(height: 12.0),
+      const SizedBox(height: NordicSpace.gutter),
       _breakdown(e),
-      const SizedBox(height: 16.0),
-      Text('Ca làm trong tháng (${e.jobCount})', style: NordicTypography.h3),
-      const SizedBox(height: 8.0),
+      const SizedBox(height: NordicSpace.section),
+      Row(
+        children: [
+          const Text('Ca trong tháng', style: NordicTypography.titleSmall),
+          const Spacer(),
+          Text('${e.jobCount}', style: NordicTypography.bodySmall),
+        ],
+      ),
+      const SizedBox(height: NordicSpace.xs),
       if (e.jobs.isEmpty)
         const NordicCard(
           child: Text(
@@ -204,7 +210,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
         )
       else
         for (final job in e.jobs) _jobTile(job),
-      const SizedBox(height: 16.0),
+      const SizedBox(height: NordicSpace.md),
       NordicButton(
         key: const Key('earnings-history'),
         label: 'Lịch sử giải ngân',
@@ -218,63 +224,98 @@ class _PayoutScreenState extends State<PayoutScreen> {
     ];
   }
 
+  /// The caption, the net amount as the one big number and the payout status as a pill.
   Widget _summary(Earnings e) {
-    return NordicCard(
-      isHighlighted: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Thu nhập tháng này', style: NordicTypography.labelMedium),
-          const SizedBox(height: 4.0),
-          Text(
-            formatVnd(e.netAmount),
-            key: const Key('earnings-net'),
-            style: NordicTypography.priceHighlight,
-          ),
-          const SizedBox(height: 12.0),
-          Text(
-            payoutStatusLabel(e.payoutStatus),
-            key: const Key('earnings-status'),
-            style: NordicTypography.bodyLarge,
-          ),
-          const SizedBox(height: 2.0),
-          Text(
-            payoutStatusHint(e.payoutStatus),
-            style: NordicTypography.bodySmall,
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        const Text('Thu nhập tháng này', style: NordicTypography.bodySmall),
+        const SizedBox(height: NordicSpace.xs),
+        Text(
+          formatVnd(e.netAmount),
+          key: const Key('earnings-net'),
+          style: NordicTypography.numberLarge,
+        ),
+        const SizedBox(height: NordicSpace.xs),
+        StatusPill(
+          payoutStatusLabel(e.payoutStatus),
+          dot: true,
+          tone: e.payoutStatus == 'TRANSFERRED'
+              ? PillTone.ok
+              : PillTone.neutral,
+          textKey: const Key('earnings-status'),
+        ),
+        const SizedBox(height: NordicSpace.xs),
+        Text(
+          payoutStatusHint(e.payoutStatus),
+          textAlign: TextAlign.center,
+          style: NordicTypography.bodySmall,
+        ),
+      ],
     );
   }
 
+  /// A card with a split bar (net against commission, penalty when there is one) and the three figures.
   Widget _breakdown(Earnings e) {
-    Widget row(String label, String value, {Key? key}) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+    Widget row(String label, String value, Color swatch, {Key? key}) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: NordicSpace.xxs),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: swatch, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: NordicSpace.xs),
           Expanded(child: Text(label, style: NordicTypography.bodyRegular)),
-          const SizedBox(width: 8.0),
-          Text(value, key: key, style: NordicTypography.bodyRegular),
+          const SizedBox(width: NordicSpace.xs),
+          Text(value, key: key, style: NordicTypography.titleSmall),
         ],
       ),
     );
+    final total = e.netAmount + e.commissionAmount + e.penaltyAmount;
+    int flex(int part) => total <= 0 ? 0 : (part * 1000 ~/ total);
     return NordicCard(
       child: Column(
         children: [
+          if (total > 0)
+            ClipRRect(
+              borderRadius: NordicRadius.pill,
+              child: Row(
+                children: [
+                  for (final (part, color) in [
+                    (e.netAmount, NordicColors.primary),
+                    (e.commissionAmount, NordicColors.accentAmber),
+                    (e.penaltyAmount, NordicColors.error),
+                  ])
+                    if (flex(part) > 0)
+                      Expanded(
+                        flex: flex(part),
+                        child: Container(
+                          height: NordicSpace.sm,
+                          margin: const EdgeInsets.only(right: 2.0),
+                          color: color,
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          const SizedBox(height: NordicSpace.xs),
           row(
             'Tổng tiền công',
             formatVnd(e.grossAmount),
+            NordicColors.surfaceDim,
             key: const Key('earnings-gross'),
           ),
           row(
             'Hoa hồng nền tảng',
             '-${formatVnd(e.commissionAmount)}',
+            NordicColors.accentAmber,
             key: const Key('earnings-commission'),
           ),
           row(
             'Khấu trừ khiếu nại',
             '-${formatVnd(e.penaltyAmount)}',
+            NordicColors.error,
             key: const Key('earnings-penalty'),
           ),
         ],
@@ -284,7 +325,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
 
   Widget _jobTile(EarningsJob job) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: NordicSpace.xs),
       child: NordicCard(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,26 +336,26 @@ class _PayoutScreenState extends State<PayoutScreen> {
                 children: [
                   Text(
                     'Đơn #${job.orderId}',
-                    style: NordicTypography.bodyLarge,
+                    style: NordicTypography.titleSmall,
                   ),
-                  const SizedBox(height: 2.0),
+                  const SizedBox(height: NordicSpace.xxs),
                   Text(
                     formatVietnamDateTime(job.completedAt),
                     style: NordicTypography.bodySmall,
                   ),
-                  const SizedBox(height: 2.0),
+                  const SizedBox(height: NordicSpace.xxs),
                   Text(
                     'Tiền công ${formatVnd(job.grossAmount)} · Hoa hồng ${formatVnd(job.commissionAmount)}',
                     style: NordicTypography.bodySmall,
                   ),
                   if (!job.absenceFee)
                     Wrap(
-                      spacing: 8.0,
+                      spacing: NordicSpace.xs,
                       children: [
                         TextButton(
                           key: Key('job-rate-${job.assignmentId}'),
                           onPressed: () => _rate(job),
-                          child: const Text('Đánh giá khách'),
+                          child: const Text('Đánh giá gia chủ'),
                         ),
                         TextButton(
                           key: Key('job-dispute-${job.assignmentId}'),
@@ -324,33 +365,18 @@ class _PayoutScreenState extends State<PayoutScreen> {
                       ],
                     ),
                   if (job.absenceFee)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6.0),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8.0,
-                          vertical: 2.0,
-                        ),
-                        decoration: BoxDecoration(
-                          color: NordicColors.accentAmber.withValues(
-                            alpha: 0.16,
-                          ),
-                          borderRadius: BorderRadius.circular(9999.0),
-                        ),
-                        child: const Text(
-                          'Phí vắng mặt',
-                          style: NordicTypography.labelSmall,
-                        ),
-                      ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: NordicSpace.xs),
+                      child: StatusPill('Phí vắng mặt', tone: PillTone.warn),
                     ),
                 ],
               ),
             ),
-            const SizedBox(width: 8.0),
+            const SizedBox(width: NordicSpace.xs),
             Text(
               formatVnd(job.netAmount),
               key: Key('job-net-${job.assignmentId}'),
-              style: NordicTypography.bodyLarge,
+              style: NordicTypography.titleSmall,
             ),
           ],
         ),

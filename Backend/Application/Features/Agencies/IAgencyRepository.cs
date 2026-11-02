@@ -25,59 +25,57 @@ public interface IAgencyRepository
     Task<(IReadOnlyList<AgencyWorkerItem> Items, int TotalCount)> GetAgencyWorkersAsync(
         int agencyId, int page, int pageSize, string? statusFilter, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Gets a worker by ID if it belongs to the agency, otherwise null.
-    /// </summary>
+    /// <summary>Read-only copy of a worker of the agency, otherwise null. Changes to it are NOT saved; use <see cref="GetAgencyWorkerForUpdateAsync"/>.</summary>
     Task<Worker?> GetAgencyWorkerAsync(int agencyId, int workerId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Gets the count of future ASSIGNED jobs for a worker.
-    /// </summary>
+    /// <summary>Tracked worker of the agency (the unit of work saves its changes), otherwise null.</summary>
+    Task<Worker?> GetAgencyWorkerForUpdateAsync(int agencyId, int workerId, CancellationToken cancellationToken = default);
+
+    /// <summary>The <c>RETIRING</c> workers of every agency (worker id, agency id) for the sweep.</summary>
+    Task<IReadOnlyList<(int WorkerId, int AgencyId)>> ListRetiringWorkersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Gets the count of future ASSIGNED jobs for a worker.</summary>
     Task<int> GetFutureAssignedJobCountAsync(int workerId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Gets the list of future ASSIGNED jobs for a worker (for handover).
-    /// </summary>
-    Task<IReadOnlyList<FutureJobHandover>> GetFutureAssignedJobsAsync(int workerId, CancellationToken cancellationToken = default);
+    /// <summary>The future <c>ASSIGNED</c> jobs of a worker (with the order and the slot), oldest first.</summary>
+    Task<IReadOnlyList<FutureJob>> GetFutureAssignedJobsAsync(int workerId, CancellationToken cancellationToken = default);
+
+    /// <summary>True when the worker holds a job in progress: <c>CHECKED_IN</c>, <c>IN_PROGRESS</c> or <c>AWAITING_ACCEPTANCE</c>.</summary>
+    Task<bool> HasActiveJobAsync(int workerId, CancellationToken cancellationToken = default);
+
+    /// <summary>Number of <c>HELD</c> slots of the worker on or after <paramref name="fromDate"/> (a customer is in checkout).</summary>
+    Task<int> CountFutureHeldSlotsAsync(int workerId, DateOnly fromDate, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes the <c>AVAILABLE</c> slots of the worker on or after <paramref name="fromDate"/>; returns how many.</summary>
+    Task<int> RemoveFutureAvailableSlotsAsync(int workerId, DateOnly fromDate, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Creates a new agency staff worker (same validation as import).
+    /// Creates a new agency staff worker (same validation as import) and saves, so its id is known. The caller runs it inside
+    /// the unit of work of the retirement, which rolls the worker back with everything else.
     /// </summary>
     Task<Worker> CreateAgencyStaffAsync(int agencyId, NewWorkerDetails details, DateTime nowUtc, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Checks if a phone number or national ID already exists in the worker table.
-    /// </summary>
+    /// <summary>Checks if a phone number or national ID already exists in the worker table.</summary>
     Task<bool> WorkerPhoneOrNationalIdExistsAsync(string phoneNumber, string nationalId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates worker slots' worker_id from old worker to new worker for future assigned/held jobs.
-    /// Returns the number of slots updated.
+    /// Moves to the new worker the slots of the old worker that belong to a future <c>ASSIGNED</c> job (<c>BOOKED</c>) and its
+    /// <c>HELD</c> slots on or after <paramref name="fromDate"/>. Run it BEFORE <see cref="UpdateWorkerAssignmentsAsync"/>.
+    /// Returns the number of slots moved.
     /// </summary>
-    Task<int> UpdateWorkerSlotsAsync(int oldWorkerId, int newWorkerId, DateTime nowUtc, CancellationToken cancellationToken = default);
+    Task<int> UpdateWorkerSlotsAsync(int oldWorkerId, int newWorkerId, DateOnly fromDate, DateTime nowUtc, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Updates assignments' worker_id from old worker to new worker for future ASSIGNED jobs.
-    /// Returns the number of assignments updated.
-    /// </summary>
+    /// <summary>Moves the future <c>ASSIGNED</c> jobs of the old worker to the new worker. Returns the number moved.</summary>
     Task<int> UpdateWorkerAssignmentsAsync(int oldWorkerId, int newWorkerId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets workers with Retiring status that have no active or future jobs (for sweep).
-    /// </summary>
-    Task<IReadOnlyList<Worker>> GetRetiringWorkersReadyForRetiredAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Checks if a worker has any active (CheckedIn, InProgress, AwaitingAcceptance) or future ASSIGNED jobs.
-    /// </summary>
-    Task<bool> HasActiveOrFutureJobsAsync(int workerId, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Information about a future job that was handed over.
-/// </summary>
+/// <summary>A future <c>ASSIGNED</c> job of a worker as the repository reads it.</summary>
+public sealed record FutureJob(long AssignmentId, long OrderId, int SlotId, DateOnly SlotDate, string ShiftCode);
+
+/// <summary>A future job as the API shows it (contract agencies.md 9.2).</summary>
 public sealed record FutureJobHandover(
     long AssignmentId,
+    long OrderId,
     DateOnly SlotDate,
     string ShiftCode
 );

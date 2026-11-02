@@ -11,7 +11,7 @@ namespace CommonService.WebAPI.Controllers.Payouts;
 /// <c>.xlsx</c> file itself, the only response of the API that is not the JSON envelope; errors keep the envelope.
 /// </summary>
 [ApiController]
-[Route("api/admin/payout-batches/{batchId:int}/export")]
+[Route("api/v1/admin/payout-batches/{batchId:int}/export")]
 [Authorize(Policy = "AdminOnly")]
 public class AdminPayoutExportController(IPayoutExportService exports) : ControllerBase
 {

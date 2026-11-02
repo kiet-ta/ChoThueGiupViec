@@ -18,7 +18,7 @@ JobPhotoDto photo(String phase, int angle, int id) => JobPhotoDto(
   assignmentId: 55,
   photoPhase: phase,
   angleNo: angle,
-  photoUrl: '/api/workers/assignments/55/photos/$id/file',
+  photoUrl: '/api/v1/workers/assignments/55/photos/$id/file',
   volScore: 142.5,
   isAccepted: true,
   uploadedAt: DateTime(2026, 10, 21, 9),
@@ -89,12 +89,14 @@ Future<void> pumpScreen(
   WidgetTester tester, {
   FakePhotosService? photos,
   FakeAcceptanceService? acceptance,
+  bool completed = false,
 }) async {
   useDesignFrame(tester);
   await tester.pumpWidget(
     MaterialApp(
       home: CustomerAcceptanceScreen(
         assignmentId: 55,
+        completed: completed,
         photosService: photos ?? FakePhotosService(),
         acceptanceService: acceptance ?? FakeAcceptanceService(),
       ),
@@ -108,19 +110,29 @@ void main() {
   setUp(() => TokenStorage().clear());
 
   group('CustomerAcceptanceScreen', () {
+    testWidgets('completed acceptance is read-only when reopened', (
+      tester,
+    ) async {
+      final acceptance = FakeAcceptanceService();
+      await pumpScreen(tester, acceptance: acceptance, completed: true);
+      expect(find.text('Đã nghiệm thu'), findsOneWidget);
+      expect(find.text('Xác nhận nghiệm thu'), findsNothing);
+      expect(find.text('Yêu cầu dọn lại'), findsNothing);
+      expect(acceptance.accepted, isEmpty);
+    });
     testWidgets(
       'renders the title with the assignment id, the status chip, the photo boxes and the two actions',
       (tester) async {
         await pumpScreen(tester);
 
-        expect(find.text('Nghiệm Thu Ca #55'), findsOneWidget);
-        expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
-        expect(find.text('Đối Chiếu Ảnh Before / After'), findsOneWidget);
+        expect(find.text('Nghiệm thu ca'), findsOneWidget);
+        expect(find.text('Chờ nghiệm thu'), findsOneWidget);
+        expect(find.text('So sánh ảnh trước và sau'), findsOneWidget);
         expect(find.text('Góc 1: Toàn cảnh phòng'), findsOneWidget);
-        expect(find.text('TRƯỚC (Before)'), findsOneWidget);
-        expect(find.text('SAU (After)'), findsOneWidget);
-        expect(find.text('Xác Nhận Nghiệm Thu'), findsOneWidget);
-        expect(find.text('Dọn Lại (15–30ph)'), findsOneWidget);
+        expect(find.text('Trước'), findsOneWidget);
+        expect(find.text('Sau'), findsOneWidget);
+        expect(find.text('Xác nhận nghiệm thu'), findsOneWidget);
+        expect(find.text('Yêu cầu dọn lại'), findsOneWidget);
       },
     );
 
@@ -132,6 +144,29 @@ void main() {
       expect(find.text('Chưa có ảnh'), findsNWidgets(2));
       expect(find.byType(Image), findsNothing);
       expect(find.textContaining('storage.giupviec.local'), findsNothing);
+    });
+
+    testWidgets('opens an available photo full-screen and returns', (
+      tester,
+    ) async {
+      TokenStorage().saveTokens(accessToken: 'tok', refreshToken: 'ref');
+      final photos = FakePhotosService()..photos = [photo('BEFORE', 1, 11)];
+      await pumpScreen(tester, photos: photos, completed: true);
+
+      await tapVisible(tester, find.byKey(const Key('open-photo-11')));
+      expect(find.text('Ảnh Trước'), findsOneWidget);
+      expect(find.byType(InteractiveViewer), findsOneWidget);
+      final fullPhoto =
+          tester.widget<Image>(find.byType(Image).last).image as NetworkImage;
+      expect(
+        fullPhoto.url,
+        'http://api.test/api/v1/workers/assignments/55/photos/11/file',
+      );
+      expect(fullPhoto.headers?['Authorization'], 'Bearer tok');
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('So sánh ảnh trước và sau'), findsOneWidget);
     });
 
     testWidgets(
@@ -151,8 +186,8 @@ void main() {
             .map((i) => i.image as NetworkImage)
             .toList();
         expect(images.map((i) => i.url), [
-          'http://api.test/api/workers/assignments/55/photos/11/file',
-          'http://api.test/api/workers/assignments/55/photos/12/file',
+          'http://api.test/api/v1/workers/assignments/55/photos/11/file',
+          'http://api.test/api/v1/workers/assignments/55/photos/12/file',
         ]);
         expect(
           images.every((i) => i.headers?['Authorization'] == 'Bearer tok'),
@@ -165,7 +200,7 @@ void main() {
           tester
               .widgetList<Image>(find.byType(Image))
               .map((i) => (i.image as NetworkImage).url),
-          ['http://api.test/api/workers/assignments/55/photos/13/file'],
+          ['http://api.test/api/v1/workers/assignments/55/photos/13/file'],
         );
         expect(
           find.text('Chưa có ảnh'),
@@ -208,30 +243,29 @@ void main() {
       },
     );
 
-    testWidgets(
-      'accepting shows the amounts the server answered, with its commission rate',
-      (tester) async {
-        final acceptance = FakeAcceptanceService()
-          ..completion = AssignmentCompletionDto(
-            assignmentId: 55,
-            status: 'COMPLETED',
-            grossAmount: 300000,
-            commissionRate: 0.0,
-            payoutAmount: 300000,
-            completedAt: DateTime(2026, 10, 21, 16),
-          );
-        await pumpScreen(tester, acceptance: acceptance);
+    testWidgets('accepting shows the amounts the server answered', (
+      tester,
+    ) async {
+      final acceptance = FakeAcceptanceService()
+        ..completion = AssignmentCompletionDto(
+          assignmentId: 55,
+          status: 'COMPLETED',
+          grossAmount: 300000,
+          commissionRate: 0.0,
+          payoutAmount: 300000,
+          completedAt: DateTime(2026, 10, 21, 16),
+        );
+      await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
+      await tapVisible(tester, find.text('Xác nhận nghiệm thu'));
 
-        expect(acceptance.accepted.single.id, 55);
-        expect(find.text('ĐÃ NGHIỆM THU'), findsOneWidget);
-        expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsOneWidget);
-        expect(find.text('Chi Phí Nền Tảng (0%):'), findsOneWidget);
-        expect(find.text('Thu Nhập Thợ (100%):'), findsOneWidget);
-        expect(find.text('300000 đ'), findsNWidgets(2));
-      },
-    );
+      expect(acceptance.accepted.single.id, 55);
+      expect(find.text('Đã nghiệm thu'), findsOneWidget);
+      expect(find.text('Chi tiết nghiệm thu'), findsOneWidget);
+      expect(find.text('Tổng tiền dịch vụ'), findsOneWidget);
+      expect(find.text('Người làm nhận'), findsOneWidget);
+      expect(find.text('300.000 đ'), findsNWidgets(2));
+    });
 
     testWidgets('a 409 is explained and nothing is shown as accepted', (
       tester,
@@ -240,18 +274,18 @@ void main() {
         ..failure = const ApiException(409, 'Invalid state');
       await pumpScreen(tester, acceptance: acceptance);
 
-      await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
+      await tapVisible(tester, find.text('Xác nhận nghiệm thu'));
       await scrollTo(tester, find.textContaining('không còn chờ nghiệm thu'));
 
       expect(
         find.textContaining('Ca này không còn chờ nghiệm thu'),
         findsOneWidget,
       );
-      await scrollTo(tester, find.text('CHỜ NGHIỆM THU'));
-      expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
-      expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
-      expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsNothing);
-      expect(find.textContaining('Nghiệm thu thành công'), findsNothing);
+      await scrollTo(tester, find.text('Chờ nghiệm thu'));
+      expect(find.text('Chờ nghiệm thu'), findsOneWidget);
+      expect(find.text('Đã nghiệm thu'), findsNothing);
+      expect(find.text('Chi tiết nghiệm thu'), findsNothing);
+      expect(find.textContaining('Ca làm đã xong'), findsNothing);
     });
 
     testWidgets(
@@ -264,7 +298,7 @@ void main() {
           );
         await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
+        await tapVisible(tester, find.text('Xác nhận nghiệm thu'));
         await scrollTo(
           tester,
           find.textContaining('Không kết nối được máy chủ'),
@@ -274,10 +308,10 @@ void main() {
           find.textContaining('Không kết nối được máy chủ'),
           findsOneWidget,
         );
-        expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
+        expect(find.text('Đã nghiệm thu'), findsNothing);
         expect(find.textContaining('208000'), findsNothing);
         expect(find.textContaining('260000'), findsNothing);
-        expect(find.text('Chi Tiết Nghiệm Thu & Khóa Ca'), findsNothing);
+        expect(find.text('Chi tiết nghiệm thu'), findsNothing);
       },
     );
 
@@ -287,7 +321,7 @@ void main() {
       final acceptance = FakeAcceptanceService()..emptyAnswer = true;
       await pumpScreen(tester, acceptance: acceptance);
 
-      await tapVisible(tester, find.text('Xác Nhận Nghiệm Thu'));
+      await tapVisible(tester, find.text('Xác nhận nghiệm thu'));
       await scrollTo(
         tester,
         find.textContaining('không trả kết quả nghiệm thu'),
@@ -297,7 +331,7 @@ void main() {
         find.textContaining('Máy chủ không trả kết quả nghiệm thu'),
         findsOneWidget,
       );
-      expect(find.text('ĐÃ NGHIỆM THU'), findsNothing);
+      expect(find.text('Đã nghiệm thu'), findsNothing);
     });
 
     testWidgets(
@@ -310,34 +344,25 @@ void main() {
           );
         await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Dọn Lại (15–30ph)'));
-        expect(find.text('Yêu Cầu Dọn Lại (15–30 phút)'), findsOneWidget);
+        await tapVisible(tester, find.text('Yêu cầu dọn lại'));
+        expect(find.text('Yêu cầu dọn lại (15–30 phút)'), findsOneWidget);
 
-        await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
-        await scrollTo(
-          tester,
-          find.text('Vui lòng nhập lý do yêu cầu dọn lại.'),
-        );
-        expect(
-          find.text('Vui lòng nhập lý do yêu cầu dọn lại.'),
-          findsOneWidget,
-        );
+        await tapVisible(tester, find.text('Gửi yêu cầu'));
+        await scrollTo(tester, find.text('Nhập chỗ cần làm lại.'));
+        expect(find.text('Nhập chỗ cần làm lại.'), findsOneWidget);
         expect(acceptance.redos, isEmpty);
 
         // NordicTextInput draws its label above the TextField, so find the field inside the labelled input.
         final reasonField = find.descendant(
-          of: find.widgetWithText(
-            NordicTextInput,
-            'Nội dung / Lý do yêu cầu dọn lại',
-          ),
+          of: find.widgetWithText(NordicTextInput, 'Chỗ cần làm lại'),
           matching: find.byType(TextField),
         );
         await tester.enterText(reasonField, 'Chưa lau kính');
-        await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
+        await tapVisible(tester, find.text('Gửi yêu cầu'));
 
         expect(acceptance.redos.single, (id: 55, reason: 'Chưa lau kính'));
-        await scrollTo(tester, find.text('ĐANG DỌN LẠI'));
-        expect(find.text('ĐANG DỌN LẠI'), findsOneWidget);
+        await scrollTo(tester, find.text('Đang dọn lại'));
+        expect(find.text('Đang dọn lại'), findsOneWidget);
       },
     );
 
@@ -348,25 +373,22 @@ void main() {
           ..failure = const ApiException(409, 'Invalid state');
         await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Dọn Lại (15–30ph)'));
+        await tapVisible(tester, find.text('Yêu cầu dọn lại'));
         final reasonField = find.descendant(
-          of: find.widgetWithText(
-            NordicTextInput,
-            'Nội dung / Lý do yêu cầu dọn lại',
-          ),
+          of: find.widgetWithText(NordicTextInput, 'Chỗ cần làm lại'),
           matching: find.byType(TextField),
         );
         await tester.enterText(reasonField, 'Chưa lau kính');
-        await tapVisible(tester, find.text('Gửi Yêu Cầu Dọn Lại'));
+        await tapVisible(tester, find.text('Gửi yêu cầu'));
         await scrollTo(tester, find.textContaining('không còn chờ nghiệm thu'));
 
         expect(
           find.textContaining('Ca này không còn chờ nghiệm thu'),
           findsOneWidget,
         );
-        await scrollTo(tester, find.text('CHỜ NGHIỆM THU'));
-        expect(find.text('CHỜ NGHIỆM THU'), findsOneWidget);
-        expect(find.text('ĐANG DỌN LẠI'), findsNothing);
+        await scrollTo(tester, find.text('Chờ nghiệm thu'));
+        expect(find.text('Chờ nghiệm thu'), findsOneWidget);
+        expect(find.text('Đang dọn lại'), findsNothing);
         expect(
           find.textContaining('Đã ghi nhận yêu cầu dọn lại'),
           findsNothing,
@@ -393,7 +415,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.textContaining('2001'), findsNothing);
-        expect(find.text('Xác Nhận Nghiệm Thu'), findsNothing);
+        expect(find.text('Xác nhận nghiệm thu'), findsNothing);
       },
     );
 
@@ -418,7 +440,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Nghiệm Thu Ca #77'), findsOneWidget);
+      expect(find.text('Nghiệm thu ca'), findsOneWidget);
     });
   });
 }

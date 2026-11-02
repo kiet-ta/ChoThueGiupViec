@@ -1,24 +1,74 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_text_input.dart';
+import '../../../core/widgets/pressable.dart';
+import '../../../core/widgets/status_pill.dart';
+import '../../booking/logic/booking_logic.dart' show formatVnd;
 import '../models/customer_acceptance_models.dart';
 import '../models/job_photo_models.dart';
 import '../services/customer_acceptance_service.dart';
 import '../services/workers_photos_service.dart';
 import '../widgets/job_photo_image.dart';
-import '../widgets/tinted_card.dart';
+
+class _AcceptancePhotoViewer extends StatelessWidget {
+  final String label;
+  final String url;
+  final Map<String, String> headers;
+
+  const _AcceptancePhotoViewer({
+    required this.label,
+    required this.url,
+    required this.headers,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final height =
+        MediaQuery.sizeOf(context).height -
+        MediaQuery.paddingOf(context).top -
+        kToolbarHeight -
+        NordicSpace.xl;
+    return NordicPage.pushed(
+      title: 'Ảnh $label',
+      children: [
+        SizedBox(
+          height: height.clamp(0.0, double.infinity),
+          child: InteractiveViewer(
+            minScale: 1,
+            maxScale: 4,
+            child: Center(
+              child: Image.network(
+                url,
+                headers: headers,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Text('Không tải được ảnh'),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// Arguments of the acceptance route: the assignment whose finished job the customer looks at. The order screen passes it.
 class CustomerAcceptanceArgs {
   final int assignmentId;
+  final bool completed;
 
-  const CustomerAcceptanceArgs({required this.assignmentId});
+  const CustomerAcceptanceArgs({
+    required this.assignmentId,
+    this.completed = false,
+  });
 }
 
 /// Screen for Customer to view Before/After photos and confirm acceptance or request redo (MOB-M4-05, contract workers.md §2.5).
@@ -26,12 +76,14 @@ class CustomerAcceptanceArgs {
 /// It shows the real photos and the real answer of the server: a failed call is an error with a retry, never a made-up success.
 class CustomerAcceptanceScreen extends StatefulWidget {
   final int assignmentId;
+  final bool completed;
   final CustomerAcceptanceService? acceptanceService;
   final WorkersPhotosService? photosService;
 
   const CustomerAcceptanceScreen({
     super.key,
     required this.assignmentId,
+    this.completed = false,
     this.acceptanceService,
     this.photosService,
   });
@@ -52,6 +104,9 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
   bool _loadingPhotos = true;
   String? _photosError;
   bool _showRedoForm = false;
+
+  /// Empty redo requests so far: each one shakes the form (DESIGN-SYSTEM §5 Form).
+  int _redoErrors = 0;
   String? _errorMessage;
   String? _successMessage;
 
@@ -73,6 +128,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.completed) _status = 'COMPLETED';
     _acceptanceService =
         widget.acceptanceService ?? CustomerAcceptanceService();
     _photosService = widget.photosService ?? WorkersPhotosService();
@@ -159,7 +215,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
         _isLoading = false;
         _completionResult = done;
         _status = done.status;
-        _successMessage = 'Nghiệm thu thành công! Ca làm việc đã hoàn tất.';
+        _successMessage = 'Đã nghiệm thu. Ca làm đã xong.';
       });
     } on ApiException catch (e) {
       _fail(_failure(e, 'Không nghiệm thu được. Vui lòng thử lại.'));
@@ -172,7 +228,8 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     final reason = _redoReasonController.text.trim();
     if (reason.isEmpty) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập lý do yêu cầu dọn lại.';
+        _errorMessage = 'Nhập chỗ cần làm lại.';
+        _redoErrors++;
         _successMessage = null;
       });
       return;
@@ -203,7 +260,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
         _status = updated.status;
         _showRedoForm = false;
         _successMessage =
-            'Đã gửi yêu cầu dọn lại (15–30 ph). Thợ đã được thông báo bổ sung.';
+            'Đã gửi yêu cầu dọn lại (15–30 phút). Người làm đã được báo.';
       });
     } on ApiException catch (e) {
       _fail(_failure(e, 'Không gửi được yêu cầu dọn lại. Vui lòng thử lại.'));
@@ -222,223 +279,183 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     }
   }
 
+  /// Angles that have both a BEFORE and an AFTER photo, out of 5 (ui-templates `customer/acceptance.html`).
+  int get _pairedAngles => [
+    for (var a = 1; a <= 5; a++)
+      if (_getPhoto('BEFORE', a) != null && _getPhoto('AFTER', a) != null) a,
+  ].length;
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text('Nghiệm Thu Ca #${widget.assignmentId}'),
-        backgroundColor: Colors.white,
-        foregroundColor: NordicColors.textTitle,
-        elevation: 0.5,
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8.0,
-                runSpacing: 8.0,
+    final awaiting = _status != 'COMPLETED' && !_showRedoForm;
+    // MOB-UI-16: a pushed `NordicPage` titled in words; "Dọn lại" beside the main "Nghiệm thu" in the bar.
+    return NordicPage.pushed(
+      title: 'Nghiệm thu ca',
+      actions: awaiting
+          ? [
+              NordicButton(
+                label: 'Xác nhận nghiệm thu',
+                variant: NordicButtonVariant.primary,
+                isLoading: _isLoading,
+                onPressed: _handleAcceptCompletion,
+              ),
+              NordicButton(
+                label: 'Yêu cầu dọn lại',
+                variant: NordicButtonVariant.secondary,
+                onPressed: () {
+                  setState(() {
+                    _showRedoForm = true;
+                    _errorMessage = null;
+                  });
+                },
+              ),
+            ]
+          : null,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const EyebrowBadge(text: 'Khách Hàng Nghiệm Thu'),
-                  _buildStatusChip(),
-                ],
-              ),
-              const SizedBox(height: 8.0),
-              const Text(
-                'Đối Chiếu Ảnh Before / After',
-                style: NordicTypography.h2,
-              ),
-              const SizedBox(height: 6.0),
-              const Text(
-                'Vui lòng kiểm tra kỹ chất lượng vệ sinh theo từng góc chụp trước khi xác nhận nghiệm thu.',
-                style: NordicTypography.bodySmall,
-              ),
-              const SizedBox(height: 16.0),
-
-              // Angle selector
-              _buildAngleSelector(),
-              const SizedBox(height: 16.0),
-
-              // Side-by-side Photo Comparison Card
-              if (_photosError != null) ...[
-                TintedCard(
-                  key: const Key('photos-error'),
-                  backgroundColor: const Color(0xFFFEE2E2),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _photosError!,
-                          style: const TextStyle(
-                            color: Color(0xFF991B1B),
-                            fontSize: 13.0,
-                          ),
-                        ),
-                        const SizedBox(height: 8.0),
-                        NordicButton(
-                          key: const Key('photos-retry'),
-                          label: 'Thử lại',
-                          variant: NordicButtonVariant.secondary,
-                          onPressed: _loadPhotos,
-                        ),
-                      ],
-                    ),
+                  Text(
+                    _loadingPhotos ? '–/5' : '$_pairedAngles/5',
+                    key: const Key('acceptance-paired'),
+                    style: NordicTypography.numberMedium,
                   ),
-                ),
-                const SizedBox(height: 16.0),
-              ] else if (_loadingPhotos) ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12.0),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ],
-              _buildPhotoComparisonCard(),
-              const SizedBox(height: 16.0),
-
-              // Error or Success Alerts
-              if (_errorMessage != null) ...[
-                TintedCard(
-                  backgroundColor: const Color(0xFFFEE2E2),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Color(0xFFDC2626),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFF991B1B),
-                              fontSize: 13.0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-              ],
-              if (_successMessage != null) ...[
-                TintedCard(
-                  backgroundColor: const Color(0xFFDCFCE7),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle_outline,
-                          color: Color(0xFF16A34A),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: Text(
-                            _successMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFF15803D),
-                              fontSize: 13.0,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-              ],
-
-              // Completed Payout Breakdown
-              if (_completionResult != null) ...[
-                _buildCompletionSummaryCard(),
-                const SizedBox(height: 16.0),
-              ],
-
-              // Acceptance Actions / Redo Form
-              if (_status != 'COMPLETED') ...[
-                if (_showRedoForm) ...[
-                  _buildRedoFormCard(),
-                ] else ...[
-                  NordicTextInput(
-                    label: 'Đánh giá / Phản hồi (Không bắt buộc)',
-                    controller: _feedbackController,
-                  ),
-                  const SizedBox(height: 12.0),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: NordicButton(
-                          label: 'Dọn Lại (15–30ph)',
-                          variant: NordicButtonVariant.secondary,
-                          onPressed: () {
-                            setState(() {
-                              _showRedoForm = true;
-                              _errorMessage = null;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10.0),
-                      Expanded(
-                        child: NordicButton(
-                          label: 'Xác Nhận Nghiệm Thu',
-                          variant: NordicButtonVariant.primary,
-                          isLoading: _isLoading,
-                          onPressed: _handleAcceptCompletion,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: NordicSpace.xxs),
+                  const Text(
+                    'Góc có ảnh trước & sau',
+                    style: NordicTypography.bodySmall,
                   ),
                 ],
-              ],
+              ),
+            ),
+            _buildStatusChip(),
+          ],
+        ),
+        const SizedBox(height: NordicSpace.gutter),
+        const Text(
+          'So sánh ảnh trước và sau',
+          style: NordicTypography.titleSmall,
+        ),
+        const SizedBox(height: NordicSpace.sm),
+
+        _buildAngleSelector(),
+        const SizedBox(height: NordicSpace.sm),
+
+        if (_photosError != null) ...[
+          _notice(
+            key: const Key('photos-error'),
+            message: _photosError!,
+            isError: true,
+            action: NordicButton(
+              key: const Key('photos-retry'),
+              label: 'Thử lại',
+              variant: NordicButtonVariant.secondary,
+              onPressed: _loadPhotos,
+            ),
+          ),
+          const SizedBox(height: NordicSpace.sm),
+        ] else if (_loadingPhotos) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.0),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ],
+        _buildPhotoComparisonCard(),
+        const SizedBox(height: NordicSpace.md),
+
+        if (_errorMessage != null) ...[
+          _notice(message: _errorMessage!, isError: true),
+          const SizedBox(height: NordicSpace.md),
+        ],
+        if (_successMessage != null) ...[
+          _notice(message: _successMessage!, isError: false),
+          const SizedBox(height: NordicSpace.md),
+        ],
+
+        if (_completionResult != null) ...[
+          _buildCompletionSummaryCard(),
+          const SizedBox(height: NordicSpace.md),
+        ],
+        if (widget.completed && _completionResult == null) ...[
+          const Text(
+            'Ca này đã được nghiệm thu. Chi tiết số tiền chưa có để xem lại.',
+            style: NordicTypography.bodySmall,
+          ),
+          const SizedBox(height: NordicSpace.md),
+        ],
+
+        if (_status != 'COMPLETED') ...[
+          if (_showRedoForm)
+            ErrorShake(errors: _redoErrors, child: _buildRedoFormCard())
+          else
+            NordicTextInput(
+              label: 'Phản hồi (không bắt buộc)',
+              controller: _feedbackController,
+            ),
+        ],
+      ],
+    );
+  }
+
+  /// An error (or success) line in the tokens' error / primary-fixed tints.
+  Widget _notice({
+    Key? key,
+    required String message,
+    required bool isError,
+    Widget? action,
+  }) {
+    final foreground = isError ? NordicColors.error : NordicColors.primary;
+    return Container(
+      key: key,
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: isError
+            ? NordicColors.errorContainer
+            : NordicColors.primaryFixed,
+        borderRadius: NordicRadius.tileAll,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isError ? Icons.error_outline : Icons.check_circle_outline,
+                color: foreground,
+              ),
+              const SizedBox(width: NordicSpace.xs),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 13.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
+          if (action != null) ...[
+            const SizedBox(height: NordicSpace.xs),
+            action,
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildStatusChip() {
-    Color bg = const Color(0xFFFEF3C7);
-    Color textClr = const Color(0xFFD97706);
-    String label = 'CHỜ NGHIỆM THU';
-
-    if (_status == 'COMPLETED') {
-      bg = const Color(0xFFDCFCE7);
-      textClr = const Color(0xFF16A34A);
-      label = 'ĐÃ NGHIỆM THU';
-    } else if (_status == 'IN_PROGRESS') {
-      bg = const Color(0xFFE0F2FE);
-      textClr = const Color(0xFF0284C7);
-      label = 'ĐANG DỌN LẠI';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12.0),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: textClr,
-          fontWeight: FontWeight.bold,
-          fontSize: 11.0,
-        ),
-      ),
-    );
+    final (label, tone) = switch (_status) {
+      'COMPLETED' => ('Đã nghiệm thu', PillTone.ok),
+      'IN_PROGRESS' => ('Đang dọn lại', PillTone.neutral),
+      _ => ('Chờ nghiệm thu', PillTone.warn),
+    };
+    return StatusPill(label, tone: tone, dot: true);
   }
 
   Widget _buildAngleSelector() {
@@ -452,13 +469,7 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
               child: ChoiceChip(
                 label: Text('Góc $i'),
                 selected: _selectedAngle == i,
-                selectedColor: NordicColors.primary,
-                labelStyle: TextStyle(
-                  color: _selectedAngle == i
-                      ? Colors.white
-                      : NordicColors.textTitle,
-                  fontWeight: FontWeight.bold,
-                ),
+                showCheckmark: false,
                 onSelected: (selected) {
                   if (selected) {
                     setState(() => _selectedAngle = i);
@@ -480,38 +491,33 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     )['name'];
 
     return NordicCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title!, style: NordicTypography.h3),
-            const SizedBox(height: 12.0),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildPhotoBox(
-                    label: 'TRƯỚC (Before)',
-                    photo: beforePhoto,
-                    volScore: beforePhoto?.volScore,
-                    headerBg: const Color(0xFFF1F5F9),
-                    headerTextColor: NordicColors.textTitle,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title!, style: NordicTypography.bodySmall),
+          const SizedBox(height: NordicSpace.xs),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPhotoBox(
+                  label: 'Trước',
+                  photo: beforePhoto,
+                  volScore: beforePhoto?.volScore,
+                  tint: NordicColors.surfaceDim,
                 ),
-                const SizedBox(width: 8.0),
-                Expanded(
-                  child: _buildPhotoBox(
-                    label: 'SAU (After)',
-                    photo: afterPhoto,
-                    volScore: afterPhoto?.volScore,
-                    headerBg: const Color(0xFFDCFCE7),
-                    headerTextColor: const Color(0xFF15803D),
-                  ),
+              ),
+              const SizedBox(width: NordicSpace.xs),
+              Expanded(
+                child: _buildPhotoBox(
+                  label: 'Sau',
+                  photo: afterPhoto,
+                  volScore: afterPhoto?.volScore,
+                  tint: NordicColors.primaryFixed,
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -520,62 +526,85 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     required String label,
     required JobPhotoDto? photo,
     double? volScore,
-    required Color headerBg,
-    required Color headerTextColor,
+    required Color tint,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: NordicColors.surface,
-        borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: NordicColors.borderVariant),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 8.0),
-            decoration: BoxDecoration(
-              color: headerBg,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(11.0),
-              ),
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.0,
-                fontWeight: FontWeight.bold,
-                color: headerTextColor,
-              ),
-            ),
-          ),
-          Container(
-            height: 110.0,
-            color: const Color(0xFF0F172A),
-            child: JobPhotoImage(
-              service: _photosService,
-              photo: photo,
-              height: 110.0,
+    final source = photo == null
+        ? null
+        : _photosService.photoImage(photo.photoUrl);
+    return ClipRRect(
+      borderRadius: NordicRadius.tileAll,
+      child: Container(
+        color: NordicColors.surfaceLow,
+        child: Column(
+          children: [
+            Container(
               width: double.infinity,
-            ),
-          ),
-          if (volScore != null)
-            Padding(
+              color: tint,
               padding: const EdgeInsets.symmetric(
-                vertical: 4.0,
-                horizontal: 6.0,
+                vertical: 6.0,
+                horizontal: 8.0,
               ),
               child: Text(
-                'VoL: ${volScore.toStringAsFixed(1)} (ĐẠT)',
+                label,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 10.0,
-                  color: NordicColors.textSecondary,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 11.0,
+                  fontWeight: FontWeight.w600,
+                  color: NordicColors.textTitle,
                 ),
               ),
             ),
-        ],
+            Semantics(
+              button: source != null,
+              label: source == null
+                  ? '$label: không có ảnh để xem'
+                  : 'Xem ảnh $label toàn màn hình',
+              child: Pressable(
+                enabled: source != null,
+                child: GestureDetector(
+                  key: photo == null
+                      ? null
+                      : Key('open-photo-${photo.photoId}'),
+                  onTap: source == null
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _AcceptancePhotoViewer(
+                              label: label,
+                              url: source.url,
+                              headers: source.headers,
+                            ),
+                          ),
+                        ),
+                  child: SizedBox(
+                    height: 120.0,
+                    child: JobPhotoImage(
+                      service: _photosService,
+                      photo: photo,
+                      height: 120.0,
+                      width: double.infinity,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (volScore != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4.0,
+                  horizontal: 6.0,
+                ),
+                child: Text(
+                  'Ảnh rõ nét · ${volScore.toStringAsFixed(1).replaceAll('.', ',')}',
+                  style: const TextStyle(
+                    fontSize: 10.0,
+                    color: NordicColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -585,124 +614,98 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     if (result == null) return const SizedBox.shrink();
     final gross = result.grossAmount;
     final payout = result.payoutAmount;
-    final commissionPercent = (result.commissionRate * 100).round();
 
-    return TintedCard(
-      backgroundColor: const Color(0xFFF0FDF4),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.verified, color: Color(0xFF16A34A)),
-                SizedBox(width: 8.0),
-                Flexible(
-                  child: Text(
-                    'Chi Tiết Nghiệm Thu & Khóa Ca',
-                    style: NordicTypography.h3,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(),
-            _buildDetailRow('Tổng Phí Dịch Vụ:', '${gross.toString()} đ'),
-            _buildDetailRow(
-              'Chi Phí Nền Tảng ($commissionPercent%):',
-              '${(gross - payout).toString()} đ',
-            ),
-            const Divider(),
-            _buildDetailRow(
-              'Thu Nhập Thợ (${100 - commissionPercent}%):',
-              '${payout.toString()} đ',
-              isBold: true,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String title, String val, {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              title,
-              style: isBold
-                  ? NordicTypography.labelMedium
-                  : NordicTypography.bodySmall,
-            ),
+          const Row(
+            children: [
+              Icon(Icons.verified_outlined, color: NordicColors.primary),
+              SizedBox(width: NordicSpace.xs),
+              Flexible(
+                child: Text(
+                  'Chi tiết nghiệm thu',
+                  style: NordicTypography.titleSmall,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8.0),
-          Flexible(
-            child: Text(
-              val,
-              textAlign: TextAlign.end,
-              style: isBold
-                  ? NordicTypography.h3
-                  : NordicTypography.labelMedium,
-            ),
+          const Divider(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildAmount('Tổng tiền dịch vụ', formatVnd(gross)),
+              ),
+              const SizedBox(width: NordicSpace.sm),
+              Expanded(
+                child: _buildAmount('Người làm nhận', formatVnd(payout)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _buildAmount(String title, String val) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: NordicTypography.bodySmall),
+        const SizedBox(height: NordicSpace.xs),
+        Text(val, style: NordicTypography.titleSmall),
+      ],
+    );
+  }
+
   Widget _buildRedoFormCard() {
-    return TintedCard(
-      backgroundColor: const Color(0xFFFEF2F2),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Yêu Cầu Dọn Lại (15–30 phút)',
-              style: NordicTypography.h3,
-            ),
-            const SizedBox(height: 6.0),
-            const Text(
-              'Ghi rõ các khu vực thợ cần làm lại để hoàn thiện chất lượng ca làm.',
-              style: NordicTypography.bodySmall,
-            ),
-            const SizedBox(height: 12.0),
-            NordicTextInput(
-              label: 'Nội dung / Lý do yêu cầu dọn lại',
-              controller: _redoReasonController,
-            ),
-            const SizedBox(height: 10.0),
-            NordicTextInput(
-              label: 'Đường dẫn ảnh khoanh vùng lỗi (Không bắt buộc)',
-              controller: _redoPhotoController,
-            ),
-            const SizedBox(height: 14.0),
-            Row(
-              children: [
-                Expanded(
-                  child: NordicButton(
-                    label: 'Hủy Bỏ',
-                    variant: NordicButtonVariant.secondary,
-                    onPressed: () => setState(() => _showRedoForm = false),
-                  ),
+    return NordicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Yêu cầu dọn lại (15–30 phút)',
+            style: NordicTypography.titleSmall,
+          ),
+          const SizedBox(height: NordicSpace.xxs),
+          const Text(
+            'Ghi rõ chỗ chưa sạch để người làm quay lại làm.',
+            style: NordicTypography.bodySmall,
+          ),
+          const SizedBox(height: NordicSpace.sm),
+          NordicTextInput(
+            label: 'Chỗ cần làm lại',
+            controller: _redoReasonController,
+          ),
+          const SizedBox(height: 10.0),
+          NordicTextInput(
+            label: 'Link ảnh chỗ chưa sạch (không bắt buộc)',
+            controller: _redoPhotoController,
+          ),
+          const SizedBox(height: 14.0),
+          Row(
+            children: [
+              Expanded(
+                child: NordicButton(
+                  label: 'Huỷ',
+                  variant: NordicButtonVariant.secondary,
+                  onPressed: () => setState(() => _showRedoForm = false),
                 ),
-                const SizedBox(width: 10.0),
-                Expanded(
-                  child: NordicButton(
-                    label: 'Gửi Yêu Cầu Dọn Lại',
-                    variant: NordicButtonVariant.primary,
-                    isLoading: _isLoading,
-                    onPressed: _handleRequestRedo,
-                  ),
+              ),
+              const SizedBox(width: 10.0),
+              Expanded(
+                child: NordicButton(
+                  label: 'Gửi yêu cầu',
+                  variant: NordicButtonVariant.primary,
+                  isLoading: _isLoading,
+                  onPressed: _handleRequestRedo,
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

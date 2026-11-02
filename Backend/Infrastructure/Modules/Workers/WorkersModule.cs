@@ -23,10 +23,14 @@ public sealed class WorkersModule : IModule
         services.AddScoped<IEkycProvider, EkycProvider>();
         services.AddScoped<IEkycAuditService, EkycAuditService>();
         services.AddScoped<IWorkerAvailabilityQuery, WorkerAvailabilityQuery>();
+        services.AddScoped<IWorkerFreeShiftQuery, WorkerFreeShiftQuery>();
 
         services.AddScoped<IWorkerProfileService, WorkerProfileService>();
         services.AddScoped<IWorkerEkycService, WorkerEkycService>();
         services.AddScoped<IWorkerBookingSlotService, WorkerBookingSlotService>();
+        services.AddScoped<IWorkerAssignmentRepository, EfWorkerAssignmentRepository>();
+        services.AddScoped<IWorkerAssignmentService, WorkerAssignmentService>();
+        services.AddScoped<IWorkerWorkAreaService, WorkerWorkAreaService>();
         services.AddScoped<IJobCompletionService, JobCompletionService>();
         services.AddScoped<IJobPhotoService, JobPhotoService>();
         services.AddScoped<IWorkerExtensionRepository, EfWorkerExtensionRepository>();

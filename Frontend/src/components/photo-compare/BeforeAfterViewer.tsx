@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { AuthImage } from './AuthImage'
 import { pairPhotos, type ComparePhoto } from './pair-photos'
 import { moveIndex, ownsArrowKeys, stepFromKey } from './viewer-keys'
 
@@ -38,7 +39,7 @@ function Frame({ label, photo }: { label: string; photo: ComparePhoto | null }) 
       <div className="relative aspect-4/3 overflow-hidden rounded-xl border border-border bg-muted">
         {photo && !broken ? (
           <>
-            <img
+            <AuthImage
               src={photo.url}
               alt={`${label} - góc ${photo.angleNo}`}
               loading="lazy"
@@ -71,8 +72,8 @@ function SliderCompare({ before, after }: { before: ComparePhoto | null; after: 
   return (
     <div className="flex flex-col gap-3">
       <div className="relative aspect-4/3 overflow-hidden rounded-xl border border-border bg-muted">
-        <img src={after.url} alt={`Sau - góc ${after.angleNo}`} className="absolute inset-0 size-full object-cover" />
-        <img
+        <AuthImage src={after.url} alt={`Sau - góc ${after.angleNo}`} className="absolute inset-0 size-full object-cover" />
+        <AuthImage
           src={before.url}
           alt={`Trước - góc ${before.angleNo}`}
           className="absolute inset-0 size-full object-cover"

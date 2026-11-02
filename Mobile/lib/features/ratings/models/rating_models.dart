@@ -13,8 +13,9 @@ class RatingCriterion {
 
 extension RatingRoleX on RatingRole {
   /// `customers/me` or `workers/me`: the policy of the endpoint follows the role of the signed-in person.
-  String get pathPrefix =>
-      this == RatingRole.customer ? '/api/customers/me' : '/api/workers/me';
+  String get pathPrefix => this == RatingRole.customer
+      ? '/api/v1/customers/me'
+      : '/api/v1/workers/me';
 
   /// The criteria are fixed by decision Q14: the server rejects any other key and any missing key.
   List<RatingCriterion> get criteria => this == RatingRole.customer
@@ -32,7 +33,7 @@ extension RatingRoleX on RatingRole {
   bool get isInternalOnly => this == RatingRole.worker;
 
   String get title =>
-      this == RatingRole.customer ? 'Đánh giá thợ' : 'Đánh giá gia chủ';
+      this == RatingRole.customer ? 'Đánh giá người làm' : 'Đánh giá gia chủ';
 }
 
 /// `RatingWindow` of the contract: whether the assignment can be rated now and why not.

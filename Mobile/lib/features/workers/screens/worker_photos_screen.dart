@@ -3,15 +3,20 @@ import 'package:flutter/material.dart';
 import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/device_camera_wrapper.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/pressable.dart';
+import '../../../core/widgets/stat_tile.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../models/job_photo_models.dart';
 import '../services/workers_photos_service.dart';
 import '../widgets/job_photo_image.dart';
-import '../widgets/tinted_card.dart';
 
 /// Screen for Before/After photo capture & VoL verification (contract workers.md §2.4).
 /// Implements MOB-M4-04 / MOB-PHOTO-01: angle guides, a real photo from the camera or the library, uploaded as a file;
@@ -48,6 +53,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _successMessage;
+
+  /// Bumped on every failure so the message shakes.
+  int _errors = 0;
 
   final List<JobPhotoDto> _uploadedPhotos = [];
 
@@ -106,6 +114,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     setState(() {
       _isLoading = false;
       _errorMessage = message;
+      _errors++;
       _successMessage = null;
     });
   }
@@ -167,7 +176,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     final bytes = picked?.bytes;
     final type = _pickedType;
     if (picked == null || bytes == null || type == null) {
-      _fail('Vui lòng chụp hoặc chọn ảnh trước khi gửi.');
+      _fail('Bạn chưa chọn ảnh. Hãy chụp hoặc chọn ảnh trước khi gửi.');
       return;
     }
 
@@ -181,7 +190,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       );
       if (!hasBeforeAngle && _uploadedPhotos.isNotEmpty) {
         _fail(
-          'Góc $_selectedAngle chưa có ảnh BEFORE được chấp nhận. Vui lòng chọn đúng góc tương ứng!',
+          'Góc $_selectedAngle chưa có ảnh trước được chấp nhận. Hãy chọn đúng góc.',
         );
         return;
       }
@@ -215,7 +224,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
         _picked = null;
         _pickedType = null;
         _successMessage =
-            'Tải ảnh thành công! Độ nét VoL: ${saved.volScore.toStringAsFixed(1)} (ĐẠT CHUẨN)';
+            'Đã tải ảnh lên. Độ nét: ${saved.volScore.toStringAsFixed(1)} (đạt)';
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -245,213 +254,148 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       orElse: () => _angleGuides.first,
     );
 
-    return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text('Ảnh Before/After #${widget.assignmentId}'),
-        backgroundColor: Colors.white,
-        foregroundColor: NordicColors.textTitle,
-        elevation: 0.5,
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              const EyebrowBadge(text: 'Kiểm Tra Chất Lượng VoL'),
-              const SizedBox(height: 8.0),
-              const Text(
-                'Chụp Ảnh Trước & Sau Làm',
-                style: NordicTypography.h2,
-              ),
-              const SizedBox(height: 6.0),
-              const Text(
-                'Yêu cầu chụp 3–5 góc. Ảnh After phải khớp đúng góc ảnh Before và có VoL ≥ 100.0.',
-                style: NordicTypography.bodySmall,
-              ),
-              const SizedBox(height: 16.0),
-
-              // Phase Switcher
-              _buildPhaseSegmentedControl(),
-              const SizedBox(height: 16.0),
-
-              // Angle Selector
-              _buildAngleSelector(),
-              const SizedBox(height: 16.0),
-
-              // Camera Frame Guide Overlay
-              _buildCameraGuideOverlay(currentGuide),
-              const SizedBox(height: 16.0),
-
-              // Messages
-              if (_errorMessage != null) ...[
-                TintedCard(
-                  backgroundColor: const Color(0xFFFEE2E2),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.warning_amber_rounded,
-                          color: Color(0xFFDC2626),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFF991B1B),
-                              fontSize: 13.0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-              ],
-              if (_successMessage != null) ...[
-                TintedCard(
-                  backgroundColor: const Color(0xFFDCFCE7),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle_outline,
-                          color: Color(0xFF16A34A),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: Text(
-                            _successMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFF15803D),
-                              fontSize: 13.0,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-              ],
-
-              // The photo about to be sent
-              if (_picked?.bytes != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12.0),
-                  child: Image.memory(
-                    _picked!.bytes!,
-                    height: 180.0,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const SizedBox(
-                      height: 180.0,
-                      child: Center(child: Text('Không xem trước được ảnh')),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12.0),
-              ],
-
-              // Photo Input & Action
-              Row(
-                children: [
-                  Expanded(
-                    child: NordicButton(
-                      label: 'Chụp ảnh',
-                      variant: NordicButtonVariant.secondary,
-                      onPressed: _isLoading
-                          ? null
-                          : () => _pick(fromCamera: true),
-                    ),
-                  ),
-                  const SizedBox(width: 8.0),
-                  Expanded(
-                    child: NordicButton(
-                      label: 'Chọn từ thư viện',
-                      variant: NordicButtonVariant.secondary,
-                      onPressed: _isLoading
-                          ? null
-                          : () => _pick(fromCamera: false),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12.0),
-              NordicButton(
-                label: 'Gửi Ảnh Chụp',
-                variant: NordicButtonVariant.primary,
-                isLoading: _isLoading,
-                onPressed: _uploadPhoto,
-              ),
-
-              const SizedBox(height: 20.0),
-              // List of Uploaded Photos
-              _buildUploadedPhotosList(),
-            ],
-          ),
+    return NordicPage.pushed(
+      title: 'Ảnh trước và sau',
+      actions: [
+        NordicButton(
+          label: 'Gửi ảnh',
+          variant: NordicButtonVariant.primary,
+          isLoading: _isLoading,
+          onPressed: _uploadPhoto,
         ),
-      ),
+      ],
+      children: [
+        const Text(
+          'Chụp 3–5 góc. Ảnh sau phải đúng góc với ảnh trước và có độ nét ≥ 100.',
+          style: NordicTypography.bodySmall,
+        ),
+        const SizedBox(height: NordicSpace.md),
+
+        // Count per phase
+        Row(
+          children: [
+            Expanded(
+              child: StatTile(
+                label: 'Trước',
+                value: '${_acceptedCount('BEFORE')}',
+                unit: '/5',
+              ),
+            ),
+            const SizedBox(width: NordicSpace.sm),
+            Expanded(
+              child: StatTile(
+                label: 'Sau',
+                value: '${_acceptedCount('AFTER')}',
+                unit: '/5',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: NordicSpace.md),
+
+        // Phase Switcher
+        _buildPhaseSegmentedControl(),
+        const SizedBox(height: NordicSpace.md),
+
+        // Angle x phase grid: tap a cell to pick that photo
+        _buildAngleSelector(),
+        const SizedBox(height: NordicSpace.md),
+
+        // Frame guide of the chosen angle
+        _buildCameraGuideOverlay(currentGuide),
+        const SizedBox(height: NordicSpace.md),
+
+        // Messages
+        ErrorShake(
+          errors: _errors,
+          child: _errorMessage == null
+              ? const SizedBox.shrink()
+              : _message(
+                  _errorMessage!,
+                  icon: Icons.warning_amber_rounded,
+                  background: NordicColors.errorContainer,
+                  foreground: NordicColors.error,
+                ),
+        ),
+        if (_successMessage != null)
+          _message(
+            _successMessage!,
+            icon: Icons.check_circle_outline,
+            background: NordicColors.primaryFixed,
+            foreground: NordicColors.primary,
+          ),
+
+        // The photo about to be sent
+        if (_picked?.bytes != null) ...[
+          ClipRRect(
+            borderRadius: NordicRadius.tileAll,
+            child: Image.memory(
+              _picked!.bytes!,
+              height: 180.0,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const SizedBox(
+                height: 180.0,
+                child: Center(child: Text('Không xem trước được ảnh')),
+              ),
+            ),
+          ),
+          const SizedBox(height: NordicSpace.sm),
+        ],
+
+        // Photo input
+        Row(
+          children: [
+            Expanded(
+              child: NordicButton(
+                label: 'Chụp ảnh',
+                variant: NordicButtonVariant.secondary,
+                onPressed: _isLoading ? null : () => _pick(fromCamera: true),
+              ),
+            ),
+            const SizedBox(width: NordicSpace.xs),
+            Expanded(
+              child: NordicButton(
+                label: 'Chọn từ thư viện',
+                variant: NordicButtonVariant.secondary,
+                onPressed: _isLoading ? null : () => _pick(fromCamera: false),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: NordicSpace.gutter),
+        // List of Uploaded Photos
+        _buildUploadedPhotosList(),
+      ],
     );
   }
 
-  Widget _buildPhaseSegmentedControl() {
-    return NordicCard(
-      child: Padding(
-        padding: const EdgeInsets.all(6.0),
+  /// A one-line result under the guide: an error (red) or a success (green), always with an icon and words.
+  Widget _message(
+    String text, {
+    required IconData icon,
+    required Color background,
+    required Color foreground,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: NordicSpace.md),
+      child: Container(
+        padding: const EdgeInsets.all(NordicSpace.sm),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: NordicRadius.fieldAll,
+        ),
         child: Row(
           children: [
+            Icon(icon, color: foreground),
+            const SizedBox(width: NordicSpace.xs),
             Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedPhase = 'BEFORE'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  decoration: BoxDecoration(
-                    color: _selectedPhase == 'BEFORE'
-                        ? NordicColors.primary
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Text(
-                    'BEFORE (Trước)',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: _selectedPhase == 'BEFORE'
-                          ? Colors.white
-                          : NordicColors.textTitle,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedPhase = 'AFTER'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  decoration: BoxDecoration(
-                    color: _selectedPhase == 'AFTER'
-                        ? NordicColors.primary
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Text(
-                    'AFTER (Sau)',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: _selectedPhase == 'AFTER'
-                          ? Colors.white
-                          : NordicColors.textTitle,
-                    ),
-                  ),
+              child: Text(
+                text,
+                style: NordicTypography.bodySmall.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -461,97 +405,175 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     );
   }
 
-  Widget _buildAngleSelector() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (int i = 1; i <= 5; i++)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: ChoiceChip(
-                label: Text('Góc $i'),
-                selected: _selectedAngle == i,
-                selectedColor: NordicColors.primary,
-                labelStyle: TextStyle(
-                  color: _selectedAngle == i
-                      ? Colors.white
+  int _acceptedCount(String phase) => _uploadedPhotos
+      .where((p) => p.photoPhase == phase && p.isAccepted)
+      .map((p) => p.angleNo)
+      .toSet()
+      .length;
+
+  bool _hasAccepted(String phase, int angle) => _uploadedPhotos.any(
+    (p) => p.photoPhase == phase && p.angleNo == angle && p.isAccepted,
+  );
+
+  /// `.seg`: Trước / Sau in one rounded track, the chosen one filled.
+  Widget _buildPhaseSegmentedControl() {
+    Widget segment(String phase, String label) {
+      final selected = _selectedPhase == phase;
+      return Expanded(
+        child: Pressable(
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPhase = phase),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: NordicSpace.sm),
+              decoration: BoxDecoration(
+                color: selected
+                    ? NordicColors.primary
+                    : NordicColors.surfaceContainer,
+                borderRadius: NordicRadius.pill,
+              ),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: NordicTypography.titleSmall.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: selected
+                      ? NordicColors.textInverse
                       : NordicColors.textTitle,
-                  fontWeight: FontWeight.bold,
                 ),
-                onSelected: (selected) {
-                  if (selected) {
-                    setState(() => _selectedAngle = i);
-                  }
-                },
               ),
             ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(NordicSpace.xxs),
+      decoration: BoxDecoration(
+        color: NordicColors.surfaceContainer,
+        borderRadius: NordicRadius.pill,
+      ),
+      child: Row(
+        children: [segment('BEFORE', 'Trước'), segment('AFTER', 'Sau')],
+      ),
+    );
+  }
+
+  /// `.angle` rows: one per angle with a Trước and a Sau cell; a check when the server accepted the photo, a camera
+  /// icon when it is still missing. Tapping a cell chooses that phase and angle.
+  Widget _buildAngleSelector() {
+    Widget cell(String phase, int angle) {
+      final done = _hasAccepted(phase, angle);
+      final selected = _selectedPhase == phase && _selectedAngle == angle;
+      return Pressable(
+        child: InkWell(
+          key: Key('photo-cell-$phase-$angle'),
+          borderRadius: NordicRadius.tileAll,
+          onTap: () => setState(() {
+            _selectedPhase = phase;
+            _selectedAngle = angle;
+          }),
+          child: Container(
+            width: 64.0,
+            height: 48.0,
+            decoration: BoxDecoration(
+              color: done ? NordicColors.primaryFixed : null,
+              borderRadius: NordicRadius.tileAll,
+              border: done
+                  ? null
+                  : Border.all(
+                      color: selected
+                          ? NordicColors.primary
+                          : NordicColors.borderVariant,
+                      width: selected ? 2.0 : 1.5,
+                    ),
+            ),
+            child: Icon(
+              done ? Icons.check : Icons.add_a_photo_outlined,
+              color: done ? NordicColors.primary : NordicColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return NordicCard(
+      child: Column(
+        children: [
+          for (int i = 1; i <= 5; i++) ...[
+            if (i > 1) const Divider(height: NordicSpace.md),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    key: Key('photo-angle-$i'),
+                    onTap: () => setState(() => _selectedAngle = i),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Góc $i',
+                          style: _selectedAngle == i
+                              ? NordicTypography.titleSmall.copyWith(
+                                  color: NordicColors.primary,
+                                )
+                              : NordicTypography.titleSmall,
+                        ),
+                        Text(_angleName(i), style: NordicTypography.bodySmall),
+                      ],
+                    ),
+                  ),
+                ),
+                cell('BEFORE', i),
+                const SizedBox(width: NordicSpace.xs),
+                cell('AFTER', i),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
+  /// "Toàn cảnh" from "Góc 1: Toàn cảnh".
+  String _angleName(int angle) {
+    final title =
+        _angleGuides.firstWhere(
+              (g) => g['angle'] == angle,
+              orElse: () => _angleGuides.first,
+            )['title']
+            as String;
+    final i = title.indexOf(': ');
+    return i < 0 ? title : title.substring(i + 2);
+  }
+
   Widget _buildCameraGuideOverlay(Map<String, dynamic> guide) {
-    return Container(
-      height: 180.0,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(color: NordicColors.primary, width: 2.0),
-      ),
-      child: Stack(
+    return NordicCard(
+      isHighlighted: true,
+      child: Row(
         children: [
-          Center(
+          const Icon(Icons.crop_free, size: 40.0, color: NordicColors.primary),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.crop_free,
-                  size: 54.0,
-                  color: Color(0xFF38BDF8),
-                ),
-                const SizedBox(height: 8.0),
                 Text(
                   guide['title'] as String,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.0,
-                  ),
+                  style: NordicTypography.titleSmall,
                 ),
-                const SizedBox(height: 4.0),
+                const SizedBox(height: NordicSpace.xxs),
                 Text(
                   guide['desc'] as String,
-                  style: const TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 12.0,
-                  ),
+                  style: NordicTypography.bodySmall,
                 ),
               ],
             ),
           ),
-          Positioned(
-            top: 10,
-            right: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 4.0,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(6.0),
-              ),
-              child: Text(
-                'Giai đoạn: $_selectedPhase',
-                style: const TextStyle(
-                  color: Color(0xFF38BDF8),
-                  fontSize: 11.0,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+          const SizedBox(width: NordicSpace.xs),
+          StatusPill(
+            _selectedPhase == 'BEFORE' ? 'Trước' : 'Sau',
+            tone: PillTone.ok,
           ),
         ],
       ),
@@ -563,7 +585,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
 
     return NordicCard(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(NordicSpace.xxs),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -572,29 +594,27 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Đã Tải Ảnh ($_selectedPhase)',
-                    style: NordicTypography.h3,
+                    'Ảnh đã tải (${_selectedPhase == "BEFORE" ? "trước" : "sau"})',
+                    style: NordicTypography.titleSmall,
                   ),
                 ),
-                const SizedBox(width: 8.0),
+                const SizedBox(width: NordicSpace.xs),
                 Text(
-                  '${photos.length}/5 đạt (Min 3)',
-                  style: TextStyle(
+                  '${photos.length}/5 đạt',
+                  style: NordicTypography.titleSmall.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: photos.length >= 3
-                        ? const Color(0xFF16A34A)
-                        : NordicColors.primary,
+                    color: NordicColors.primary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12.0),
+            const SizedBox(height: NordicSpace.sm),
             if (photos.isEmpty)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12.0),
+                padding: EdgeInsets.symmetric(vertical: NordicSpace.sm),
                 child: Center(
                   child: Text(
-                    'Chưa có ảnh nào được tải lên cho giai đoạn này.',
+                    'Chưa có ảnh nào ở phần này.',
                     style: NordicTypography.bodySmall,
                   ),
                 ),
@@ -607,7 +627,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                     Row(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(6.0),
+                          borderRadius: NordicRadius.tileAll,
                           child: JobPhotoImage(
                             service: _service,
                             photo: p,
@@ -616,13 +636,13 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                             compact: true,
                           ),
                         ),
-                        const SizedBox(width: 8.0),
+                        const SizedBox(width: NordicSpace.xs),
                         const Icon(
                           Icons.check_circle,
-                          color: Color(0xFF16A34A),
+                          color: NordicColors.primary,
                           size: 18.0,
                         ),
-                        const SizedBox(width: 8.0),
+                        const SizedBox(width: NordicSpace.xs),
                         Text(
                           'Góc ${p.angleNo}',
                           style: NordicTypography.labelMedium,
@@ -630,9 +650,8 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                       ],
                     ),
                     Text(
-                      'VoL: ${p.volScore.toStringAsFixed(1)}',
-                      style: const TextStyle(
-                        fontSize: 12.0,
+                      'Độ nét ${p.volScore.toStringAsFixed(1)}',
+                      style: NordicTypography.bodySmall.copyWith(
                         color: NordicColors.textSecondary,
                       ),
                     ),

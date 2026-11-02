@@ -15,7 +15,7 @@ class WorkersLocationService {
   }) : _apiClient = apiClient ?? ApiClient(),
        _locationWrapper = locationWrapper ?? LocationWrapper();
 
-  /// Sends the position of the device (`PUT /api/workers/me/location`).
+  /// Sends the position of the device (`PUT /api/v1/workers/me/location`).
   Future<ApiResponse<WorkerLocationDto>> shareCurrentLocation() async {
     final point = await _locationWrapper.getCurrentLocation();
     return updateLocation(latitude: point.latitude, longitude: point.longitude);
@@ -26,7 +26,7 @@ class WorkersLocationService {
     required double longitude,
   }) {
     return _apiClient.put<WorkerLocationDto>(
-      '/api/workers/me/location',
+      '/api/v1/workers/me/location',
       body: {'latitude': latitude, 'longitude': longitude},
       fromJson: (json) =>
           WorkerLocationDto.fromJson(json as Map<String, dynamic>),

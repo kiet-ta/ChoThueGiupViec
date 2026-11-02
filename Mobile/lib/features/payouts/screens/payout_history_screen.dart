@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../logic/payout_logic.dart';
 import '../models/payout_models.dart';
 import '../services/payouts_service.dart';
 
 /// "Lịch sử giải ngân": the worker's own closed payout items, newest first, loaded page by page (payouts.md 2.5).
+/// MOB-UI-23 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage.pushed`, one `NordicCard` per payout, tokens only.
 class PayoutHistoryScreen extends StatefulWidget {
   final IPayoutsService? service;
   final int pageSize;
@@ -68,82 +73,89 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(title: const Text('Lịch sử giải ngân')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: _body(),
-        ),
-      ),
-    );
+    return NordicPage.pushed(title: 'Lịch sử giải ngân', children: _body());
   }
 
-  Widget _body() {
+  List<Widget> _body() {
     if (_items.isEmpty && _loading) {
-      return const LoadingStateWidget(message: 'Đang tải lịch sử…');
+      return const [
+        SizedBox(height: NordicSpace.xl),
+        LoadingStateWidget(message: 'Đang tải lịch sử…'),
+      ];
     }
     if (_items.isEmpty && _error != null) {
-      return ErrorStateWidget(message: _error!, onRetry: _loadNext);
+      return [ErrorStateWidget(message: _error!, onRetry: _loadNext)];
     }
     if (_items.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: const [
-          NordicCard(
-            child: Text(
-              'Chưa có đợt giải ngân nào. Thu nhập được chuyển theo tháng, sau khi tháng kết thúc.',
-              key: Key('history-empty'),
-              style: NordicTypography.bodyRegular,
-            ),
+      return const [
+        NordicCard(
+          child: Text(
+            'Chưa có đợt giải ngân nào. Thu nhập được chuyển theo tháng, sau khi tháng kết thúc.',
+            key: Key('history-empty'),
+            style: NordicTypography.bodyRegular,
           ),
-        ],
-      );
+        ),
+      ];
     }
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        for (final item in _items) _tile(item),
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text(
-              _error!,
-              key: const Key('history-error'),
-              style: NordicTypography.bodySmall.copyWith(
-                color: NordicColors.error,
-              ),
+    return [
+      for (final item in _items) _tile(item),
+      if (_error != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+          child: Text(
+            _error!,
+            key: const Key('history-error'),
+            style: NordicTypography.bodySmall.copyWith(
+              color: NordicColors.error,
             ),
           ),
-        if (_hasMore)
-          NordicButton(
-            key: const Key('history-more'),
-            label: 'Xem thêm',
-            variant: NordicButtonVariant.secondary,
-            isLoading: _loading,
-            onPressed: _loading ? null : _loadNext,
-          ),
-      ],
-    );
+        ),
+      if (_hasMore)
+        NordicButton(
+          key: const Key('history-more'),
+          label: 'Xem thêm',
+          variant: NordicButtonVariant.secondary,
+          isLoading: _loading,
+          onPressed: _loading ? null : _loadNext,
+        ),
+    ];
   }
 
+  /// A round icon (clock while pending, check once transferred), the month, the amount and a pill.
   Widget _tile(PayoutHistoryItem item) {
     final transferred = item.itemStatus == 'TRANSFERRED';
     final key = item.periodMonth.length == 7
         ? monthLabel(item.periodMonth)
         : item.periodMonth;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: NordicSpace.xs),
       child: NordicCard(
         child: Row(
           children: [
+            Container(
+              width: 40.0,
+              height: 40.0,
+              decoration: BoxDecoration(
+                color: transferred
+                    ? NordicColors.primaryFixed
+                    : NordicColors.surfaceContainer,
+                borderRadius: NordicRadius.tileAll,
+              ),
+              child: Icon(
+                transferred ? Icons.check : Icons.schedule,
+                size: 22.0,
+                color: transferred
+                    ? NordicColors.primary
+                    : NordicColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: NordicSpace.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(key, style: NordicTypography.bodyLarge),
-                  const SizedBox(height: 2.0),
+                  Text(key, style: NordicTypography.titleSmall),
+                  const SizedBox(height: NordicSpace.xxs),
                   Text(
                     transferred
                         ? 'Đã chuyển khoản ${formatVietnamDate(item.transferredAt)}'
@@ -153,10 +165,21 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
                 ],
               ),
             ),
-            Text(
-              formatVnd(item.netAmount),
-              key: Key('history-net-${item.batchId}'),
-              style: NordicTypography.bodyLarge,
+            const SizedBox(width: NordicSpace.xs),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatVnd(item.netAmount),
+                  key: Key('history-net-${item.batchId}'),
+                  style: NordicTypography.titleSmall,
+                ),
+                const SizedBox(height: NordicSpace.xxs),
+                StatusPill(
+                  transferred ? 'Đã chuyển' : 'Đang chờ',
+                  tone: transferred ? PillTone.ok : PillTone.warn,
+                ),
+              ],
             ),
           ],
         ),

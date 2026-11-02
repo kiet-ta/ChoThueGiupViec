@@ -41,7 +41,8 @@ public sealed class OrderCreationServiceTests
 
         public Task<JobOrder?> GetForUpdateAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-        public Task<JobOrder?> GetOwnedAsync(int customerId, long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<JobOrder?> GetOwnedAsync(int customerId, long orderId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Saved.SingleOrDefault(o => o.CustomerId == customerId && o.OrderId == orderId));
         public Task<IReadOnlyList<JobAssignmentStatus>> GetAssignmentStatusesAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<(IReadOnlyList<JobOrder> Items, int Total)> ListByCustomerAsync(int customerId, JobOrderStatus? status, int skip, int take, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default) =>
@@ -103,14 +104,59 @@ public sealed class OrderCreationServiceTests
         public Fixture(decimal areaM2 = 50m) =>
             Addresses.Add(CustomerId, new CustomerAddressInfo(AddressId, areaM2, 10.76m, 106.66m));
 
-        public OrderCreationService Service() =>
-            new(Addresses, new StubPricing(), Orders, Capacity, Orders, new VietnamClock(NowUtc), Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        public OrderCreationService Service(ICustomerFavoriteQuery? favorites = null, IOrderTrackingQuery? tracking = null) =>
+            new(Addresses, new StubPricing(), Orders, Capacity, Orders, new VietnamClock(NowUtc), Microsoft.Extensions.Options.Options.Create(new BusinessRules()),
+                favorites, tracking);
+    }
+
+    /// <summary>The customer's favorites, as the Customers module would answer through the port.</summary>
+    private sealed class StubFavorites(params int[] workerIds) : ICustomerFavoriteQuery
+    {
+        public Task<bool> IsFavoriteAsync(int customerId, int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(customerId == CustomerId && workerIds.Contains(workerId));
+    }
+
+    private sealed class StubTracking(params AssignmentProgress[] assignments) : IOrderTrackingQuery
+    {
+        public Task<IReadOnlyList<AssignmentProgress>> GetOrderProgressAsync(long orderId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AssignmentProgress>>(assignments);
+
+        public Task<IReadOnlyList<CustomerAssignmentSummary>> GetCustomerHistoryAsync(int customerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<CustomerAssignmentSummary>>([]);
+    }
+
+    [Fact]
+    public async Task PreviousCompletedWorkerCanBeRebookedWithoutBeingAFavorite()
+    {
+        var f = new Fixture();
+        f.Orders.Saved.Add(new JobOrder { OrderId = 42, CustomerId = CustomerId });
+        var tracking = new StubTracking(new AssignmentProgress(11, 1, 58, JobAssignmentStatus.Completed, null, null));
+        var request = Request(preferredWorkerId: 58) with { PreviousOrderId = 42 };
+
+        var created = await f.Service(new StubFavorites(), tracking).CreateAsync(request);
+
+        Assert.NotEqual(42, created.OrderId);
+        Assert.Equal(58, f.Orders.Saved.Single(o => o.OrderId == created.OrderId).PreferredWorkerId);
+    }
+
+    [Fact]
+    public async Task PreviousWorkerMustBelongToAnOwnedOrderAndHaveACompletedAssignment()
+    {
+        var f = new Fixture();
+        f.Orders.Saved.Add(new JobOrder { OrderId = 42, CustomerId = CustomerId + 1 });
+        var tracking = new StubTracking(new AssignmentProgress(11, 1, 58, JobAssignmentStatus.Completed, null, null));
+        var request = Request(preferredWorkerId: 58) with { PreviousOrderId = 42 };
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service(new StubFavorites(), tracking).CreateAsync(request));
+
+        f.Orders.Saved[0].CustomerId = CustomerId;
+        var unfinished = new StubTracking(new AssignmentProgress(11, 1, 58, JobAssignmentStatus.InProgress, null, null));
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service(new StubFavorites(), unfinished).CreateAsync(request));
     }
 
     private static CreateOrderRequest Request(
         ServiceTier tier = ServiceTier.Economy, DateOnly? date = null, string shift = BookingShifts.Morning,
-        string? note = null, string? skill = null, int addressId = AddressId) =>
-        new(CustomerId, addressId, tier, date ?? ShiftDate, shift, note, skill);
+        string? note = null, string? skill = null, int addressId = AddressId, int? preferredWorkerId = null) =>
+        new(CustomerId, addressId, tier, date ?? ShiftDate, shift, note, skill, preferredWorkerId);
 
     private static async Task<BusinessRuleViolationException> ConflictAsync(Task task) =>
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() => task);
@@ -325,4 +371,46 @@ public sealed class OrderCreationServiceTests
 
     [Fact]
     public void BookingRules_DefaultHorizonIs14Days() => Assert.Equal(14, new BusinessRules().Booking.MaxDaysAhead);
+
+    [Fact]
+    public async Task Economy_WithAFavoriteWorker_StoresThePreferredWorker()
+    {
+        var f = new Fixture();
+
+        await f.Service(new StubFavorites(42)).CreateAsync(Request(preferredWorkerId: 42));
+
+        Assert.Equal(42, Assert.Single(f.Orders.Saved).PreferredWorkerId);
+    }
+
+    [Fact]
+    public async Task PreferredWorker_NotAFavorite_IsNotFound_AndNothingIsWritten()
+    {
+        var f = new Fixture();
+
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service(new StubFavorites(42)).CreateAsync(Request(preferredWorkerId: 7)));
+
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task PreferredWorker_OnAPremiumOrder_IsAValidationError()
+    {
+        var f = new Fixture();
+
+        var error = await Assert.ThrowsAsync<ValidationException>(
+            () => f.Service(new StubFavorites(42)).CreateAsync(Request(ServiceTier.Premium, preferredWorkerId: 42)));
+
+        Assert.True(error.Errors.ContainsKey("preferredWorkerId"));
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task WithoutAPreferredWorker_NothingIsStored()
+    {
+        var f = new Fixture();
+
+        await f.Service().CreateAsync(Request());
+
+        Assert.Null(Assert.Single(f.Orders.Saved).PreferredWorkerId);
+    }
 }

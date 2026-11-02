@@ -49,6 +49,7 @@ public sealed class AgenciesModule : IModule
 
         // AGENCY-UAT-02: Worker retirement and replacement
         services.AddScoped<WorkerRetirementService>();
-        services.AddHostedService<WorkerRetirementSweep>();
+        services.AddScoped<WorkerRetirementSweepService>();
+        services.AddHostedService<WorkerRetirementSweepWorker>();
     }
 }

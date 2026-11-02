@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
-import '../../../core/widgets/eyebrow_badge.dart';
+import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../models/customer_address.dart';
@@ -50,6 +53,9 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   String? _generalError;
 
   bool get _isEditing => widget.initialAddress != null;
+
+  /// Failed saves so far: each one shakes the form.
+  int _formErrors = 0;
 
   @override
   void initState() {
@@ -127,7 +133,10 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   }
 
   Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _formErrors++);
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
@@ -159,11 +168,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _isEditing
-                ? 'Đã cập nhật địa chỉ thành công!'
-                : 'Đã lưu địa chỉ mới vào sổ địa chỉ!',
-          ),
+          content: Text(_isEditing ? 'Đã lưu địa chỉ' : 'Đã thêm địa chỉ'),
           backgroundColor: NordicColors.primary,
         ),
       );
@@ -182,258 +187,179 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: NordicColors.canvas,
-      appBar: AppBar(
-        title: Text(
-          _isEditing ? 'Chỉnh Sửa Địa Chỉ' : 'Thêm Địa Chỉ Mới',
-          style: NordicTypography.h3,
+    // Fields, housing type, area, position; "Lưu địa chỉ" in the action bar above the keyboard.
+    return NordicPage.pushed(
+      title: _isEditing ? 'Sửa địa chỉ' : 'Thêm địa chỉ',
+      actions: [
+        NordicButton(
+          label: 'Lưu địa chỉ',
+          isLoading: _isSubmitting,
+          onPressed: _handleSubmit,
         ),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390.0),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
-              ),
+      ],
+      children: [
+        // One child: every field stays built, so the form validates all of them.
+        Form(
+          key: _formKey,
+          child: ErrorShake(
+            errors: _formErrors,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: EyebrowBadge(
-                    text: _isEditing
-                        ? 'CHỈNH SỬA THÔNG TIN'
-                        : 'THÔNG TIN ĐỊA CHỈ MỚI',
-                  ),
-                ),
-                const SizedBox(height: 8.0),
-                Text(
-                  _isEditing ? 'Cập nhật địa chỉ' : 'Địa chỉ phục vụ',
-                  style: NordicTypography.h1,
-                ),
-                const SizedBox(height: 4.0),
-                Text(
-                  'Thông tin chi tiết loại nhà và diện tích giúp hệ thống ước lượng thời gian & giá dọn dẹp chính xác.',
-                  style: NordicTypography.bodyRegular,
-                ),
-                const SizedBox(height: 16.0),
-
                 if (_generalError != null) ...[
                   Container(
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
+                    padding: const EdgeInsets.all(NordicSpace.sm),
+                    decoration: const BoxDecoration(
                       color: NordicColors.errorContainer,
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: NordicRadius.tileAll,
                     ),
                     child: Text(
                       _generalError!,
                       style: NordicTypography.bodySmall.copyWith(
                         color: NordicColors.error,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16.0),
+                  const SizedBox(height: NordicSpace.md),
                 ],
+                TextFormField(
+                  controller: _labelController,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Tên gợi nhớ',
+                    hintText: 'Ví dụ: Nhà riêng',
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Nhập tên gợi nhớ.';
+                    }
+                    if (val.length > 50) {
+                      return 'Tên gợi nhớ tối đa 50 ký tự.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: NordicSpace.md),
+                TextFormField(
+                  controller: _addressLineController,
+                  decoration: const InputDecoration(
+                    labelText: 'Số nhà, đường',
+                    hintText: 'Ví dụ: 123 Nguyễn Thị Minh Khai',
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Nhập số nhà và tên đường.';
+                    }
+                    if (val.length > 255) {
+                      return 'Địa chỉ tối đa 255 ký tự.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: NordicSpace.md),
+                AdminUnitPickerField(
+                  label: 'Tỉnh / Thành phố',
+                  value: _city,
+                  options: vietnamAdminUnits.keys.toList(),
+                  requiredMessage: 'Chọn tỉnh / thành phố.',
+                  notInListMessage:
+                      'Chọn lại tỉnh / thành phố theo danh mục mới.',
+                  onSelected: (city) => setState(() {
+                    _city = city;
+                    _ward = null;
+                  }),
+                ),
+                const SizedBox(height: NordicSpace.md),
+                AdminUnitPickerField(
+                  label: 'Phường / Xã',
+                  value: _ward,
+                  options: vietnamAdminUnits[_city] ?? const [],
+                  enabled: vietnamAdminUnits.containsKey(_city),
+                  helperText: vietnamAdminUnits.containsKey(_city)
+                      ? null
+                      : 'Chọn tỉnh / thành phố trước',
+                  requiredMessage: 'Chọn phường / xã.',
+                  notInListMessage: 'Chọn lại phường / xã theo danh mục mới.',
+                  onSelected: (ward) => setState(() => _ward = ward),
+                ),
 
-                // 1. Basic Info Card
-                NordicCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Thông Tin Nhận Diện', style: NordicTypography.h3),
-                      const SizedBox(height: 12.0),
-                      TextFormField(
-                        controller: _labelController,
-                        decoration: const InputDecoration(
-                          labelText:
-                              'Tên gợi nhớ (Nhà riêng, Căn hộ, Cơ quan)*',
-                          hintText: 'Ví dụ: Nhà riêng',
-                          border: OutlineInputBorder(),
+                _section('Loại nhà'),
+                Wrap(
+                  spacing: NordicSpace.xs,
+                  runSpacing: NordicSpace.xs,
+                  children: HousingType.values.map((type) {
+                    return ChoiceChip(
+                      label: Text(type.displayName),
+                      selected: _housingType == type,
+                      showCheckmark: false,
+                      onSelected: (_) => _onHousingTypeSelected(type),
+                    );
+                  }).toList(),
+                ),
+
+                _section('Diện tích'),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _floorAreaController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Mỗi sàn (m²)',
+                          helperText: _housingType == HousingType.room
+                              ? 'Phòng trọ tối đa 30 m²'
+                              : 'Diện tích một sàn',
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Vui lòng nhập tên nhãn địa chỉ';
+                          final d = double.tryParse(val ?? '');
+                          if (d == null || d <= 0) {
+                            return 'Nhập số lớn hơn 0.';
                           }
-                          if (val.length > 50) {
-                            return 'Tên nhãn tối đa 50 ký tự';
+                          if (d > 9999.99) return 'Tối đa 9999,99 m².';
+                          if (_housingType == HousingType.room && d > 30.0) {
+                            return 'Phòng trọ tối đa 30 m².';
                           }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 12.0),
-                      TextFormField(
-                        controller: _addressLineController,
-                        decoration: const InputDecoration(
-                          labelText: 'Địa chỉ chi tiết (Số nhà, tên đường)*',
-                          hintText: 'Ví dụ: 123 Nguyễn Thị Minh Khai',
-                          border: OutlineInputBorder(),
+                    ),
+                    const SizedBox(width: NordicSpace.sm),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _numFloorsController,
+                        keyboardType: TextInputType.number,
+                        enabled: _housingType == HousingType.house,
+                        decoration: InputDecoration(
+                          labelText: 'Số tầng',
+                          helperText: _housingType != HousingType.house
+                              ? 'Cố định 1 tầng'
+                              : 'Từ 1 đến 10 tầng',
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Vui lòng nhập số nhà và tên đường';
+                          if (_housingType != HousingType.house) {
+                            return null;
                           }
-                          if (val.length > 255) {
-                            return 'Địa chỉ chi tiết tối đa 255 ký tự';
+                          final f = int.tryParse(val ?? '');
+                          if (f == null || f < 1 || f > 10) {
+                            return 'Từ 1 đến 10 tầng.';
                           }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 12.0),
-                      AdminUnitPickerField(
-                        label: 'Tỉnh / Thành phố',
-                        value: _city,
-                        options: vietnamAdminUnits.keys.toList(),
-                        requiredMessage: 'Vui lòng chọn Tỉnh/Thành phố',
-                        notInListMessage:
-                            'Chọn lại Tỉnh/Thành phố theo danh mục mới',
-                        onSelected: (city) => setState(() {
-                          _city = city;
-                          _ward = null;
-                        }),
-                      ),
-                      const SizedBox(height: 12.0),
-                      AdminUnitPickerField(
-                        label: 'Phường / Xã',
-                        value: _ward,
-                        options: vietnamAdminUnits[_city] ?? const [],
-                        enabled: vietnamAdminUnits.containsKey(_city),
-                        helperText: vietnamAdminUnits.containsKey(_city)
-                            ? null
-                            : 'Chọn Tỉnh/Thành phố trước',
-                        requiredMessage: 'Vui lòng chọn Phường/Xã',
-                        notInListMessage:
-                            'Chọn lại Phường/Xã theo danh mục mới',
-                        onSelected: (ward) => setState(() => _ward = ward),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16.0),
-
-                // 2. Housing Type & Area Calculation Card
-                NordicCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Loại Nhà & Diện Tích', style: NordicTypography.h3),
-                      const SizedBox(height: 8.0),
-                      Text(
-                        'Chọn đúng phân loại nhà để áp dụng định mức diện tích quy chuẩn (PRD §1.1).',
-                        style: NordicTypography.bodySmall,
-                      ),
-                      const SizedBox(height: 12.0),
-
-                      // Housing Type Selector
-                      Wrap(
-                        spacing: 8.0,
-                        runSpacing: 8.0,
-                        children: HousingType.values.map((type) {
-                          final isSelected = _housingType == type;
-                          return ChoiceChip(
-                            label: Text(type.displayName),
-                            selected: isSelected,
-                            selectedColor: NordicColors.primary,
-                            backgroundColor: NordicColors.surfaceSubtle,
-                            labelStyle: TextStyle(
-                              fontSize: 13.0,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? Colors.white
-                                  : NordicColors.textTitle,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? NordicColors.primary
-                                    : NordicColors.border,
-                              ),
-                            ),
-                            onSelected: (_) => _onHousingTypeSelected(type),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 14.0),
-
-                      // Floor area and Floors input
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _floorAreaController,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: InputDecoration(
-                                labelText: 'Diện tích sàn (m²)*',
-                                helperText: _housingType == HousingType.room
-                                    ? 'Phòng trọ tối đa 30 m²'
-                                    : 'Diện tích 1 sàn',
-                                border: const OutlineInputBorder(),
-                              ),
-                              validator: (val) {
-                                final d = double.tryParse(val ?? '');
-                                if (d == null || d <= 0) {
-                                  return 'Diện tích phải > 0';
-                                }
-                                if (d > 9999.99) return 'Tối đa 9999.99 m²';
-                                if (_housingType == HousingType.room &&
-                                    d > 30.0) {
-                                  return 'Phòng trọ tối đa 30 m²';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12.0),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _numFloorsController,
-                              keyboardType: TextInputType.number,
-                              enabled: _housingType == HousingType.house,
-                              decoration: InputDecoration(
-                                labelText: 'Số tầng*',
-                                helperText: _housingType != HousingType.house
-                                    ? 'Cố định 1 tầng'
-                                    : 'Từ 1 đến 10 tầng',
-                                border: const OutlineInputBorder(),
-                              ),
-                              validator: (val) {
-                                if (_housingType != HousingType.house) {
-                                  return null;
-                                }
-                                final f = int.tryParse(val ?? '');
-                                if (f == null || f < 1 || f > 10) {
-                                  return 'Từ 1 đến 10 tầng';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16.0),
-
-                      // Live calculation card
-                      AreaCalculatorCard(
-                        floorAreaM2: _currentFloorArea,
-                        numFloors: _currentNumFloors,
-                        totalAreaM2: _previewTotalArea,
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: NordicSpace.sm),
+                AreaCalculatorCard(
+                  floorAreaM2: _currentFloorArea,
+                  numFloors: _currentNumFloors,
+                  totalAreaM2: _previewTotalArea,
                 ),
-                const SizedBox(height: 16.0),
 
-                // 3. GPS Coordinates Card
+                _section('Vị trí trên bản đồ'),
                 NordicCard(
                   child: GpsCoordinatePicker(
                     latitude: _latitude,
@@ -446,56 +372,30 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                     },
                   ),
                 ),
-                const SizedBox(height: 16.0),
-
-                // 4. Default Switch Card
+                const SizedBox(height: NordicSpace.md),
                 NordicCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        'Đặt làm địa chỉ mặc định',
-                        style: NordicTypography.bodyRegular.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Tự động chọn địa chỉ này khi tạo lịch đặt ca dọn dẹp mới.',
-                        style: NordicTypography.bodySmall,
-                      ),
-                      value: _isDefault,
-                      activeThumbColor: NordicColors.primary,
-                      onChanged: (val) => setState(() => _isDefault = val),
+                  padding: EdgeInsets.zero,
+                  child: SwitchListTile(
+                    title: const Text(
+                      'Dùng làm địa chỉ mặc định',
+                      style: NordicTypography.titleSmall,
                     ),
+                    value: _isDefault,
+                    activeThumbColor: NordicColors.textInverse,
+                    activeTrackColor: NordicColors.primary,
+                    onChanged: (val) => setState(() => _isDefault = val),
                   ),
                 ),
-                const SizedBox(height: 24.0),
               ],
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: const BoxDecoration(
-          color: NordicColors.surface,
-          border: Border(top: BorderSide(color: NordicColors.border)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: NordicButton(
-            label: _isEditing ? 'Lưu Thay Đổi' : 'Tạo Địa Chỉ Mới',
-            isLoading: _isSubmitting,
-            width: double.infinity,
-            onPressed: _handleSubmit,
-          ),
-        ),
-      ),
+      ],
     );
   }
+
+  Widget _section(String text) => Padding(
+    padding: const EdgeInsets.only(top: NordicSpace.lg, bottom: NordicSpace.xs),
+    child: Text(text, style: NordicTypography.titleSmall),
+  );
 }

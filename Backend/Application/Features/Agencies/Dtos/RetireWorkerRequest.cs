@@ -63,13 +63,19 @@ public sealed class RetireWorkerResponse
     /// <summary>The worker ID that was retired.</summary>
     public int WorkerId { get; set; }
 
-    /// <summary>The new work status (Retiring or Retired).</summary>
+    /// <summary>
+    /// True for the preview: the worker has future jobs, no replacement and no <c>confirmRescue</c>. Nothing was changed;
+    /// <see cref="FutureJobs"/> lists the shifts the agency must decide about.
+    /// </summary>
+    public bool RequiresConfirmation { get; set; }
+
+    /// <summary>The work status (Retiring or Retired; the unchanged status for a preview or a repeated call).</summary>
     public string WorkStatus { get; set; } = string.Empty;
 
     /// <summary>If a replacement was provided, the new worker ID.</summary>
     public int? ReplacementWorkerId { get; set; }
 
-    /// <summary>Future jobs that were handed over (if any).</summary>
+    /// <summary>Future jobs that were handed over, or that need a decision in a preview (if any).</summary>
     public IReadOnlyList<FutureJobHandover>? FutureJobs { get; set; }
 
     /// <summary>Warning message if the worker was put in Retiring state (still has active/future jobs).</summary>

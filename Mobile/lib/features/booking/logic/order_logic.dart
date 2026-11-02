@@ -20,9 +20,9 @@ const Duration defaultProgressPollInterval = Duration(seconds: 5);
 String orderStatusLabel(String status) => switch (status) {
   OrderStatus.pendingPayment => 'Chờ thanh toán',
   OrderStatus.paid => 'Đã thanh toán',
-  OrderStatus.dispatching => 'Đang tìm thợ',
-  OrderStatus.assigned => 'Đã có thợ',
-  OrderStatus.awaitingFallback => 'Chờ bạn chọn: 1 thợ làm 2 ca',
+  OrderStatus.dispatching => 'Đang tìm người làm',
+  OrderStatus.assigned => 'Đã có người làm',
+  OrderStatus.awaitingFallback => 'Chờ bạn chọn: 1 người làm 2 ca',
   OrderStatus.completed => 'Hoàn thành',
   OrderStatus.cancelled => 'Đã huỷ',
   _ => status,
@@ -55,7 +55,7 @@ String assignmentStatusLabel(String status) => switch (status) {
   AssignmentStatus.inProgress => 'Đang làm việc',
   AssignmentStatus.awaitingAcceptance => 'Chờ bạn nghiệm thu',
   AssignmentStatus.completed => 'Đã xong',
-  AssignmentStatus.cancelledByWorker => 'Thợ đã huỷ',
+  AssignmentStatus.cancelledByWorker => 'Người làm đã huỷ',
   AssignmentStatus.absent => 'Vắng mặt',
   AssignmentStatus.incident => 'Có sự cố',
   _ => status,
@@ -63,17 +63,17 @@ String assignmentStatusLabel(String status) => switch (status) {
 
 String extensionStatusLabel(String status) => switch (status) {
   ExtensionStatus.pendingPayment => 'Chờ thanh toán',
-  ExtensionStatus.paid => 'Đã thanh toán, chờ thợ trả lời',
-  ExtensionStatus.accepted => 'Thợ đã đồng ý',
-  ExtensionStatus.declined => 'Thợ từ chối, tiền được hoàn lại',
+  ExtensionStatus.paid => 'Đã thanh toán, chờ người làm trả lời',
+  ExtensionStatus.accepted => 'Người làm đã đồng ý',
+  ExtensionStatus.declined => 'Người làm từ chối, tiền được hoàn lại',
   ExtensionStatus.expired => 'Hết hạn thanh toán',
   _ => status,
 };
 
-/// `Thợ` when the server has no name for the worker (the Workers port did not know it).
+/// `Người làm` when the server has no name for the worker (the Workers port did not know it).
 String workerName(ProgressAssignment a) =>
     (a.workerName == null || a.workerName!.trim().isEmpty)
-    ? 'Thợ'
+    ? 'Người làm'
     : a.workerName!;
 
 /// `4,8` (one decimal, Vietnamese comma); empty when there is no rating yet.
@@ -103,19 +103,31 @@ class TimelineStep {
   /// This is where the order is now.
   final bool current;
 
+  /// The order stopped here as cancelled: drawn as a red cross, never as a tick.
+  final bool cancelled;
+
   const TimelineStep({
     required this.label,
     required this.done,
     required this.current,
+    this.cancelled = false,
   });
 }
 
-/// The steps a customer follows: pay, find a worker, worker assigned, done. A cancelled order shows where it stopped as cancelled.
+/// The steps a customer follows: pay, find a worker, worker assigned, done. A cancelled order is a single cancelled step.
 /// `PAID` exists only for a moment on the server (decision Q24 / B4), so it is shown as "finding a worker".
 List<TimelineStep> orderTimeline(String status) {
-  const labels = ['Thanh toán', 'Tìm thợ', 'Có thợ', 'Hoàn thành'];
+  const labels = ['Thanh toán', 'Tìm người', 'Có người làm', 'Hoàn thành'];
   if (status == OrderStatus.cancelled) {
-    return const [TimelineStep(label: 'Đã huỷ', done: true, current: true)];
+    // The order carries no time or step of the cancel, so only one line is shown: no guess where it stopped.
+    return const [
+      TimelineStep(
+        label: 'Đơn đã huỷ',
+        done: false,
+        current: true,
+        cancelled: true,
+      ),
+    ];
   }
   final index = switch (status) {
     OrderStatus.pendingPayment => 0,
@@ -198,6 +210,75 @@ String? validateCancelReason(String text) {
   return null;
 }
 
+/// A cancel reason as the customer reads it.
+class CancelReasonView {
+  final String text;
+
+  /// True when the order was cancelled because nobody could take it: the screen offers to book another time.
+  final bool suggestRebook;
+
+  const CancelReasonView(this.text, {this.suggestRebook = false});
+}
+
+const String noWorkerNearbyText =
+    'Thật tiếc, trong bán kính 10 km hiện không tìm được người giúp việc. Bạn còn lịch nào khác không?';
+
+/// The server writes its own cancel reasons for the system (dispatch, fallback, payment), in back-office words
+/// (e.g. "Quá bán kính 10 km không tìm được thợ phù hợp (BR-03)."). They are shown in plain, kind words here;
+/// a reason the customer typed is shown as typed.
+CancelReasonView cancelReasonView(String raw) {
+  final r = raw.trim();
+  final lower = r.toLowerCase();
+  if (r == 'PAYMENT_EXPIRED') {
+    return const CancelReasonView(
+      'Đơn tự huỷ vì quá hạn thanh toán. Bạn không bị trừ tiền.',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('br-03') ||
+      lower.contains('không tìm thấy thợ') ||
+      lower.contains('không tìm được thợ')) {
+    return const CancelReasonView(noWorkerNearbyText, suggestRebook: true);
+  }
+  if (lower.contains('từ chối đổi thợ')) {
+    return const CancelReasonView(
+      'Bạn đã chọn không đổi người làm sau sự cố, nên đơn được huỷ và hoàn đủ 100 %.',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('cứu hộ') || lower.contains('br-10')) {
+    return const CancelReasonView(
+      'Thật tiếc, chưa tìm được người thay thế cho ca của bạn. Đơn đã huỷ và hoàn đủ 100 %. Bạn còn lịch nào khác không?',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('agency') || lower.contains('premium')) {
+    return const CancelReasonView(
+      'Thật tiếc, gói Cao cấp hiện không còn đối tác trống lịch cho ca này. Bạn còn lịch nào khác không?',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('khách không trả lời')) {
+    return const CancelReasonView(
+      'Đơn đã huỷ vì chưa nhận được lựa chọn của bạn trước giờ bắt đầu ca. Tiền đã được hoàn đủ 100 %.',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('khách từ chối')) {
+    return const CancelReasonView(
+      'Bạn đã chọn không để 1 người làm 2 ca liên tiếp, nên đơn được huỷ và hoàn đủ 100 %.',
+      suggestRebook: true,
+    );
+  }
+  if (lower.contains('br-02')) {
+    return const CancelReasonView(
+      'Thật tiếc, người giúp việc không còn trống ca liền sau. Đơn đã huỷ và hoàn đủ 100 %. Bạn còn lịch nào khác không?',
+      suggestRebook: true,
+    );
+  }
+  return CancelReasonView('Lý do huỷ: $r');
+}
+
 /// True when there are more orders on the server than are shown.
 bool hasMoreOrders(int shown, int total) => shown < total;
 
@@ -222,7 +303,7 @@ String cancelFailure(ApiException e) {
     return e.fieldErrors?['reason']?.firstOrNull ?? 'Lý do huỷ không hợp lệ.';
   }
   if (e.statusCode == 409) {
-    return 'Đơn này không huỷ được nữa: đã hoàn thành, đã huỷ, hoặc đã có thợ và còn chưa tới 2 giờ trước ca.';
+    return 'Đơn này không huỷ được nữa: đã hoàn thành, đã huỷ, hoặc đã có người làm và còn chưa tới 2 giờ trước ca.';
   }
   return _common(
     e,
@@ -242,9 +323,99 @@ String extensionFailure(ApiException e) {
       OrderErrorCode.extensionExists =>
         'Đơn này đã có một yêu cầu làm thêm giờ.',
       OrderErrorCode.invalidState =>
-        'Chỉ yêu cầu làm thêm được khi thợ đang làm việc tại nhà bạn.',
+        'Chỉ xin làm thêm được khi người làm đang ở nhà bạn.',
       _ => 'Chưa gửi được yêu cầu làm thêm giờ.',
     };
   }
   return _common(e, notFound: 'Không tìm thấy đơn hoặc ca làm này.');
+}
+
+/// One month of the order list: [key] is `yyyy-MM` (empty for orders without a readable date).
+class OrderMonthGroup {
+  final String key;
+  final int year;
+  final int month;
+  final List<OrderSummary> orders;
+
+  const OrderMonthGroup(this.key, this.year, this.month, this.orders);
+}
+
+/// Groups all loaded orders by the month of their `scheduledDate`, whatever order the server sent them in
+/// (it sends the newest created first, so the months are not contiguous). Months run newest first; inside a month the
+/// day runs newest first, then the shift start ([startOf] gives `HH:mm` for a shift code), then the order id.
+/// Orders without a readable date form a last group with an empty key.
+List<OrderMonthGroup> groupOrdersByMonth(
+  Iterable<OrderSummary> orders, {
+  String? Function(String shiftCode)? startOf,
+}) {
+  final byMonth = <String, List<OrderSummary>>{};
+  for (final order in orders) {
+    final day = DateTime.tryParse(order.scheduledDate);
+    final key = day == null
+        ? ''
+        : '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}';
+    byMonth.putIfAbsent(key, () => []).add(order);
+  }
+  int compareInMonth(OrderSummary a, OrderSummary b) {
+    final byDay = b.scheduledDate.compareTo(a.scheduledDate);
+    if (byDay != 0) return byDay;
+    final byStart = (startOf?.call(b.shiftCode) ?? '').compareTo(
+      startOf?.call(a.shiftCode) ?? '',
+    );
+    if (byStart != 0) return byStart;
+    return b.orderId.compareTo(a.orderId);
+  }
+
+  final keys = byMonth.keys.toList()
+    ..sort((a, b) {
+      if (a.isEmpty) return b.isEmpty ? 0 : 1;
+      if (b.isEmpty) return -1;
+      return b.compareTo(a);
+    });
+  return [
+    for (final key in keys)
+      OrderMonthGroup(
+        key,
+        key.isEmpty ? 0 : int.parse(key.substring(0, 4)),
+        key.isEmpty ? 0 : int.parse(key.substring(5)),
+        (byMonth[key]!..sort(compareInMonth)),
+      ),
+  ];
+}
+
+/// When the shift of [order] starts, as a local Vietnam date and time held in a UTC [DateTime] (the Home and the
+/// order list compare it with [vietnamNow]); null when the date or the shift start is unknown.
+DateTime? orderStartsAt(OrderSummary order, BookingOptions options) {
+  final date = DateTime.tryParse(order.scheduledDate);
+  final shift = options.shifts
+      .where((s) => s.shiftCode == order.shiftCode)
+      .firstOrNull;
+  final parts = shift?.startLocal.split(':');
+  if (date == null || parts == null || parts.length != 2) return null;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  return DateTime.utc(date.year, date.month, date.day, hour, minute);
+}
+
+/// [instant] as a local Vietnam date and time held in a UTC [DateTime], minute precision.
+DateTime vietnamNow(DateTime instant) {
+  final t = instant.toUtc().add(const Duration(hours: 7));
+  return DateTime.utc(t.year, t.month, t.day, t.hour, t.minute);
+}
+
+/// The orders still open (not completed or cancelled) whose shift has not started, soonest first.
+List<OrderSummary> upcomingOrders(
+  Iterable<OrderSummary> orders,
+  BookingOptions options,
+  DateTime localNow,
+) {
+  final open = [
+    for (final o in orders)
+      if (o.orderStatus != OrderStatus.completed &&
+          o.orderStatus != OrderStatus.cancelled)
+        if (orderStartsAt(o, options) case final startsAt?)
+          if (!startsAt.isBefore(localNow)) (o, startsAt),
+  ]..sort((a, b) => a.$2.compareTo(b.$2));
+  return [for (final e in open) e.$1];
 }

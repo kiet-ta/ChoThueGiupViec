@@ -44,6 +44,7 @@ const _extension = OrderExtension(
 );
 
 void main() {
+  groupTests();
   group('labels', () {
     test('every order status of the contract has a Vietnamese label; an unknown one is shown as is', () {
       for (final s in [
@@ -89,8 +90,8 @@ void main() {
     test(
       'worker name falls back, rating and hours use the Vietnamese comma',
       () {
-        expect(workerName(_assignment(1, 'ASSIGNED', name: null)), 'Thợ');
-        expect(workerName(_assignment(1, 'ASSIGNED', name: '  ')), 'Thợ');
+        expect(workerName(_assignment(1, 'ASSIGNED', name: null)), 'Người làm');
+        expect(workerName(_assignment(1, 'ASSIGNED', name: '  ')), 'Người làm');
         expect(workerName(_assignment(1, 'ASSIGNED')), 'Lan');
         expect(ratingText(4.8), '4,8');
         expect(ratingText(0), '');
@@ -121,14 +122,14 @@ void main() {
     test('walks pay, find, assigned, done', () {
       expect(current('PENDING_PAYMENT'), ['Thanh toán']);
       expect(done('PENDING_PAYMENT'), isEmpty);
-      expect(current('DISPATCHING'), ['Tìm thợ']);
+      expect(current('DISPATCHING'), ['Tìm người']);
       expect(done('DISPATCHING'), ['Thanh toán']);
-      expect(current('ASSIGNED'), ['Có thợ']);
-      expect(done('ASSIGNED'), ['Thanh toán', 'Tìm thợ']);
+      expect(current('ASSIGNED'), ['Có người làm']);
+      expect(done('ASSIGNED'), ['Thanh toán', 'Tìm người']);
     });
 
     test('PAID is shown as finding a worker', () {
-      expect(current('PAID'), ['Tìm thợ']);
+      expect(current('PAID'), ['Tìm người']);
     });
 
     test('a completed order has every step done and none current', () {
@@ -136,8 +137,12 @@ void main() {
       expect(current('COMPLETED'), isEmpty);
     });
 
-    test('a cancelled order is one step', () {
-      expect(orderTimeline('CANCELLED').single.label, 'Đã huỷ');
+    test('a cancelled order is one cancelled step, never a tick', () {
+      final step = orderTimeline('CANCELLED').single;
+      expect(step.label, 'Đơn đã huỷ');
+      expect(step.cancelled, isTrue);
+      expect(step.done, isFalse);
+      expect(step.current, isTrue);
     });
   });
 
@@ -292,7 +297,7 @@ void main() {
         extensionFailure(
           const ApiException(409, 'server text', code: 'INVALID_STATE'),
         ),
-        contains('đang làm việc'),
+        contains('đang ở nhà bạn'),
       );
       expect(
         extensionFailure(const ApiException(409, 'server text')),
@@ -329,6 +334,174 @@ void main() {
         orderLoadFailure(const ApiException(500, 'x')),
         contains('Máy chủ gặp lỗi'),
       );
+    });
+  });
+
+  group('cancelReasonView', () {
+    test('the no-worker reason reads kindly and offers another time', () {
+      final view = cancelReasonView(
+        'Quá bán kính 10 km không tìm được thợ phù hợp (BR-03).',
+      );
+      expect(view.text, noWorkerNearbyText);
+      expect(view.text, contains('trong bán kính 10 km'));
+      expect(view.suggestRebook, isTrue);
+    });
+
+    test('a BR-10 rescue on a Premium order is not read as an agency gap', () {
+      final view = cancelReasonView(
+        'Cứu hộ khẩn cấp thất bại cho đơn Premium 12.',
+      );
+      expect(view.text, contains('người thay thế'));
+    });
+
+    test('a customer who refused a new worker is not told none was found', () {
+      final view = cancelReasonView(
+        'Khách hàng từ chối đổi thợ sau sự cố hiện trường (BR-10). Hoàn tiền 100%.',
+      );
+      expect(view.text, contains('Bạn đã chọn không đổi người làm'));
+    });
+
+    test('a payment that expired says no money was taken', () {
+      expect(
+        cancelReasonView('PAYMENT_EXPIRED').text,
+        contains('không bị trừ tiền'),
+      );
+    });
+
+    test("the customer's own reason is shown as typed, no rebook", () {
+      final view = cancelReasonView('bận việc');
+      expect(view.text, 'Lý do huỷ: bận việc');
+      expect(view.suggestRebook, isFalse);
+    });
+  });
+}
+
+OrderSummary _order(
+  int id,
+  String date, {
+  String shift = 'SHIFT_MORNING',
+  String status = 'ASSIGNED',
+}) => OrderSummary(
+  orderId: id,
+  orderCode: 'GV$id',
+  serviceTier: 'ECONOMY',
+  scheduledDate: date,
+  shiftCode: shift,
+  requiredWorkers: 1,
+  totalAmount: 260000,
+  orderStatus: status,
+  createdAt: null,
+);
+
+const _shifts = BookingOptions(
+  serviceTiers: ['ECONOMY', 'PREMIUM'],
+  shifts: [
+    ShiftOption(
+      shiftCode: 'SHIFT_MORNING',
+      startLocal: '08:00',
+      endLocal: '12:00',
+    ),
+    ShiftOption(
+      shiftCode: 'SHIFT_AFTERNOON',
+      startLocal: '13:00',
+      endLocal: '17:00',
+    ),
+  ],
+  premiumMinLeadHours: 4,
+  shiftMaxHours: 4,
+  standardMaxAreaM2: 80,
+  paymentQrExpiryMinutes: 15,
+  sandbox: true,
+);
+
+String? _startOf(String shift) => switch (shift) {
+  'SHIFT_MORNING' => '08:00',
+  'SHIFT_AFTERNOON' => '13:00',
+  _ => null,
+};
+
+void groupTests() {
+  group('groupOrdersByMonth', () {
+    test('one group per month even when the server sends them interleaved', () {
+      // Newest created first: October, November, October again.
+      final groups = groupOrdersByMonth([
+        _order(3, '2026-10-12'),
+        _order(2, '2026-11-02'),
+        _order(1, '2026-10-05'),
+      ], startOf: _startOf);
+
+      expect(groups.map((g) => g.key), ['2026-11', '2026-10']);
+      expect(groups[1].orders.map((o) => o.orderId), [3, 1]);
+      expect(groups[1].year, 2026);
+      expect(groups[1].month, 10);
+    });
+
+    test('inside a month the day, then the shift start, then the id run newest first', () {
+      final groups = groupOrdersByMonth([
+        _order(1, '2026-10-05'),
+        _order(2, '2026-10-05', shift: 'SHIFT_AFTERNOON'),
+        _order(3, '2026-10-09'),
+        _order(4, '2026-10-05'),
+      ], startOf: _startOf);
+
+      expect(groups.single.orders.map((o) => o.orderId), [3, 2, 4, 1]);
+    });
+
+    test(
+      'an order without a readable date goes to a last group with an empty key',
+      () {
+        final groups = groupOrdersByMonth([
+          _order(1, ''),
+          _order(2, '2026-10-05'),
+          _order(3, '2025-12-31'),
+        ]);
+
+        expect(groups.map((g) => g.key), ['2026-10', '2025-12', '']);
+      },
+    );
+
+    test('no orders, no groups', () {
+      expect(groupOrdersByMonth(const []), isEmpty);
+    });
+  });
+
+  group('orderStartsAt and upcomingOrders', () {
+    test('the start is the local date plus the shift start', () {
+      expect(
+        orderStartsAt(
+          _order(1, '2026-10-26', shift: 'SHIFT_AFTERNOON'),
+          _shifts,
+        ),
+        DateTime.utc(2026, 10, 26, 13),
+      );
+      expect(
+        orderStartsAt(_order(1, '2026-10-26', shift: 'SHIFT_X'), _shifts),
+        isNull,
+      );
+    });
+
+    test('vietnamNow adds seven hours', () {
+      expect(
+        vietnamNow(DateTime.utc(2026, 10, 25, 3)),
+        DateTime.utc(2026, 10, 25, 10),
+      );
+    });
+
+    test('only open orders that have not started, soonest first', () {
+      final now = DateTime.utc(2026, 10, 26, 9);
+      final result = upcomingOrders(
+        [
+          _order(1, '2026-10-26'), // 08:00 already started
+          _order(2, '2026-10-27'),
+          _order(3, '2026-10-26', shift: 'SHIFT_AFTERNOON'),
+          _order(4, '2026-10-28', status: 'COMPLETED'),
+          _order(5, '2026-10-28', status: 'CANCELLED'),
+        ],
+        _shifts,
+        now,
+      );
+
+      expect(result.map((o) => o.orderId), [3, 2]);
     });
   });
 }

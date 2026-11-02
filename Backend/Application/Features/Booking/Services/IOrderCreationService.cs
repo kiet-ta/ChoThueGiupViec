@@ -9,7 +9,9 @@ public sealed record CreateOrderRequest(
     DateOnly ScheduledDate,
     string ShiftCode,
     string? CustomerNote,
-    string? RequiredSkill);
+    string? RequiredSkill,
+    int? PreferredWorkerId = null,
+    long? PreviousOrderId = null);
 
 /// <summary>The <c>Order</c> shape of contract booking.md section 2 (times in UTC).</summary>
 public sealed record CreatedOrder(

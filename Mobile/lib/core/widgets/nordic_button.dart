@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/nordic_colors.dart';
+import '../theme/nordic_elevation.dart';
+import '../theme/nordic_radius.dart';
+import 'pressable.dart';
 
 enum NordicButtonVariant { primary, secondary, ghost }
 
 /// Pill-shaped CTA button matching the TỔ ẤM Nordic Care specification.
+/// It shrinks slightly the moment it is pressed ([Pressable], MOB-UI-12).
 class NordicButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -91,6 +95,21 @@ class NordicButton extends StatelessWidget {
           child: effectiveChild,
         );
         break;
+    }
+
+    button = Pressable(enabled: !isLoading && onPressed != null, child: button);
+
+    // The dark main button floats on the soft green `cta` shadow (DESIGN-SYSTEM §3.5); a disabled one lies flat.
+    if (variant == NordicButtonVariant.primary &&
+        !isLoading &&
+        onPressed != null) {
+      button = DecoratedBox(
+        decoration: const BoxDecoration(
+          borderRadius: NordicRadius.pill,
+          boxShadow: NordicElevation.cta,
+        ),
+        child: button,
+      );
     }
 
     if (width != null) {

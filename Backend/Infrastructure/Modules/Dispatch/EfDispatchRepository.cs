@@ -30,7 +30,8 @@ public sealed class EfDispatchRepository(AppDbContext db) : IDispatchRepository,
                 order.RequiredWorkers,
                 new GeoPoint((double)address.Latitude, (double)address.Longitude),
                 order.TotalAmount,
-                order.OrderStatus)
+                order.OrderStatus,
+                order.PreferredWorkerId)
         ).FirstOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyCollection<long>> GetWorkerIdsAlreadyOfferedAsync(long orderId, CancellationToken cancellationToken = default) =>

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
@@ -16,12 +17,13 @@ Payment _payment({
   String? payUrl = 'https://sandbox.invalid/pay/FAKE-1',
   String purpose = 'ORDER',
   int amount = 260000,
+  String gateway = 'FAKE',
 }) => Payment(
   paymentId: 5,
   purpose: purpose,
   orderId: purpose == 'ORDER' ? 42 : null,
   extensionId: purpose == 'EXTENSION' ? 9 : null,
-  gateway: 'FAKE',
+  gateway: gateway,
   amount: amount,
   txnStatus: status,
   qrPayload: status == 'PENDING' ? qr : null,
@@ -70,6 +72,23 @@ class FakePaymentsService implements IPaymentsService {
   }
 }
 
+/// A fake that can also confirm a sandbox payment, like the real service against a Development backend.
+class ConfirmingPaymentsService extends FakePaymentsService
+    implements ISandboxPaymentConfirmer {
+  final confirmed = <int>[];
+  Object? confirmError;
+
+  @override
+  Future<void> confirmSandbox(int paymentId) {
+    confirmed.add(paymentId);
+    if (confirmError != null) return Future.error(confirmError!);
+    polls.clear();
+    polls.add(_payment(status: 'SUCCESS'));
+    pollCalls = 0;
+    return Future.value();
+  }
+}
+
 /// A clock the test moves forward together with the fake timers.
 class TestClock {
   DateTime now = _start;
@@ -84,6 +103,7 @@ Future<List<Payment>> pumpPayment(
     orderId: 42,
     orderCode: 'GV261014ABC123',
   ),
+  Duration pollInterval = const Duration(seconds: 3),
 }) async {
   tester.view.physicalSize = const Size(390, 1800);
   tester.view.devicePixelRatio = 1.0;
@@ -99,7 +119,7 @@ Future<List<Payment>> pumpPayment(
         args: args,
         service: service,
         now: () => clock.now,
-        pollInterval: const Duration(seconds: 3),
+        pollInterval: pollInterval,
         onPaid: done.add,
       ),
     ),
@@ -126,6 +146,179 @@ String textOf(WidgetTester tester, String key) =>
 
 void main() {
   group('PaymentScreen (MOB-M2-03)', () {
+    testWidgets('SePay polling opens the paid order once', (tester) async {
+      const qr = 'https://vietqr.app/img?des=TA0123456789';
+      final service = FakePaymentsService()
+        ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: qr)
+        ..polls.add(
+          _payment(gateway: 'SEPAY', status: 'SUCCESS', payUrl: null),
+        );
+      final clock = TestClock();
+      final done = await pumpPayment(tester, service, clock);
+      await elapse(tester, clock, const Duration(seconds: 3));
+      await tester.pump();
+      expect(done, hasLength(1));
+      expect(done.single.isPaid, isTrue);
+      await close(tester);
+    });
+    testWidgets(
+      'SePay shows QR details and copies the transfer content and amount',
+      (tester) async {
+        const qr =
+            'https://vietqr.app/img?acc=fake123&bank=fake%20bank&amount=260000&des=TA0123456789&template=compact';
+        final clipboard = <String>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') {
+                clipboard.add((call.arguments as Map)['text'] as String);
+              }
+              return null;
+            });
+        addTearDown(
+          () => TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .setMockMethodCallHandler(SystemChannels.platform, null),
+        );
+        final service = FakePaymentsService()
+          ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: qr);
+        await pumpPayment(tester, service, TestClock());
+        expect(find.byKey(const Key('sandbox-banner')), findsOneWidget);
+        expect(find.byKey(const Key('sepay-qr')), findsOneWidget);
+        expect(find.text('Thông tin chuyển khoản'), findsOneWidget);
+        expect(find.text('TA0123456789'), findsOneWidget);
+        expect(find.text('260.000 đ'), findsNWidgets(2));
+        expect(find.text('Ngân hàng'), findsOneWidget);
+        expect(find.text('fake bank'), findsOneWidget);
+        expect(find.text('Số tài khoản'), findsOneWidget);
+        expect(find.text('fake123'), findsOneWidget);
+        expect(find.byKey(const Key('payment-countdown')), findsOneWidget);
+        await tester.tap(find.byKey(const Key('copy-content')));
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('copy-amount')));
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('copy-bank')));
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('copy-account')));
+        await tester.pump();
+        expect(clipboard, ['TA0123456789', '260000', 'fake bank', 'fake123']);
+        await close(tester);
+      },
+    );
+
+    testWidgets('SePay hides bank and account when absent', (tester) async {
+      const qr = 'https://vietqr.app/img?des=TA0123456789';
+      final service = FakePaymentsService()
+        ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: qr);
+      await pumpPayment(tester, service, TestClock());
+      expect(find.text('Ngân hàng'), findsNothing);
+      expect(find.text('Số tài khoản'), findsNothing);
+      expect(find.byKey(const Key('copy-bank')), findsNothing);
+      expect(find.byKey(const Key('copy-account')), findsNothing);
+      await close(tester);
+    });
+
+    testWidgets('SePay keeps transfer details when the QR image cannot load', (
+      tester,
+    ) async {
+      const qr =
+          'https://vietqr.app/img?acc=fake&bank=fake&amount=260000&des=TA0123456789';
+      final service = FakePaymentsService()
+        ..created = _payment(gateway: 'SEPAY', qr: qr, payUrl: null);
+      await pumpPayment(tester, service, TestClock());
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('sepay-qr-unavailable')), findsOneWidget);
+      expect(find.text('TA0123456789'), findsOneWidget);
+      expect(find.byKey(const Key('copy-content')), findsOneWidget);
+      await close(tester);
+    });
+
+    testWidgets(
+      'a Fake-gateway payment confirms itself after 5 seconds, without an admin',
+      (tester) async {
+        final service = ConfirmingPaymentsService();
+        final clock = TestClock();
+        final done = await pumpPayment(
+          tester,
+          service,
+          clock,
+          pollInterval: const Duration(seconds: 30),
+        );
+
+        expect(
+          find.byKey(const Key('payment-auto-confirm-note')),
+          findsOneWidget,
+        );
+        await elapse(tester, clock, const Duration(seconds: 4));
+        expect(service.confirmed, isEmpty);
+
+        await elapse(tester, clock, const Duration(seconds: 1));
+        await tester.pump();
+        expect(service.confirmed, [5]);
+        expect(find.byKey(const Key('payment-paid')), findsOneWidget);
+        await tester.pump();
+        expect(done.single.isPaid, isTrue);
+        await close(tester);
+      },
+    );
+
+    testWidgets(
+      'a backend without the dev confirm (404) leaves the payment waiting',
+      (tester) async {
+        final service = ConfirmingPaymentsService()
+          ..confirmError = const ApiException(404, 'Not found');
+        final clock = TestClock();
+        await pumpPayment(
+          tester,
+          service,
+          clock,
+          pollInterval: const Duration(seconds: 30),
+        );
+
+        await elapse(tester, clock, const Duration(seconds: 6));
+        expect(service.confirmed, [5]);
+        expect(find.byKey(const Key('payment-countdown')), findsOneWidget);
+        expect(find.byKey(const Key('payment-paid')), findsNothing);
+        await close(tester);
+      },
+    );
+
+    testWidgets('a MoMo sandbox payment is never confirmed by the app', (
+      tester,
+    ) async {
+      final service = ConfirmingPaymentsService()
+        ..created = Payment(
+          paymentId: 6,
+          purpose: 'ORDER',
+          orderId: 42,
+          extensionId: null,
+          gateway: 'MOMO',
+          amount: 260000,
+          txnStatus: 'PENDING',
+          qrPayload: 'momo://x',
+          payUrl: null,
+          expiresAt: _start.add(const Duration(minutes: 15)),
+          paidAt: null,
+          createdAt: _start,
+          sandbox: true,
+        );
+      final clock = TestClock();
+      await pumpPayment(
+        tester,
+        service,
+        clock,
+        pollInterval: const Duration(seconds: 30),
+      );
+
+      expect(find.byKey(const Key('payment-auto-confirm-note')), findsNothing);
+      await elapse(tester, clock, const Duration(seconds: 6));
+      expect(service.confirmed, isEmpty);
+      await close(tester);
+    });
+
     testWidgets(
       'always shows the sandbox banner, also while loading and on an error',
       (tester) async {
@@ -156,7 +349,7 @@ void main() {
 
         expect(service.createdOrders, [42]);
         expect(service.createdExtensions, isEmpty);
-        expect(find.text('Thanh toán GV261014ABC123'), findsOneWidget);
+        expect(find.text('Mã đơn GV261014ABC123'), findsOneWidget);
         expect(textOf(tester, 'payment-amount'), '260.000 đ');
         expect(
           tester
@@ -174,7 +367,7 @@ void main() {
         );
         expect(textOf(tester, 'payment-countdown'), '15:00');
         expect(
-          find.textContaining('chưa vẽ được mã QR dạng hình'),
+          find.textContaining('Sao chép nội dung trên để thanh toán thử'),
           findsOneWidget,
         );
         await close(tester);
@@ -481,10 +674,7 @@ void main() {
       final service = FakePaymentsService();
       await pumpPayment(tester, service, TestClock(), args: null);
 
-      expect(
-        find.textContaining('mở từ một đơn cần thanh toán'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('đơn đang chờ thanh toán'), findsOneWidget);
       expect(find.text('SANDBOX – no real money'), findsOneWidget);
       expect(service.createdOrders, isEmpty);
     });

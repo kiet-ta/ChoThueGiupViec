@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đặt ca | TỔ ẤM</title>
+<link rel="stylesheet" href="../assets/components.css">
+<script src="../assets/app.js" defer></script>
+</head>
+<body data-role="customer" data-tab="orders">
+<main class="page">
+  <div class="page-head"><div><div class="eyebrow">Đặt ca</div><h1>Đặt ca dọn nhà</h1><p>Chọn gói, địa chỉ và khung giờ. Giá lấy từ máy chủ theo diện tích.</p></div><div class="row"></div></div>
+  <div class="steps" style="margin-bottom:28px"><div class="st on"><span class="n">1</span>Gói và thời gian</div><div class="bar"></div><div class="st"><span class="n">2</span>Thanh toán</div><div class="bar"></div><div class="st"><span class="n">3</span>Hoàn tất</div></div>
+  <div class="split">
+    <div class="col" style="gap:16px">
+      <div class="card pad"><h2>1. Chọn gói</h2>
+        <div class="grid g2 mt-16">
+          <div class="choice on"><span class="radio"></span><div><b>Economy</b><div class="sm muted mt-4">Giá mỗi thợ, mỗi ca</div><div class="tnum mt-8" style="font-size:22px;font-weight:700">260.000 đ</div></div></div>
+          <div class="choice"><span class="radio"></span><div><b>Premium</b><div class="sm muted mt-4">Giá mỗi thợ, mỗi ca</div><div class="tnum mt-8" style="font-size:22px;font-weight:700">390.000 đ</div></div></div>
+        </div>
+        <p class="sm muted mt-12">Đặt trước tối thiểu 4 giờ.</p>
+      </div>
+      <div class="card pad"><h2>2. Địa chỉ</h2>
+        <div class="choice on mt-16"><span class="radio"></span><span class="ms" style="color:var(--primary)">home</span><div class="grow"><b>Nhà</b><div class="sm muted">12 Lê Lợi · Phường Sài Gòn · 58 m²</div></div><a class="link" href="addresses.html">Đổi</a></div>
+      </div>
+      <div class="card pad"><h2>3. Ngày và ca</h2>
+        <div class="row mt-16" style="gap:8px"><a class="chip " style="flex-direction:column;height:64px;min-width:64px"><span class="xs">CN</span><b style="font-size:18px">25</b></a><a class="chip on" style="flex-direction:column;height:64px;min-width:64px"><span class="xs">T2</span><b style="font-size:18px">26</b></a><a class="chip " style="flex-direction:column;height:64px;min-width:64px"><span class="xs">T3</span><b style="font-size:18px">27</b></a><a class="chip " style="flex-direction:column;height:64px;min-width:64px"><span class="xs">T4</span><b style="font-size:18px">28</b></a><a class="chip " style="flex-direction:column;height:64px;min-width:64px"><span class="xs">T5</span><b style="font-size:18px">29</b></a><a class="chip " style="flex-direction:column;height:64px;min-width:64px"><span class="xs">T6</span><b style="font-size:18px">30</b></a><a class="chip " style="flex-direction:column;height:64px;min-width:64px"><span class="xs">T7</span><b style="font-size:18px">31</b></a></div>
+        <div class="grid g3 mt-16">
+          <div class="choice on"><span class="radio"></span><div><b class="tnum">08:00 → 12:00</b><div class="sm muted">Buổi sáng</div></div></div>
+          <div class="choice"><span class="radio"></span><div><b class="tnum">13:00 → 17:00</b><div class="sm muted">Buổi chiều</div></div></div>
+          <div class="choice" style="opacity:.5;pointer-events:none"><span class="radio"></span><div><b class="tnum">17:30 → 21:30</b><div class="sm muted">Hết chỗ</div></div></div>
+        </div>
+      </div>
+      <div class="card pad"><h2>4. Ghi chú cho thợ</h2>
+        <div class="field mt-16"><textarea class="textarea" placeholder="Có mèo, chìa khóa ở bảo vệ…"></textarea><span class="hint right">0/500</span></div>
+      </div>
+    </div>
+    <aside class="card pad sticky">
+      <h2>Tóm tắt đơn</h2>
+      <div class="list mt-16">
+        <div class="item"><span class="muted">Gói</span><span class="grow right"><b>Economy</b></span></div>
+        <div class="item"><span class="muted">Thời gian</span><span class="grow right"><b class="tnum">T2 26/10 · 08:00 → 12:00</b></span></div>
+        <div class="item"><span class="muted">Địa chỉ</span><span class="grow right"><b>12 Lê Lợi</b></span></div>
+        <div class="item"><span class="muted">Số thợ</span><span class="grow right"><b class="tnum">1 × 260.000 đ</b></span></div>
+      </div>
+      <hr class="divider">
+      <div class="row between"><b>Tổng cộng</b><b class="tnum" style="font-size:26px">260.000 đ</b></div>
+      <a class="btn lg block mt-16" href="payment.html">Đặt và thanh toán</a>
+    </aside>
+  </div>
+</main>
+</body>
+</html>

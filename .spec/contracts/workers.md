@@ -56,7 +56,7 @@
 
 ### 2.1 Worker Registration & Profile
 
-#### 2.1.1 `POST /api/workers/register` (Anonymous with `registrationToken`)
+#### 2.1.1 `POST /api/v1/workers/register` (Anonymous with `registrationToken`)
 Registers a new Freelancer worker profile after phone OTP verification (`identity.md` §2.2 O1).
 
 **Headers:**
@@ -98,7 +98,7 @@ Registers a new Freelancer worker profile after phone OTP verification (`identit
 
 ---
 
-#### 2.1.2 `GET /api/workers/me` (WorkerOnly)
+#### 2.1.2 `GET /api/v1/workers/me` (WorkerOnly)
 Returns current authenticated worker's profile.
 
 **Response 200 `data` (`WorkerProfileResponse`):**
@@ -121,7 +121,7 @@ Returns current authenticated worker's profile.
 
 ---
 
-#### 2.1.3 `PATCH /api/workers/me` (WorkerOnly)
+#### 2.1.3 `PATCH /api/v1/workers/me` (WorkerOnly)
 Updates editable worker profile fields.
 
 **Request Body:**
@@ -137,7 +137,7 @@ Updates editable worker profile fields.
 
 ---
 
-#### 2.1.4 `GET /api/workers/{id}` (AdminOnly / CustomerOnly)
+#### 2.1.4 `GET /api/v1/workers/{id}` (AdminOnly / CustomerOnly)
 Public/Admin view of worker profile. Customers can view worker details if the worker is assigned or favorited.
 
 **Response 200 `data` (`WorkerPublicProfileResponse`):**
@@ -159,7 +159,7 @@ Public/Admin view of worker profile. Customers can view worker details if the wo
 
 ### 2.2 eKYC (Freelancer Identity Verification)
 
-#### 2.2.1 `POST /api/workers/me/ekyc` (WorkerOnly)
+#### 2.2.1 `POST /api/v1/workers/me/ekyc` (WorkerOnly)
 Submits CCCD photos and selfie for automated eKYC verification (`IEkycProvider`, Fake in Phase 1 per Q05).
 
 **Request Body:**
@@ -196,7 +196,7 @@ Submits CCCD photos and selfie for automated eKYC verification (`IEkycProvider`,
 
 ---
 
-#### 2.2.2 `GET /api/admin/workers/ekyc-queue` (AdminOnly)
+#### 2.2.2 `GET /api/v1/admin/workers/ekyc-queue` (AdminOnly)
 Lists pending manual eKYC reviews for Admin.
 
 **Query Parameters:** `page=1&pageSize=20&status=PENDING`. `status` (ADMIN-UAT-06) selects the list of the Admin audit page: `PENDING` (default: `MANUAL_REVIEW`, `PENDING`, `AUDIT_PENDING`), `APPROVED` (`kyc_status = APPROVED` and `kyc_reviewed_by` set, that is approved by an Admin; a worker the provider approved is not in it) or `REJECTED`; any other value is a 400 with `errors.status`. The Web page sends the tab it shows.
@@ -227,7 +227,7 @@ Lists pending manual eKYC reviews for Admin.
 
 ---
 
-#### 2.2.3 `POST /api/admin/workers/{id}/ekyc-review` (AdminOnly)
+#### 2.2.3 `POST /api/v1/admin/workers/{id}/ekyc-review` (AdminOnly)
 Admin manual approval or rejection of a worker's eKYC.
 
 **Request Body:**
@@ -244,7 +244,7 @@ Admin manual approval or rejection of a worker's eKYC.
 
 ### 2.3 Block Slots (Freelancer Availability Roster)
 
-#### 2.3.1 `GET /api/workers/me/slots` (WorkerOnly)
+#### 2.3.1 `GET /api/v1/workers/me/slots` (WorkerOnly)
 Returns active blocked availability slots for the specified date range.
 
 **Query Parameters:** `startDate=2026-10-08&endDate=2026-10-14`
@@ -280,7 +280,7 @@ Returns active blocked availability slots for the specified date range.
 
 ---
 
-#### 2.3.2 `POST /api/workers/me/slots/toggle` (WorkerOnly)
+#### 2.3.2 `POST /api/v1/workers/me/slots/toggle` (WorkerOnly)
 Enables or disables an availability slot for a given date and shift.
 
 **Request Body:**
@@ -299,17 +299,77 @@ Enables or disables an availability slot for a given date and shift.
 - Operation is idempotent (double clicks / concurrent requests return existing slot state safely without duplicate row errors).
 - The toggle only moves `AVAILABLE <-> BLOCKED`. A slot owned by Dispatch (`HELD` by an offer or agency hold, `BOOKED` by an assignment) is refused with **409 `SLOT_IN_USE`** and keeps its status (#398).
 
+#### 2.3.3 `GET /api/v1/workers/me/assignments` (WorkerOnly)
+The jobs booked for the signed-in worker, so the app can show them in the schedule next to the slots (#550). Reads `JOB_ASSIGNMENT` -> `BOOKING_SLOT` (date, shift, times) -> `JOB_ORDER` -> `CUSTOMER_ADDRESS` (district only). No table change.
+
+**Query:** `startDate` (default: today, Vietnam date), `endDate` (default: `startDate + 13`). The range is by the **slot date** and may be at most **31 days** (`endDate - startDate + 1 <= 31`).
+
+**Response 200 `data` (`WorkerAssignmentResponse[]`)**
+```json
+[
+  {
+    "assignmentId": 10002,
+    "orderId": 6,
+    "orderCode": "GV-UAT-0796-01",
+    "slotDate": "2026-10-31",
+    "shiftCode": "SHIFT_MORNING",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "status": "ASSIGNED",
+    "serviceTier": "ECONOMY",
+    "district": "Quận 1",
+    "payoutAmount": 128000.00
+  }
+]
+```
+
+**Rules:**
+- Only the signed-in worker's own assignments; another worker's are never returned.
+- Only booked jobs: `status` is `ASSIGNED`, `CHECKED_IN`, `IN_PROGRESS`, `AWAITING_ACCEPTANCE` or `COMPLETED`. An offer (`OFFERED`) and every assignment that ended without the job being done (`CANCELLED`, `CANCELLED_BY_WORKER`, `ABSENT`, `INCIDENT`, `REASSIGNED`) are not listed.
+- Ordered by `slotDate`, then shift start time.
+- Privacy: the street address, the coordinates and the customer's name or phone are **not** returned, only the `district`. The detail of a job (full address, pending extension) is a separate read (#442).
+- `endDate < startDate` or a range over 31 days is **400** with a field error on `endDate`.
+
+---
+
+### 2.3B Work area (WORKERS-AREA-01, #555, decisions D24)
+Where a freelancer works. The dispatch search matches on it (see below). Registering is mandatory to be offered jobs.
+
+#### 2.3B.1 `GET /api/v1/workers/me/work-area` (WorkerOnly)
+**Response 200 `data` (`WorkerWorkAreaResponse`)**
+```json
+{
+  "isSet": true,
+  "latitude": 10.7769,
+  "longitude": 106.7009,
+  "radiusKm": 10,
+  "districts": ["Quận 1", "Quận 3"],
+  "setAt": "2026-10-31T03:00:00Z"
+}
+```
+Nothing registered yet: **200** with `isSet: false`, `latitude`, `longitude`, `radiusKm` and `setAt` null and `districts: []` (never 404).
+
+#### 2.3B.2 `PUT /api/v1/workers/me/work-area` (WorkerOnly)
+**Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009, "radiusKm": 10, "districts": ["Quận 1", "Quận 3"] }`
+
+**Response 200 `data`:** the same `WorkerWorkAreaResponse` as the GET.
+
+**Rules:**
+- `latitude` -90..90, `longitude` -180..180 (rounded to 6 decimals, like `PUT /me/location`), `radiusKm` one of **5, 10, 15**, `districts` optional, at most **10**, each 1 to 100 characters after trimming and without `;`; duplicates (ignoring case) are dropped. Any failure is **400** with field errors (`latitude`, `longitude`, `radiusKm`, `districts`) and nothing is stored.
+- A new PUT replaces the previous area.
+- **Matching (decisions D24):** the dispatch search finds a freelancer only when they have a work area and the distance from the order's address to the base point is <= the search step radius (5, 7, then 10 km) **and** <= `radiusKm`. A freelancer with no work area is never offered a job. `PUT /me/location` and the check-in distance do not change.
+
 ---
 
 ### 2.3A Location and payout account (ECON-FLOW-FIX, decisions D19)
 
-#### `PUT /api/workers/me/location` (WorkerOnly)
+#### `PUT /api/v1/workers/me/location` (WorkerOnly)
 Where the worker is now. The dispatch search offers a job only to a worker who has a position (`WORKER.current_lat/current_lng`).
 
 **Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009 }` (latitude -90..90, longitude -180..180).
 **Response 200 `data`:** `{ "latitude": 10.7769, "longitude": 106.7009 }` (six decimals kept). 400 in the shared validation envelope when a value is missing or out of range.
 
-#### `GET /api/workers/me/bank` and `PUT /api/workers/me/bank` (WorkerOnly)
+#### `GET /api/v1/workers/me/bank` and `PUT /api/v1/workers/me/bank` (WorkerOnly)
 The account the platform transfers the worker's monthly payout to (`WORKER.bank_name`, `bank_account_no`; the payout export reads them).
 - `GET` 200 `data`: `{ "bankName": "", "bankAccountNo": "", "isSet": false }` (empty strings while never set).
 - `PUT` body `{ "bankName": "Vietcombank", "bankAccountNo": "0011001234567" }`; both required; `bankName` <= 100 characters, `bankAccountNo` 6 to 30 digits (spaces dropped). 200 with the stored values and `isSet: true`; 400 otherwise.
@@ -318,7 +378,7 @@ The account the platform transfers the worker's monthly payout to (`WORKER.bank_
 
 ### 2.4 Image Quality & VoL Before/After Verification
 
-#### 2.4.1 `POST /api/workers/assignments/{assignmentId}/photos` (WorkerOnly)
+#### 2.4.1 `POST /api/v1/workers/assignments/{assignmentId}/photos` (WorkerOnly)
 Uploads a work photo as a file and verifies it using Variance of Laplacian (`IImageQualityService`, BR-06, Q03). Decision D21 (WORKERS-PHOTO-01): the sharpness is measured on the real pixels of the uploaded file.
 
 **Request:** `multipart/form-data` with the parts
@@ -336,7 +396,7 @@ Uploads a work photo as a file and verifies it using Variance of Laplacian (`IIm
   "assignmentId": 2001,
   "photoPhase": "BEFORE",
   "angleNo": 1,
-  "photoUrl": "/api/workers/assignments/2001/photos/801/file",
+  "photoUrl": "/api/v1/workers/assignments/2001/photos/801/file",
   "volScore": 142.50,
   "isAccepted": true,
   "uploadedAt": "2026-10-08T14:02:00Z"
@@ -366,7 +426,7 @@ Uploads a work photo as a file and verifies it using Variance of Laplacian (`IIm
 
 ---
 
-#### 2.4.2 `GET /api/workers/assignments/{assignmentId}/photos` (WorkerOnly / CustomerOnly / AdminOnly)
+#### 2.4.2 `GET /api/v1/workers/assignments/{assignmentId}/photos` (WorkerOnly / CustomerOnly / AdminOnly)
 Returns all uploaded photos for a job assignment.
 
 **Response 200 `data` (`List<JobPhotoResponse>`)**
@@ -377,7 +437,7 @@ For a photo that was uploaded as a file, `photoUrl` is the address of the file e
 | 403 | Not the assignment's worker, not its customer, not an Admin, or any other role |
 | 404 | Unknown assignment |
 
-#### 2.4.3 `GET /api/workers/assignments/{assignmentId}/photos/{photoId}/file` (WorkerOnly / CustomerOnly / AdminOnly)
+#### 2.4.3 `GET /api/v1/workers/assignments/{assignmentId}/photos/{photoId}/file` (WorkerOnly / CustomerOnly / AdminOnly)
 Returns the stored file of one photo (decision D21). **Not anonymous:** the photos show the inside of a customer's home, so the rule of 2.4.2 applies (the assignment's worker, its customer, an Admin) and the request needs the bearer token. The response is the file itself (`image/jpeg`, `image/png` or `image/webp`, from the stored name) with `X-Content-Type-Options: nosniff` and `Cache-Control: private, max-age=3600`.
 
 | Status | Condition |
@@ -389,7 +449,7 @@ Returns the stored file of one photo (decision D21). **Not anonymous:** the phot
 
 ### 2.5 Acceptance & Completion (BR-07, Q11)
 
-#### 2.5.1 `POST /api/workers/assignments/{assignmentId}/submit-completion` (WorkerOnly)
+#### 2.5.1 `POST /api/v1/workers/assignments/{assignmentId}/submit-completion` (WorkerOnly)
 Worker submits completed job for customer acceptance after uploading all required Before/After photos.
 
 **Request Body:** empty or `{ "notes": "string" }`
@@ -410,7 +470,7 @@ Worker submits completed job for customer acceptance after uploading all require
 
 ---
 
-#### 2.5.2 `POST /api/customers/assignments/{assignmentId}/accept` (CustomerOnly)
+#### 2.5.2 `POST /api/v1/customers/assignments/{assignmentId}/accept` (CustomerOnly)
 Customer confirms job completion. Calculates payout and completes assignment.
 
 **Request Body:** empty or `{ "feedback": "string" }`
@@ -435,7 +495,7 @@ Customer confirms job completion. Calculates payout and completes assignment.
 
 ---
 
-#### 2.5.3 `POST /api/customers/assignments/{assignmentId}/request-redo` (CustomerOnly)
+#### 2.5.3 `POST /api/v1/customers/assignments/{assignmentId}/request-redo` (CustomerOnly)
 Customer requests a 15–30 minute touch-up/redo if work is unsatisfied.
 
 **Request Body:**
@@ -459,7 +519,7 @@ Customer requests a 15–30 minute touch-up/redo if work is unsatisfied.
 
 ### 2.6 Extension Handling ("Làm lần 2", BR-08)
 
-#### 2.6.1 `POST /api/workers/assignments/{assignmentId}/extension/respond` (WorkerOnly)
+#### 2.6.1 `POST /api/v1/workers/assignments/{assignmentId}/extension/respond` (WorkerOnly)
 Worker accepts or declines an extension request paid by the customer (`ExtensionPaid` event listened).
 
 **Request Body:**

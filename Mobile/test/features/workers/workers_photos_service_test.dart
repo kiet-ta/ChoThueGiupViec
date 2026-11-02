@@ -77,7 +77,7 @@ void main() {
     Future<void> serve() async {
       server.listen((HttpRequest request) async {
         final body = await request.fold<List<int>>([], (a, b) => a..addAll(b));
-        if (request.uri.path == '/api/auth/refresh') {
+        if (request.uri.path == '/api/v1/auth/refresh') {
           request.response.headers.contentType = ContentType.json;
           request.response.write(
             jsonEncode({
@@ -123,7 +123,7 @@ void main() {
           'assignmentId': 2001,
           'photoPhase': 'BEFORE',
           'angleNo': 2,
-          'photoUrl': '/api/workers/assignments/2001/photos/801/file',
+          'photoUrl': '/api/v1/workers/assignments/2001/photos/801/file',
           'volScore': 142.5,
           'isAccepted': true,
           'uploadedAt': '2026-10-21T08:00:00Z',
@@ -152,7 +152,7 @@ void main() {
 
       expect(received, hasLength(1));
       final call = received.single;
-      expect(call.path, '/api/workers/assignments/2001/photos');
+      expect(call.path, '/api/v1/workers/assignments/2001/photos');
       expect(call.contentType, startsWith('multipart/form-data; boundary='));
       expect(call.auth, 'Bearer tok');
       expect(
@@ -180,7 +180,7 @@ void main() {
       expect(response.data!.isAccepted, isTrue);
       expect(
         response.data!.photoUrl,
-        '/api/workers/assignments/2001/photos/801/file',
+        '/api/v1/workers/assignments/2001/photos/801/file',
       );
     });
 
@@ -267,17 +267,20 @@ void main() {
 
     tearDown(() => TokenStorage().clear());
 
-    test('a stored photo is loaded from the API address with the Bearer token', () {
-      final image = service.photoImage(
-        '/api/workers/assignments/2001/photos/801/file',
-      );
+    test(
+      'a stored photo is loaded from the API address with the Bearer token',
+      () {
+        final image = service.photoImage(
+          '/api/v1/workers/assignments/2001/photos/801/file',
+        );
 
-      expect(
-        image!.url,
-        'http://api.example:5004/api/workers/assignments/2001/photos/801/file',
-      );
-      expect(image.headers, {'Authorization': 'Bearer tok'});
-    });
+        expect(
+          image!.url,
+          'http://api.example:5004/api/v1/workers/assignments/2001/photos/801/file',
+        );
+        expect(image.headers, {'Authorization': 'Bearer tok'});
+      },
+    );
 
     test(
       'a client URL is never given the token (it would go to another host)',

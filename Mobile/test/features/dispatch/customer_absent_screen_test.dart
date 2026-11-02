@@ -46,7 +46,7 @@ void main() {
         await tester.pumpWidget(createScreen(checkedInAt: checkedInRecently));
         await tester.pumpAndSettle();
 
-        expect(find.text('Báo Khách Vắng Mặt'), findsOneWidget);
+        expect(find.text('Báo gia chủ vắng'), findsOneWidget);
         expect(find.text('Chưa đủ điều kiện'), findsOneWidget);
         expect(find.byKey(const Key('call_customer_button')), findsOneWidget);
       },
@@ -113,12 +113,12 @@ void main() {
         // Submit button should now be active
         final submitButton = find.byKey(const Key('report_absent_button'));
         expect(submitButton, findsOneWidget);
-        expect(find.textContaining('Báo Vắng Mặt (40%)'), findsOneWidget);
+        expect(find.textContaining('Báo vắng mặt (40%)'), findsOneWidget);
 
         await tester.tap(submitButton);
         await tester.pumpAndSettle();
 
-        expect(find.text('Đã Gửi Báo Cáo Khách Vắng Mặt'), findsOneWidget);
+        expect(find.text('Đã gửi báo cáo gia chủ vắng'), findsOneWidget);
         expect(find.textContaining('104.000 đ'), findsOneWidget);
         expect(find.text('40%'), findsOneWidget);
       },

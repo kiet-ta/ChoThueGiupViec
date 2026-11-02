@@ -14,7 +14,7 @@ namespace CommonService.WebAPI.Controllers.Ratings;
 /// customer id comes from the token, never from the URL or body. An assignment that is not the caller's is a 404.
 /// </summary>
 [ApiController]
-[Route("api/customers/me/assignments/{assignmentId:long}")]
+[Route("api/v1/customers/me/assignments/{assignmentId:long}")]
 [Authorize(Policy = "CustomerOnly")]
 public class CustomerRatingsController(IRatingService ratings, ICurrentUser currentUser) : ControllerBase
 {

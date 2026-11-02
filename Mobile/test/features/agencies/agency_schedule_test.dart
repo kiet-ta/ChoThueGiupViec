@@ -119,6 +119,120 @@ void main() {
       expect(find.byKey(const Key('slot-1')), findsOneWidget);
     });
 
+    testWidgets(
+      'counts the shifts of the week and of the 14 days, and fills the grid',
+      (tester) async {
+        final service = _FakeSlots()
+          ..slots = [
+            _slot(1, '2026-10-14', 'SHIFT_MORNING', '08:00', '12:00'),
+            _slot(2, '2026-10-15', 'SHIFT_AFTERNOON', '13:00', '17:00'),
+            _slot(3, '2026-10-20', 'SHIFT_MORNING', '08:00', '12:00'),
+          ];
+        await _pump(tester, service);
+
+        Text value(String key) => tester.widget<Text>(
+          find
+              .descendant(of: find.byKey(Key(key)), matching: find.byType(Text))
+              .last,
+        );
+        // The StatTile value is a rich text; read the plain text of the tile instead.
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('schedule-week-count')),
+            matching: find.textContaining('2', findRichText: true),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('schedule-total-count')),
+            matching: find.textContaining('3', findRichText: true),
+          ),
+          findsOneWidget,
+        );
+
+        Color? cell(String date, String code) =>
+            (tester
+                        .widget<Container>(
+                          find.byKey(Key('roster-cell-$date-$code')),
+                        )
+                        .decoration
+                    as BoxDecoration)
+                .color;
+        expect(
+          cell('2026-10-14', 'SHIFT_MORNING'),
+          isNot(cell('2026-10-14', 'SHIFT_EVENING')),
+        );
+        expect(value, isNotNull);
+      },
+    );
+
+    group('tapping a day cell opens that day', () {
+      Future<void> tapCell(
+        WidgetTester tester,
+        String date,
+        String code,
+      ) async {
+        await tester.tap(find.byKey(Key('roster-cell-$date-$code')));
+        await tester.pumpAndSettle();
+      }
+
+      Finder inSheet(String date, Finder what) => find.descendant(
+        of: find.byKey(Key('roster-day-$date')),
+        matching: what,
+      );
+
+      testWidgets('a rostered day lists its shifts, from any of its cells', (
+        tester,
+      ) async {
+        final service = _FakeSlots()
+          ..slots = [
+            _slot(1, '2026-10-14', 'SHIFT_MORNING', '08:00', '12:00'),
+            _slot(2, '2026-10-14', 'SHIFT_AFTERNOON', '13:00', '17:00'),
+          ];
+        await _pump(tester, service);
+        final requests = service.lastStart;
+
+        // The Tối cell of that day is empty, but it still opens the day.
+        await tapCell(tester, '2026-10-14', 'SHIFT_EVENING');
+
+        expect(inSheet('2026-10-14', find.text('T4 14/10')), findsOneWidget);
+        expect(inSheet('2026-10-14', find.text('Ca sáng')), findsOneWidget);
+        expect(
+          inSheet('2026-10-14', find.text('08:00 – 12:00')),
+          findsOneWidget,
+        );
+        expect(inSheet('2026-10-14', find.text('Ca chiều')), findsOneWidget);
+        expect(find.byKey(const Key('roster-day-empty')), findsNothing);
+        // No new request: the sheet reads what is already loaded.
+        expect(service.lastStart, requests);
+      });
+
+      testWidgets('a day without a shift says so', (tester) async {
+        final service = _FakeSlots()
+          ..slots = [_slot(1, '2026-10-14', 'SHIFT_MORNING', '08:00', '12:00')];
+        await _pump(tester, service);
+
+        await tapCell(tester, '2026-10-16', 'SHIFT_MORNING');
+
+        expect(inSheet('2026-10-16', find.text('T6 16/10')), findsOneWidget);
+        expect(
+          find.text('Chưa có ca nào được xếp trong ngày này.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('a day before today says so too', (tester) async {
+        final service = _FakeSlots()
+          ..slots = [_slot(1, '2026-10-14', 'SHIFT_MORNING', '08:00', '12:00')];
+        await _pump(tester, service);
+
+        await tapCell(tester, '2026-10-12', 'SHIFT_AFTERNOON');
+
+        expect(find.byKey(const Key('roster-day-empty')), findsOneWidget);
+      });
+    });
+
     testWidgets('says so when the agency has not rostered the worker', (
       tester,
     ) async {

@@ -11,7 +11,7 @@ public sealed record RosterRejectedDto(IReadOnlyList<RosterEntryError> Errors);
 
 /// <summary>Weekly shift roster of the agency (contract agencies.md 5, BE-M5-05, policy PartnerOnly).</summary>
 [ApiController]
-[Route("api/agencies/roster")]
+[Route("api/v1/agencies/roster")]
 [Authorize(Policy = "PartnerOnly")]
 public class AgencyRosterController(ShiftRosterService service) : ControllerBase
 {

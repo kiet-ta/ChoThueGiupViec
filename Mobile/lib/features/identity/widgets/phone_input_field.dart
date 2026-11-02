@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/motion/nordic_motion.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
 
@@ -11,12 +12,16 @@ class PhoneInputField extends StatelessWidget {
   final String? errorText;
   final bool enabled;
 
+  /// The number is a valid mobile number: a check mark says so while typing (MOB-UI-12).
+  final bool isValid;
+
   const PhoneInputField({
     super.key,
     required this.controller,
     this.onChanged,
     this.errorText,
     this.enabled = true,
+    this.isValid = false,
   });
 
   @override
@@ -26,31 +31,33 @@ class PhoneInputField extends StatelessWidget {
       children: [
         Row(
           children: [
+            // ui-templates `shared/phone.html`: a fixed +84 box beside the number.
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12.0,
-                vertical: 14.0,
-              ),
+              width: 92.0,
+              height: 52.0,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: NordicColors.surfaceSubtle,
+                color: NordicColors.surface,
                 borderRadius: BorderRadius.circular(12.0),
                 border: Border.all(color: NordicColors.border),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('🇻🇳', style: TextStyle(fontSize: 16.0)),
-                  const SizedBox(width: 6.0),
+                  _VietnamFlag(),
+                  SizedBox(width: 8.0),
                   Text(
                     '+84',
-                    style: NordicTypography.labelMedium.copyWith(
+                    style: TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.w600,
                       color: NordicColors.textTitle,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8.0),
+            const SizedBox(width: 10.0),
             Expanded(
               child: TextField(
                 controller: controller,
@@ -61,27 +68,37 @@ class PhoneInputField extends StatelessWidget {
                   LengthLimitingTextInputFormatter(11),
                 ],
                 onChanged: onChanged,
-                style: NordicTypography.bodyLarge.copyWith(
+                style: const TextStyle(
+                  fontSize: 20.0,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.8,
+                  color: NordicColors.textTitle,
+                  fontFeatures: [FontFeature.tabularFigures()],
                 ),
                 decoration: InputDecoration(
                   hintText: '0912 345 678',
-                  hintStyle: NordicTypography.bodyLarge.copyWith(
-                    color: NordicColors.textSecondary.withValues(alpha: 0.6),
+                  hintStyle: TextStyle(
+                    fontSize: 20.0,
                     fontWeight: FontWeight.w400,
+                    color: NordicColors.textSecondary.withValues(alpha: 0.6),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16.0,
                     vertical: 14.0,
                   ),
                   suffixIcon: controller.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18.0),
-                          onPressed: () {
-                            controller.clear();
-                            onChanged?.call('');
-                          },
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _ValidMark(visible: isValid),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18.0),
+                              onPressed: () {
+                                controller.clear();
+                                onChanged?.call('');
+                              },
+                            ),
+                          ],
                         )
                       : null,
                 ),
@@ -100,6 +117,52 @@ class PhoneInputField extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The check mark of a valid number: grows in on the standard spring, or just appears under
+/// reduced motion.
+class _ValidMark extends StatelessWidget {
+  final bool visible;
+
+  const _ValidMark({required this.visible});
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = NordicMotion.reduced(context);
+    return AnimatedScale(
+      key: const Key('phone-valid-mark'),
+      scale: visible ? 1.0 : 0.0,
+      duration: reduced ? Duration.zero : NordicMotion.standard.settleDuration,
+      curve: SpringCurve(NordicMotion.standard),
+      child: const Icon(
+        Icons.check_circle,
+        size: 20.0,
+        color: NordicColors.primary,
+        semanticLabel: 'Số hợp lệ',
+      ),
+    );
+  }
+}
+
+/// The flag of Vietnam, drawn in code (MOB-UI-18): a red field with a yellow star. Decorative.
+class _VietnamFlag extends StatelessWidget {
+  const _VietnamFlag();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Container(
+        key: const Key('phone-flag'),
+        width: 24.0,
+        height: 16.0,
+        decoration: BoxDecoration(
+          color: const Color(0xFFDA251D),
+          borderRadius: BorderRadius.circular(2.0),
+        ),
+        child: const Icon(Icons.star, size: 11.0, color: Color(0xFFFFFF00)),
+      ),
     );
   }
 }

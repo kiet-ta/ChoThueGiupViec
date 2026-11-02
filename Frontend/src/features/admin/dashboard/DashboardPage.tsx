@@ -81,7 +81,7 @@ export function DashboardPage() {
             <h2 className="text-lg font-semibold">Tranh chấp sắp quá hạn</h2>
             <p className="text-sm text-muted-foreground">Còn dưới 6 giờ trước hạn SLA 24–48 giờ</p>
           </div>
-          <Button variant="outline" render={<Link to="/admin/disputes" />}>
+          <Button variant="outline" nativeButton={false} render={<Link to="/admin/disputes" />}>
             Xem tất cả khiếu nại →
           </Button>
         </div>

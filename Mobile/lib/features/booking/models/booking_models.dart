@@ -29,7 +29,7 @@ double _double(dynamic v) => (v as num?)?.toDouble() ?? 0;
 DateTime? _date(dynamic v) =>
     v is String ? DateTime.tryParse(v)?.toUtc() : null;
 
-/// One shift of GET /api/booking/options: the code and its local (Asia/Ho_Chi_Minh) start and end, "HH:mm".
+/// One shift of GET /api/v1/booking/options: the code and its local (Asia/Ho_Chi_Minh) start and end, "HH:mm".
 class ShiftOption {
   final String shiftCode;
   final String startLocal;
@@ -48,7 +48,7 @@ class ShiftOption {
   );
 }
 
-/// GET /api/booking/options (booking.md 3.1): the app hard-codes none of these values.
+/// GET /api/v1/booking/options (booking.md 3.1): the app hard-codes none of these values.
 class BookingOptions {
   final List<String> serviceTiers;
   final List<ShiftOption> shifts;
@@ -178,7 +178,7 @@ class BookingOrder {
   );
 }
 
-/// What the customer chose; the body of POST /api/booking/orders (booking.md 3.3).
+/// What the customer chose; the body of POST /api/v1/booking/orders (booking.md 3.3).
 class CreateOrderInput {
   final int addressId;
   final String serviceTier;
@@ -188,12 +188,18 @@ class CreateOrderInput {
   final String shiftCode;
   final String? customerNote;
 
+  /// A favorite or a worker from a completed previous assignment (ECONOMY only).
+  final int? preferredWorkerId;
+  final int? previousOrderId;
+
   const CreateOrderInput({
     required this.addressId,
     required this.serviceTier,
     required this.scheduledDate,
     required this.shiftCode,
     this.customerNote,
+    this.preferredWorkerId,
+    this.previousOrderId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -202,6 +208,8 @@ class CreateOrderInput {
     'scheduledDate': scheduledDate,
     'shiftCode': shiftCode,
     'customerNote': customerNote,
+    'preferredWorkerId': ?preferredWorkerId,
+    'previousOrderId': ?previousOrderId,
   };
 }
 
@@ -284,7 +292,7 @@ class OrderSummary {
   );
 }
 
-/// One page of GET /api/booking/orders (booking.md 3.4).
+/// One page of GET /api/v1/booking/orders (booking.md 3.4).
 class OrderPage {
   final List<OrderSummary> items;
   final int page;

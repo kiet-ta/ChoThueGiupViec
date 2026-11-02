@@ -1,4 +1,4 @@
-/// The position the server stored for the worker (contract workers.md §2.3A, `PUT /api/workers/me/location`).
+/// The position the server stored for the worker (contract workers.md §2.3A, `PUT /api/v1/workers/me/location`).
 class WorkerLocationDto {
   final double latitude;
   final double longitude;

@@ -1,7 +1,7 @@
 # Contract: Agencies (module `Agencies`, owner M5)
 
 > Status: **DRAFT — proposed for leader approval** (ticket BE-M5-00, issue #231). No endpoint in this document is approved for implementation until the leader approves this contract.
-> Approval note (2026-10-12, leader, ticket #237, decisions Q25): **only the registration capability** (`POST /api/agencies/registration`, section 2 and leader question 1) is approved and implemented by BE-M5-01. Everything else in this document is still DRAFT.
+> Approval note (2026-10-12, leader, ticket #237, decisions Q25): **only the registration capability** (`POST /api/v1/agencies/registration`, section 2 and leader question 1) is approved and implemented by BE-M5-01. Everything else in this document is still DRAFT.
 > Sources: `.spec/spec.md` §1.3, §2.1, §2.3–§2.5, §2.8, §4.3–§4.4, §5.1–§5.4; `.spec/decisions.md` G-1–G-7, Q08, Q09, Q11, Q16, Q18, Q19, SC-1, SC-3, SC-4; `.spec/plan/00-overview.md` §4–§6; `.spec/contracts/identity.md` §1.
 > Implements: BE-M5-01..09 and relevant Partner Portal work, after contract approval and required gates.
 
@@ -18,25 +18,25 @@ The path and method are proposals solely to make the review concrete. The leader
 
 | Capability | Candidate endpoint | Access | Source-backed behavior |
 |---|---|---|---|
-| Agency registration | `POST /api/agencies/registration` | Public, no token (`AllowAnonymous`); leader decision 2026-10-12, decisions Q25 R5 | Agency is a legal business identified by its tax code (PRD §2.1; decisions Q25 R1). Partner identity uses `contact_email` + password (Q16). Created `PENDING`; `ACTIVE` only when escrow reaches the minimum (Q09, Q25 R3/R4). Implemented by BE-M5-01. |
-| Current Agency / profile | `GET /api/agencies/me` | `PartnerOnly` candidate | Agency-scoped access; return only the caller's Agency data. Exact profile DTO is open. |
-| Subscription packages | `GET /api/agencies/packages` | `PartnerOnly` candidate | Lists the package defaults in §3. Admin edits are audited (G-5, Q08). |
-| Buy / renew subscription | `POST /api/agencies/subscriptions` | `PartnerOnly` candidate | Payment via `IPaymentGateway`; successful activation emits `SubscriptionActivated` (overview §4–§5). Payment request/callback shapes are not defined here. |
-| Subscription state | `GET /api/agencies/subscriptions/me` | `PartnerOnly` candidate | Shows the caller's subscription and quota state; exact response shape is open. |
-| Guarantee PDF | `POST /api/agencies/guarantee` | `PartnerOnly` candidate; must enforce that the authenticated account is the Agency's legal representative or is authorized by them. How that identity/authorization is established is open (Q19). | Upload signed guarantee PDF via `IFileStorage`; retain version in file name and set `guarantee_signed_at` and `guarantee_file_url` (Q19, SC-1). |
-| Import workers (dry-run) | `POST /api/agencies/workers/import/dry-run` | `PartnerOnly` candidate | Accept `.xlsx`, validate rows, return per-row errors, write nothing (Q18). Reject when guarantee is absent (Q19). |
-| Import workers (commit) | `POST /api/agencies/workers/import/commit` | `PartnerOnly` candidate | Commit all rows or none; reject the whole file for any invalid row or quota overflow (Q18). Creates `AGENCY_STAFF` workers without the Admin review queue (PRD §2.8). |
-| Weekly shift roster | `GET /api/agencies/roster` and `PUT /api/agencies/roster` | `PartnerOnly` candidate | Agency assigns its workers to weekly shifts; enforce `UNIQUE(worker_id, slot_date, shift_code)` (PRD §2.6 and §4.4). The exact write method/body is open. |
-| Escrow deposit | `POST /api/agencies/escrow/deposits` | `PartnerOnly` candidate | Deposit through MoMo sandbox (Q09). On successful payment, balance changes are append-only `ESCROW_TRANSACTION` records (SC-4). |
-| Escrow history / appeal | `GET /api/agencies/escrow/transactions`, `POST /api/agencies/escrow/appeals` | `PartnerOnly` candidate | Agency may appeal within 48 hours; Admin decides manually; reversal restores points/money using a `REVERSAL` row (Q09). Exact appeal payload is open. |
-| Agency dashboard | `GET /api/agencies/dashboard` | `PartnerOnly` candidate | Agency-scoped information only. Premium includes roster dashboard, analytics, and priority dispatch under Pro (Q08); exact metrics and filtering are open. |
+| Agency registration | `POST /api/v1/agencies/registration` | Public, no token (`AllowAnonymous`); leader decision 2026-10-12, decisions Q25 R5 | Agency is a legal business identified by its tax code (PRD §2.1; decisions Q25 R1). Partner identity uses `contact_email` + password (Q16). Created `PENDING`; `ACTIVE` only when escrow reaches the minimum (Q09, Q25 R3/R4). Implemented by BE-M5-01. |
+| Current Agency / profile | `GET /api/v1/agencies/me` | `PartnerOnly` candidate | Agency-scoped access; return only the caller's Agency data. Exact profile DTO is open. |
+| Subscription packages | `GET /api/v1/agencies/packages` | `PartnerOnly` candidate | Lists the package defaults in §3. Admin edits are audited (G-5, Q08). |
+| Buy / renew subscription | `POST /api/v1/agencies/subscriptions` | `PartnerOnly` candidate | Payment via `IPaymentGateway`; successful activation emits `SubscriptionActivated` (overview §4–§5). Payment request/callback shapes are not defined here. |
+| Subscription state | `GET /api/v1/agencies/subscriptions/me` | `PartnerOnly` candidate | Shows the caller's subscription and quota state; exact response shape is open. |
+| Guarantee PDF | `POST /api/v1/agencies/guarantee` | `PartnerOnly` candidate; must enforce that the authenticated account is the Agency's legal representative or is authorized by them. How that identity/authorization is established is open (Q19). | Upload signed guarantee PDF via `IFileStorage`; retain version in file name and set `guarantee_signed_at` and `guarantee_file_url` (Q19, SC-1). |
+| Import workers (dry-run) | `POST /api/v1/agencies/workers/import/dry-run` | `PartnerOnly` candidate | Accept `.xlsx`, validate rows, return per-row errors, write nothing (Q18). Reject when guarantee is absent (Q19). |
+| Import workers (commit) | `POST /api/v1/agencies/workers/import/commit` | `PartnerOnly` candidate | Commit all rows or none; reject the whole file for any invalid row or quota overflow (Q18). Creates `AGENCY_STAFF` workers without the Admin review queue (PRD §2.8). |
+| Weekly shift roster | `GET /api/v1/agencies/roster` and `PUT /api/v1/agencies/roster` | `PartnerOnly` candidate | Agency assigns its workers to weekly shifts; enforce `UNIQUE(worker_id, slot_date, shift_code)` (PRD §2.6 and §4.4). The exact write method/body is open. |
+| Escrow deposit | `POST /api/v1/agencies/escrow/deposits` | `PartnerOnly` candidate | Deposit through MoMo sandbox (Q09). On successful payment, balance changes are append-only `ESCROW_TRANSACTION` records (SC-4). |
+| Escrow history / appeal | `GET /api/v1/agencies/escrow/transactions`, `POST /api/v1/agencies/escrow/appeals` | `PartnerOnly` candidate | Agency may appeal within 48 hours; Admin decides manually; reversal restores points/money using a `REVERSAL` row (Q09). Exact appeal payload is open. |
+| Agency dashboard | `GET /api/v1/agencies/dashboard` | `PartnerOnly` candidate | Agency-scoped information only. Premium includes roster dashboard, analytics, and priority dispatch under Pro (Q08); exact metrics and filtering are open. |
 | Edit packages / decide appeals | Candidate Admin endpoints **not selected** | `AdminOnly` candidate | Package edits require an append-only `ADMIN_AUDIT_LOG` entry in the same transaction (G-5/Q08). Admin decides appeals manually (Q09). Paths and DTOs are open. |
 
 ### Candidate request/response shapes
 
 These shapes map existing PRD concepts and schema fields; they remain proposals until approval. No password hash, internal login-lock fields, or another Agency's data is returned.
 
-`POST /api/agencies/registration` request (decided, decisions Q25):
+`POST /api/v1/agencies/registration` request (decided, decisions Q25):
 ```json
 {
   "taxCode": "0312345678",
@@ -54,21 +54,21 @@ Validation (all errors returned together, **400**, shared envelope): `taxCode` m
 
 Success **201**, `data`: `agencyId, taxCode, legalName, legalRepresentative, contactPhone, contactEmail, agencyStatus` (`PENDING`), `escrowDepositBalance` (0), `slaScore` (`Sla.InitialScore`), `workerQuota` (0), `createdAt`. No password, hash or token is returned; the agency signs in through the Partner login. Duplicate `taxCode` or `contactEmail`: **409** with `data.code` `AGENCY_TAX_CODE_EXISTS` / `AGENCY_EMAIL_EXISTS`.
 
-`GET /api/agencies/packages` candidate item: `packageId, packageCode, packageName, tier, billingCycle, price, workerQuota, commissionRate, hasRosterDashboard, hasAnalytics, priorityDispatch, isActive` (camelCase mappings of the existing package schema). Only active package visibility and public-vs-Partner access are unresolved.
+`GET /api/v1/agencies/packages` candidate item: `packageId, packageCode, packageName, tier, billingCycle, price, workerQuota, commissionRate, hasRosterDashboard, hasAnalytics, priorityDispatch, isActive` (camelCase mappings of the existing package schema). Only active package visibility and public-vs-Partner access are unresolved.
 
-`POST /api/agencies/subscriptions` candidate request:
+`POST /api/v1/agencies/subscriptions` candidate request:
 ```json
 { "packageId": 0 }
 ```
 Activation is asynchronous through the existing payment flow; payment-initiation response/callback details are not defined by this contract. Candidate subscription response fields: `subscriptionId, agencyId, packageId, startDate, endDate, subStatus, autoRenew`.
 
-`POST /api/agencies/escrow/deposits` candidate request:
+`POST /api/v1/agencies/escrow/deposits` candidate request:
 ```json
 { "amount": 0 }
 ```
 The amount is VND; propose rejecting non-positive or fractional-VND amounts with **400** and the shared validation envelope (G-2 whole-VND rule; positivity is a candidate validation for leader approval). Payment result and callback fields must follow the existing payment contract, not a new provider shape. Candidate transaction response fields are the SC-4 ledger columns, scoped to the authenticated Agency.
 
-`PUT /api/agencies/roster` candidate request:
+`PUT /api/v1/agencies/roster` candidate request:
 ```json
 {
   "entries": [
@@ -78,9 +78,9 @@ The amount is VND; propose rejecting non-positive or fractional-VND amounts with
 ```
 Each entry represents a worker's date/shift roster assignment and must respect `UNIQUE(worker_id, slot_date, shift_code)`. Accepted `shiftCode` wire values and week boundaries are open.
 
-`POST /api/agencies/workers/import/dry-run` and `/commit` accept the approved `.xlsx` template. Candidate dry-run response contains per-row validation results; exact template columns and error DTO must be approved before implementation (Q18).
+`POST /api/v1/agencies/workers/import/dry-run` and `/commit` accept the approved `.xlsx` template. Candidate dry-run response contains per-row validation results; exact template columns and error DTO must be approved before implementation (Q18).
 
-`GET /api/agencies/dashboard` candidate data may expose the authenticated Agency's existing `agencyStatus`, `escrowDepositBalance`, `slaScore`, `workerQuota`, and `isVerifiedPartner`, plus subscription state. The dashboard's response envelope is shared; analytics metrics and fields are not specified and require leader approval.
+`GET /api/v1/agencies/dashboard` candidate data may expose the authenticated Agency's existing `agencyStatus`, `escrowDepositBalance`, `slaScore`, `workerQuota`, and `isVerifiedPartner`, plus subscription state. The dashboard's response envelope is shared; analytics metrics and fields are not specified and require leader approval.
 
 Candidate Admin package edit (route/method TBD) may change `price`, `workerQuota`, and/or `commissionRate`. It must include a non-empty `reason` (M5 plan; `IAuditLog` rejects empty Admin reasons), and the audit append occurs in the same transaction (G-5). Empty/missing reason is a candidate **400** with the shared validation envelope. Exact route, payload semantics, and other field validation remain open.
 
@@ -173,7 +173,7 @@ These endpoint-specific status assignments are proposals where not explicitly se
 
 > Status: **approved for implementation** (leader decision 2026-10-23). These endpoints are implemented and verified.
 
-### 9.1 `GET /api/agencies/workers` (PartnerOnly)
+### 9.1 `GET /api/v1/agencies/workers` (PartnerOnly)
 
 Returns a paged list of the authenticated agency's workers.
 
@@ -208,7 +208,7 @@ Returns a paged list of the authenticated agency's workers.
 
 ---
 
-### 9.2 `POST /api/agencies/workers/{workerId}/retire` (PartnerOnly)
+### 9.2 `POST /api/v1/agencies/workers/{workerId}/retire` (PartnerOnly)
 
 Retires an agency worker, optionally with a replacement worker. The worker must belong to the caller's agency. Returns 404 for another agency's worker or unknown worker.
 
@@ -235,44 +235,49 @@ Retires an agency worker, optionally with a replacement worker. The worker must 
 ```
 
 - `replacement` (optional): Either `existingWorkerId` (int) **or** `newWorker` (object), not both. When `existingWorkerId` is provided, the worker must belong to the same agency and not be `Pending|Locked|Retiring|Retired`, and must have an `AVAILABLE` roster slot for every future job of the retiring worker. When `newWorker` is provided, it uses the same fields and validation as the import row (required: `fullName`, `phoneNumber`, `nationalId`; optional: `bankName`, `bankAccountNo`).
-- `confirmRescue` (bool, default `false`): Required when the worker has future `ASSIGNED` jobs and no replacement is provided. Setting to `true` confirms that the agency accepts the emergency rescue and SLA penalty.
+- `confirmRescue` (bool, default `false`): without it a worker with future `ASSIGNED` jobs and no replacement only gets the preview (`requiresConfirmation`). Setting it to `true` confirms that the agency accepts the emergency rescue and SLA penalty.
 
-**Response 200 `data` (`RetireWorkerResponse`):**
+**Response 200 `data` (`RetireWorkerResponse`)** (AGENCY-FIX-01):
 ```json
 {
   "workerId": 101,
-  "workStatus": "RETIRING",
+  "requiresConfirmation": false,
+  "workStatus": "RETIRED",
   "replacementWorkerId": 202,
   "futureJobs": [
-    { "assignmentId": 5001, "slotDate": "2026-10-25", "shiftCode": "SHIFT_MORNING" }
+    { "assignmentId": 5001, "orderId": 7001, "slotDate": "2026-10-25", "shiftCode": "SHIFT_MORNING" }
   ],
   "warning": "Worker has future jobs that have been transferred to the replacement worker."
 }
 ```
 
-**Error Responses (all 4xx use the shared validation envelope with `success=false`, `data.errors`):**
+- `requiresConfirmation` is `true` only for the **preview**: the worker has future `ASSIGNED` jobs, `replacement` is absent and `confirmRescue` is `false`. Nothing changed (`workStatus` is the unchanged status); `futureJobs` lists the shifts the agency must decide about. The client then calls again with a `replacement`, or with `confirmRescue = true` after an explicit confirmation that continuing starts the emergency rescue and an SLA penalty for the agency.
+- A repeated call on a worker that is already `Retiring` or `Retired` answers `200` with its status and changes nothing (idempotent, no event).
+- `futureJobs` is `null` when the worker had no future jobs.
+
+**Error Responses (all 4xx use the shared validation envelope with `success=false`; business 409s carry `data.code`):**
 
 | Status | `data.code` | Condition |
 |---|---|---|
-| 400 | `NEW_WORKER_VALIDATION` | New worker fields invalid (required, format, length) |
+| 400 | — (`data.errors`) | `replacement` has both or neither of `existingWorkerId` / `newWorker`; or new worker fields invalid (keys `newWorker.fullName`, `newWorker.phoneNumber`, `newWorker.nationalId`, `newWorker.bankName`, `newWorker.bankAccountNo`; each message starts with the import row code: `REQUIRED`, `TOO_LONG`, `INVALID_FORMAT`) |
 | 404 | — | Worker not found or not owned by this agency |
-| 409 | `ALREADY_RETIRING_OR_RETIRED` | Worker is already `Retiring` or `Retired` (idempotent: duplicate call returns this) |
-| 409 | `SLOT_HELD` | A future job has a `HELD` slot (customer in checkout) and no replacement |
-| 409 | `QUOTA_EXCEEDED` | Replacement would increase counted workers over quota (e.g. old was `Locked`, new is counted) |
-| 409 | `FUTURE_JOBS_NEED_REPLACEMENT` | Worker has future `ASSIGNED` jobs, no replacement, `confirmRescue=false`. Response `data.futureJobs` lists the jobs. Agency must resend with `confirmRescue=true` or provide a replacement. |
-| 409 | `REPLACEMENT_CONFLICT` | Replacement worker lacks an `AVAILABLE` slot for a future job, or swap failed |
-| 409 | `REPLACEMENT_NOT_OF_AGENCY` | Existing replacement worker does not belong to this agency |
+| 409 | `WORKER_NOT_RETIRABLE` | Worker is `Pending` (no state-machine edge to `Retiring`) |
+| 409 | `SLOT_HELD` | The worker has a `HELD` future slot (customer in checkout) and the replacement is not a new worker; nothing changes |
+| 409 | `QUOTA_EXCEEDED` | The retiring worker was `Locked` (not counted) and the new replacement worker (counted) would exceed the quota |
+| 409 | `REPLACEMENT_CONFLICT` | Existing replacement has no `AVAILABLE` slot for a future job (the message lists date and shift of every conflict), or a job could not be moved; nothing changes |
+| 409 | `REPLACEMENT_NOT_OF_AGENCY` | Existing replacement does not belong to this agency |
 | 409 | `REPLACEMENT_NOT_AVAILABLE` | Replacement worker is `Pending|Locked|Retiring|Retired` |
-| 409 | `ALREADY_EXISTS` | New worker's phone or national ID already exists in the system (same as import) |
+| 409 | `ALREADY_EXISTS` | New worker's phone or national ID already exists in the system (a retired worker keeps both reserved) |
 
-**Behavior:**
-- **No future jobs**: `Idle|Locked → Retiring → Retired` in one transaction; future `AVAILABLE` slots removed.
-- **Future jobs + replacement**: `Retiring` now; future `ASSIGNED` jobs' `worker_id` updated to replacement; roster slots' `worker_id` updated. One transaction. No SLA penalty.
-- **Future jobs + no replacement + `confirmRescue=true`**: Worker → `Retiring`; after commit, publishes `AgencySwapWindowExpired` for each future job (emergency rescue + SLA penalty).
-- **Future jobs + no replacement + `confirmRescue=false`**: Returns `409 FUTURE_JOBS_NEED_REPLACEMENT` with job list; nothing changes.
-- **`HELD` slot + no replacement**: Returns `409 SLOT_HELD`; nothing changes.
+**Behavior (one transaction per call; nothing is published or charged inside it):**
+- **No future jobs, no job in progress**: `Idle|Busy|Locked → Retiring → Retired` in the same call; future `AVAILABLE` slots are removed (a slot an assignment still points to stays).
+- **Job in progress** (`CheckedIn|InProgress|AwaitingAcceptance`): the worker becomes `Retiring`; the sweep makes it `Retired` when the job ends.
+- **Future jobs + existing worker as replacement**: every future job moves to the replacement's `AVAILABLE` slot of the same date and shift (conditional swap); one job that cannot move rejects the whole call. No SLA penalty. When no job is in progress the worker is `Retired` in the same call.
+- **Future jobs + new worker as replacement**: the new worker is created exactly like an import row (`AGENCY_STAFF`, `IDLE`, same validation), takes over the old worker's `HELD` future slots and the `BOOKED` slots of its future `ASSIGNED` jobs, and those jobs. The slot of a job in progress stays.
+- **Future jobs + no replacement + `confirmRescue = true`**: the worker becomes `Retiring`; AFTER the commit `AgencySwapWindowExpired` (`Reason` = `worker retired by agency`, real `orderId`) is published for each future job (emergency rescue + SLA penalty, Dispatch). A failed publish does not undo the retirement.
+- **Sweep** (every 5 minutes): a `Retiring` worker that still has future `ASSIGNED` jobs gets the hand-over published again (the rescue is idempotent); a `Retiring` worker without any job becomes `Retired`.
 - Retired worker never restored; phone/national ID stay reserved (`ALREADY_EXISTS` on import).
-- Quota: `Retiring`/`Retired` not counted. 1-for-1 replacement keeps count unchanged.
+- Quota: `Retiring`/`Retired` are not counted. A 1-for-1 replacement of a counted worker runs no quota check.
 
 ---
 
@@ -290,7 +295,7 @@ Retires an agency worker, optionally with a replacement worker. The worker must 
 
 ## 12. Payout account (MAIN-FLOW-FIX, decisions D18)
 
-`GET /api/agencies/me/bank` and `PUT /api/agencies/me/bank` (`PartnerOnly`): the account the platform transfers the agency's payout to (`PARTNER_AGENCY.bank_name`, `bank_account_no`; the payout export reads them).
+`GET /api/v1/agencies/me/bank` and `PUT /api/v1/agencies/me/bank` (`PartnerOnly`): the account the platform transfers the agency's payout to (`PARTNER_AGENCY.bank_name`, `bank_account_no`; the payout export reads them).
 
 - `GET` 200 `data`: `{ "bankName": "", "bankAccountNo": "", "isSet": false }` (empty strings while never set).
 - `PUT` body `{ "bankName": "Vietcombank", "bankAccountNo": "0011001234567" }`; both required; `bankName` <= 100 characters, `bankAccountNo` 6 to 30 digits (spaces are dropped). 200 with the stored values and `isSet: true`; 400 in the shared validation envelope otherwise.
