@@ -1,7 +1,7 @@
 // Pure logic of the booking and home screens (no React, so `node --test` covers it).
 // Time zone rule (decision G-3): shifts are local Asia/Ho_Chi_Minh (UTC+7, no daylight saving).
 import { formatVnd } from '../../../lib/format.ts'
-import type { BookingOptions, OrderSummary, ServiceTier, ShiftOption } from './types.ts'
+import type { BookingOptions, FreeShift, OrderSummary, ServiceTier, ShiftOption } from './types.ts'
 
 export const NOTE_MAX_LENGTH = 500
 const VN_OFFSET_MS = 7 * 3600_000
@@ -59,11 +59,15 @@ export function shiftBlockedReason(
   tier: ServiceTier,
   options: Pick<BookingOptions, 'premiumMinLeadHours'>,
   now: Date,
+  freeShifts: FreeShift[] | null = null,
 ): string | null {
   const start = shiftStart(date, shift.startLocal).getTime()
   if (start <= now.getTime()) return 'Đã qua'
   if (tier === 'PREMIUM' && start < now.getTime() + options.premiumMinLeadHours * 3600_000) {
     return `Đặt trước tối thiểu ${options.premiumMinLeadHours} giờ`
+  }
+  if (tier === 'ECONOMY' && freeShifts && freeShifts.length > 0 && !freeShifts.some((free) => free.date === date && free.shiftCode === shift.shiftCode)) {
+    return 'Thợ không rảnh ca này'
   }
   return null
 }

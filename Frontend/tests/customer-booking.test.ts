@@ -27,6 +27,12 @@ describe('vietnam dates', () => {
 
 describe('shiftBlockedReason', () => {
   const now = new Date('2026-11-02T00:00:00Z') // 07:00 in Vietnam
+  const free = [{ date: '2026-11-02', shiftCode: 'SHIFT_MORNING' }]
+  it('allows a free worker shift', () => assert.equal(shiftBlockedReason('2026-11-02', morning, 'ECONOMY', opts, now, free), null))
+  it('blocks a shift absent from a nonempty availability list', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'ECONOMY', opts, now, free), 'Thợ không rảnh ca này'))
+  it('allows shifts while availability is loading or failed', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'ECONOMY', opts, now, null), null))
+  it('allows shifts when no free shifts exist', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'ECONOMY', opts, now, []), null))
+  it('ignores worker availability for Premium', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'PREMIUM', opts, now, free), null))
   it('blocks a shift in the past', () => assert.equal(shiftBlockedReason('2026-11-01', morning, 'ECONOMY', opts, now), 'Đã qua'))
   it('allows Economy one hour ahead', () => assert.equal(shiftBlockedReason('2026-11-02', morning, 'ECONOMY', opts, now), null))
   it('blocks Premium inside the 4 hour lead time', () => assert.match(shiftBlockedReason('2026-11-02', morning, 'PREMIUM', opts, now) ?? '', /4 giờ/))
