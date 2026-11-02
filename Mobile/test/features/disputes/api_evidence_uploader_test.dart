@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/auth/token_storage.dart';
 import 'package:mobile/core/device/camera_wrapper.dart';
+import 'package:mobile/core/device/device_camera_wrapper.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/features/disputes/models/dispute_models.dart';
 import 'package:mobile/features/disputes/services/api_evidence_uploader.dart';
@@ -65,6 +66,25 @@ CapturedImage photo(
 );
 
 void main() {
+  test('ADMIN-UAT-11: without a camera the uploader uses the real device camera, not the mock that returns no bytes', () {
+    final uploader = ApiEvidenceUploader(role: DisputeRole.worker);
+
+    expect(uploader.camera, isA<DeviceCameraWrapper>());
+    expect(uploader.camera, isNot(isA<CameraWrapper>()));
+  });
+
+  test(
+    'a camera passed in (the tests, a screen with its own) is the one used',
+    () {
+      final camera = FakeCamera(null);
+
+      expect(
+        ApiEvidenceUploader(role: DisputeRole.customer, camera: camera).camera,
+        same(camera),
+      );
+    },
+  );
+
   group('imageContentType', () {
     test(
       'recognises JPEG, PNG and WebP from the first bytes and nothing else',
