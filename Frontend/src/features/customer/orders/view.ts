@@ -94,9 +94,11 @@ export interface TimelineStep {
 }
 
 /** The 4-step timeline (Thanh toán, Tìm thợ, Có thợ, Hoàn tất) for an order status. A cancelled order marks the step it stopped at. */
-export function timeline(orderStatus: string, cancelledAfterPayment = false): TimelineStep[] {
+export function timeline(orderStatus: string, cancelledAfterPayment = false, assignments: ProgressAssignment[] = []): TimelineStep[] {
   const keys: TimelineStep['key'][] = ['paid', 'dispatch', 'assigned', 'completed']
-  const labels = { paid: 'Thanh toán', dispatch: 'Tìm thợ', assigned: 'Có thợ, chờ đến giờ làm', completed: 'Hoàn tất' }
+  const assignedLabel = assignments.some((a) => a.assignmentStatus === 'AWAITING_ACCEPTANCE') ? 'Chờ bạn nghiệm thu'
+    : assignments.some((a) => a.assignmentStatus === 'IN_PROGRESS') ? 'Thợ đang làm' : 'Có thợ, chờ đến giờ làm'
+  const labels = { paid: 'Thanh toán', dispatch: 'Tìm thợ', assigned: assignedLabel, completed: 'Hoàn tất' }
   const reached: Record<string, number> = { PENDING_PAYMENT: 0, PAID: 1, DISPATCHING: 1, ASSIGNED: 2, COMPLETED: 4 }
   if (orderStatus === 'CANCELLED') {
     const stop = cancelledAfterPayment ? 1 : 0

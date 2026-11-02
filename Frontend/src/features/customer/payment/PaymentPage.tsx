@@ -47,7 +47,9 @@ export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }
 
   const paymentOrderId = payment?.orderId ?? (isExtension ? queryOrderId : orderId)
   useEffect(() => {
-    void createQr()
+    let cancelled = false
+    Promise.resolve().then(() => { if (!cancelled) void createQr() })
+    return () => { cancelled = true }
   }, [createQr])
   useEffect(() => {
     if (paymentOrderId) bookingApi.order(paymentOrderId).then(setOrder).catch(() => undefined)
