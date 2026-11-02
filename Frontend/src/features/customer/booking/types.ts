@@ -1,6 +1,11 @@
 // Wire shapes of .spec/contracts/booking.md and customers.md (camelCase, UTC ISO-8601).
 export type ServiceTier = 'ECONOMY' | 'PREMIUM'
 
+export interface FreeShift {
+  date: string
+  shiftCode: string
+}
+
 export interface ShiftOption {
   shiftCode: string
   startLocal: string

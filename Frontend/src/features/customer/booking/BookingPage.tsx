@@ -5,7 +5,7 @@ import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
 import { accountApi } from '../account/api'
 import { bookingApi } from './api'
-import type { BookingOptions, CustomerAddress, PriceQuote, ServiceTier } from './types'
+import type { BookingOptions, CustomerAddress, FreeShift, PriceQuote, ServiceTier } from './types'
 import { bookingProblem, dayText, NOTE_MAX_LENGTH, shiftBlockedReason, shiftLabel, shiftRange, tierLabel, upcomingDays, workersPrice } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
@@ -17,6 +17,7 @@ export function BookingPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const workerParam = Number(params.get('worker')) || null
+  const [availability, setAvailability] = useState<{ workerId: number; shifts: FreeShift[] | null; failed: boolean } | null>(null)
   const [favoriteName, setFavoriteName] = useState<string | null>(null)
   const [options, setOptions] = useState<BookingOptions | null>(null)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
@@ -54,6 +55,15 @@ export function BookingPage() {
     accountApi.favorites().then((l) => setFavoriteName(l.find((w) => w.workerId === workerParam)?.fullName ?? null)).catch(() => undefined)
   }, [workerParam])
 
+  useEffect(() => {
+    if (workerParam === null) return
+    let cancelled = false
+    bookingApi.availability(workerParam, days[0].date, days[days.length - 1].date)
+      .then((shifts) => { if (!cancelled) setAvailability({ workerId: workerParam, shifts, failed: false }) })
+      .catch(() => { if (!cancelled) setAvailability({ workerId: workerParam, shifts: null, failed: true }) })
+    return () => { cancelled = true }
+  }, [workerParam, days])
+
   // The server price per tier for the chosen address (the prices in the prototype are samples).
   useEffect(() => {
     if (addressId === null) return
@@ -71,12 +81,13 @@ export function BookingPage() {
     }
   }, [addressId])
 
+  const workerAvailability = availability?.workerId === workerParam ? availability : null
   const address = addresses.find((a) => a.addressId === addressId) ?? null
   const quote = quotes[tier] ?? null
   const shift = options?.shifts.find((s) => s.shiftCode === shiftCode) ?? null
   const blocked = (d: string, code: string) => {
     const s = options?.shifts.find((x) => x.shiftCode === code)
-    return options && s ? shiftBlockedReason(d, s, tier, options, now) : null
+    return options && s ? shiftBlockedReason(d, s, tier, options, now, workerAvailability?.shifts ?? null) : null
   }
   // A choice made for Economy may be invalid for Premium: drop it instead of sending it.
   const selectionValid = date !== null && shiftCode !== null && blocked(date, shiftCode) === null
@@ -114,7 +125,8 @@ export function BookingPage() {
             </button>)}
           </div>
           <p className="mt-3 text-sm text-stone-500">Gói Premium đặt trước tối thiểu {options.premiumMinLeadHours} giờ.</p>
-          {workerParam !== null && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">{tier === 'ECONOMY' ? <>Ưu tiên thợ <b>{favoriteName ?? `#${workerParam}`}</b>. Đây là mong muốn, hệ thống sẽ hỏi thợ này trước nếu thợ rảnh ca bạn chọn.</> : 'Chọn thợ cụ thể chỉ áp dụng cho gói Economy.'}</p>}
+          {workerParam !== null && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">{tier === 'ECONOMY' ? <>Ưu tiên thợ <b>{favoriteName ?? `#${workerParam}`}</b>. Đây là mong muốn, hệ thống sẽ hỏi thợ này trước nếu thợ rảnh ca bạn chọn.{workerAvailability?.shifts?.length === 0 && <span className="mt-2 block">Thợ không có ca rảnh trong 7 ngày tới. Bạn vẫn đặt được ca.</span>}</> : 'Chọn thợ cụ thể chỉ áp dụng cho gói Economy.'}</p>}
+          {workerParam !== null && tier === 'ECONOMY' && workerAvailability?.failed && <p role="alert" className="mt-3 text-sm text-stone-500">Không xem được lịch của thợ này, bạn vẫn đặt được ca.</p>}
           {quoteError && <p role="alert" className="mt-3 text-sm text-red-700">{quoteError}</p>}
         </section>
         <section className={card}>
