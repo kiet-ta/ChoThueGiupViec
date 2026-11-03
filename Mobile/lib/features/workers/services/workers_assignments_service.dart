@@ -29,4 +29,15 @@ class WorkersAssignmentsService {
       },
     );
   }
+
+  /// One of the worker's own jobs with the full address (contract workers.md §2.3.4). 404 for an unknown job, another worker's job and an offer.
+  Future<ApiResponse<WorkerAssignmentDetailDto>> getAssignment(
+    int assignmentId,
+  ) {
+    return _apiClient.get<WorkerAssignmentDetailDto>(
+      '/api/v1/workers/assignments/$assignmentId',
+      fromJson: (json) =>
+          WorkerAssignmentDetailDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
 }

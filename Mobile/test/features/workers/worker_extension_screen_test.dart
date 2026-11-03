@@ -12,7 +12,7 @@ import 'design_frame.dart';
 const offer = WorkerExtensionOffer(
   assignmentId: 2001,
   extensionId: 301,
-  customerName: 'Nguyễn Văn An',
+  title: 'Nguyễn Văn An',
   workZone: 'Phòng khách & Bếp - Căn hộ 402',
   extraHours: 2,
   extraAmount: 130000,
@@ -103,7 +103,7 @@ void main() {
         shown: const WorkerExtensionOffer(
           assignmentId: 2001,
           extensionId: 301,
-          customerName: 'An',
+          title: 'An',
           workZone: 'Bếp',
           extraHours: 1.5,
           extraAmount: 97500,

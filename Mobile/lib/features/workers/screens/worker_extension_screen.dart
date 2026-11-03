@@ -191,13 +191,13 @@ class _WorkerExtensionScreenState extends State<WorkerExtensionScreen> {
       NordicCard(
         child: Row(
           children: [
-            AvatarInitials(_offer.customerName, size: 44),
+            AvatarInitials(_offer.title, size: 44),
             const SizedBox(width: NordicSpace.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_offer.customerName, style: NordicTypography.titleSmall),
+                  Text(_offer.title, style: NordicTypography.titleSmall),
                   const SizedBox(height: NordicSpace.xxs),
                   Text(_offer.workZone, style: NordicTypography.bodySmall),
                 ],

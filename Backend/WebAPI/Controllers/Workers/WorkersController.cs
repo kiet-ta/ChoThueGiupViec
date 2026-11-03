@@ -308,6 +308,19 @@ public class WorkersController(
         return Ok(result);
     }
 
+    /// <summary>The detail of one of the worker's own jobs, with the full address from the moment it was accepted (contract workers.md 2.3.4).</summary>
+    [HttpGet("assignments/{assignmentId:long}")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerAssignmentDetailResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAssignment(long assignmentId, CancellationToken ct)
+    {
+        var result = await assignments.GetDetailAsync(assignmentId, ct);
+        return Ok(result);
+    }
+
     /// <summary>The worker accepts or declines an extension the customer paid for ("Làm lần 2", contract workers.md 2.6.1).</summary>
     [HttpPost("assignments/{assignmentId:long}/extension/respond")]
     [Authorize(Policy = "WorkerOnly")]

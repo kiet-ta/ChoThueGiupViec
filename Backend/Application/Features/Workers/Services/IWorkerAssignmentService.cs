@@ -11,4 +11,10 @@ public interface IWorkerAssignmentService
     /// Start defaults to today (Vietnam date) and end to start + 13 days; a range over 31 days or an end before the start is a 400.
     /// </summary>
     Task<ApiResponse<IReadOnlyList<WorkerAssignmentResponse>>> GetAsync(DateOnly? startDate, DateOnly? endDate, CancellationToken ct = default);
+
+    /// <summary>
+    /// The detail of one of the signed-in worker's own jobs (contract workers.md 2.3.4): the full address from the moment the worker has accepted it.
+    /// NotFoundException for an unknown assignment, another worker's one, an offer and a job that ended without being done (all look the same).
+    /// </summary>
+    Task<ApiResponse<WorkerAssignmentDetailResponse>> GetDetailAsync(long assignmentId, CancellationToken ct = default);
 }

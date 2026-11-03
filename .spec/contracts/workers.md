@@ -325,8 +325,43 @@ The jobs booked for the signed-in worker, so the app can show them in the schedu
 - Only the signed-in worker's own assignments; another worker's are never returned.
 - Only booked jobs: `status` is `ASSIGNED`, `CHECKED_IN`, `IN_PROGRESS`, `AWAITING_ACCEPTANCE` or `COMPLETED`. An offer (`OFFERED`) and every assignment that ended without the job being done (`CANCELLED`, `CANCELLED_BY_WORKER`, `ABSENT`, `INCIDENT`, `REASSIGNED`) are not listed.
 - Ordered by `slotDate`, then shift start time.
-- Privacy: the street address, the coordinates and the customer's name or phone are **not** returned, only the `district`. The detail of a job (full address, pending extension) is a separate read (#442).
+- Privacy: the street address, the coordinates and the customer's name or phone are **not** returned, only the `district`. The detail of a job (full address, pending extension) is a separate read, section 2.3.4 (#442).
 - `endDate < startDate` or a range over 31 days is **400** with a field error on `endDate`.
+
+---
+
+#### 2.3.4 `GET /api/v1/workers/assignments/{assignmentId}` (WorkerOnly) (WORKERS-ASSIGNMENT-READ, #442)
+The detail of one job of the signed-in worker: the full address and coordinates of the order, so the check-in screen shows the real place and the extension screen shows the real offer. **Decision of the owner (2026-11-03): the worker sees the full address from the moment they have accepted the job** (status `ASSIGNED` or later). Before that (an offer) the address stays hidden.
+
+**Path:** `assignmentId` (long).
+
+**Response 200 `data` (`WorkerAssignmentDetailResponse`)**
+```json
+{
+  "assignmentId": 10002,
+  "orderId": 6,
+  "orderCode": "GV-UAT-0796-01",
+  "slotDate": "2026-10-31",
+  "shiftCode": "SHIFT_MORNING",
+  "startTime": "08:00",
+  "endTime": "12:00",
+  "status": "ASSIGNED",
+  "serviceTier": "ECONOMY",
+  "addressLine": "12 Nguyễn Huệ",
+  "district": "Quận 1",
+  "city": "TP. Hồ Chí Minh",
+  "latitude": 10.774000,
+  "longitude": 106.703000,
+  "payoutAmount": 128000.00,
+  "pendingExtension": { "extensionId": 12, "extraHours": 2.0, "extraAmount": 160000.00 }
+}
+```
+`pendingExtension` is `null` when no paid extension waits for this worker. It is the extension of the same order that the customer has paid (`ext_status = PAID`) and that is asked of this worker; the worker answers it with `POST /api/v1/workers/assignments/{assignmentId}/extension/respond` (section 2.6.1). If there are several, the latest one is returned.
+
+**Rules:**
+- Only the signed-in worker's own assignment. **404** (the same answer) for an unknown id, another worker's assignment, an offer (`OFFERED`) and an assignment that ended without the job being done (the statuses of section 2.3.3 are the only ones shown).
+- The customer's name and phone are **not** returned.
+- Not authenticated: **401**; not a Worker: **403**.
 
 ---
 
