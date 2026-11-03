@@ -14,7 +14,7 @@ namespace CommonService.WebAPI.Controllers.Payments;
 public class PaymentsQueryController(IPaymentReadService service, ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>One payment of the caller.</summary>
-    [HttpGet("{paymentId:long}")]
+    [HttpGet("{paymentId}")]
     [ProducesResponseType(typeof(ApiResponse<PaymentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]

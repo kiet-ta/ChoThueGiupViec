@@ -14,7 +14,7 @@ namespace CommonService.WebAPI.Controllers.Payments;
 public class PaymentsController(IPaymentQrService qrService, ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>Creates the payment QR of an order, or returns the existing PENDING one (201 created, 200 existing).</summary>
-    [HttpPost("orders/{orderId:long}/qr")]
+    [HttpPost("orders/{orderId}/qr")]
     [ProducesResponseType(typeof(ApiResponse<PaymentDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<PaymentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
@@ -26,7 +26,7 @@ public class PaymentsController(IPaymentQrService qrService, ICurrentUser curren
         RunAsync(customerId => qrService.CreateOrderQrAsync(customerId, orderId, ct));
 
     /// <summary>Creates the payment QR of an extension ("Làm lần 2"), or returns the existing PENDING one (201 created, 200 existing).</summary>
-    [HttpPost("extensions/{extensionId:int}/qr")]
+    [HttpPost("extensions/{extensionId}/qr")]
     [ProducesResponseType(typeof(ApiResponse<PaymentDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<PaymentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]

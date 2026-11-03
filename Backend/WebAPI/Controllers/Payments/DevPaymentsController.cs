@@ -28,7 +28,7 @@ public class DevPaymentsController(DevPaymentService service, IHostEnvironment e
         return Ok(ApiResponse<IReadOnlyList<DevPaymentDto>>.Ok(await service.ListAsync(ct)));
     }
 
-    [HttpPost("{paymentId:long}/confirm")]
+    [HttpPost("{paymentId}/confirm")]
     [ProducesResponseType(typeof(ApiResponse<DevConfirmDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Confirm(long paymentId, CancellationToken ct)
     {

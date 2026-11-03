@@ -53,7 +53,7 @@ public class BookingOrdersController(IOrderQueryService service, ICurrentUser cu
         AsCustomer(async id => Ok(ApiResponse<OrderPageDto>.Ok(await service.ListAsync(id, status, page, pageSize, ct), "Orders retrieved.")));
 
     /// <summary>One order of the caller.</summary>
-    [HttpGet("orders/{orderId:long}")]
+    [HttpGet("orders/{orderId}")]
     [ProducesResponseType(typeof(ApiResponse<OrderDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
@@ -62,7 +62,7 @@ public class BookingOrdersController(IOrderQueryService service, ICurrentUser cu
         AsCustomer(async id => Ok(ApiResponse<OrderDto>.Ok(await service.GetAsync(id, orderId, ct), "Order retrieved.")));
 
     /// <summary>The order's status and its visible assignments (polling fallback of the realtime <c>job.tracking</c> topic).</summary>
-    [HttpGet("orders/{orderId:long}/progress")]
+    [HttpGet("orders/{orderId}/progress")]
     [ProducesResponseType(typeof(ApiResponse<OrderProgressDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]

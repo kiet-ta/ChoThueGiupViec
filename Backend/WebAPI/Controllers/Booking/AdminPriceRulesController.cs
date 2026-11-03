@@ -25,7 +25,7 @@ public class AdminPriceRulesController(IPriceRuleAdminService service, ICurrentU
         Ok(ApiResponse<IReadOnlyList<PriceRuleDto>>.Ok(await service.ListAsync(ct), "Price rules retrieved."));
 
     /// <summary>Changes a unit price (new orders only). One audit row is written in the same transaction.</summary>
-    [HttpPut("{ruleId:int}")]
+    [HttpPut("{ruleId}")]
     [ProducesResponseType(typeof(ApiResponse<PriceRuleDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
