@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Identity.Dtos;
 
 /// <summary>
-/// Request payload for POST /api/auth/otp/request (contract identity.md §2.1).
+/// Request payload for POST /api/v1/auth/otp/request (contract identity.md §2.1).
 /// </summary>
 public class OtpRequestDto
 {

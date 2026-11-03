@@ -9,7 +9,7 @@ namespace CommonService.WebAPI.Controllers.Booking;
 
 /// <summary>
 /// Admin price table (contract booking.md 4.1, 4.2). Policy AdminOnly. The change history is NOT served here: it is
-/// <c>GET /api/admin/audit-logs?entityType=PRICE_RULE</c> (admin.md 2.4, decisions B12).
+/// <c>GET /api/v1/admin/audit-logs?entityType=PRICE_RULE</c> (admin.md 2.4, decisions B12).
 /// </summary>
 [ApiController]
 [Route("api/v1/admin/price-rules")]

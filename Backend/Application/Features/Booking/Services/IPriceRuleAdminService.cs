@@ -3,7 +3,7 @@ namespace CommonService.Application.Features.Booking.Services;
 /// <summary>The <c>PriceRule</c> shape of contract booking.md section 2 (serviceTier is ECONOMY or PREMIUM, times in UTC).</summary>
 public record PriceRuleDto(int RuleId, string ServiceTier, string AreaBracket, decimal UnitPrice, bool IsActive, DateTime UpdatedAt, int? UpdatedBy);
 
-/// <summary>Body of PUT /api/admin/price-rules/{ruleId} (contract booking.md 4.2).</summary>
+/// <summary>Body of PUT /api/v1/admin/price-rules/{ruleId} (contract booking.md 4.2).</summary>
 public record UpdatePriceRuleRequest(decimal UnitPrice, string? Reason);
 
 /// <summary>Admin edits of the price table (BE-M2-02a, decisions Q01, G-5).</summary>

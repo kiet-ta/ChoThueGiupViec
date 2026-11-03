@@ -82,7 +82,7 @@ export function registerProblems(form: RegisterForm): RegisterFieldErrors {
   return out
 }
 
-/** The body of `POST /api/agencies/registration`: trimmed text, the bank pair only when it was filled in. */
+/** The body of `POST /api/v1/agencies/registration`: trimmed text, the bank pair only when it was filled in. */
 export function registerBody(form: RegisterForm) {
   const bankName = form.bankName.trim()
   const bankAccountNo = form.bankAccountNo.replace(/\s+/g, '')

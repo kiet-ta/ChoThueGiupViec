@@ -14,7 +14,7 @@ using Xunit;
 namespace CommonService.Tests.Workers;
 
 /// <summary>
-/// WORKERS-SEC-01: <c>GET /api/workers/assignments/{id}/photos</c> is for the assignment's worker, its customer or an Admin
+/// WORKERS-SEC-01: <c>GET /api/v1/workers/assignments/{id}/photos</c> is for the assignment's worker, its customer or an Admin
 /// (contract workers.md 2.4.2). No database needed: the repository is a stub.
 /// </summary>
 public class JobPhotoAccessTests

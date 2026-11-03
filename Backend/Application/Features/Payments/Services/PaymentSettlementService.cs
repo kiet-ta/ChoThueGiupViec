@@ -104,7 +104,7 @@ public class PaymentSettlementService(
             return true;
         }
 
-        // After the commit: the event, then the realtime push (best effort, the app polls GET /api/payments/{id} when the socket is down).
+        // After the commit: the event, then the realtime push (best effort, the app polls GET /api/v1/payments/{id} when the socket is down).
         if (orderPaid is not null)
         {
             await publisher.Publish(orderPaid, cancellationToken);

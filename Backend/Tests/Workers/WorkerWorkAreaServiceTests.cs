@@ -10,7 +10,7 @@ using Xunit;
 
 namespace CommonService.Tests.Workers;
 
-/// <summary>GET / PUT /api/workers/me/work-area (contract workers.md 2.3B, decisions D24).</summary>
+/// <summary>GET / PUT /api/v1/workers/me/work-area (contract workers.md 2.3B, decisions D24).</summary>
 public class WorkerWorkAreaServiceTests
 {
     private class TestCurrentUser : ICurrentUser

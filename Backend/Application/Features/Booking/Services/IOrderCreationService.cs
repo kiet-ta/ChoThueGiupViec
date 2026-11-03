@@ -37,7 +37,7 @@ public record CreatedOrder(
 public interface IOrderCreationService
 {
     /// <summary>
-    /// POST /api/booking/orders (contract booking.md 3.3), rules in order, nothing written when one fails:
+    /// POST /api/v1/booking/orders (contract booking.md 3.3), rules in order, nothing written when one fails:
     /// ValidationException (400), NotFoundException (404), BusinessRuleViolationException with Code SHIFT_IN_PAST / PREMIUM_LEAD_TIME / FULLY_BOOKED (409).
     /// </summary>
     Task<CreatedOrder> CreateAsync(CreateOrderRequest request, CancellationToken cancellationToken = default);

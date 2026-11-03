@@ -3,7 +3,7 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Booking;
 
-/// <summary>The business 409 codes of POST /api/booking/orders (contract booking.md 3.3). Clients branch on the code, never on the message.</summary>
+/// <summary>The business 409 codes of POST /api/v1/booking/orders (contract booking.md 3.3). Clients branch on the code, never on the message.</summary>
 public static class BookingErrorCodes
 {
     public const string ShiftInPast = "SHIFT_IN_PAST";

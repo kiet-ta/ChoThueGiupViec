@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Identity.Dtos;
 
 /// <summary>
-/// Response data for POST /api/auth/otp/request (contract identity.md §2.1).
+/// Response data for POST /api/v1/auth/otp/request (contract identity.md §2.1).
 /// </summary>
 public class OtpRequestResponseDto
 {

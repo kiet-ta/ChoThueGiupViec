@@ -8,7 +8,7 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Customers.Services;
 
 /// <summary>
-/// Implements GET/PUT /api/customers/me rules of contract customers.md §2.1 (BE-M1-04).
+/// Implements GET/PUT /api/v1/customers/me rules of contract customers.md §2.1 (BE-M1-04).
 /// </summary>
 public class CustomerProfileService : ICustomerProfileService
 {

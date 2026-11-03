@@ -1,6 +1,6 @@
 // Hand-written from the approved contracts until gate G4 generates the client: .spec/contracts/admin.md 2.3 and disputes.md 2.2.
 
-/** `GET /api/admin/dashboard`: exactly these three groups (decision G-7). */
+/** `GET /api/v1/admin/dashboard`: exactly these three groups (decision G-7). */
 export interface Dashboard {
   generatedAt: string
   orders: { today: number; thisWeek: number }

@@ -1,6 +1,6 @@
 namespace CommonService.Application.Features.Workers.Dtos;
 
-/// <summary>Body of <c>PUT /api/workers/me/work-area</c> (contract workers.md 2.3B, decisions D24).</summary>
+/// <summary>Body of <c>PUT /api/v1/workers/me/work-area</c> (contract workers.md 2.3B, decisions D24).</summary>
 public record UpdateWorkerWorkAreaRequest(
     double? Latitude,
     double? Longitude,
