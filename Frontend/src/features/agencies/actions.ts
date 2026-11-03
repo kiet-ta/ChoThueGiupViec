@@ -16,9 +16,9 @@ export function failureText(e: unknown): string {
 
 /**
  * Runs one async action at a time (a second click while it runs is ignored) and keeps its busy flag and error text.
- * `run` returns the action's value, or undefined when it failed or was ignored.
+ * `run` returns the action's value, or undefined when it failed or was ignored. `describeFailure` words a failure (default: `failureText`).
  */
-export function useAction() {
+export function useAction(describeFailure: (e: unknown) => string = failureText) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef(false)
@@ -31,7 +31,7 @@ export function useAction() {
     try {
       return await action()
     } catch (e) {
-      setError(failureText(e))
+      setError(describeFailure(e))
       return undefined
     } finally {
       inFlight.current = false

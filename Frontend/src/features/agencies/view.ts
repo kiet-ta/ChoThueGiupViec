@@ -2,10 +2,12 @@
 import { formatDateTime, formatVnd } from '../../lib/format.ts'
 import type {
   AgencyJob,
+  AgencyWorkerItem,
   EscrowState,
   EscrowTransaction,
   FutureJobInfo,
   ImportRowError,
+  RetireWorkerRequest,
   RetireWorkerResponse,
   RosterEntry,
   SubscriptionPackage,
@@ -34,10 +36,8 @@ const ERROR_TEXT: Record<string, string> = {
   SLOT_TAKEN: 'Ca vừa bị thay đổi, hãy thử lại.',
   ASSIGNMENT_STATE_INVALID: 'Ca làm không còn ở trạng thái đã nhận.',
   // AGENCY-UAT-03 worker retire
-  ALREADY_RETIRING_OR_RETIRED: 'Thợ này đã được ngừng hoặc đã nghỉ.',
   SLOT_HELD: 'Có ca đang được giữ cho đơn, không thể ngừng thợ khi không có thợ thay.',
   QUOTA_EXCEEDED: 'Thay thợ sẽ làm vượt quá số thợ tối đa của gói.',
-  FUTURE_JOBS_NEED_REPLACEMENT: 'Thợ này còn ca sắp tới. Hãy chọn thợ thay hoặc xác nhận chuyển cứu hộ (có phạt SLA).',
   REPLACEMENT_CONFLICT: 'Thợ thay không có ca trống cho một ca sắp tới, hoặc đổi thất bại.',
   REPLACEMENT_NOT_OF_AGENCY: 'Thợ thay không thuộc doanh nghiệp của bạn.',
   REPLACEMENT_NOT_AVAILABLE: 'Thợ thay đang bị khoá, đang chờ nghỉ, hoặc đã nghỉ.',
@@ -102,46 +102,104 @@ export function newWorkerProblems(form: {
   return out
 }
 
-/** Retire dialog state derived from server response. */
-export interface RetireDialogState {
-  /** The server response (always present when dialog opens). */
-  response: {
-    futureJobs: FutureJobInfo[]
-    warning?: string
-    code?: string
-    message?: string
-  }
-  /** Whether we need confirmation for rescue (FUTURE_JOBS_NEED_REPLACEMENT with confirmRescue=false). */
-  needsRescueConfirm: boolean
-  /** The message to show in the dialog (server message or mapped code). */
-  message: string
-  /** The replacement worker ID if provided (existing or newly created). */
-  replacementWorkerId?: number
+/** Workers that may take over the shifts of `retiringId` (contract 9.2: not Pending, Locked, Retiring or Retired). */
+export function replacementCandidates(workers: AgencyWorkerItem[], retiringId: number): AgencyWorkerItem[] {
+  const blocked = ['PENDING', 'LOCKED', 'RETIRING', 'RETIRED']
+  return workers.filter((w) => w.workerId !== retiringId && !blocked.includes(w.workStatus.toUpperCase()))
 }
 
-/** Builds the dialog state from the server's retire response. */
+/** One line of the shift list of the retire dialog: date, shift and the order it belongs to. */
+export function futureJobText(job: FutureJobInfo): string {
+  return `${job.slotDate} · ${shiftLabel(job.shiftCode)} · đơn #${job.orderId}`
+}
+
+/** What the retire dialog shows for the server's answer (contract 9.2). */
+export type RetireDialogState =
+  | {
+      /** `requiresConfirmation = true`: nothing changed yet, the agency must choose a replacement or confirm the rescue. */
+      kind: 'choose'
+      jobs: FutureJobInfo[]
+      message: string
+    }
+  | {
+      /** The worker is `Retiring` or `Retired` now (a repeated call on such a worker answers the same). */
+      kind: 'done'
+      statusText: string
+      jobs: FutureJobInfo[]
+      replacementWorkerId: number | null
+      message: string
+    }
+
+/** Dialog state per server answer: the preview asks, any other 200 reports the result. Never reads an error code (errors throw). */
 export function buildRetireDialogState(response: RetireWorkerResponse): RetireDialogState {
-  const code = (response as { code?: string }).code
-  const needsRescueConfirm = code === 'FUTURE_JOBS_NEED_REPLACEMENT'
-  let message = ''
-  if (needsRescueConfirm) {
-    message = `Thợ này còn ${response.futureJobs.length} ca sắp tới. Nếu tiếp tục mà không chọn thợ thay, các ca sẽ chuyển sang cứu hộ khẩn cấp và doanh nghiệp sẽ bị phạt SLA.`
-  } else if (code) {
-    message = codeMessage(code) ?? (response as { message?: string }).message ?? 'Không thể ngừng thợ.'
-  } else {
-    message = response.warning ?? 'Thợ sẽ được chuyển sang trạng thái "Đang chờ nghỉ". Các ca sắp tới sẽ chuyển cho thợ thay.'
+  const jobs = response.futureJobs ?? []
+  if (response.requiresConfirmation) {
+    return {
+      kind: 'choose',
+      jobs,
+      message: `Thợ này còn ${jobs.length} ca sắp tới. Hãy chọn thợ thay, hoặc xác nhận chuyển cứu hộ khẩn cấp: doanh nghiệp sẽ bị phạt SLA.`,
+    }
   }
   return {
-    response: {
-      futureJobs: response.futureJobs,
-      warning: response.warning,
-      code,
-      message: (response as { message?: string }).message,
-    },
-    needsRescueConfirm,
-    message,
-    replacementWorkerId: response.replacementWorkerId ?? undefined,
+    kind: 'done',
+    statusText: workStatusLabel(response.workStatus),
+    jobs,
+    replacementWorkerId: response.replacementWorkerId,
+    message: response.warning ?? `Trạng thái của thợ: ${workStatusLabel(response.workStatus)}.`,
   }
+}
+
+/** The choice the agency makes in the dialog after the preview. */
+export type RetireChoice =
+  | { type: 'existing'; workerId: number | null }
+  | { type: 'new'; form: NewWorkerForm }
+  | { type: 'rescue' }
+
+export interface NewWorkerForm {
+  fullName: string
+  phoneNumber: string
+  nationalId: string
+  bankName: string
+  bankAccountNo: string
+}
+
+/** The first call: no replacement and no `confirmRescue` (contract 9.2), so the server answers the preview or retires a worker without future jobs. */
+export function firstRetireRequest(): RetireWorkerRequest {
+  return {}
+}
+
+/** The body after the choice; `confirmRescue = true` only for the explicit rescue choice. Null while the choice is incomplete. */
+export function retireRequestFor(choice: RetireChoice): RetireWorkerRequest | null {
+  if (choice.type === 'rescue') return { confirmRescue: true }
+  if (choice.type === 'existing') return choice.workerId ? { replacement: { existingWorkerId: choice.workerId } } : null
+  const f = choice.form
+  if (newWorkerProblems(f).length > 0) return null
+  const bankName = f.bankName.trim()
+  const bankAccountNo = f.bankAccountNo.trim()
+  return {
+    replacement: {
+      newWorker: {
+        fullName: f.fullName.trim(),
+        phoneNumber: f.phoneNumber.trim(),
+        nationalId: f.nationalId.trim(),
+        ...(bankName ? { bankName } : {}),
+        ...(bankAccountNo ? { bankAccountNo } : {}),
+      },
+    },
+  }
+}
+
+/**
+ * The words for a failed retire call: the server's own message (409 `SLOT_HELD`, `QUOTA_EXCEEDED`, `REPLACEMENT_CONFLICT`,
+ * 404, ...) or, for a 400, its field messages. Never a message of ours in place of the server's.
+ */
+export function retireFailureText(e: unknown): string {
+  const err = e as { status?: unknown; message?: unknown; fieldErrors?: unknown } | null
+  if (!err || typeof err.status !== 'number') return 'Đã xảy ra lỗi.'
+  if (err.status === 0) return 'Không kết nối được máy chủ.'
+  const fields = Object.values((err.fieldErrors ?? {}) as Record<string, string[]>).flat()
+  if (fields.length > 0) return fields.join(' ')
+  return typeof err.message === 'string' && err.message ? err.message : `Lỗi ${err.status}`
 }
 
 /** The words for a business `data.code` of a 409, or null so the caller falls back to the server's message. */

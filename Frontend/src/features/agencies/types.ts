@@ -221,16 +221,21 @@ export interface RetireWorkerRequest {
   confirmRescue?: boolean
 }
 
+/** Answer of `POST /agencies/workers/{id}/retire` (contract agencies.md 9.2). 409/400/404 are errors, never this shape. */
 export interface RetireWorkerResponse {
   workerId: number
+  /** True only for the preview: nothing changed yet, `futureJobs` are the shifts the agency must decide about. */
+  requiresConfirmation: boolean
   workStatus: string
   replacementWorkerId: number | null
-  futureJobs: { assignmentId: number; slotDate: string; shiftCode: string }[]
-  warning?: string
+  /** Null when the worker had no future jobs. */
+  futureJobs: FutureJobInfo[] | null
+  warning?: string | null
 }
 
 export interface FutureJobInfo {
   assignmentId: number
+  orderId: number
   slotDate: string
   shiftCode: string
 }
