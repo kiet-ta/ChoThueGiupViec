@@ -6,7 +6,7 @@ import { formatVnd } from '@/lib/format'
 import type { OrderPage } from '../booking/types'
 import { dayText, shiftLabel, statusLabel, tierLabel } from '../booking/view'
 import { ORDERS_PAGE_SIZE, ordersApi } from './api'
-import { pageCount, STATUS_TABS } from './view'
+import { cancelReasonText, pageCount, STATUS_TABS } from './view'
 
 const pill: Record<string, string> = {
   PENDING_PAYMENT: 'bg-amber-100 text-amber-900', PAID: 'bg-emerald-100 text-emerald-900', DISPATCHING: 'bg-amber-100 text-amber-900',
@@ -18,13 +18,24 @@ export function OrdersPage() {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<OrderPage | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reasons, setReasons] = useState<{ page: number; status: string | null; values: Record<number, string> } | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setData(null)
     setError(null)
     ordersApi.list(page, status)
-      .then((d) => !cancelled && setData(d))
+      .then((d) => {
+        if (cancelled) return
+        setData(d)
+        const cancelledOrders = d.items.filter((order) => order.orderStatus === 'CANCELLED').slice(0, 10)
+        void Promise.all(cancelledOrders.map((order) => ordersApi.get(order.orderId)
+          .then((detail) => [order.orderId, cancelReasonText(detail)] as const)
+          .catch(() => null)))
+          .then((results) => {
+            if (!cancelled) setReasons({ page, status, values: Object.fromEntries(results.filter((result) => result !== null)) })
+          })
+      })
       .catch((e: unknown) => !cancelled && setError(e instanceof ApiError ? e.message : 'Không tải được danh sách đơn.'))
     return () => {
       cancelled = true
@@ -32,6 +43,7 @@ export function OrdersPage() {
   }, [page, status])
 
   const pages = data ? pageCount(data.total, ORDERS_PAGE_SIZE) : 1
+  const visibleReasons = reasons?.page === page && reasons.status === status ? reasons.values : {}
   return <div>
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Đơn</p><h1 className="mt-1 text-3xl font-semibold">Đơn của tôi</h1></div>
@@ -54,7 +66,8 @@ export function OrdersPage() {
           <td className="px-5 py-4">{dayText(o.scheduledDate)} · {shiftLabel(o.shiftCode)}</td>
           <td className="px-5 py-4">{tierLabel(o.serviceTier)} · {o.requiredWorkers} thợ</td>
           <td className="px-5 py-4 tabular-nums">{formatVnd(o.totalAmount)}</td>
-          <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${pill[o.orderStatus] ?? 'bg-stone-200'}`}>{statusLabel(o.orderStatus)}</span></td>
+          <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${pill[o.orderStatus] ?? 'bg-stone-200'}`}>{statusLabel(o.orderStatus)}</span>
+            {o.orderStatus === 'CANCELLED' && visibleReasons[o.orderId] && <p className="mt-2 text-xs text-stone-500">{visibleReasons[o.orderId]}</p>}</td>
           <td className="px-5 py-4 text-right"><Link to={o.orderStatus === 'PENDING_PAYMENT' ? `/app/payments/${o.orderId}` : `/app/orders/${o.orderId}`} className="font-semibold text-[#1a2f25] underline">{o.orderStatus === 'PENDING_PAYMENT' ? 'Thanh toán' : 'Chi tiết'}</Link></td>
         </tr>)}</tbody>
       </table>

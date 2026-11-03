@@ -7,7 +7,7 @@ import type { Order } from '../booking/types'
 import { dayText, shiftLabel, statusLabel, tierLabel } from '../booking/view'
 import { ordersApi } from './api'
 import type { AddressDetail, OrderProgress } from './types'
-import { assignmentLabel, cancelReasonError, CANCEL_REASON_MAX, extensionLabel, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, vnTime } from './view'
+import { assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, vnTime } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const dot = { done: <Check size={14} />, current: <Loader size={14} className="animate-spin" />, todo: <Circle size={14} />, cancelled: <X size={14} /> }
@@ -25,6 +25,7 @@ export function OrderDetailPage() {
   const [reasonError, setReasonError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [refund, setRefund] = useState<{ orderId: number; refunded: boolean } | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -55,6 +56,18 @@ export function OrderDetailPage() {
     if (addressId === undefined) return
     ordersApi.address(addressId).then(setAddress).catch(() => undefined)
   }, [addressId])
+
+  const cancelledOrder = order?.orderStatus === 'CANCELLED' && order.orderId === orderId
+  useEffect(() => {
+    if (!cancelledOrder) return
+    let cancelled = false
+    ordersApi.payments(orderId)
+      .then((payments) => {
+        if (!cancelled) setRefund({ orderId, refunded: hasOrderRefund(payments) })
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [cancelledOrder, orderId])
 
   if (error && !order) return <div role="alert" className="space-y-4"><p className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p><Link to="/app/orders" className="underline">Về danh sách đơn</Link></div>
   if (!order || !progress) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
@@ -96,6 +109,11 @@ export function OrderDetailPage() {
     {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
       <div className="space-y-4">
+        {order.orderStatus === 'CANCELLED' && <section className={card}>
+          <h2 className="text-lg font-semibold">Lý do hủy</h2>
+          <p className="mt-2 text-sm text-stone-600">{cancelReasonText(order)}</p>
+          {refund?.orderId === orderId && refund.refunded && <p className="mt-2 text-sm font-semibold">Đã hoàn tiền</p>}
+        </section>}
         <section className={card}>
           <h2 className="text-lg font-semibold">Tiến trình</h2>
           <ol className="mt-4 space-y-4">{steps.map((s) => <li key={s.key} className="flex items-center gap-3">

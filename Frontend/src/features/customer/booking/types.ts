@@ -56,6 +56,7 @@ export interface Order {
   totalAmount: number
   orderStatus: string
   customerNote: string | null
+  cancelReason: string | null
   paymentDeadlineAt: string | null
 }
 
@@ -68,6 +69,8 @@ export interface OrderSummary {
   requiredWorkers: number
   totalAmount: number
   orderStatus: string
+  /** Not currently returned by the list endpoint; detail may supply it. */
+  cancelReason?: string | null
   createdAt: string
 }
 

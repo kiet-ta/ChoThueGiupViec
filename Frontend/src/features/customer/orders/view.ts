@@ -7,6 +7,21 @@ export const CANCEL_REASON_MAX = 255
 export const RATING_WINDOW_HOURS = 48
 export const DISPUTE_WINDOW_HOURS = 24
 
+/** Customer-facing reason for a cancelled order. */
+export function cancelReasonText(order: { cancelReason: string | null }): string {
+  const reason = order.cancelReason?.trim()
+  if (!reason) return 'Đơn đã được hủy.'
+  if (reason.startsWith('Quá bán kính') || reason.startsWith('Không tìm thấy thợ')) {
+    return 'Hiện chưa có thợ rảnh ở khu vực và ca bạn chọn nên hệ thống đã tự hủy đơn. Bạn không bị trừ tiền: khoản đã thanh toán được hoàn 100%. Hãy thử chọn ca hoặc ngày khác.'
+  }
+  return order.cancelReason as string
+}
+
+/** A refunded extension does not imply that the order payment itself was refunded. */
+export function hasOrderRefund(payments: { purpose: string; txnStatus: string }[]): boolean {
+  return payments.some((payment) => payment.purpose === 'ORDER' && payment.txnStatus === 'REFUNDED')
+}
+
 export interface StatusTab {
   label: string
   /** `status` query of GET /booking/orders; null = every order. */

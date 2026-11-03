@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  cancelReasonError, extensionHourOptions, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnTime,
+  cancelReasonError, cancelReasonText, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -26,6 +26,28 @@ describe('orderActions: cancel', () => {
   it('offers payment only while waiting for it', () => {
     assert.equal(orderActions('PENDING_PAYMENT', [], null, now).canPay, true)
     assert.equal(orderActions('PAID', [], null, now).canPay, false)
+  })
+})
+
+describe('cancelReasonText', () => {
+  it('explains both dispatch failures without internal codes', () => {
+    const expected = 'Hiện chưa có thợ rảnh ở khu vực và ca bạn chọn nên hệ thống đã tự hủy đơn. Bạn không bị trừ tiền: khoản đã thanh toán được hoàn 100%. Hãy thử chọn ca hoặc ngày khác.'
+    assert.equal(cancelReasonText({ cancelReason: 'Quá bán kính 10 km không tìm được thợ phù hợp (BR-03).' }), expected)
+    assert.equal(cancelReasonText({ cancelReason: 'Không tìm thấy thợ phù hợp cho đơn hàng.' }), expected)
+  })
+  it('preserves customer text and falls back for empty reasons', () => {
+    assert.equal(cancelReasonText({ cancelReason: 'Đổi lịch' }), 'Đổi lịch')
+    assert.equal(cancelReasonText({ cancelReason: '' }), 'Đơn đã được hủy.')
+    assert.equal(cancelReasonText({ cancelReason: null }), 'Đơn đã được hủy.')
+  })
+})
+
+describe('hasOrderRefund', () => {
+  it('only confirms a refund of the order payment', () => {
+    assert.equal(hasOrderRefund([{ purpose: 'ORDER', txnStatus: 'REFUNDED' }]), true)
+    assert.equal(hasOrderRefund([{ purpose: 'EXTENSION', txnStatus: 'REFUNDED' }]), false)
+    assert.equal(hasOrderRefund([{ purpose: 'ORDER', txnStatus: 'SUCCESS' }]), false)
+    assert.equal(hasOrderRefund([]), false)
   })
 })
 
