@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Customers.Dtos;
 
 /// <summary>
-/// Body of POST and PUT /api/customers/me/addresses (contract customers.md §2.2).
+/// Body of POST and PUT /api/v1/customers/me/addresses (contract customers.md §2.2).
 /// There is no totalAreaM2 on purpose: the server computes it and ignores any value the client sends.
 /// Numeric fields are nullable only so that a missing value is reported as a validation error instead of a silent 0.
 /// </summary>

@@ -48,7 +48,7 @@ public record SubscriptionDto(
     string SubStatus,
     bool AutoRenew);
 
-/// <summary>The request of <c>POST /api/agencies/subscriptions</c>.</summary>
+/// <summary>The request of <c>POST /api/v1/agencies/subscriptions</c>.</summary>
 public record SubscribeRequest(int? PackageId);
 
 /// <summary>A purchase waiting for payment: the subscription and the QR to pay it (the same QR is returned until it is paid or expires).</summary>

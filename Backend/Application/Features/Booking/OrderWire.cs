@@ -71,7 +71,7 @@ public record OrderProgressDto(
 
 public record ShiftOptionDto(string ShiftCode, string StartLocal, string EndLocal);
 
-/// <summary>Answer of GET /api/booking/options (contract booking.md 3.1): the app hard-codes none of these (G-4).</summary>
+/// <summary>Answer of GET /api/v1/booking/options (contract booking.md 3.1): the app hard-codes none of these (G-4).</summary>
 public record BookingOptionsDto(
     IReadOnlyList<string> ServiceTiers,
     IReadOnlyList<ShiftOptionDto> Shifts,
@@ -92,7 +92,7 @@ public record PriceQuoteDto(
     decimal TotalAmount,
     string Currency);
 
-/// <summary>Body of POST /api/booking/orders (contract booking.md 3.3). The optional preferred worker is a favorite or a worker from the caller's completed assignment (ECONOMY only).</summary>
+/// <summary>Body of POST /api/v1/booking/orders (contract booking.md 3.3). The optional preferred worker is a favorite or a worker from the caller's completed assignment (ECONOMY only).</summary>
 public record CreateOrderBody(
     int AddressId,
     string? ServiceTier,

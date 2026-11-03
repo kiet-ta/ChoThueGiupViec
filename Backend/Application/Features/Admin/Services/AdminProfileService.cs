@@ -20,7 +20,7 @@ public interface IAdminProfileService
     Task<AdminProfileResult> GetAsync(int adminId, CancellationToken cancellationToken = default);
 }
 
-/// <summary>GET /api/admin/me (contract admin.md section 2.1, BE-M6-06a).</summary>
+/// <summary>GET /api/v1/admin/me (contract admin.md section 2.1, BE-M6-06a).</summary>
 public class AdminProfileService(IAdminProfileReader admins) : IAdminProfileService
 {
     public async Task<AdminProfileResult> GetAsync(int adminId, CancellationToken cancellationToken = default)

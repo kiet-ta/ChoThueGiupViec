@@ -12,7 +12,7 @@ public record ExtensionDto(
     DateTime RequestedAt,
     DateTime? DecidedAt);
 
-/// <summary>Body of POST /api/booking/orders/{orderId}/extensions (contract booking.md 3.8).</summary>
+/// <summary>Body of POST /api/v1/booking/orders/{orderId}/extensions (contract booking.md 3.8).</summary>
 public record CreateExtensionRequest(long AssignmentId, decimal ExtraHours);
 
 public static class ExtensionErrorCodes

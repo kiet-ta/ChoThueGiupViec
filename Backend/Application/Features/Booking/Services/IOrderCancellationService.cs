@@ -1,6 +1,6 @@
 namespace CommonService.Application.Features.Booking.Services;
 
-/// <summary>Body of POST /api/booking/orders/{orderId}/cancel (contract booking.md 3.7).</summary>
+/// <summary>Body of POST /api/v1/booking/orders/{orderId}/cancel (contract booking.md 3.7).</summary>
 public record CancelOrderRequest(string? Reason);
 
 /// <param name="Order">The cancelled order (contract <c>Order</c> shape).</param>

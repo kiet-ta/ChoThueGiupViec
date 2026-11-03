@@ -25,13 +25,13 @@ public class PaymentGatewayUnavailableException(string message, Exception? inner
 public interface IPaymentQrService
 {
     /// <summary>
-    /// POST /api/payments/orders/{orderId}/qr: NotFoundException (order unknown or not the customer's),
+    /// POST /api/v1/payments/orders/{orderId}/qr: NotFoundException (order unknown or not the customer's),
     /// BusinessRuleViolationException with Code INVALID_STATE / PAYMENT_EXPIRED (409), PaymentGatewayUnavailableException (502).
     /// </summary>
     Task<PaymentQrResult> CreateOrderQrAsync(int customerId, long orderId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// POST /api/payments/extensions/{extensionId}/qr (contract payments.md 2.2): NotFoundException (extension unknown or its order is not
+    /// POST /api/v1/payments/extensions/{extensionId}/qr (contract payments.md 2.2): NotFoundException (extension unknown or its order is not
     /// the customer's), BusinessRuleViolationException with Code INVALID_STATE (extension not PENDING_PAYMENT) / PAYMENT_EXPIRED,
     /// PaymentGatewayUnavailableException (502).
     /// </summary>

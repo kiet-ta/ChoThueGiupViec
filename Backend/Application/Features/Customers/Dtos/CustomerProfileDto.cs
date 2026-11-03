@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Customers.Dtos;
 
 /// <summary>
-/// Customer profile returned by GET/PUT /api/customers/me (contract customers.md §1).
+/// Customer profile returned by GET/PUT /api/v1/customers/me (contract customers.md §1).
 /// otp_verified_at and updated_at are intentionally not exposed.
 /// </summary>
 public class CustomerProfileDto

@@ -7,7 +7,7 @@ namespace CommonService.Application.Features.Agencies;
 /// <summary>The account the platform transfers the agency's payout to (<c>PARTNER_AGENCY.bank_name</c> / <c>bank_account_no</c>).</summary>
 public record AgencyBankDto(string BankName, string BankAccountNo, bool IsSet);
 
-/// <summary>Body of <c>PUT /api/agencies/me/bank</c>: both fields are required there.</summary>
+/// <summary>Body of <c>PUT /api/v1/agencies/me/bank</c>: both fields are required there.</summary>
 public record UpdateAgencyBankRequest(string? BankName, string? BankAccountNo);
 
 /// <summary>Persistence of the agency's bank account (M5 MAIN-FLOW-FIX).</summary>

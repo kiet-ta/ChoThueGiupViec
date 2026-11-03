@@ -17,7 +17,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CommonService.Tests.Admin;
 
-/// <summary>BE-M6-06a: GET /api/admin/me (contract admin.md section 2.1).</summary>
+/// <summary>BE-M6-06a: GET /api/v1/admin/me (contract admin.md section 2.1).</summary>
 public class AdminProfileTests
 {
     private const string ConnectionString =

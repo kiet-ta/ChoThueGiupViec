@@ -12,10 +12,10 @@ namespace CommonService.Application.Features.Agencies;
 /// <summary>One shift of a worker on the agency's roster (a <c>BOOKING_SLOT</c> of the agency).</summary>
 public record RosterEntryDto(int SlotId, int WorkerId, string WorkerName, DateOnly SlotDate, string ShiftCode, string StartTime, string EndTime, string SlotStatus);
 
-/// <summary>An entry of <c>PUT /api/agencies/roster</c>.</summary>
+/// <summary>An entry of <c>PUT /api/v1/agencies/roster</c>.</summary>
 public record RosterRequestEntry(int? WorkerId, DateOnly? SlotDate, string? ShiftCode);
 
-/// <summary>The request of <c>PUT /api/agencies/roster</c>.</summary>
+/// <summary>The request of <c>PUT /api/v1/agencies/roster</c>.</summary>
 public record RosterRequest(IReadOnlyList<RosterRequestEntry>? Entries);
 
 /// <summary>A problem of one entry: its 0-based position in <c>entries</c> and a code.</summary>

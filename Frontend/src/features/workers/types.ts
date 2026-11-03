@@ -1,4 +1,4 @@
-/** eKYC item returned from GET /api/admin/workers/ekyc-queue (contract workers.md §2.2.2). */
+/** eKYC item returned from GET /api/v1/admin/workers/ekyc-queue (contract workers.md §2.2.2). */
 export interface EkycQueueItemResponse {
   workerId: number
   fullName: string
@@ -20,7 +20,7 @@ export interface PagedEkycQueueResponse {
   pageSize: number
 }
 
-/** Payload for POST /api/admin/workers/{id}/ekyc-review (contract workers.md §2.2.3). */
+/** Payload for POST /api/v1/admin/workers/{id}/ekyc-review (contract workers.md §2.2.3). */
 export interface EkycReviewRequest {
   approved: boolean
   rejectionReason?: string | null

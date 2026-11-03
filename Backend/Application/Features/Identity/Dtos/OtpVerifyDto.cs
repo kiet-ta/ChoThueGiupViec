@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Identity.Dtos;
 
 /// <summary>
-/// Request payload for POST /api/auth/otp/verify (contract identity.md §2.2).
+/// Request payload for POST /api/v1/auth/otp/verify (contract identity.md §2.2).
 /// </summary>
 public class OtpVerifyDto
 {

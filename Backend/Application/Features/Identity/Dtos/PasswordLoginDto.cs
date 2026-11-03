@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Identity.Dtos;
 
 /// <summary>
-/// Request payload for POST /api/auth/password/login (contract identity.md §2.3).
+/// Request payload for POST /api/v1/auth/password/login (contract identity.md §2.3).
 /// </summary>
 public class PasswordLoginDto
 {

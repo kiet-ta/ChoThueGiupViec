@@ -9,7 +9,7 @@ namespace CommonService.Application.Features.Customers.Services;
 public interface IFavoriteWorkerAvailabilityService
 {
     /// <summary>
-    /// GET /api/customers/me/favorite-workers/{workerId}/availability (contract customers.md §2.3): the free shifts of one of the
+    /// GET /api/v1/customers/me/favorite-workers/{workerId}/availability (contract customers.md §2.3): the free shifts of one of the
     /// caller's favorite workers. NotFoundException (404) when the worker is not in the caller's favorites; ValidationException (400)
     /// on a bad range.
     /// </summary>

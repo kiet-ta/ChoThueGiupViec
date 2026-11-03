@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Identity.Dtos;
 
 /// <summary>
-/// Response data for GET /api/auth/me (contract identity.md §2.6).
+/// Response data for GET /api/v1/auth/me (contract identity.md §2.6).
 /// </summary>
 public class CurrentUserDto
 {

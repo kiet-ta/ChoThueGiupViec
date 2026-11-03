@@ -8,7 +8,7 @@ using Xunit;
 
 namespace CommonService.Tests.Workers;
 
-/// <summary>GET /api/workers/me/assignments (contract workers.md 2.3.3): range rules, which statuses count as booked, order, own jobs only.</summary>
+/// <summary>GET /api/v1/workers/me/assignments (contract workers.md 2.3.3): range rules, which statuses count as booked, order, own jobs only.</summary>
 public class WorkerAssignmentServiceTests
 {
     private static readonly DateOnly Today = new(2026, 10, 30);

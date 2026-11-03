@@ -1,7 +1,7 @@
 namespace CommonService.Application.Features.Customers.Dtos;
 
 /// <summary>
-/// Request payload for PUT /api/customers/me: full replace of the editable fields (contract customers.md §2.1).
+/// Request payload for PUT /api/v1/customers/me: full replace of the editable fields (contract customers.md §2.1).
 /// phoneNumber, trustScore and accountStatus are not editable.
 /// </summary>
 public class UpdateCustomerProfileDto

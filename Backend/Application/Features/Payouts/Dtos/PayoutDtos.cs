@@ -1,6 +1,6 @@
 namespace CommonService.Application.Features.Payouts.Dtos;
 
-/// <summary>Body of POST /api/admin/payout-batches (contract payouts.md 2.1).</summary>
+/// <summary>Body of POST /api/v1/admin/payout-batches (contract payouts.md 2.1).</summary>
 public class BuildPayoutBatchRequestDto
 {
     /// <summary><c>YYYY-MM</c>.</summary>

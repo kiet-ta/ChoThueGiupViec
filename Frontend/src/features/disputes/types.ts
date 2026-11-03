@@ -82,7 +82,7 @@ export interface Page<T> {
   total: number
 }
 
-/** Body of `POST /api/admin/disputes/{id}/resolve`. */
+/** Body of `POST /api/v1/admin/disputes/{id}/resolve`. */
 export interface ResolveRequest {
   faultParty: string | null
   compensationAmount: number

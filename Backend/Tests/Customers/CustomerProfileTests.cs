@@ -22,7 +22,7 @@ using Xunit;
 namespace CommonService.Tests.Customers;
 
 /// <summary>
-/// BE-M1-04: GET/PUT /api/customers/me (contract customers.md §2.1, decisions Q21 C1/C2).
+/// BE-M1-04: GET/PUT /api/v1/customers/me (contract customers.md §2.1, decisions Q21 C1/C2).
 /// DB-backed tests run against the local SQL Server of BASE-07 and delete the rows they create.
 /// </summary>
 public class CustomerProfileTests

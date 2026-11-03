@@ -12,7 +12,7 @@ using Xunit;
 
 namespace CommonService.Tests.Booking;
 
-/// <summary>BE-M2-03: POST /api/booking/orders rules in the contract's order, with in-memory ports (no DB).</summary>
+/// <summary>BE-M2-03: POST /api/v1/booking/orders rules in the contract's order, with in-memory ports (no DB).</summary>
 public class OrderCreationServiceTests
 {
     private const int CustomerId = 7;

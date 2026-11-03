@@ -11,7 +11,7 @@ public class FileDisputeRequestDto
     public List<string>? EvidenceUrls { get; init; }
 }
 
-/// <summary>Body of POST /api/admin/disputes/{id}/resolve (contract disputes.md 2.3). Text and nullable values so a bad one is a 400 with field messages.</summary>
+/// <summary>Body of POST /api/v1/admin/disputes/{id}/resolve (contract disputes.md 2.3). Text and nullable values so a bad one is a 400 with field messages.</summary>
 public class ResolveDisputeRequestDto
 {
     /// <summary>FREELANCER, AGENCY or CUSTOMER; null dismisses the dispute.</summary>

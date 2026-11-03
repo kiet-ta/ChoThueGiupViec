@@ -1,4 +1,4 @@
-// Maps the failures of `POST /api/auth/password/login` to what the form shows (identity.md section 2.3).
+// Maps the failures of `POST /api/v1/auth/password/login` to what the form shows (identity.md section 2.3).
 // Pure: runs under `node --test`. It never echoes the password or says which of email/password was wrong.
 
 export interface LoginErrorView {
