@@ -129,7 +129,7 @@ Shows the fixed price **before** paying (PRD §4.1, Q01). 200 `data`: `PriceQuot
 
 ### 3.3 `POST /api/v1/booking/orders` (BE-M2-01, BE-M2-02, BE-M2-03)
 
-For rebooking, `GET /api/v1/booking/orders/{orderId}/workers/{workerId}/availability` returns `data` as an array of `{ "date": "yyyy-MM-dd", "shiftCode": "string" }` for the booking window. The order must belong to the caller and have a COMPLETED assignment for that worker; either mismatch returns 404. This read does not add a favorite.
+For rebooking, `GET /api/v1/workers/{workerId}/availability?orderId={orderId}` (`CustomerOnly`; 400 without `orderId`) returns `data` as an array of `{ "date": "yyyy-MM-dd", "shiftCode": "string" }` for the booking window. The order must belong to the caller and have a COMPLETED assignment for that worker; either mismatch returns 404. This read does not add a favorite.
 Request
 ```json
 {

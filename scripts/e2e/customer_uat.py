@@ -101,14 +101,14 @@ def freelancer(prefix, at, slots):
     """Registers a freelancer (OTP, profile, eKYC), opens `slots` [(date, shift)] and shares the position `at`. Returns its token."""
     phone = prefix + RUN
     registration = login(phone, 'Worker').get('registrationToken')
-    status, _ = call('POST', '/api/v1/workers/register', {
+    status, _ = call('POST', '/api/v1/workers', {
         'registrationToken': registration, 'fullName': 'Tho UAT ' + prefix, 'nationalId': '0794' + RUN + prefix[-2:], 'address': 'Quan 1'})
     check(f'freelancer {prefix} registered', status == 201)
     token = login(phone, 'Worker')['accessToken']
     status, response = call('POST', '/api/v1/workers/me/ekyc', {'frontCccdUrl': 'https://s/f.jpg', 'backCccdUrl': 'https://s/b.jpg', 'selfieUrl': 'https://s/s.jpg'}, token)
     check(f'freelancer {prefix} eKYC approved', status == 200 and data_of(response)['kycStatus'] == 'APPROVED', str(response)[:200])
     for slot_date, shift in slots:
-        status, _ = call('POST', '/api/v1/workers/me/slots/toggle', {'slotDate': slot_date, 'shiftCode': shift, 'isActive': True}, token)
+        status, _ = call('PUT', f'/api/v1/workers/me/slots/{slot_date}/{shift}', {'enabled': True}, token)
         check(f'freelancer {prefix} opens {slot_date} {shift}', status == 200)
     status, _ = call('PUT', '/api/v1/workers/me/location', {'latitude': at[0], 'longitude': at[1]}, token)
     check(f'freelancer {prefix} shares the position', status == 200)

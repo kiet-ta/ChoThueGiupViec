@@ -24,10 +24,10 @@ public class NotificationsController : ControllerBase
     }
 
     /// <summary>
-    /// Polls recent notifications for a user since a given UTC timestamp.
+    /// Lists recent notifications for a user since a given UTC timestamp (<c>GET /api/v1/notifications?since=&amp;limit=</c>).
     /// If caller is authenticated, role and userId default to the caller's claims.
     /// </summary>
-    [HttpGet("poll")]
+    [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<NotificationMessageDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public ActionResult<ApiResponse<IReadOnlyList<NotificationMessageDto>>> Poll(

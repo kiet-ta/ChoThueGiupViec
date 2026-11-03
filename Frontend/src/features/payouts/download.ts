@@ -13,7 +13,7 @@ export async function downloadExport(batchId: number, type: ExportType, fallback
   const token = authController.getAccessToken()
   let res: Response
   try {
-    res = await fetch(`${BASE_URL}/admin/payout-batches/${batchId}/export?type=${encodeURIComponent(type)}`, {
+    res = await fetch(`${BASE_URL}/admin/payout-batches/${batchId}/file?type=${encodeURIComponent(type)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
   } catch {

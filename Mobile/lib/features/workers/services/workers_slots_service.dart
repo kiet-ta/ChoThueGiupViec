@@ -28,13 +28,14 @@ class WorkersSlotsService {
     );
   }
 
-  /// Toggles availability status for a slot (contract §2.3.2).
+  /// Sets a slot on or off (`PUT /api/v1/workers/me/slots/{date}/{shiftCode}`, contract §2.3.2); the server creates the slot when it
+  /// does not exist yet.
   Future<ApiResponse<BookingSlotDto>> toggleSlot(
     ToggleBookingSlotRequest request,
   ) {
-    return _apiClient.post<BookingSlotDto>(
-      '/api/v1/workers/me/slots/toggle',
-      body: request.toJson(),
+    return _apiClient.put<BookingSlotDto>(
+      '/api/v1/workers/me/slots/${request.slotDate}/${request.shiftCode}',
+      body: {'enabled': request.isActive},
       fromJson: (json) => BookingSlotDto.fromJson(json as Map<String, dynamic>),
     );
   }

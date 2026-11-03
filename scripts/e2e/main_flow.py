@@ -306,7 +306,7 @@ def economy():
     session = otp_login(phone, 'Worker')
     registration = session.get('registrationToken')
     check('a new phone gets a registration token', bool(registration), str(session)[:200])
-    status, response = call('POST', '/api/v1/workers/register', {
+    status, response = call('POST', '/api/v1/workers', {
         'registrationToken': registration, 'fullName': 'Freelancer E2E', 'nationalId': '0793' + RUN + '00', 'address': 'Quan 1', 'bio': 'e2e'})
     check('the freelancer registered (201)', status == 201, str(response)[:200])
     worker_id = data_of(response)['workerId']
@@ -314,7 +314,7 @@ def economy():
     status, response = call('POST', '/api/v1/workers/me/ekyc', {'frontCccdUrl': 'https://s/f.jpg', 'backCccdUrl': 'https://s/b.jpg', 'selfieUrl': 'https://s/s.jpg'}, worker)
     check('eKYC auto-approved', status == 200 and data_of(response)['kycStatus'] == 'APPROVED', str(response)[:200])
     day = free_day()
-    status, _ = call('POST', '/api/v1/workers/me/slots/toggle', {'slotDate': day, 'shiftCode': 'SHIFT_MORNING', 'isActive': True}, worker)
+    status, _ = call('PUT', f'/api/v1/workers/me/slots/{day}/SHIFT_MORNING', {'enabled': True}, worker)
     check('a slot is opened', status == 200)
     status, _ = call('PUT', '/api/v1/workers/me/location', {'latitude': 999, 'longitude': 106.7}, worker)
     check('a position out of range is a 400', status == 400)
@@ -360,7 +360,7 @@ def payout(admin, results):
         mine = [i for i in items if i['agencyId'] == results['premium']['agency_id']]
         bank = results['premium']['agency_bank']
         check('the agency item carries its bank account', len(mine) == 1 and (mine[0]['bankName'], mine[0]['bankAccountNo']) == bank, str(mine)[:250])
-        _, content = download(f'/api/v1/admin/payout-batches/{batch_id}/export?type=agency-summary', admin)
+        _, content = download(f'/api/v1/admin/payout-batches/{batch_id}/file?type=agency-summary', admin)
         check('the agency export carries the account', any(r[1:3] == list(bank) for r in read_xlsx_rows(content)[1:]), str(read_xlsx_rows(content))[:300])
     if 'economy' in results:
         mine = [i for i in items if i['workerId'] == results['economy']['worker_id']]
