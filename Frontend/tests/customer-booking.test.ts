@@ -54,6 +54,8 @@ describe('bookingProblem', () => {
   it('maps the contract 409 codes', () => {
     assert.match(bookingProblem({ status: 409, data: { code: 'SHIFT_IN_PAST' } }), /đã qua/)
     assert.match(bookingProblem({ status: 409, data: { code: 'PREMIUM_LEAD_TIME' } }), /4 giờ/)
+    assert.equal(bookingProblem({ status: 409, message: 'No capacity', data: { code: 'FULLY_BOOKED' } }), 'Ca này hiện không còn thợ rảnh ở khu vực của bạn. Hãy chọn ca hoặc ngày khác.')
+    assert.equal(bookingProblem({ status: 409, message: 'Other conflict', data: { code: 'UNKNOWN' } }), 'Other conflict')
   })
   it('falls back to the server message', () => assert.equal(bookingProblem({ status: 500, message: 'Lỗi máy chủ' }), 'Lỗi máy chủ'))
 })

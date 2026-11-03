@@ -102,6 +102,7 @@ export function bookingProblem(error: ProblemInput): string {
   const code = error.data && typeof error.data === 'object' ? (error.data as { code?: unknown }).code : undefined
   if (code === 'SHIFT_IN_PAST') return 'Ca đã chọn đã qua. Hãy chọn ca khác.'
   if (code === 'PREMIUM_LEAD_TIME') return 'Gói Premium cần đặt trước tối thiểu 4 giờ.'
+  if (code === 'FULLY_BOOKED') return 'Ca này hiện không còn thợ rảnh ở khu vực của bạn. Hãy chọn ca hoặc ngày khác.'
   if (error.status === 404) return 'Không tìm thấy địa chỉ. Hãy chọn lại địa chỉ.'
   return error.message || 'Không đặt được ca. Vui lòng thử lại.'
 }
