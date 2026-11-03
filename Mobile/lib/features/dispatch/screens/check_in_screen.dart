@@ -17,25 +17,25 @@ import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../models/check_in_result.dart';
 import '../services/dispatch_service.dart';
+import '../../workers/models/worker_assignment_models.dart';
 import '../../workers/routes.dart';
+import '../../workers/services/workers_assignments_service.dart';
 
 /// Screen for field arrival check-in with GPS tolerance <=100m and alternative fallback verification (MOB-M3-02).
 /// MOB-UI-21 (`Mobile/DESIGN-SYSTEM-WORKER.md`): `NordicPage.pushed`, the main button in `actions`, tokens only,
 /// a failed step shakes its message.
 class CheckInScreen extends StatefulWidget {
   final int assignmentId;
-  final double destinationLatitude;
-  final double destinationLongitude;
-  final String destinationAddress;
   final DispatchService? dispatchService;
+
+  /// Reads the address of the job (`GET /api/v1/workers/assignments/{id}`, workers.md §2.3.4); the screen never shows a sample address.
+  final WorkersAssignmentsService? assignmentsService;
 
   const CheckInScreen({
     super.key,
     required this.assignmentId,
-    this.destinationLatitude = 21.028511,
-    this.destinationLongitude = 105.854167,
-    this.destinationAddress = '123 Đường Cầu Giấy, Quan Hoa, Cầu Giấy, Hà Nội',
     this.dispatchService,
+    this.assignmentsService,
   });
 
   @override
@@ -44,6 +44,11 @@ class CheckInScreen extends StatefulWidget {
 
 class _CheckInScreenState extends State<CheckInScreen> {
   late final DispatchService _dispatchService;
+  late final WorkersAssignmentsService _assignmentsService;
+
+  /// The job with its real address; null while it loads or when the read failed ([_detailError]).
+  WorkerAssignmentDetailDto? _detail;
+  String? _detailError;
   bool _isLoading = false;
   String? _errorMessage;
   CheckInResult? _checkInResult;
@@ -59,7 +64,34 @@ class _CheckInScreenState extends State<CheckInScreen> {
   void initState() {
     super.initState();
     _dispatchService = widget.dispatchService ?? DispatchService();
+    _assignmentsService =
+        widget.assignmentsService ?? WorkersAssignmentsService();
+    _loadDetail();
     _refreshCurrentGps();
+  }
+
+  Future<void> _loadDetail() async {
+    setState(() {
+      _detail = null;
+      _detailError = null;
+    });
+    try {
+      final response = await _assignmentsService.getAssignment(
+        widget.assignmentId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _detail = response.success ? response.data : null;
+        _detailError = _detail == null
+            ? (response.message.isNotEmpty
+                  ? response.message
+                  : 'Chưa tải được địa chỉ ca làm.')
+            : null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _detailError = 'Chưa tải được địa chỉ ca làm: $e');
+    }
   }
 
   Future<void> _refreshCurrentGps() async {
@@ -79,6 +111,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   Future<void> _handleGpsCheckIn() async {
+    final detail = _detail;
+    if (detail == null) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -92,8 +126,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
         assignmentId: widget.assignmentId,
         latitude: loc.latitude,
         longitude: loc.longitude,
-        destinationLatitude: widget.destinationLatitude,
-        destinationLongitude: widget.destinationLongitude,
+        destinationLatitude: detail.latitude,
+        destinationLongitude: detail.longitude,
       );
 
       if (!mounted) return;
@@ -187,7 +221,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
   /// The one main button of the state on screen, above the home indicator.
   List<Widget>? _buildActions() {
-    if (_isLoading) return null;
+    if (_detail == null || _isLoading) return null;
     if (_verified) {
       return [
         NordicButton(
@@ -224,6 +258,15 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   List<Widget> _buildContent() {
+    if (_detail == null) {
+      if (_detailError != null) {
+        return [ErrorStateWidget(message: _detailError!, onRetry: _loadDetail)];
+      }
+      return const [
+        SizedBox(height: NordicSpace.xl),
+        LoadingStateWidget(message: 'Đang tải địa chỉ ca làm...'),
+      ];
+    }
     if (_isLoading) {
       return const [
         SizedBox(height: NordicSpace.xl),
@@ -262,6 +305,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
   );
 
   List<Widget> _buildInitialCheckInView() {
+    final detail = _detail!;
     return [
       const Text('Đã đến địa chỉ ca làm việc?', style: NordicTypography.h2),
       const SizedBox(height: NordicSpace.xxs),
@@ -271,8 +315,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
       ),
       const SizedBox(height: NordicSpace.md),
       MiniMapWidget(
-        targetLatitude: widget.destinationLatitude,
-        targetLongitude: widget.destinationLongitude,
+        targetLatitude: detail.latitude,
+        targetLongitude: detail.longitude,
         workerLatitude: _currentGps?.latitude,
         workerLongitude: _currentGps?.longitude,
         addressLabel: 'Vị trí gia chủ',
@@ -297,10 +341,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                     style: NordicTypography.titleSmall,
                   ),
                   const SizedBox(height: NordicSpace.xxs),
-                  Text(
-                    widget.destinationAddress,
-                    style: NordicTypography.bodySmall,
-                  ),
+                  Text(detail.fullAddress, style: NordicTypography.bodySmall),
                 ],
               ),
             ),

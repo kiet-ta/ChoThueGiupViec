@@ -2,10 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/device/camera_wrapper.dart';
 import 'package:mobile/core/device/location_wrapper.dart';
+import 'package:mobile/core/network/api_client.dart';
+import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/dispatch/models/check_in_result.dart';
 import 'package:mobile/features/dispatch/screens/check_in_screen.dart';
 import 'package:mobile/features/dispatch/services/dispatch_service.dart';
+import 'package:mobile/features/workers/models/worker_assignment_models.dart';
+import 'package:mobile/features/workers/services/workers_assignments_service.dart';
+
+/// Answers `GET /api/v1/workers/assignments/{id}` from a queue of answers; counts the calls.
+class _FakeAssignments extends WorkersAssignmentsService {
+  _FakeAssignments(this.answers) : super(apiClient: ApiClient());
+
+  final List<ApiResponse<WorkerAssignmentDetailDto>> answers;
+  int calls = 0;
+
+  @override
+  Future<ApiResponse<WorkerAssignmentDetailDto>> getAssignment(
+    int assignmentId,
+  ) async {
+    final index = calls < answers.length ? calls : answers.length - 1;
+    calls++;
+    return answers[index];
+  }
+}
+
+const _detail = WorkerAssignmentDetailDto(
+  assignmentId: 1001,
+  orderId: 6,
+  orderCode: 'GV-6',
+  slotDate: '2026-11-05',
+  shiftCode: 'SHIFT_MORNING',
+  startTime: '08:00',
+  endTime: '12:00',
+  status: 'ASSIGNED',
+  serviceTier: 'ECONOMY',
+  addressLine: '12 Nguyễn Huệ',
+  district: 'Quận 1',
+  city: 'TP. Hồ Chí Minh',
+  latitude: 10.774,
+  longitude: 106.703,
+  payoutAmount: 128000,
+);
+
+const _address = '12 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh';
+
+ApiResponse<WorkerAssignmentDetailDto> _ok() =>
+    const ApiResponse(success: true, message: '', data: _detail);
 
 void main() {
   group('CheckInScreen Widget Tests', () {
@@ -16,8 +60,8 @@ void main() {
     setUp(() {
       locationWrapper = LocationWrapper(
         mockLocation: GeoPoint(
-          latitude: 21.028511,
-          longitude: 105.854167,
+          latitude: 10.774,
+          longitude: 106.703,
           timestamp: DateTime.now(),
         ),
       );
@@ -34,15 +78,13 @@ void main() {
       );
     });
 
-    Widget createScreen() {
+    Widget createScreen({_FakeAssignments? assignments}) {
       return MaterialApp(
         theme: NordicTheme.lightTheme,
         home: CheckInScreen(
           assignmentId: 1001,
-          destinationLatitude: 21.028511,
-          destinationLongitude: 105.854167,
-          destinationAddress: '123 Đường Cầu Giấy, Hà Nội',
           dispatchService: service,
+          assignmentsService: assignments ?? _FakeAssignments([_ok()]),
         ),
       );
     }
@@ -62,10 +104,63 @@ void main() {
 
         expect(find.text('Đến nơi'), findsOneWidget);
         expect(find.text('Đã đến địa chỉ ca làm việc?'), findsOneWidget);
-        expect(find.text('123 Đường Cầu Giấy, Hà Nội'), findsOneWidget);
+        expect(find.text(_address), findsOneWidget);
+        expect(find.textContaining('Cầu Giấy'), findsNothing);
         expect(find.byKey(const Key('check_in_gps_button')), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'a failed read of the job shows the error, no sample address and no check-in button',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final assignments = _FakeAssignments([
+          const ApiResponse(
+            success: false,
+            message: 'Job assignment 1001 not found.',
+          ),
+        ]);
+        await tester.pumpWidget(createScreen(assignments: assignments));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Job assignment 1001 not found.'), findsOneWidget);
+        expect(find.textContaining('Cầu Giấy'), findsNothing);
+        expect(find.byKey(const Key('check_in_gps_button')), findsNothing);
+        expect(assignments.calls, 1);
+      },
+    );
+
+    testWidgets('Thử lại reads the job again and then shows its address', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final assignments = _FakeAssignments([
+        const ApiResponse(success: false, message: 'Không kết nối được.'),
+        _ok(),
+      ]);
+      await tester.pumpWidget(createScreen(assignments: assignments));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('check_in_gps_button')), findsNothing);
+
+      await tester.tap(find.text('Thử lại'));
+      await tester.pumpAndSettle();
+
+      expect(assignments.calls, 2);
+      expect(find.text(_address), findsOneWidget);
+      expect(find.byKey(const Key('check_in_gps_button')), findsOneWidget);
+    });
 
     testWidgets(
       'successful GPS check-in (distance <= 100m) shows success view',

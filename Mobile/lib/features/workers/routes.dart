@@ -5,6 +5,7 @@ import 'screens/customer_acceptance_screen.dart';
 import 'screens/worker_ekyc_screen.dart';
 import 'screens/worker_execution_screen.dart';
 import 'models/worker_extension_models.dart';
+import 'screens/worker_extension_loader.dart';
 import 'screens/worker_extension_screen.dart';
 import 'screens/worker_photos_screen.dart';
 import 'screens/worker_screen.dart';
@@ -49,6 +50,8 @@ class WorkersFeatureModule extends FeatureModule {
       if (offer is WorkerExtensionOffer) {
         return WorkerExtensionScreen(offer: offer);
       }
+      // A job id: the screen reads the real offer from the server (workers.md §2.3.4).
+      if (offer is int) return WorkerExtensionLoader(assignmentId: offer);
       return const Scaffold(
         body: Center(child: Text('Chưa có yêu cầu gia hạn nào để trả lời.')),
       );

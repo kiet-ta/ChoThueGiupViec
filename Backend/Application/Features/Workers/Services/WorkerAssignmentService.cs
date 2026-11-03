@@ -75,4 +75,42 @@ public class WorkerAssignmentService(
 
         return ApiResponse<IReadOnlyList<WorkerAssignmentResponse>>.Ok(responses, "Retrieved booked jobs successfully.");
     }
+
+    public async Task<ApiResponse<WorkerAssignmentDetailResponse>> GetDetailAsync(long assignmentId, CancellationToken ct = default)
+    {
+        if (currentUser.UserId is not int workerId)
+        {
+            throw new ForbiddenAccessException("Authenticated worker user ID is required.");
+        }
+
+        var row = await repository.FindDetailForWorkerAsync(assignmentId, workerId, ct);
+        if (row is null || !BookedStatuses.Contains(row.Status))
+        {
+            throw new NotFoundException($"Job assignment {assignmentId} not found.");
+        }
+
+        var pending = row.PendingExtensionId is int extensionId
+            ? new WorkerPendingExtension(extensionId, row.PendingExtraHours ?? 0m, row.PendingExtraAmount ?? 0m)
+            : null;
+
+        var detail = new WorkerAssignmentDetailResponse(
+            row.AssignmentId,
+            row.OrderId,
+            row.OrderCode,
+            row.SlotDate,
+            row.ShiftCode,
+            row.StartTime.ToString("HH:mm"),
+            row.EndTime.ToString("HH:mm"),
+            DbEnum.ToDb(row.Status),
+            DbEnum.ToDb(row.ServiceTier),
+            row.AddressLine,
+            row.District,
+            row.City,
+            row.Latitude,
+            row.Longitude,
+            row.PayoutAmount,
+            pending);
+
+        return ApiResponse<WorkerAssignmentDetailResponse>.Ok(detail, "Retrieved the job successfully.");
+    }
 }

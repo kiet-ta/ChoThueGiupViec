@@ -35,6 +35,10 @@ public class WorkerAssignmentServiceTests
                 .ToList();
             return Task.FromResult(rows);
         }
+
+        public Task<WorkerAssignmentDetailRow?> FindDetailForWorkerAsync(
+            long assignmentId, int workerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<WorkerAssignmentDetailRow?>(null);
     }
 
     private static WorkerAssignmentRow Row(
