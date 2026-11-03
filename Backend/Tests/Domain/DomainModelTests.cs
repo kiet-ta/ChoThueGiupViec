@@ -8,18 +8,18 @@ public class DomainModelTests
 {
     private static readonly string[] EntityNames =
     [
-        // 22 tables of Backend/GiupViec_Physical_DB_MVP5.drawio
+        // 20 tables of Backend/GiupViec_Physical_DB_MVP5.drawio
         "Customer", "CustomerAddress", "FavoriteWorker", "JobOrder", "JobOrderExtension", "PaymentTransaction",
         "JobAssignment", "CheckInLog", "IncidentLog", "JobPhoto", "Worker", "BookingSlot", "TwoWayRating", "DisputeTicket",
-        "PartnerAgency", "PartnerSubscription", "SubscriptionPackage", "Skill", "WorkerSkill", "AdminAccount", "PayoutBatch", "PayoutItem",
+        "PartnerAgency", "PartnerSubscription", "SubscriptionPackage", "AdminAccount", "PayoutBatch", "PayoutItem",
         // 5 tables added by decisions section 3 (SC-2, SC-3, SC-4, SC-6, SC-7)
         "PriceRule", "AdminAuditLog", "EscrowTransaction", "OtpCode", "RefreshToken",
     ];
 
     [Fact]
-    public void All_27_entities_exist_as_partial_domain_classes()
+    public void All_25_entities_exist_as_partial_domain_classes()
     {
-        Assert.Equal(27, EntityNames.Length);
+        Assert.Equal(25, EntityNames.Length);
         var domain = typeof(Customer).Assembly;
         foreach (var name in EntityNames)
         {

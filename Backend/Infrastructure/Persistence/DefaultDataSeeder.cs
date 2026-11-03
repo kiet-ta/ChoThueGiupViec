@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace CommonService.Infrastructure.Persistence;
 
 /// <summary>
-/// Seeds reference data required in all environments (decisions Q01, Q08, skills catalog).
+/// Seeds reference data required in all environments (decisions Q01, Q08).
 /// Idempotent: checks for existence before adding rows.
 /// </summary>
 public class DefaultDataSeeder
@@ -22,7 +22,6 @@ public class DefaultDataSeeder
     {
         await SeedPriceRulesAsync(context, cancellationToken);
         await SeedSubscriptionPackagesAsync(context, cancellationToken);
-        await SeedSampleSkillsAsync(context, cancellationToken);
     }
 
     private async Task SeedPriceRulesAsync(AppDbContext context, CancellationToken cancellationToken)
@@ -134,70 +133,6 @@ public class DefaultDataSeeder
         {
             await context.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("DefaultDataSeeder: Seeded {Count} SUBSCRIPTION_PACKAGE rows.", addedCount);
-        }
-    }
-
-    private async Task SeedSampleSkillsAsync(AppDbContext context, CancellationToken cancellationToken)
-    {
-        // spec.md §2.7 Standardized Skill Catalog
-        var skills = new[]
-        {
-            new Skill
-            {
-                SkillCode = "CLEAN_BASIC",
-                SkillName = "Dọn dẹp cơ bản",
-                Category = "CLEANING",
-                Description = "Dọn dẹp nhà cửa, quét lau sàn, dọn rác",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            },
-            new Skill
-            {
-                SkillCode = "DEEP_CLEAN",
-                SkillName = "Tổng vệ sinh chuyên sâu",
-                Category = "CLEANING",
-                Description = "Vệ sinh toàn diện nhà cửa, tẩy rửa dầu mỡ nhà bếp",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            },
-            new Skill
-            {
-                SkillCode = "IRONING",
-                SkillName = "Giặt ủi quần áo",
-                Category = "LAUNDRY",
-                Description = "Phân loại, giặt giũ và ủi phẳng quần áo",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            },
-            new Skill
-            {
-                SkillCode = "COOKING",
-                SkillName = "Nấu ăn gia đình",
-                Category = "COOKING",
-                Description = "Sơ chế thực phẩm, nấu các món ăn gia đình Việt Nam",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            }
-        };
-
-        var addedCount = 0;
-        foreach (var skill in skills)
-        {
-            var exists = await context.Skills.AnyAsync(
-                s => s.SkillCode == skill.SkillCode,
-                cancellationToken);
-
-            if (!exists)
-            {
-                context.Skills.Add(skill);
-                addedCount++;
-            }
-        }
-
-        if (addedCount > 0)
-        {
-            await context.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("DefaultDataSeeder: Seeded {Count} SKILL rows.", addedCount);
         }
     }
 }

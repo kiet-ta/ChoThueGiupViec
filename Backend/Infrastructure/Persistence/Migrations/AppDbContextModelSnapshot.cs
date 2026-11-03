@@ -1799,58 +1799,6 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.ToTable("REFRESH_TOKEN", (string)null);
                 });
 
-            modelBuilder.Entity("CommonService.Domain.Entities.Skill", b =>
-                {
-                    b.Property<int>("SkillId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("skill_id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SkillId"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(30)")
-                        .HasColumnName("category");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("DATETIME2")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .IsUnicode(true)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("SkillCode")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(30)")
-                        .HasColumnName("skill_code");
-
-                    b.Property<string>("SkillName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .IsUnicode(true)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("skill_name");
-
-                    b.HasKey("SkillId");
-
-                    b.HasIndex("SkillCode")
-                        .IsUnique();
-
-                    b.ToTable("SKILL", (string)null);
-                });
-
             modelBuilder.Entity("CommonService.Domain.Entities.SubscriptionPackage", b =>
                 {
                     b.Property<int>("PackageId")
@@ -2125,36 +2073,6 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_WORKER_type_agency", "([worker_type] = 'FREELANCER' AND [agency_id] IS NULL) OR ([worker_type] = 'AGENCY_STAFF' AND [agency_id] IS NOT NULL)");
                         });
-                });
-
-            modelBuilder.Entity("CommonService.Domain.Entities.WorkerSkill", b =>
-                {
-                    b.Property<int>("WorkerId")
-                        .HasColumnType("int")
-                        .HasColumnName("worker_id");
-
-                    b.Property<int>("SkillId")
-                        .HasColumnType("int")
-                        .HasColumnName("skill_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("DATETIME2")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsVerified")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_verified");
-
-                    b.Property<decimal?>("YearsOfExperience")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("DECIMAL(3,1)")
-                        .HasColumnName("years_of_experience");
-
-                    b.HasKey("WorkerId", "SkillId");
-
-                    b.HasIndex("SkillId");
-
-                    b.ToTable("WORKER_SKILL", (string)null);
                 });
 
             modelBuilder.Entity("CommonService.Domain.Entities.AdminAuditLog", b =>
@@ -2508,21 +2426,6 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("KycReviewedBy")
                         .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CommonService.Domain.Entities.WorkerSkill", b =>
-                {
-                    b.HasOne("CommonService.Domain.Entities.Skill", null)
-                        .WithMany()
-                        .HasForeignKey("SkillId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CommonService.Domain.Entities.Worker", null)
-                        .WithMany()
-                        .HasForeignKey("WorkerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
