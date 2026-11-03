@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/device/camera_wrapper.dart';
+import '../../../core/device/device_location.dart';
 import '../../../core/device/location_wrapper.dart';
 import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
@@ -101,6 +102,12 @@ class _CheckInScreenState extends State<CheckInScreen> {
       setState(() {
         _currentGps = loc;
       });
+    } on DeviceLocationException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errors++;
+        _errorMessage = deviceLocationFailureText(e.failure);
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -134,6 +141,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
       setState(() {
         _checkInResult = result;
         _isLoading = false;
+      });
+    } on DeviceLocationException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errors++;
+        _errorMessage = deviceLocationFailureText(e.failure);
       });
     } catch (e) {
       if (!mounted) return;

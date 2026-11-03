@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'device_location.dart';
+
 /// Represents a geographic position with latitude, longitude and accuracy.
 class GeoPoint {
   final double latitude;
@@ -48,9 +50,12 @@ abstract class ILocationWrapper {
 /// Standard LocationWrapper with Haversine distance calculation and testable mock capability.
 class LocationWrapper implements ILocationWrapper {
   GeoPoint? _mockCurrentLocation;
+  final IDeviceLocationProvider _provider;
 
-  LocationWrapper({GeoPoint? mockLocation})
-    : _mockCurrentLocation = mockLocation;
+  /// Reads the position of the phone through [provider] (default: `geolocator`, foreground only). A [mockLocation] is for tests.
+  LocationWrapper({GeoPoint? mockLocation, IDeviceLocationProvider? provider})
+    : _mockCurrentLocation = mockLocation,
+      _provider = provider ?? const GeolocatorLocationProvider();
 
   /// Sets mock location for automated testing.
   void setMockLocation(GeoPoint point) {
@@ -63,15 +68,8 @@ class LocationWrapper implements ILocationWrapper {
       return _mockCurrentLocation!;
     }
 
-    // Default position while the app has no GPS sensor: District 1, Ho Chi Minh City, the same default as the address form and the GPS
-    // picker (10.7769, 106.7009), so a worker and a customer who both use the defaults are at the same place (MOB-NAV). It was Hanoi,
-    // 1,100 km from every address the app creates, so no worker was ever found near an order.
-    return GeoPoint(
-      latitude: 10.7769,
-      longitude: 106.7009,
-      accuracyMeters: 5.0,
-      timestamp: DateTime.now().toUtc(),
-    );
+    // The real position of the phone. When it cannot be read this throws a DeviceLocationException: never a sample position.
+    return _provider.currentPosition();
   }
 
   @override

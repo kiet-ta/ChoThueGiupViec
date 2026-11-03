@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/device/camera_wrapper.dart';
+import 'package:mobile/core/device/device_location.dart';
 import 'package:mobile/core/device/location_wrapper.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/network/api_response.dart';
@@ -26,6 +27,15 @@ class _FakeAssignments extends WorkersAssignmentsService {
     calls++;
     return answers[index];
   }
+}
+
+/// A phone that cannot give its position.
+class _NoPosition implements IDeviceLocationProvider {
+  @override
+  Future<GeoPoint> currentPosition() async =>
+      throw const DeviceLocationException(
+        DeviceLocationFailure.serviceDisabled,
+      );
 }
 
 const _detail = WorkerAssignmentDetailDto(
@@ -161,6 +171,37 @@ void main() {
       expect(find.text(_address), findsOneWidget);
       expect(find.byKey(const Key('check_in_gps_button')), findsOneWidget);
     });
+
+    testWidgets(
+      'a phone that cannot give its position shows why and never checks the worker in',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        service = DispatchService(
+          locationWrapper: LocationWrapper(provider: _NoPosition()),
+          cameraWrapper: cameraWrapper,
+          isMock: true,
+        );
+        await tester.pumpWidget(createScreen());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('check_in_gps_button')));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            deviceLocationFailureText(DeviceLocationFailure.serviceDisabled),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Bạn đã đến nơi'), findsNothing);
+      },
+    );
 
     testWidgets(
       'successful GPS check-in (distance <= 100m) shows success view',

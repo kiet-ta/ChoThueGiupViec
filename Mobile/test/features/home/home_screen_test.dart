@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/device/location_access.dart';
 import 'package:mobile/features/home/customer_shell.dart';
 import 'package:mobile/features/home/home_screen.dart';
 import 'package:mobile/features/home/worker_shell.dart';
@@ -16,9 +17,27 @@ AuthResult _session(String role) => AuthResult(
   user: AuthUser(id: 12, role: role, isNewUser: false),
 );
 
+/// A phone whose location is on and permitted (the Worker gate lets the shell through).
+class _GrantedAccess implements ILocationAccess {
+  const _GrantedAccess();
+
+  @override
+  Future<LocationAccessState> check() async => LocationAccessState.granted;
+
+  @override
+  Future<LocationAccessState> requestPermission() async =>
+      LocationAccessState.granted;
+
+  @override
+  Future<void> openLocationSettings() async {}
+
+  @override
+  Future<void> openAppSettings() async {}
+}
+
 /// The Home inside an app whose named routes only record that they were opened.
 Widget _app(List<String> opened) => MaterialApp(
-  home: const HomeScreen(),
+  home: const HomeScreen(locationAccess: _GrantedAccess()),
   onGenerateRoute: (settings) {
     opened.add(settings.name ?? '');
     return MaterialPageRoute(
@@ -205,6 +224,7 @@ void main() {
     TokenStorage().saveAuth(_session('Worker'));
     useDesignFrame(tester);
     await tester.pumpWidget(_app(<String>[]));
+    await tester.pumpAndSettle();
 
     expect(find.byType(WorkerShell), findsOneWidget);
     expect(find.text('Thợ #12'), findsOneWidget);
@@ -220,6 +240,7 @@ void main() {
     useDesignFrame(tester);
     final opened = <String>[];
     await tester.pumpWidget(_app(opened));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('worker-shell-job')));
     await tester.pumpAndSettle();
@@ -231,6 +252,7 @@ void main() {
     TokenStorage().saveAuth(_session('Worker'));
     useDesignFrame(tester);
     await tester.pumpWidget(_app(<String>[]));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('worker-tab-3')));
     await tester.pumpAndSettle();
