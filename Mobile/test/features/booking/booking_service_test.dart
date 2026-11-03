@@ -104,10 +104,8 @@ void main() {
         ),
       );
       final shifts = await source.getFreeShifts(100, 42);
-      expect(
-        seen.single.path,
-        '/api/v1/booking/orders/100/workers/42/availability',
-      );
+      expect(seen.single.path, '/api/v1/workers/42/availability');
+      expect(seen.single.query, {'orderId': '100'});
       expect(shifts, {'2026-10-15|SHIFT_MORNING'});
     });
 

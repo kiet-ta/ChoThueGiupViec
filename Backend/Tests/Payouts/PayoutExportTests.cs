@@ -260,7 +260,7 @@ public class PayoutExportTests
     {
         var type = typeof(AdminPayoutExportController);
         Assert.Equal("AdminOnly", type.GetCustomAttribute<AuthorizeAttribute>()!.Policy);
-        Assert.Equal("api/v1/admin/payout-batches/{batchId:int}/export", type.GetCustomAttribute<RouteAttribute>()!.Template);
+        Assert.Equal("api/v1/admin/payout-batches/{batchId:int}/file", type.GetCustomAttribute<RouteAttribute>()!.Template);
 
         var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
         Assert.All(methods, m => Assert.Null(m.GetCustomAttribute<AllowAnonymousAttribute>()));

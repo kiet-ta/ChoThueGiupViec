@@ -44,7 +44,8 @@ class RebookAvailabilitySource implements IRebookAvailabilitySource {
   @override
   Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
     final response = await _client.get<Set<String>>(
-      '/api/v1/booking/orders/$orderId/workers/$workerId/availability',
+      '/api/v1/workers/$workerId/availability',
+      queryParams: {'orderId': '$orderId'},
       fromJson: (json) => {
         for (final item in json as List)
           freeShiftKey(

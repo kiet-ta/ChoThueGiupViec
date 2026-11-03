@@ -86,7 +86,7 @@ class AuthService {
     return out;
   }
 
-  /// Creates the profile of a new worker (`POST /api/v1/workers/register`, anonymous, with the registration token the OTP step stored).
+  /// Creates the profile of a new worker (`POST /api/v1/workers`, anonymous, with the registration token the OTP step stored).
   /// The answer carries no tokens: the worker signs in again afterwards. Throws [ApiException] (400 field errors, 409 already registered).
   Future<void> registerWorker({
     required String fullName,
@@ -108,7 +108,7 @@ class AuthService {
     await apiRequest(
       _client,
       'POST',
-      Uri.parse('$baseUrl/api/v1/workers/register'),
+      Uri.parse('$baseUrl/api/v1/workers'),
       body: {
         'registrationToken': token,
         'fullName': fullName.trim(),

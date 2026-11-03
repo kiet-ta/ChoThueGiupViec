@@ -70,7 +70,7 @@ Aggregation (PRD §5.2, one table, 0 JOIN): select `JOB_ASSIGNMENT` rows with `a
 
 ### 2.3 Bank export (BE-M6-05, WEB-M6-03)
 
-**`GET /api/v1/admin/payout-batches/{batchId}/export?type=freelancer|agency-summary|agency-detail`** -> 200 **file** (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment`). This is the only response that is not the JSON envelope (Q18). Errors still use the envelope. 400 for an unknown `type`; 404 if missing.
+**`GET /api/v1/admin/payout-batches/{batchId}/file?type=freelancer|agency-summary|agency-detail`** -> 200 **file** (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment`). This is the only response that is not the JSON envelope (Q18). Errors still use the envelope. 400 for an unknown `type`; 404 if missing.
 
 | `type` | Columns (Q18) |
 |---|---|

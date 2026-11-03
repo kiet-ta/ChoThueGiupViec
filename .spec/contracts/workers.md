@@ -56,7 +56,7 @@
 
 ### 2.1 Worker Registration & Profile
 
-#### 2.1.1 `POST /api/v1/workers/register` (Anonymous with `registrationToken`)
+#### 2.1.1 `POST /api/v1/workers` (Anonymous with `registrationToken`)
 Registers a new Freelancer worker profile after phone OTP verification (`identity.md` §2.2 O1).
 
 **Headers:**
@@ -280,15 +280,13 @@ Returns active blocked availability slots for the specified date range.
 
 ---
 
-#### 2.3.2 `POST /api/v1/workers/me/slots/toggle` (WorkerOnly)
-Enables or disables an availability slot for a given date and shift.
+#### 2.3.2 `PUT /api/v1/workers/me/slots/{slotDate}/{shiftCode}` (WorkerOnly)
+Sets an availability slot for a date (`yyyy-MM-dd`) and shift (`SHIFT_MORNING`, `SHIFT_AFTERNOON`, `SHIFT_EVENING`) to enabled or disabled. It is an upsert by (date, shift): the slot is created when it does not exist yet (REFACTOR-03, #587).
 
 **Request Body:**
 ```json
 {
-  "slotDate": "2026-10-09",
-  "shiftCode": "SHIFT_MORNING",
-  "isActive": true
+  "enabled": true
 }
 ```
 
@@ -296,7 +294,7 @@ Enables or disables an availability slot for a given date and shift.
 
 **Rules:**
 - Table `BOOKING_SLOT` has `UNIQUE(worker_id, slot_date, shift_code)`.
-- Operation is idempotent (double clicks / concurrent requests return existing slot state safely without duplicate row errors).
+- `enabled: true` -> `AVAILABLE`, `enabled: false` -> `BLOCKED`. Operation is idempotent (double clicks / concurrent requests return existing slot state safely without duplicate row errors).
 - The toggle only moves `AVAILABLE <-> BLOCKED`. A slot owned by Dispatch (`HELD` by an offer or agency hold, `BOOKED` by an assignment) is refused with **409 `SLOT_IN_USE`** and keeps its status (#398).
 
 #### 2.3.3 `GET /api/v1/workers/me/assignments` (WorkerOnly)

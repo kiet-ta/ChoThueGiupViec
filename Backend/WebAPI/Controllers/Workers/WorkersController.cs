@@ -24,7 +24,7 @@ public class WorkersController(
     IWorkerExtensionService extensions) : ControllerBase
 {
     /// <summary>Registers a new Freelancer profile using a single-purpose registration token (contract §2.1.1).</summary>
-    [HttpPost("register")]
+    [HttpPost]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<WorkerProfileResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -177,17 +177,22 @@ public class WorkersController(
         return Ok(result);
     }
 
-    /// <summary>Enables or disables an availability slot for a given date and shift (contract §2.3.2).</summary>
-    [HttpPost("me/slots/toggle")]
+    /// <summary>
+    /// Sets an availability slot of the worker for a date and shift to enabled or disabled; the slot is created when it does not exist
+    /// yet (an upsert, so repeating the call changes nothing) (contract §2.3.2).
+    /// </summary>
+    [HttpPut("me/slots/{slotDate}/{shiftCode}")]
     [Authorize(Policy = "WorkerOnly")]
     [ProducesResponseType(typeof(ApiResponse<BookingSlotResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> ToggleSlot(
-        [FromBody] ToggleBookingSlotRequest request,
+    public async Task<IActionResult> PutSlot(
+        DateOnly slotDate,
+        string shiftCode,
+        [FromBody] PutBookingSlotBody body,
         CancellationToken ct)
     {
-        var result = await slots.ToggleAsync(request, ct);
+        var result = await slots.ToggleAsync(new ToggleBookingSlotRequest(slotDate, shiftCode, body.Enabled), ct);
         return Ok(result);
     }
 
@@ -320,5 +325,8 @@ public class WorkersController(
         return Ok(result);
     }
 }
+
+/// <summary>Body of <c>PUT /api/v1/workers/me/slots/{slotDate}/{shiftCode}</c>: the wanted state of the slot.</summary>
+public record PutBookingSlotBody(bool Enabled);
 
 
