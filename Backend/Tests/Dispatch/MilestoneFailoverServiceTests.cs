@@ -686,7 +686,7 @@ public class MilestoneFailoverServiceTests
         Assert.DoesNotContain(agencyService.Requests, r => r.ShiftCode == "SANG");
     }
 
-    [Fact(Skip = "Production defect in MilestoneFailoverService.cs:350-353 (criterion 3c of #443); fix needs Scope exception #455. Remove Skip with that fix.")]
+    [Fact]
     public async Task EmergencyRescue_WithoutAShiftCodeOnSlotOrOrder_DoesNotReserveCapacityForAnInventedShift()
     {
         var (service, repo, clock, mediator, agencyService, _, _) = CreateTestRig();

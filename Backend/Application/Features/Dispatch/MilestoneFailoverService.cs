@@ -349,6 +349,21 @@ public class MilestoneFailoverService
         // Fix: derive shiftCode from slot or order; do not hardcode "SANG"
         var shiftCode = slot?.ShiftCode ?? order?.ShiftCode;
 
+        // Criterion 3c of #443: neither the slot nor the order has the code, so no capacity is reserved for an invented shift.
+        if (string.IsNullOrEmpty(shiftCode))
+        {
+            _logger.LogWarning(
+                "Emergency rescue of assignment {AssignmentId} refused: neither slot nor order has a shift code (reason: {Reason}).",
+                originalAssignment.AssignmentId, reason);
+            return new MilestoneFailoverResult
+            {
+                Success = false,
+                AssignmentId = originalAssignment.AssignmentId,
+                Status = FailoverStatus.RescueFailed,
+                Message = "Không xác định được ca làm của đơn (thiếu mã ca trên slot và đơn), không thể cứu hộ khẩn cấp."
+            };
+        }
+
         // Step 1: Try finding another Agency via IAgencyCapacityService
         var capacityReq = new CapacityRequest(date, shiftCode, RequiredWorkers: 1, OrderId: originalAssignment.OrderId);
         var reservation = await _agencyCapacityService.TryReserveAsync(capacityReq, cancellationToken);
