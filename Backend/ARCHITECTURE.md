@@ -197,6 +197,7 @@ HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → Respon
 - Agents must not print, hardcode, or commit secrets, connection strings, tokens or certificates.
 
 ## 7. Build / run / test
+- Economy order creation checks the existing freelancer availability query at the last configured dispatch radius (10 km if empty) and returns `FULLY_BOOKED` before writing when no candidate is found; this is a precheck, not a reservation.
 ```
 dotnet restore
 dotnet build

@@ -327,7 +327,12 @@ public class M2AcceptanceTests
 
         public PricingService Pricing() => new(new DefaultPrices());
 
-        public OrderCreationService OrderCreation() => new(Addresses, Pricing(), Db, Capacity, Db, Clock, _rules);
+        public OrderCreationService OrderCreation()
+        {
+            var availability = new FakeWorkerAvailabilityQuery();
+            availability.Workers.Add(new AvailableWorker(1, 1, 1.0));
+            return new(Addresses, Pricing(), Db, Capacity, Db, Clock, _rules, availability);
+        }
 
         public PaymentQrService Qr() => new(Db, Gateway, Db, Clock, _rules);
 
