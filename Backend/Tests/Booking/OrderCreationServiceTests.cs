@@ -99,14 +99,28 @@ public class OrderCreationServiceTests
         public InMemoryOrders Orders { get; } = new();
         public FakeCustomerAddressQuery Addresses { get; } = new();
         public FakeAgencyCapacityService Capacity { get; } = new();
+        public RecordingAvailability Availability { get; } = new();
+        public BusinessRules Rules { get; } = new();
         public DateTime NowUtc { get; set; } = Now;
 
         public Fixture(decimal areaM2 = 50m) =>
             Addresses.Add(CustomerId, new CustomerAddressInfo(AddressId, areaM2, 10.76m, 106.66m));
 
         public OrderCreationService Service(ICustomerFavoriteQuery? favorites = null, IOrderTrackingQuery? tracking = null) =>
-            new(Addresses, new StubPricing(), Orders, Capacity, Orders, new VietnamClock(NowUtc), Microsoft.Extensions.Options.Options.Create(new BusinessRules()),
-                favorites, tracking);
+            new(Addresses, new StubPricing(), Orders, Capacity, Orders, new VietnamClock(NowUtc), Microsoft.Extensions.Options.Options.Create(Rules),
+                Availability, favorites, tracking);
+    }
+
+    private class RecordingAvailability : IWorkerAvailabilityQuery
+    {
+        public List<AvailableWorker> Workers { get; } = [new(42, 11, 1.0)];
+        public List<AvailabilityQuery> Queries { get; } = [];
+
+        public Task<IReadOnlyList<AvailableWorker>> FindAvailableFreelancersAsync(AvailabilityQuery query, CancellationToken cancellationToken = default)
+        {
+            Queries.Add(query);
+            return Task.FromResult<IReadOnlyList<AvailableWorker>>(Workers);
+        }
     }
 
     /// <summary>The customer's favorites, as the Customers module would answer through the port.</summary>
@@ -160,6 +174,71 @@ public class OrderCreationServiceTests
 
     private static async Task<BusinessRuleViolationException> ConflictAsync(Task task) =>
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() => task);
+
+    [Fact]
+    public async Task Economy_WithoutAvailableFreelancers_IsFullyBookedAndWritesNothing()
+    {
+        var f = new Fixture();
+        f.Availability.Workers.Clear();
+
+        var error = await ConflictAsync(f.Service().CreateAsync(Request()));
+
+        Assert.Equal(BookingErrorCodes.FullyBooked, error.Code);
+        Assert.Equal("No freelancer is available for this shift near the address.", error.Message);
+        Assert.Empty(f.Orders.Saved);
+        var query = Assert.Single(f.Availability.Queries);
+        Assert.Equal(ShiftDate, query.Date);
+        Assert.Equal(BookingShifts.Morning, query.ShiftCode);
+        Assert.Equal(new GeoPoint(10.76, 106.66), query.Location);
+        Assert.Equal(10.0, query.RadiusKm);
+        Assert.Equal(1, query.Limit);
+    }
+
+    [Fact]
+    public async Task Economy_OneAvailableFreelancer_AllowsEvenTwoWorkerOrder()
+    {
+        var f = new Fixture(90m);
+
+        var order = await f.Service().CreateAsync(Request());
+
+        Assert.Equal(2, order.RequiredWorkers);
+        Assert.Single(f.Orders.Saved);
+        Assert.Single(f.Availability.Queries);
+    }
+
+    [Fact]
+    public async Task Economy_UsesLastConfiguredRadius_OrTenWhenEmpty()
+    {
+        var configured = new Fixture();
+        configured.Rules.Dispatch.RadiusStepsKm = [3, 12];
+        await configured.Service().CreateAsync(Request());
+        Assert.Equal(12, Assert.Single(configured.Availability.Queries).RadiusKm);
+
+        var empty = new Fixture();
+        empty.Rules.Dispatch.RadiusStepsKm = [];
+        await empty.Service().CreateAsync(Request());
+        Assert.Equal(10, Assert.Single(empty.Availability.Queries).RadiusKm);
+    }
+
+    [Fact]
+    public async Task Economy_UnavailableFavorite_DoesNotBlockAnotherAvailableFreelancer()
+    {
+        var f = new Fixture();
+        await f.Service(new StubFavorites(77)).CreateAsync(Request(preferredWorkerId: 77));
+        Assert.Equal(77, Assert.Single(f.Orders.Saved).PreferredWorkerId);
+    }
+
+    [Fact]
+    public async Task Premium_SkipsFreelancerAvailability()
+    {
+        var f = new Fixture();
+        f.Availability.Workers.Clear();
+
+        var order = await f.Service().CreateAsync(Request(ServiceTier.Premium));
+
+        Assert.Equal(JobOrderStatus.PendingPayment, order.OrderStatus);
+        Assert.Empty(f.Availability.Queries);
+    }
 
     [Fact]
     public async Task Economy_CreatesAPendingPaymentOrder_WithTheFrozenPriceAndShiftTimes()
