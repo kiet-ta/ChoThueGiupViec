@@ -98,15 +98,7 @@ export const agenciesApi = {
   // WEB-M5-07 worker list and retire (AGENCY-UAT-03)
   workers: (page: number, pageSize: number, status?: string) =>
     apiClient.get<AgencyWorkerListResponse>('/agencies/workers', { query: { page, pageSize, status } }),
-  /** Returns the response directly for 409 codes that carry data (FUTURE_JOBS_NEED_REPLACEMENT, SLOT_HELD, QUOTA_EXCEEDED, etc.). */
-  async retireWorker(workerId: number, body: RetireWorkerRequest): Promise<RetireWorkerResponse> {
-    try {
-      return await apiClient.post<RetireWorkerResponse>(`/agencies/workers/${workerId}/retire`, body)
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409 && e.data && typeof e.data === 'object') {
-        return e.data as RetireWorkerResponse
-      }
-      throw e
-    }
-  },
+  /** Retire an agency worker (contract 9.2). Only a 2xx is an answer; 400/404/409 throw ApiError and the page shows the server message. */
+  retireWorker: (workerId: number, body: RetireWorkerRequest) =>
+    apiClient.post<RetireWorkerResponse>(`/agencies/workers/${workerId}/retire`, body),
 }

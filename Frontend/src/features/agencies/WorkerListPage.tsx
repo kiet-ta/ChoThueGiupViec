@@ -5,12 +5,33 @@ import { useResource } from '@/hooks/use-resource'
 import { agenciesApi, PAGE_SIZE } from './api'
 import { useAction } from './actions'
 import { Alert, PageHeader, Panel } from './shared'
-import type { AgencyWorkerItem, RetireWorkerRequest, FutureJobInfo } from './types'
-import { workStatusLabel, canRetire, newWorkerProblems, buildRetireDialogState, type RetireDialogState } from './view'
+import type { AgencyWorkerItem } from './types'
+import {
+  buildRetireDialogState,
+  canRetire,
+  firstRetireRequest,
+  futureJobText,
+  newWorkerProblems,
+  replacementCandidates,
+  retireFailureText,
+  retireRequestFor,
+  workStatusLabel,
+  type NewWorkerForm,
+  type RetireChoice,
+  type RetireDialogState,
+} from './view'
 
 type Row = AgencyWorkerItem & { statusText: string; canRetire: boolean }
 
-/** WEB-M5-07: Partner Portal worker list, retire and replace (AGENCY-UAT-03). */
+/** `pageSize` of the replacement picker (contract 9.1 allows 1-100). */
+const PICKER_SIZE = 100
+
+const EMPTY_FORM: NewWorkerForm = { fullName: '', phoneNumber: '', nationalId: '', bankName: '', bankAccountNo: '' }
+
+/** What the dialog is on: `ask` (before any call) or the state built from the server's answer. */
+type Dialog = 'ask' | RetireDialogState
+
+/** WEB-M5-07 / AGENCY-FIX-02: Partner Portal worker list, retire and replace (contract agencies.md 9.1-9.2). */
 export function WorkerListPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
@@ -19,22 +40,20 @@ export function WorkerListPage() {
     [page, statusFilter]
   )
 
-  // Retire dialog state
-  const [dialogState, setDialogState] = useState<RetireDialogState | null>(null)
-  const [selectedWorker, setSelectedWorker] = useState<AgencyWorkerItem | null>(null)
-  const [replacementType, setReplacementType] = useState<'existing' | 'new' | 'rescue'>('existing')
-  const [existingWorkerId, setExistingWorkerId] = useState<number | null>(null)
-  const [newWorkerForm, setNewWorkerForm] = useState({
-    fullName: '',
-    phoneNumber: '',
-    nationalId: '',
-    bankName: '',
-    bankAccountNo: '',
-  })
-  const [newWorkerErrors, setNewWorkerErrors] = useState<string[]>([])
-  const [confirmRescue, setConfirmRescue] = useState(false)
+  const [target, setTarget] = useState<AgencyWorkerItem | null>(null)
+  const [dialog, setDialog] = useState<Dialog | null>(null)
+  const [choiceType, setChoiceType] = useState<RetireChoice['type']>('existing')
+  const [existingId, setExistingId] = useState<number | null>(null)
+  const [form, setForm] = useState<NewWorkerForm>(EMPTY_FORM)
+  const [formProblems, setFormProblems] = useState<string[]>([])
+  const [candidates, setCandidates] = useState<AgencyWorkerItem[]>([])
 
-  const retire = useAction()
+  const retire = useAction(retireFailureText)
+  const picker = useAction()
+
+  const rows: Row[] = workers.data
+    ? workers.data.items.map((w) => ({ ...w, statusText: workStatusLabel(w.workStatus), canRetire: canRetire(w.workStatus) }))
+    : []
 
   const columns: Column<Row>[] = [
     { id: 'workerId', header: 'ID', cell: (r) => <span className="tabular-nums">#{r.workerId}</span> },
@@ -51,99 +70,82 @@ export function WorkerListPage() {
       header: '',
       cell: (r) =>
         r.canRetire ? (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => handleRetireClick(r)}
-            disabled={retire.busy}
-          >
+          <Button variant="destructive" size="sm" onClick={() => openFor(r)} disabled={retire.busy}>
             Ngừng
           </Button>
         ) : null,
     },
   ]
 
-  const rows: Row[] = workers.data
-    ? workers.data.items.map((w) => ({
-        ...w,
-        statusText: workStatusLabel(w.workStatus),
-        canRetire: canRetire(w.workStatus),
-      }))
-    : []
-
-  function handleRetireClick(worker: AgencyWorkerItem) {
-    setSelectedWorker(worker)
-    setDialogState(null)
-    setReplacementType('existing')
-    setExistingWorkerId(null)
-    setNewWorkerForm({ fullName: '', phoneNumber: '', nationalId: '', bankName: '', bankAccountNo: '' })
-    setNewWorkerErrors([])
-    setConfirmRescue(false)
+  function openFor(worker: AgencyWorkerItem) {
+    setTarget(worker)
+    setDialog('ask')
+    setChoiceType('existing')
+    setExistingId(null)
+    setForm(EMPTY_FORM)
+    setFormProblems([])
+    retire.setError(null)
   }
 
-  async function handleRetireSubmit() {
-    if (!selectedWorker) return
+  function close() {
+    setTarget(null)
+    setDialog(null)
+  }
 
-    const body: RetireWorkerRequest = {}
-    if (selectedWorker.futureAssignedJobs > 0) {
-      if (replacementType === 'existing' && existingWorkerId) {
-        body.replacement = { existingWorkerId }
-      } else if (replacementType === 'new') {
-        const problems = newWorkerProblems(newWorkerForm)
-        if (problems.length > 0) {
-          setNewWorkerErrors(problems)
-          return
-        }
-        body.replacement = {
-          newWorker: {
-            fullName: newWorkerForm.fullName.trim(),
-            phoneNumber: newWorkerForm.phoneNumber.trim(),
-            nationalId: newWorkerForm.nationalId.trim(),
-            bankName: newWorkerForm.bankName?.trim() || undefined,
-            bankAccountNo: newWorkerForm.bankAccountNo?.trim() || undefined,
-          },
-        }
-      } else {
-        // No replacement, need confirmRescue
-        body.confirmRescue = confirmRescue
-      }
-    }
-
-    const response = await retire.run(() => agenciesApi.retireWorker(selectedWorker.workerId, body))
-    if (response) {
-      const state = buildRetireDialogState(response)
-      setDialogState(state)
+  /** Shows the server's answer; the preview also loads the workers that can take over. */
+  async function show(response: Awaited<ReturnType<typeof agenciesApi.retireWorker>> | undefined) {
+    if (!response) return
+    const state = buildRetireDialogState(response)
+    setDialog(state)
+    if (state.kind === 'choose') {
+      const list = await picker.run(() => agenciesApi.workers(1, PICKER_SIZE))
+      setCandidates(list ? replacementCandidates(list.items, response.workerId) : [])
+    } else {
       workers.reload()
     }
   }
 
-  function handleDialogConfirm() {
-    if (!dialogState) return
-    // If we need rescue confirmation, we set confirmRescue=true and resubmit
-    if (dialogState.needsRescueConfirm) {
-      setConfirmRescue(true)
-      handleRetireSubmit()
-    } else {
-      // Success, close dialog
-      setDialogState(null)
-      setSelectedWorker(null)
+  /** The first call carries no replacement and no `confirmRescue`. */
+  async function sendFirst() {
+    if (!target) return
+    await show(await retire.run(() => agenciesApi.retireWorker(target.workerId, firstRetireRequest())))
+  }
+
+  async function sendChoice() {
+    if (!target) return
+    const choice: RetireChoice =
+      choiceType === 'existing' ? { type: 'existing', workerId: existingId } : choiceType === 'new' ? { type: 'new', form } : { type: 'rescue' }
+    const body = retireRequestFor(choice)
+    if (!body) {
+      setFormProblems(choiceType === 'new' ? newWorkerProblems(form) : ['Hãy chọn thợ thay.'])
+      return
     }
+    setFormProblems([])
+    await show(await retire.run(() => agenciesApi.retireWorker(target.workerId, body)))
   }
 
-  function handleDialogCancel() {
-    setDialogState(null)
-    setSelectedWorker(null)
-  }
+  const field = (label: string, key: keyof NewWorkerForm) => (
+    <label className="flex flex-col gap-1 text-sm">
+      {label}
+      <input
+        value={form[key]}
+        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+        className="rounded-lg border border-border bg-background p-2"
+      />
+    </label>
+  )
 
-  // If dialogState has needsRescueConfirm, show the confirmation dialog
-  // Otherwise if it has a code/message, show error dialog
-  // Otherwise if it has warning, show success dialog
-  const showDialog = dialogState !== null
+  const radio = (type: RetireChoice['type'], text: string) => (
+    <label className="flex items-center gap-2 text-sm">
+      <input type="radio" name="retire-choice" checked={choiceType === type} onChange={() => setChoiceType(type)} />
+      {text}
+    </label>
+  )
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader eyebrow="Đối tác · Nhân sự" title="Danh sách thợ">
-        Quản lý thợ của doanh nghiệp. Thợ đã ngừng không khôi phục; SĐT và CCCD vẫn bị giữ.
+        Quản lý thợ của doanh nghiệp. Thợ đã ngừng không khôi phục được; số điện thoại và CCCD vẫn được giữ lại.
       </PageHeader>
 
       {workers.error && <Alert>{workers.error}</Alert>}
@@ -183,174 +185,113 @@ export function WorkerListPage() {
         }
       />
 
-      {showDialog && selectedWorker && (
-        <Panel title={dialogState?.needsRescueConfirm ? 'Xác nhận cứu hộ khẩn cấp' : dialogState?.response.code ? 'Không thể ngừng thợ' : 'Ngừng thợ thành công'}>
-          <p className="mb-4">{dialogState!.message}</p>
+      {target && dialog === 'ask' && (
+        <Panel title={`Ngừng thợ #${target.workerId} — ${target.fullName}`}>
+          <p className="mb-4 text-sm">
+            Thợ đã ngừng không khôi phục được; số điện thoại và CCCD vẫn được giữ lại. Nếu thợ còn ca sắp tới, bước sau sẽ cho bạn chọn thợ thay.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="destructive" onClick={sendFirst} disabled={retire.busy}>
+              {retire.busy ? 'Đang xử lý…' : 'Tiếp tục'}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={close} disabled={retire.busy}>
+              Hủy
+            </Button>
+          </div>
+          {retire.error && (
+            <div className="mt-3">
+              <Alert>{retire.error}</Alert>
+            </div>
+          )}
+        </Panel>
+      )}
 
-          {dialogState?.response.futureJobs.length > 0 && (
-            <div className="mb-4 space-y-2">
-              <p className="font-medium text-sm">Ca sắp tới ({dialogState!.response.futureJobs.length}):</p>
-              <ul className="list-disc pl-5 text-sm space-y-1">
-                {dialogState!.response.futureJobs.map((job: FutureJobInfo) => (
-                  <li key={job.assignmentId}>
-                    #{job.assignmentId} — {job.slotDate} — {job.shiftCode}
-                  </li>
-                ))}
-              </ul>
+      {target && dialog && dialog !== 'ask' && dialog.kind === 'choose' && (
+        <Panel title="Thợ còn ca sắp tới">
+          <p className="mb-3 text-sm">{dialog.message}</p>
+          <ul className="mb-4 list-disc space-y-1 pl-5 text-sm">
+            {dialog.jobs.map((job) => (
+              <li key={job.assignmentId}>{futureJobText(job)}</li>
+            ))}
+          </ul>
+
+          <div className="mb-4 space-y-3">
+            {radio('existing', 'Chọn thợ thay có sẵn')}
+            {choiceType === 'existing' && (
+              <label className="ml-6 flex flex-col gap-1 text-sm">
+                Thợ thay
+                <select
+                  value={existingId ?? ''}
+                  onChange={(e) => setExistingId(e.target.value ? Number(e.target.value) : null)}
+                  className="rounded-lg border border-border bg-background p-2"
+                >
+                  <option value="">-- Chọn thợ --</option>
+                  {candidates.map((w) => (
+                    <option key={w.workerId} value={w.workerId}>
+                      #{w.workerId} — {w.fullName} ({workStatusLabel(w.workStatus)})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {radio('new', 'Tạo thợ thay mới')}
+            {choiceType === 'new' && (
+              <div className="ml-6 space-y-2">
+                {field('Họ tên', 'fullName')}
+                {field('Số điện thoại (10 số, bắt đầu bằng 0)', 'phoneNumber')}
+                {field('CCCD (12 số)', 'nationalId')}
+                {field('Tên ngân hàng (tùy chọn)', 'bankName')}
+                {field('Số tài khoản (tùy chọn, 6-30 số)', 'bankAccountNo')}
+              </div>
+            )}
+
+            {radio('rescue', 'Không có thợ thay: chuyển cứu hộ khẩn cấp, doanh nghiệp bị phạt SLA')}
+          </div>
+
+          {formProblems.length > 0 && (
+            <div className="mb-3 space-y-1 text-sm text-destructive">
+              {formProblems.map((p) => (
+                <div key={p}>{p}</div>
+              ))}
             </div>
           )}
 
-          {dialogState?.needsRescueConfirm && !confirmRescue && (
-            <>
-              <div className="mb-4 space-y-3">
-                <p className="font-medium text-sm">Chọn cách xử lý:</p>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    id="replacement-existing"
-                    name="replacement-type"
-                    value="existing"
-                    checked={replacementType === 'existing'}
-                    onChange={() => setReplacementType('existing')}
-                    className="rounded border-border text-primary"
-                  />
-                  <label htmlFor="replacement-existing" className="text-sm">
-                    Chọn thợ thay có sẵn
-                  </label>
-                </div>
-                {replacementType === 'existing' && (
-                  <div className="ml-6 space-y-2">
-                    <label className="flex flex-col gap-1 text-sm">
-                      Thợ thay (ID)
-                      <select
-                        value={existingWorkerId ?? ''}
-                        onChange={(e) => setExistingWorkerId(e.target.value ? Number(e.target.value) : null)}
-                        className="rounded-lg border border-border bg-background p-2"
-                      >
-                        <option value="">-- Chọn thợ --</option>
-                        {rows
-                          .filter((r) => r.workerId !== selectedWorker!.workerId && canRetire(r.workStatus))
-                          .map((r) => (
-                            <option key={r.workerId} value={r.workerId}>
-                              #{r.workerId} — {r.fullName} ({r.statusText})
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    id="replacement-new"
-                    name="replacement-type"
-                    value="new"
-                    checked={replacementType === 'new'}
-                    onChange={() => setReplacementType('new')}
-                    className="rounded border-border text-primary"
-                  />
-                  <label htmlFor="replacement-new" className="text-sm">
-                    Tạo thợ thay mới
-                  </label>
-                </div>
-                {replacementType === 'new' && (
-                  <div className="ml-6 space-y-2">
-                    <label className="flex flex-col gap-1 text-sm">
-                      Họ tên
-                      <input
-                        value={newWorkerForm.fullName}
-                        onChange={(e) => setNewWorkerForm({ ...newWorkerForm, fullName: e.target.value })}
-                        className="rounded-lg border border-border bg-background p-2"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      Số điện thoại (10 số, bắt đầu bằng 0)
-                      <input
-                        value={newWorkerForm.phoneNumber}
-                        onChange={(e) => setNewWorkerForm({ ...newWorkerForm, phoneNumber: e.target.value })}
-                        className="rounded-lg border border-border bg-background p-2"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      CCCD (12 số)
-                      <input
-                        value={newWorkerForm.nationalId}
-                        onChange={(e) => setNewWorkerForm({ ...newWorkerForm, nationalId: e.target.value })}
-                        className="rounded-lg border border-border bg-background p-2"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      Tên ngân hàng (tùy chọn)
-                      <input
-                        value={newWorkerForm.bankName}
-                        onChange={(e) => setNewWorkerForm({ ...newWorkerForm, bankName: e.target.value })}
-                        className="rounded-lg border border-border bg-background p-2"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      Số tài khoản (tùy chọn, 6-30 số)
-                      <input
-                        value={newWorkerForm.bankAccountNo}
-                        onChange={(e) => setNewWorkerForm({ ...newWorkerForm, bankAccountNo: e.target.value })}
-                        className="rounded-lg border border-border bg-background p-2"
-                      />
-                    </label>
-                    {newWorkerErrors.length > 0 && (
-                      <div className="text-sm text-destructive space-y-1">
-                        {newWorkerErrors.map((err, i) => (
-                          <div key={i}>{err}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    id="replacement-rescue"
-                    name="replacement-type"
-                    value="rescue"
-                    checked={replacementType === 'rescue'}
-                    onChange={() => setReplacementType('rescue')}
-                    className="rounded border-border text-primary"
-                  />
-                  <label htmlFor="replacement-rescue" className="text-sm">
-                    Không có thợ thay — xác nhận chuyển cứu hộ khẩn cấp (có phạt SLA)
-                  </label>
-                </div>
-              </div>
-            </>
-          )}
-
-          {dialogState?.response.code && !dialogState?.needsRescueConfirm && (
-            <p className="text-sm text-destructive">{dialogState!.message}</p>
-          )}
-
-          {dialogState?.response.warning && !dialogState?.response.code && !dialogState?.needsRescueConfirm && (
-            <Alert tone="info">{dialogState!.response.warning}</Alert>
-          )}
-
-          <div className="mt-4 flex gap-2">
-            {dialogState?.needsRescueConfirm && !confirmRescue ? (
-              <>
-                <Button size="sm" onClick={() => handleDialogConfirm()} disabled={retire.busy}>
-                  {retire.busy ? 'Đang xử lý…' : 'Tiếp tục'}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleDialogCancel}>
-                  Hủy
-                </Button>
-              </>
-            ) : (
-              <Button variant="ghost" size="sm" onClick={handleDialogCancel}>
-                Đóng
-              </Button>
-            )}
+          <div className="flex gap-2">
+            <Button size="sm" variant={choiceType === 'rescue' ? 'destructive' : 'default'} onClick={sendChoice} disabled={retire.busy}>
+              {retire.busy ? 'Đang xử lý…' : choiceType === 'rescue' ? 'Xác nhận cứu hộ khẩn cấp' : 'Ngừng thợ và giao ca'}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={close} disabled={retire.busy}>
+              Hủy
+            </Button>
           </div>
+          {retire.error && (
+            <div className="mt-3">
+              <Alert>{retire.error}</Alert>
+            </div>
+          )}
+          {picker.error && (
+            <div className="mt-3">
+              <Alert>{picker.error}</Alert>
+            </div>
+          )}
+        </Panel>
+      )}
 
-          {retire.error && <div className="mt-2"><Alert>{retire.error}</Alert></div>}
+      {target && dialog && dialog !== 'ask' && dialog.kind === 'done' && (
+        <Panel title={`Thợ #${target.workerId}: ${dialog.statusText}`}>
+          <p className="mb-3 text-sm">{dialog.message}</p>
+          {dialog.replacementWorkerId && <p className="mb-3 text-sm">Thợ thay: #{dialog.replacementWorkerId}</p>}
+          {dialog.jobs.length > 0 && (
+            <ul className="mb-3 list-disc space-y-1 pl-5 text-sm">
+              {dialog.jobs.map((job) => (
+                <li key={job.assignmentId}>{futureJobText(job)}</li>
+              ))}
+            </ul>
+          )}
+          <Button size="sm" variant="ghost" onClick={close}>
+            Đóng
+          </Button>
         </Panel>
       )}
     </div>
