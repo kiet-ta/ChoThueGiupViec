@@ -121,7 +121,7 @@ public class DatabaseSeederTests
     }
 
     [Fact]
-    public async Task DefaultDataSeeder_seeds_Q01_prices_Q08_packages_and_sample_skills()
+    public async Task DefaultDataSeeder_seeds_Q01_prices_Q08_packages()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -173,24 +173,15 @@ public class DatabaseSeederTests
         Assert.True(proQuarterly.HasAnalytics);
         Assert.True(proQuarterly.PriorityDispatch);
 
-        // Verify sample skills
-        var skills = await context.Skills.ToListAsync();
-        Assert.True(skills.Count >= 4, "Expected at least 4 sample Skill rows");
-        Assert.Contains(skills, s => s.SkillCode == "CLEAN_BASIC");
-        Assert.Contains(skills, s => s.SkillCode == "DEEP_CLEAN");
-        Assert.Contains(skills, s => s.SkillCode == "IRONING");
-        Assert.Contains(skills, s => s.SkillCode == "COOKING");
 
         // Idempotency: run second time and verify no counts change
         var priceRulesCountBefore = priceRules.Count;
         var packagesCountBefore = packages.Count;
-        var skillsCountBefore = skills.Count;
 
         await seeder.SeedAsync(context);
 
         Assert.Equal(priceRulesCountBefore, await context.PriceRules.CountAsync());
         Assert.Equal(packagesCountBefore, await context.SubscriptionPackages.CountAsync());
-        Assert.Equal(skillsCountBefore, await context.Skills.CountAsync());
     }
 
     [Fact]

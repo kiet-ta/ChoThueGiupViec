@@ -17,7 +17,7 @@ public class AppDbContextModelTests
     }
 
     [Fact]
-    public void Model_Contains_All_27_Tables()
+    public void Model_Contains_All_25_Tables()
     {
         using var context = CreateContext();
         var model = context.Model;
@@ -46,11 +46,9 @@ public class AppDbContextModelTests
             "PAYOUT_ITEM",
             "PRICE_RULE",
             "REFRESH_TOKEN",
-            "SKILL",
             "SUBSCRIPTION_PACKAGE",
             "TWO_WAY_RATING",
-            "WORKER",
-            "WORKER_SKILL"
+            "WORKER"
         };
 
         var actualTables = model.GetEntityTypes()
@@ -60,7 +58,7 @@ public class AppDbContextModelTests
             .OrderBy(t => t)
             .ToList();
 
-        Assert.Equal(27, expectedTables.Length);
+        Assert.Equal(25, expectedTables.Length);
         foreach (var expected in expectedTables)
         {
             Assert.Contains(expected, actualTables);

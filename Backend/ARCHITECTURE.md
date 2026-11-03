@@ -15,7 +15,7 @@
 ```
 Program.cs                 Composition root: AddControllers, AddApplication, AddInfrastructure, Swagger, middleware
 Domain/                    Pure business model. NO dependency on other layers
-  Entities/                Customer, Worker, JobOrder, JobAssignment, etc. (27 domain entities)
+  Entities/                Customer, Worker, JobOrder, JobAssignment, etc. (25 domain entities)
   ValueObjects/            Email, Vnd (immutable, validated)
   Events/                  Domain events (OrderPaid, JobAssigned, etc.)
   Services/                Domain services - logic spanning multiple entities
@@ -62,8 +62,8 @@ Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInje
 - Already automatic, nothing to register: **controllers** (MVC scans the application assembly), **MediatR notification handlers** (`AddMediatR` scans the assembly in `Application/DependencyInjection.cs`), **validators** (`ValidationBehavior` validates the DataAnnotations of the remaining MediatR requests; a service validates its own input and throws `ValidationException`). A module's own services are registered in its `IModule.ConfigureServices`.
 - Tests: `Backend/Tests/Modularity/ModuleLoaderTests.cs` (a fake module in the test assembly resolves its service without touching `Program.cs`).
 
-### 2.4 Domain model (BASE-06): 27 entities, 3 state machines
-- **27 tables** = 22 of `GiupViec_Physical_DB_MVP5.drawio` + 5 of `.spec/decisions.md` section 3 (`PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN`), plus the added columns of SC-1 (`PARTNER_AGENCY` password/guarantee) and SC-8 (`failed_login_count`, `locked_until` on `ADMIN` and `PARTNER_AGENCY`). `TWO_WAY_RATING` UNIQUE (SC-5) is a persistence rule for BASE-07. The drawio title says "20 bảng" but the file contains 22 table cells (counted by script); the plan says 22.
+### 2.4 Domain model (BASE-06): 25 entities, 3 state machines
+- **25 tables** = 20 of `GiupViec_Physical_DB_MVP5.drawio` + 5 of `.spec/decisions.md` section 3 (`PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN`), plus the added columns of SC-1 (`PARTNER_AGENCY` password/guarantee) and SC-8 (`failed_login_count`, `locked_until` on `ADMIN` and `PARTNER_AGENCY`). `TWO_WAY_RATING` UNIQUE (SC-5) is a persistence rule for BASE-07. The drawio title says "20 bảng" but the file contains 22 table cells (counted by script); the plan says 22.
 - `Domain/Entities/<Entity>.cs`: `public partial class`, one scalar property per column (generated once from the drawio, then maintained by hand). **No navigation properties** (0-JOIN queries, PRD 5.2). Behaviour of a module is added in `<Entity>.<Module>.cs` partial files.
 - Types: `INT/BIGINT/TINYINT` -> `int/long/byte`, `DECIMAL` -> `decimal` (money = `DECIMAL(18,2)`, whole VND after rounding, decisions G-2), `DATETIME2` -> `DateTime` (UTC, G-3), `DATE/TIME` -> `DateOnly/TimeOnly`, `BIT` -> `bool`. `CustomerAddress.TotalAreaM2` is the computed `floor_area_m2 * num_floors`.
 - `Worker` is Single Table Inheritance: `WorkerType` and `AgencyId` have private setters and are set only by `Worker.CreateFreelancer` / `Worker.CreateAgencyStaff`, which enforces the drawio CHECK (freelancer has no agency, agency staff has one).
@@ -86,7 +86,7 @@ Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInje
 
 **Still persistence work for BASE-07:** the drawio CHECKs on `PAYMENT_TRANSACTION` (exactly one of order/extension/subscription) and `PAYOUT_ITEM` (payee type vs worker/agency) become database CHECK constraints; `DbEnum` value converters; UTC enforcement on every `DateTime` (G-3).
 
-The demo template classes were removed in BASE-09; all domain logic uses the 27 real MVP5 entities and modules.
+The demo template classes were removed in BASE-09; all domain logic uses the 25 real MVP5 entities and modules.
 
 ### 2.5 Cross-module ports (BASE-03)
 Modules never call each other: they use a **port** (interface + DTOs in `Application/Interfaces/Ports/`, namespace `CommonService.Application.Interfaces.Ports`) or a domain event. Every port has an in-memory **Fake** in `Infrastructure/Fakes/` registered by `AddFakePorts()` with `TryAdd`. `Infrastructure/DependencyInjection.cs` calls `AddModules(...)` first and `AddFakePorts()` **last**, so a real implementation registered by a module (`IModule.ConfigureServices`) wins and a port nobody implemented yet falls back to its Fake. Changing a port needs a "Scope exception" issue for M1.
@@ -207,7 +207,7 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 
 ### 7.1 Local database (SQL Server, BASE-07)
 - Provider: Microsoft SQL Server (Windows default instance: `localhost`, database: `ChoThueGiupViec`).
-- `AppDbContext` (`Infrastructure/Persistence/AppDbContext.cs`) implements all 27 tables of the MVP schema with `IEntityTypeConfiguration<T>` per entity.
+- `AppDbContext` (`Infrastructure/Persistence/AppDbContext.cs`) implements all 25 tables of the MVP schema with `IEntityTypeConfiguration<T>` per entity.
 - Connection string in `appsettings.Development.json`:
   `Server=localhost;Database=ChoThueGiupViec;Integrated Security=True;TrustServerCertificate=True;`
 - Connection string placeholder in `appsettings.json`:
@@ -227,7 +227,6 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - `DefaultDataSeeder` (`Infrastructure/Persistence/DefaultDataSeeder.cs`): seeds required reference data in **all** environments:
   - 6 `PRICE_RULE` rows (`decisions.md` §2 Q01)
   - 3 `SUBSCRIPTION_PACKAGE` rows (`FREE`, `PRO_MONTHLY`, `PRO_QUARTERLY`, `decisions.md` §2 Q08)
-  - 4 sample `SKILL` rows (catalog standard `CLEAN_BASIC`, `DEEP_CLEAN`, `IRONING`, `COOKING`)
 - `DatabaseSeederHostedService` (`Infrastructure/Modules/Identity/DatabaseSeederHostedService.cs`): registers as `IHostedService` in `IdentityModule` to execute the seeders on startup without touching `Program.cs`. Tests: `Tests/Persistence/DatabaseSeederTests.cs` and `Tests/Identity/Pbkdf2PasswordHasherTests.cs`.
 
 ### 7.2a Worker reputation (`IWorkerReputation`, BE-M6-01b)

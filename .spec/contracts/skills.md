@@ -1,5 +1,7 @@
 # Contract: Skills (module `Skills`, owner M5)
 
+> **RETIRED (REFACTOR-01, #580):** Skill matching was removed from the product (leader decision 2026-10-13, CONTEXT.md). The `Skill` / `WorkerSkill` entities, their EF configurations and the `SKILL` / `WORKER_SKILL` tables were removed (migration `RemoveSkillAndWorkerSkill`). Nothing below is to be implemented.
+
 > Status: **DRAFT — proposed for leader approval** (ticket BE-M5-00, issue #231). No endpoint in this document is approved for implementation until the leader approves this contract.
 > Sources: `.spec/spec.md` §1.3, §2.2, §2.7, §2.8, §5.3; `.spec/decisions.md` G-7, Q18, Q19, Q22; `.spec/plan/00-overview.md` §4–§6; `Backend/GiupViec_Physical_DB_MVP5.drawio` (`SKILL`, `WORKER_SKILL`); entities, EF configurations, and `Backend/Infrastructure/Persistence/Migrations/20261005133811_InitialCreate.cs` (`IX_WORKER_SKILL_skill_id`); `.spec/contracts/identity.md` §1.
 > Implements: BE-M5-04 and related Agency/Worker skill selection and lookup, after contract approval and required gates.

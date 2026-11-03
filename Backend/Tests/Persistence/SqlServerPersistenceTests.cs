@@ -35,7 +35,7 @@ public class SqlServerPersistenceTests
     }
 
     [Fact]
-    public async Task All_27_Tables_Exist_In_SqlServer()
+    public async Task All_25_Tables_Exist_In_SqlServer()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -75,11 +75,9 @@ public class SqlServerPersistenceTests
             "PAYOUT_ITEM",
             "PRICE_RULE",
             "REFRESH_TOKEN",
-            "SKILL",
             "SUBSCRIPTION_PACKAGE",
             "TWO_WAY_RATING",
-            "WORKER",
-            "WORKER_SKILL"
+            "WORKER"
         };
 
         foreach (var expected in expectedTables)

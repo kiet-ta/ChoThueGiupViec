@@ -41,11 +41,9 @@ public class AppDbContext : DbContext
     public DbSet<PayoutItem> PayoutItems => Set<PayoutItem>();
     public DbSet<PriceRule> PriceRules => Set<PriceRule>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-    public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<SubscriptionPackage> SubscriptionPackages => Set<SubscriptionPackage>();
     public DbSet<TwoWayRating> TwoWayRatings => Set<TwoWayRating>();
     public DbSet<Worker> Workers => Set<Worker>();
-    public DbSet<WorkerSkill> WorkerSkills => Set<WorkerSkill>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
