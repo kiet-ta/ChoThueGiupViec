@@ -144,7 +144,7 @@ After gate G0 these are **not edited by hand** by anyone except the M1 owner (mo
 `Program.cs`, `Application/DependencyInjection.cs`, `Infrastructure/DependencyInjection.cs`, the DbContext, `Migrations/**`, `appsettings*.json`, `Mobile/lib/app/**`, `Frontend/src/app/**`.
 Schema changes are made only by M1 (open a "Scope exception" issue). Modules talk to each other only through ports or domain events defined by M1 (BASE-03/04).
 
-Layer docs already exist: `Domain/Domain.md`, `Application/Application.md`, `Application/Features/Features.md`, `Infrastructure/Infrastructure.md`, `Middleware/Middleware.md`, `Tests/GoldenRule.md`, `BasicIntegrationTemplate.md` (template excluded from compile, see csproj), `document.md`.
+This file is the single architecture document: the per-layer markdown files and the integration template were removed (CLEANUP-01). The only other doc kept is `Tests/GoldenRule.md`.
 
 ## 3. Dependency rule
 ```
