@@ -22,6 +22,21 @@ enum DeviceLocationFailure {
   failed,
 }
 
+/// The words for a failure to read the position, for the screen that asked.
+String deviceLocationFailureText(
+  DeviceLocationFailure failure,
+) => switch (failure) {
+  DeviceLocationFailure.serviceDisabled =>
+    'Vị trí trên điện thoại đang tắt. Hãy bật vị trí rồi thử lại.',
+  DeviceLocationFailure.permissionDenied =>
+    'Bạn chưa cho phép ứng dụng dùng vị trí. Hãy cho phép rồi thử lại.',
+  DeviceLocationFailure.permissionDeniedForever =>
+    'Ứng dụng bị chặn dùng vị trí. Hãy bật lại trong Cài đặt của điện thoại.',
+  DeviceLocationFailure.timeout =>
+    'Chưa lấy được vị trí. Hãy ra chỗ thoáng và thử lại.',
+  DeviceLocationFailure.failed => 'Chưa lấy được vị trí. Vui lòng thử lại.',
+};
+
 class DeviceLocationException implements Exception {
   final DeviceLocationFailure failure;
 

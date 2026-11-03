@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/device/location_access.dart';
 import '../../core/models/user_role.dart';
 import '../../core/motion/nordic_motion.dart';
 import '../../core/theme/nordic_colors.dart';
 import '../../core/theme/nordic_typography.dart';
+import '../../core/widgets/location_gate.dart';
 import '../identity/screens/phone_input_screen.dart';
 import '../identity/services/token_storage.dart';
 import 'customer_shell.dart';
@@ -17,7 +19,13 @@ import 'worker_shell.dart';
 /// Signed-in customer: [CustomerShell] with the bottom navigation (MOB-UI-02).
 /// Signed-in worker: [WorkerShell] with its bottom navigation (MOB-UI-03).
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  /// The phone's location state the Worker gate reads (`geolocator` unless a test passes its own).
+  final ILocationAccess locationAccess;
+
+  const HomeScreen({
+    super.key,
+    this.locationAccess = const GeolocatorLocationAccess(),
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -57,7 +65,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return CustomerShell(onSignOut: _signOut);
     }
     if (session?.role == SessionRoles.worker) {
-      return WorkerShell(onSignOut: _signOut, workerId: session!.id);
+      // The Worker app cannot be used without location (owner decision, #442 (c)).
+      return LocationGate(
+        access: widget.locationAccess,
+        child: WorkerShell(onSignOut: _signOut, workerId: session!.id),
+      );
     }
     return _welcome();
   }
