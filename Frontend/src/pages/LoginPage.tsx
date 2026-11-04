@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { House, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { OtpInput } from '@/components/ui/otp-input'
 import { safeNext } from '@/auth/access'
 import { authController } from '@/auth'
 import { describeLoginError, describeOtpError, type LoginErrorView } from '@/auth/login-errors'
@@ -67,7 +68,33 @@ export function LoginPage({ admin = false }: { admin?: boolean }) {
       <p className="mt-3 text-sm text-stone-500">{admin ? 'Dùng email Admin được cấp.' : tab === 'customer' ? 'Nhập số điện thoại, mã 6 số sẽ gửi qua SMS.' : 'Đăng nhập tài khoản công ty cung cấp thợ.'}</p>
       {!admin && <div className="mt-8 flex rounded-lg bg-stone-200 p-1" role="tablist" aria-label="Loại tài khoản">{(['customer','partner'] as const).map(t => <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => { setTab(t); setError(null) }} className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${tab === t ? 'bg-white text-[#1a2f25] shadow-sm' : 'text-stone-600'}`}>{t === 'customer' ? 'Khách hàng' : 'Đối tác'}</button>)}</div>}
       <form onSubmit={submit} noValidate className="mt-8 flex flex-col gap-5">
-        {admin || tab === 'partner' ? <><label className="flex flex-col gap-2 text-sm font-medium">Email<input className={input} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={!!error?.fields.email} />{field('email')}</label><label className="flex flex-col gap-2 text-sm font-medium">Mật khẩu<input className={input} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} aria-invalid={!!error?.fields.password} />{field('password')}</label></> : step === 'phone' ? <label className="flex flex-col gap-2 text-sm font-medium">Số điện thoại<input className={input} type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)} aria-invalid={!!error?.fields.phonenumber} placeholder="0912 345 678" />{field('phonenumber')}</label> : <><p className="text-sm text-stone-600">Nhập mã 6 số đã gửi đến {phone}. <button type="button" className="underline" onClick={() => { setStep('phone'); setError(null) }}>Thay đổi</button></p><label className="flex flex-col gap-2 text-sm font-medium">Mã xác nhận<input className={input} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} aria-invalid={!!error?.fields.code} />{field('code')}</label></>}
+        {admin || tab === 'partner' ? <><label className="flex flex-col gap-2 text-sm font-medium">Email<input className={input} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={!!error?.fields.email} />{field('email')}</label><label className="flex flex-col gap-2 text-sm font-medium">Mật khẩu<input className={input} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} aria-invalid={!!error?.fields.password} />{field('password')}</label></> : step === 'phone' ? <label className="flex flex-col gap-2 text-sm font-medium">Số điện thoại<input className={input} type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)} aria-invalid={!!error?.fields.phonenumber} placeholder="0912 345 678" />{field('phonenumber')}</label> : (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-stone-600">
+              Nhập mã 6 số đã gửi đến <span className="font-semibold text-stone-900">{phone}</span>.{' '}
+              <button
+                type="button"
+                className="font-medium text-[#1a2f25] underline hover:text-[#284b39]"
+                onClick={() => {
+                  setStep('phone')
+                  setError(null)
+                }}
+              >
+                Thay đổi
+              </button>
+            </p>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-stone-800">Mã xác nhận</label>
+              <OtpInput
+                value={code}
+                onChange={setCode}
+                disabled={busy}
+                invalid={!!error?.fields.code}
+              />
+              {field('code')}
+            </div>
+          </div>
+        )}
         {error?.message && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error.message}</p>}
         <Button type="submit" disabled={busy || status === 'loading'} className="h-12 rounded-lg bg-[#1a2f25] text-white hover:bg-[#284b39]">{busy ? 'Đang xử lý…' : admin || tab === 'partner' ? 'Đăng nhập' : step === 'phone' ? 'Nhận mã' : 'Xác nhận'}</Button>
         {!admin && tab === 'customer' && step === 'code' && <button type="button" disabled={busy || remaining > 0} onClick={async () => { setBusy(true); setError(null); try { await requestOtp() } catch (e) { const err = e instanceof ApiError ? e : { status: 0 }; setError(describeOtpError(err, 'phone')); if (err instanceof ApiError && err.retryAfterSeconds) countdown(err.retryAfterSeconds) } finally { setBusy(false) } }} className="text-sm text-[#1a2f25] underline disabled:text-stone-400">{remaining ? `Gửi lại mã sau ${remaining} giây` : 'Gửi lại mã'}</button>}
