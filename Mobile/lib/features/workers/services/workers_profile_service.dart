@@ -24,6 +24,24 @@ class WorkersProfileService {
     return response.data;
   }
 
+  /// Saves a new name (contract workers.md §2.1.3, `PATCH /api/v1/workers/me`) and returns the name the server kept.
+  /// An empty or longer-than-100 name throws [ArgumentError] without a request; a failed call throws like [getFullName].
+  Future<String> updateFullName(String fullName) async {
+    final name = fullName.trim();
+    if (name.isEmpty) {
+      throw ArgumentError('Họ và tên không được để trống.');
+    }
+    if (name.length > 100) {
+      throw ArgumentError('Họ và tên không được vượt quá 100 ký tự.');
+    }
+    final response = await _apiClient.patch<String?>(
+      '/api/v1/workers/me',
+      body: {'fullName': name},
+      fromJson: _nameOf,
+    );
+    return response.data ?? name;
+  }
+
   /// The name and the agency flag (`agencyId` is set for an agency worker) from one read of the profile.
   /// A call that fails throws, like [getFullName].
   Future<WorkerSummary> getSummary() async {

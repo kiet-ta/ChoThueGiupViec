@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/features/home/worker_shell.dart';
 import 'package:mobile/features/home/worker_today_tab.dart';
@@ -75,6 +76,19 @@ class _SummaryProfile extends WorkersProfileService {
   @override
   Future<WorkerSummary> getSummary() async =>
       (fullName: name, agencyWorker: agency);
+
+  /// What `updateFullName` was asked to save; `failWith` makes it fail instead.
+  final saved = <String>[];
+  Object? failWith;
+
+  @override
+  Future<String> updateFullName(String fullName) async {
+    if (failWith != null) throw failWith!;
+    final name = fullName.trim();
+    if (name.isEmpty) throw ArgumentError('Họ và tên không được để trống.');
+    saved.add(name);
+    return name;
+  }
 }
 
 class _Area extends WorkersWorkAreaService {
@@ -310,6 +324,103 @@ void main() {
     },
   );
 
+  group('edit name and sign out', () {
+    Future<_SummaryProfile> open(
+      WidgetTester tester, {
+      VoidCallback? onSignOut,
+    }) async {
+      useDesignFrame(tester);
+      final profile = _SummaryProfile(name: 'Nguyễn Văn Thợi');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: WorkerScreen(
+            workerId: 12,
+            profile: profile,
+            onSignOut: onSignOut ?? () {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return profile;
+    }
+
+    Future<void> openNameDialog(WidgetTester tester, String text) async {
+      await tester.tap(find.byKey(const Key('worker-account-edit-name')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), text);
+    }
+
+    String shownName(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(const Key('worker-account-name'))).data!;
+
+    testWidgets('saving a new name shows it on the card', (tester) async {
+      final profile = await open(tester);
+      await openNameDialog(tester, '  Trần Thị Mai ');
+      await tester.tap(find.byKey(const Key('worker-name-save')));
+      await tester.pumpAndSettle();
+
+      expect(profile.saved, ['Trần Thị Mai']);
+      expect(shownName(tester), 'Trần Thị Mai');
+      expect(find.byKey(const Key('worker-name-save')), findsNothing);
+    });
+
+    testWidgets('an empty name is refused and the old name stays', (
+      tester,
+    ) async {
+      final profile = await open(tester);
+      await openNameDialog(tester, '   ');
+      await tester.tap(find.byKey(const Key('worker-name-save')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Họ và tên không được để trống.'), findsOneWidget);
+      expect(profile.saved, isEmpty);
+      await tester.tap(find.byKey(const Key('worker-name-cancel')));
+      await tester.pumpAndSettle();
+      expect(shownName(tester), 'Nguyễn Văn Thợi');
+    });
+
+    testWidgets('a failed save shows the error and keeps the old name', (
+      tester,
+    ) async {
+      final profile = await open(tester);
+      profile.failWith = ApiException(500, 'Lỗi máy chủ');
+      await openNameDialog(tester, 'Trần Thị Mai');
+      await tester.tap(find.byKey(const Key('worker-name-save')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('worker-name-error')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('worker-name-cancel')));
+      await tester.pumpAndSettle();
+      expect(shownName(tester), 'Nguyễn Văn Thợi');
+    });
+
+    testWidgets('sign out asks first; Huỷ does nothing', (tester) async {
+      var signedOut = 0;
+      await open(tester, onSignOut: () => signedOut++);
+      await scrollTo(tester, find.byKey(const Key('home-sign-out')));
+      await tester.tap(find.byKey(const Key('home-sign-out')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Đăng xuất?'), findsOneWidget);
+      expect(signedOut, 0);
+      await tester.tap(find.byKey(const Key('sign-out-cancel')));
+      await tester.pumpAndSettle();
+      expect(signedOut, 0);
+    });
+
+    testWidgets('sign out runs only after confirming', (tester) async {
+      var signedOut = 0;
+      await open(tester, onSignOut: () => signedOut++);
+      await scrollTo(tester, find.byKey(const Key('home-sign-out')));
+      await tester.tap(find.byKey(const Key('home-sign-out')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('sign-out-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(signedOut, 1);
+    });
+  });
+
   group('work area (decisions D24)', () {
     Widget account(
       WorkersProfileService profile,
@@ -488,6 +599,9 @@ void main() {
     // No agency flag from the profile (it cannot be read in this test): the company roster stays hidden.
     expect(find.byKey(const Key('worker-account-roster')), findsNothing);
     await tapVisible(tester, find.byKey(const Key('home-sign-out')));
+    expect(out, 0);
+    await tester.tap(find.byKey(const Key('sign-out-confirm')));
+    await tester.pumpAndSettle();
     expect(out, 1);
   });
 }

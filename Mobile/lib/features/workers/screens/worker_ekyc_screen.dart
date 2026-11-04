@@ -123,14 +123,11 @@ class _WorkerEkycScreenState extends State<WorkerEkycScreen> {
           ? [_buildActionButtons()]
           : [
               NordicButton(
-                label: 'Làm lại xác minh',
-                variant: NordicButtonVariant.secondary,
+                label: 'Về trang chủ',
+                variant: NordicButtonVariant.primary,
                 onPressed: () {
                   _closeKeyboard();
-                  setState(() {
-                    _result = null;
-                    _currentStep = 0;
-                  });
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 },
               ),
             ],
