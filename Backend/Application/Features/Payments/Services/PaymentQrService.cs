@@ -25,7 +25,8 @@ public class PaymentQrService(
     IPaymentGateway gateway,
     IUnitOfWork unitOfWork,
     IClock clock,
-    IOptions<BusinessRules> rules) : IPaymentQrService
+    IOptions<BusinessRules> rules,
+    ISandboxPaymentAutoConfirmService? autoConfirmer = null) : IPaymentQrService
 {
     private readonly BusinessRules _rules = rules.Value;
 
@@ -123,6 +124,7 @@ public class PaymentQrService(
         transaction.CreatedAt = now;
         payments.Add(transaction);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        autoConfirmer?.ScheduleAutoConfirm(transaction.PaymentId, transaction.GatewayTxnRef);
         return qr.PayUrl;
     }
 

@@ -109,6 +109,8 @@ public class PaymentRules
     public int QrExpiryMinutes { get; set; } = 15;
     public int ReconcileAfterMinutes { get; set; } = 3;
     public int ReconcileIntervalSeconds { get; set; } = 60;
+    public bool SandboxAutoConfirm { get; set; } = true;
+    public int SandboxAutoConfirmDelaySeconds { get; set; } = 3;
 }
 
 public class EkycFakeRules

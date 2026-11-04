@@ -328,3 +328,7 @@ SePay Test mode bank-transfer QR is in scope for the demo (owner request 2026-10
 
 ## Web sign-in split (owner, 2026-11-01)
 - The public website login at `/login` serves Customer (phone and OTP) and Agency (Partner email and password). Admin has its own login at `/admin`; it is not linked from the public landing page. Customer pages are under `/app`.
+
+
+## Sandbox payment auto-confirm (owner, 2026-11-04)
+- **D26 Sandbox payment auto-confirm (DEV-PAY-AUTO-01, #644).** In Development environment, fake gateway payments (orders, extensions, escrow deposits, subscriptions) automatically confirm after 3 seconds without requiring manual Admin approval via /admin/dev-payments. Configured by Payments.SandboxAutoConfirm (default true) and Payments.SandboxAutoConfirmDelaySeconds (default 3). Web and Mobile payment screens display the 3-second auto-confirm notice and automatically reflect the paid status upon settlement.

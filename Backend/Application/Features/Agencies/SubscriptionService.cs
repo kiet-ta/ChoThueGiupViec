@@ -78,7 +78,8 @@ public class SubscriptionService(
     ICurrentUser currentUser,
     IClock clock,
     IOptions<BusinessRules> rules,
-    ILogger<SubscriptionService>? logger = null) : IWorkerQuotaGuard
+    ILogger<SubscriptionService>? logger = null,
+    ISandboxPaymentAutoConfirmService? autoConfirmer = null) : IWorkerQuotaGuard
 {
     private readonly ILogger<SubscriptionService> _logger = logger ?? NullLogger<SubscriptionService>.Instance;
 
@@ -238,6 +239,7 @@ public class SubscriptionService(
             };
             payments.Add(transaction);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            autoConfirmer?.ScheduleAutoConfirm(transaction.PaymentId, qr.GatewayTxnRef);
             _logger.LogInformation(
                 "Agency {AgencyId} started the purchase of package {PackageCode} (subscription {SubscriptionId}, payment {PaymentId}).",
                 agencyId, package.PackageCode, subscription.SubscriptionId, transaction.PaymentId);
