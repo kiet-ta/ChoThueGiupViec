@@ -33,6 +33,7 @@ public class OrderCreationService(
 
     public async Task<CreatedOrder> CreateAsync(CreateOrderRequest request, CancellationToken cancellationToken = default)
     {
+        _ = availability;
         ArgumentNullException.ThrowIfNull(request);
         Validate(request);
 
@@ -62,20 +63,6 @@ public class OrderCreationService(
                     ? "The shift starts in the past."
                     : $"A Premium order must be booked at least {_rules.Premium.MinLeadHours} hours before the shift starts.",
                 windowError);
-        }
-
-        if (request.ServiceTier == ServiceTier.Economy)
-        {
-            var radiusSteps = _rules.Dispatch.RadiusStepsKm;
-            var radius = radiusSteps.Length > 0 ? radiusSteps[^1] : 10.0;
-            var candidates = await availability.FindAvailableFreelancersAsync(
-                new AvailabilityQuery(request.ScheduledDate, request.ShiftCode,
-                    new GeoPoint((double)address.Latitude, (double)address.Longitude), radius, 1),
-                cancellationToken);
-            if (candidates.Count == 0)
-            {
-                throw new BusinessRuleViolationException("No freelancer is available for this shift near the address.", BookingErrorCodes.FullyBooked);
-            }
         }
 
         var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules);
