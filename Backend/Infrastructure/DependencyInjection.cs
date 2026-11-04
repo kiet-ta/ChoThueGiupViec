@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddSingleton<IGeoService, HaversineGeoService>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddScoped<IIdempotencyService, CacheIdempotencyService>();
+        services.AddHttpClient<IReverseGeocodeService, GoongReverseGeocodeService>();
 
         // Nếu muốn Redis
         // var redisConnection = config.GetConnectionString("Redis");

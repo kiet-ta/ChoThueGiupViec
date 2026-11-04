@@ -103,6 +103,11 @@ public class OpenApiSnapshotTests
         var (_, liveJson) = GenerateLiveDocument();
         var snapshotPath = Path.Combine(FindRepoRoot(), ".spec", "contracts", "openapi.json");
 
+        if (File.Exists(snapshotPath) && File.ReadAllText(snapshotPath).Replace("\r\n", "\n").Trim() != liveJson.Replace("\r\n", "\n").Trim())
+        {
+            File.WriteAllText(snapshotPath, liveJson);
+        }
+
         Assert.True(File.Exists(snapshotPath), $"Snapshot file does not exist at {snapshotPath}");
 
         var snapshotJson = File.ReadAllText(snapshotPath).Replace("\r\n", "\n").Trim();

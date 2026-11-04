@@ -58,3 +58,12 @@ export interface ProfileBody {
   fullName: string
   email: string | null
 }
+
+export interface ReverseGeocodeResult {
+  city: string
+  district: string
+  addressLine: string
+  formattedAddress: string
+  latitude: number
+  longitude: number
+}
