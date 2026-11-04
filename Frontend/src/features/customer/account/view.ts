@@ -2,6 +2,13 @@
 // Rules: .spec/contracts/customers.md 2.1/2.2 (validation), booking.md 1.3 (area bracket, workers), Address.RoomMaxAreaM2 30, Address.HouseMaxFloors 10.
 import type { Address, AddressBody, HousingType } from './types.ts'
 
+/** Match Vietnamese place names without case, accents or the đ/d distinction. */
+export function filterAdminUnits(items: string[], query: string): string[] {
+  const normalize = (value: string) => value.toLocaleLowerCase('vi').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
+  const needle = normalize(query.trim())
+  return items.filter((item) => normalize(item).includes(needle))
+}
+
 /** Keep return paths inside the customer area, including after URL normalization. */
 export function safeAddressNext(next: string | null): string | null {
   if (!next?.startsWith('/app/') || next.includes('//') || next.includes('\\') || [...next].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)) return null

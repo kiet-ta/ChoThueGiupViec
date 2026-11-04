@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  accountProblem, areaBracket, areaText, bandText, canBookWorker, formFromAddress, initials, parseNumber, phoneText, requiredWorkers,
+  accountProblem, areaBracket, areaText, bandText, canBookWorker, filterAdminUnits, formFromAddress, initials, parseNumber, phoneText, requiredWorkers,
   safeAddressNext, toAddressBody, totalArea, validateAddress, validateProfile, wardsOf, workStatusLabel, type AddressForm,
 } from '../src/features/customer/account/view.ts'
 import { vnAdminUnits } from '../src/features/customer/account/vn-admin-units.ts'
@@ -10,6 +10,20 @@ import type { Address, ReverseGeocodeResult } from '../src/features/customer/acc
 const form = (over: Partial<AddressForm> = {}): AddressForm => ({
   label: 'Nhà', city: 'Thành phố Hồ Chí Minh', district: 'Phường Sài Gòn', addressLine: '12 Lê Lợi', housingType: 'HOUSE', floorAreaM2: '29', numFloors: '2',
   isDefault: false, latitude: 10.7769, longitude: 106.7009, ...over,
+})
+
+describe('filterAdminUnits', () => {
+  const units = ['Thành phố Hồ Chí Minh', 'Phường Thủ Đức', 'Phường Sài Gòn']
+  it('matches case, accents and đ without distinction', () => {
+    assert.deepEqual(filterAdminUnits(units, 'THU DUC'), ['Phường Thủ Đức'])
+    assert.deepEqual(filterAdminUnits(units, 'thủ đức'), ['Phường Thủ Đức'])
+    assert.deepEqual(filterAdminUnits(units, 'ho chi'), ['Thành phố Hồ Chí Minh'])
+    assert.deepEqual(filterAdminUnits(units, 'sai gon'), ['Phường Sài Gòn'])
+  })
+  it('returns all for an empty query and none for no match', () => {
+    assert.deepEqual(filterAdminUnits(units, ''), units)
+    assert.deepEqual(filterAdminUnits(units, 'xyz'), [])
+  })
 })
 
 describe('safeAddressNext', () => {

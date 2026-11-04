@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CircleAlert, Loader, Ruler } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { accountApi } from './api'
+import { SearchSelect } from './SearchSelect'
 import {
   accountProblem, bandText, DEFAULT_LATITUDE, DEFAULT_LONGITUDE, formFromAddress, HOUSING_TYPES, parseNumber, toAddressBody, totalArea,
   safeAddressNext, validateAddress, wardsOf, type AddressErrors, type AddressForm,
@@ -132,12 +133,8 @@ export function AddressFormPage() {
     <section className="mt-6 space-y-5 rounded-xl border border-stone-200 bg-white p-6">
       <div><label className="block text-sm font-medium">Tên gợi nhớ<input className={input} value={form.label} maxLength={50} onChange={(e) => set('label', e.target.value)} aria-invalid={!!errors.label} placeholder="Nhà, Văn phòng…" /></label>{err('label')}</div>
       <div className="grid gap-5 sm:grid-cols-2">
-        <div><label className="block text-sm font-medium">Tỉnh / Thành phố
-          <select className={input} value={form.city} onChange={(e) => { setForm((p) => ({ ...p, city: e.target.value, district: '' })); clear('city', 'district') }} aria-invalid={!!errors.city}>
-            <option value="">Chọn…</option>{units && Object.keys(units).map((c) => <option key={c} value={c}>{c}</option>)}</select></label>{err('city')}</div>
-        <div><label className="block text-sm font-medium">Phường / Xã
-          <select className={input} value={form.district} onChange={(e) => set('district', e.target.value)} aria-invalid={!!errors.district} disabled={!form.city}>
-            <option value="">Chọn…</option>{form.district && !wards.includes(form.district) && <option value={form.district}>{form.district}</option>}{wards.map((w) => <option key={w} value={w}>{w}</option>)}</select></label>{err('district')}</div>
+        <div><SearchSelect label="Tỉnh / Thành phố" value={form.city} options={units ? Object.keys(units) : []} onChange={(city) => { setForm((p) => ({ ...p, city, district: '' })); clear('city', 'district') }} onEdit={() => clear('city')} invalid={!!errors.city} />{err('city')}</div>
+        <div><SearchSelect label="Phường / Xã" value={form.district} options={form.district && !wards.includes(form.district) ? [form.district, ...wards] : wards} onChange={(district) => set('district', district)} onEdit={() => clear('district')} invalid={!!errors.district} disabled={!form.city} />{err('district')}</div>
       </div>
       <div><label className="block text-sm font-medium">Số nhà, đường<input className={input} value={form.addressLine} maxLength={255} onChange={(e) => set('addressLine', e.target.value)} aria-invalid={!!errors.addressLine} autoComplete="street-address" /></label>{err('addressLine')}</div>
       <fieldset><legend className="text-sm font-medium">Loại nhà</legend>
