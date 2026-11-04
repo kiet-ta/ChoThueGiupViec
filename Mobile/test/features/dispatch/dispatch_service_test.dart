@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/dispatch/models/job_offer.dart';
+import 'package:mobile/core/device/camera_wrapper.dart';
+import 'package:mobile/core/device/device_camera_wrapper.dart';
 import 'package:mobile/features/dispatch/services/dispatch_service.dart';
 
 void main() {
@@ -67,6 +69,26 @@ void main() {
       expect(offer?.assignmentId, 9999);
       expect(offer?.district, 'Quận Đống Đa');
       expect(offer?.netEarnings, 240000.0);
+    });
+    test('cameraWrapper defaults to CameraWrapper when isMock is true', () {
+      expect(service.cameraWrapper, isA<CameraWrapper>());
+    });
+
+    test(
+      'cameraWrapper defaults to DeviceCameraWrapper when isMock is false',
+      () {
+        final realService = DispatchService(isMock: false);
+        expect(realService.cameraWrapper, isA<DeviceCameraWrapper>());
+      },
+    );
+
+    test('explicit cameraWrapper is respected', () {
+      final customCam = CameraWrapper();
+      final customService = DispatchService(
+        cameraWrapper: customCam,
+        isMock: false,
+      );
+      expect(customService.cameraWrapper, same(customCam));
     });
   });
 }
