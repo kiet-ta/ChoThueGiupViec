@@ -28,6 +28,7 @@ export const PLACEHOLDER_PROOF = {
 
 export const NAV_LINKS = [
   { href: '#tinh-gia', label: 'Tính giá' },
+  { href: '#lich-ca', label: 'Lịch ca' },
   { href: '#cong-viec', label: 'Công việc' },
   { href: '#an-tam', label: 'An tâm' },
   { href: '#bang-gia', label: 'Bảng giá' },
