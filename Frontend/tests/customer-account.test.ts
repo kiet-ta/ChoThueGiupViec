@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   accountProblem, areaBracket, areaText, bandText, canBookWorker, formFromAddress, initials, parseNumber, phoneText, requiredWorkers,
-  toAddressBody, totalArea, validateAddress, validateProfile, wardsOf, workStatusLabel, type AddressForm,
+  safeAddressNext, toAddressBody, totalArea, validateAddress, validateProfile, wardsOf, workStatusLabel, type AddressForm,
 } from '../src/features/customer/account/view.ts'
 import { vnAdminUnits } from '../src/features/customer/account/vn-admin-units.ts'
 import type { Address, ReverseGeocodeResult } from '../src/features/customer/account/types.ts'
@@ -10,6 +10,18 @@ import type { Address, ReverseGeocodeResult } from '../src/features/customer/acc
 const form = (over: Partial<AddressForm> = {}): AddressForm => ({
   label: 'Nhà', city: 'Thành phố Hồ Chí Minh', district: 'Phường Sài Gòn', addressLine: '12 Lê Lợi', housingType: 'HOUSE', floorAreaM2: '29', numFloors: '2',
   isDefault: false, latitude: 10.7769, longitude: 106.7009, ...over,
+})
+
+describe('safeAddressNext', () => {
+  it('keeps a customer path and its booking query', () => {
+    assert.equal(safeAddressNext('/app/booking?tier=ECONOMY&worker=42'), '/app/booking?tier=ECONOMY&worker=42')
+  })
+  it('rejects external URLs, protocol-relative paths, backslashes, empty values and traversal', () => {
+    for (const value of ['https://evil.example', '//evil.example', '/\\evil.example', '', '/app/../admin', '/app/%2e%2e/admin', '/app/booking?next=//evil.example']) {
+      assert.equal(safeAddressNext(value), null, value)
+    }
+    assert.equal(safeAddressNext(null), null)
+  })
 })
 
 describe('totalArea (floorAreaM2 x numFloors, rounded like the server)', () => {
