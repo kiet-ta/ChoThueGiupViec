@@ -37,7 +37,7 @@ public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoServ
         // - KycStatus = APPROVED
         // - WorkStatus = Idle
         // - BookingSlot: SlotDate == query.Date, ShiftCode == query.ShiftCode, SlotStatus == "AVAILABLE"
-        // - A registered work area (base point + radius); a worker without one is never found (decisions D24)
+        // - A registered work area (base point WorkLat & WorkLng); a worker without one is never found (decisions D24)
         // - Bounding box on the base point WorkLat & WorkLng
         var candidateRows = await (
             from slot in dbContext.BookingSlots.AsNoTracking()
@@ -51,7 +51,7 @@ public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoServ
                && worker.WorkStatus == WorkStatus.Idle
                && worker.WorkLat != null
                && worker.WorkLng != null
-               && worker.WorkRadiusKm != null
+
                && (double)worker.WorkLat!.Value >= minLat
                && (double)worker.WorkLat!.Value <= maxLat
                && (double)worker.WorkLng!.Value >= minLng
@@ -62,12 +62,12 @@ public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoServ
                 slot.SlotId,
                 Lat = (double)worker.WorkLat!.Value,
                 Lng = (double)worker.WorkLng!.Value,
-                RadiusKm = (int)worker.WorkRadiusKm!.Value,
+
                 worker.RatingAvg
             }
         ).ToListAsync(cancellationToken);
 
-        // Compute exact Haversine distance and keep the workers inside both the search step and their own radius
+        // Compute exact Haversine distance and keep the workers inside the search radius step
         var availableWorkers = new List<AvailableWorker>();
 
         foreach (var c in candidateRows)
@@ -76,7 +76,7 @@ public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoServ
             double distanceMeters = geoService.DistanceMeters(query.Location, workerLocation);
             double distanceKm = distanceMeters / 1000.0;
 
-            if (distanceKm <= query.RadiusKm && distanceKm <= c.RadiusKm)
+            if (distanceKm <= query.RadiusKm)
             {
                 availableWorkers.Add(new AvailableWorker(c.WorkerId, c.SlotId, distanceKm));
             }

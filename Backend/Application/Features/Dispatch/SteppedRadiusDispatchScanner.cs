@@ -59,7 +59,7 @@ public class SteppedRadiusDispatchScanner
     }
 
     /// <summary>
-    /// Scans candidate workers across stepped radius (5 -> 7 -> 10 km) for a given order location and shift.
+    /// Scans candidate workers across stepped radius (5 -> 10 -> 20 -> 30 km) for a given order location and shift.
     /// Returns the step-by-step evaluation and the top candidate if found.
     /// </summary>
     public async Task<SteppedScanResult> ScanCandidatesAsync(
@@ -74,9 +74,9 @@ public class SteppedRadiusDispatchScanner
         // Guard: PRD §2.1 Economy tier is for Freelancers; Agency workers must never enter Economy
         // If an agency staff candidate appears in the query results, they are strictly rejected for Economy.
         var radiusSteps = _businessRules.Dispatch.RadiusStepsKm;
-        if (radiusSteps == null || radiusSteps.Length == 0)
+        if (radiusSteps == null || radiusSteps.Length == 0 || radiusSteps.SequenceEqual([5.0, 7.0, 10.0]))
         {
-            radiusSteps = [5.0, 7.0, 10.0];
+            radiusSteps = [5.0, 10.0, 20.0, 30.0];
         }
 
         var executedSteps = new List<SteppedScanStepResult>();
@@ -191,9 +191,9 @@ public class SteppedRadiusDispatchScanner
         CancellationToken cancellationToken = default)
     {
         var radiusSteps = _businessRules.Dispatch.RadiusStepsKm;
-        if (radiusSteps == null || radiusSteps.Length == 0)
+        if (radiusSteps == null || radiusSteps.Length == 0 || radiusSteps.SequenceEqual([5.0, 7.0, 10.0]))
         {
-            radiusSteps = [5.0, 7.0, 10.0];
+            radiusSteps = [5.0, 10.0, 20.0, 30.0];
         }
 
         var maxRadius = radiusSteps.Max();

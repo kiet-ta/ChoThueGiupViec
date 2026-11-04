@@ -132,13 +132,14 @@ public class ComprehensiveDispatchIntegrationTests
     }
 
     [Fact]
-    public async Task Scenario3_SteppedRadiusScanner_Expands5to7to10KmAndExcludesLowRating()
+    public async Task Scenario3_SteppedRadiusScanner_ExpandsSteppedRadiusUpTo30KmAndExcludesLowRating()
     {
         var query = new MockWorkerAvailabilityQuery();
-        // Candidate at 6.5 km (found in step 2: 7km)
+        // Candidate at 6.5 km (found in step 2: 10km)
         query.Workers.Add(new AvailableWorker(WorkerId: 301, SlotId: 1, DistanceKm: 6.5));
 
-        var scanner = new SteppedRadiusDispatchScanner(query, MicrosoftOptions.Create(new BusinessRules()));
+        var rules = new BusinessRules { Dispatch = new() { RadiusStepsKm = [5.0, 10.0, 20.0, 30.0] } };
+        var scanner = new SteppedRadiusDispatchScanner(query, MicrosoftOptions.Create(rules));
 
         var result = await scanner.ScanCandidatesAsync(
             ServiceTier.Economy,
@@ -148,7 +149,7 @@ public class ComprehensiveDispatchIntegrationTests
         );
 
         Assert.NotNull(result.BestCandidate);
-        Assert.Equal(7.0, result.MatchedRadiusKm);
+        Assert.Equal(10.0, result.MatchedRadiusKm);
         Assert.Equal(301, result.BestCandidate.Value.Candidate.WorkerId);
         Assert.False(result.ExhaustedAllSteps);
     }

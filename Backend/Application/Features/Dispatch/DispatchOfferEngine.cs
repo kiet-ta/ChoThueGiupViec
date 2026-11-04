@@ -221,7 +221,7 @@ public class DispatchOfferEngine
 
     /// <summary>
     /// Offers one seat of an order to the best ranked candidate who has not had this order yet. Publishes <see cref="AssignmentFailed"/>
-    /// when the 5 -&gt; 7 -&gt; 10 km steps are exhausted. Premium orders go through the agency hold instead.
+    /// when the stepped radius search (up to 30 km) is exhausted. Premium orders go through the agency hold instead.
     /// <paramref name="preferredWorkerId"/> (the customer's favorite, booking.md 3.3) is offered the seat first when that worker has not
     /// had the order yet, is free for the shift and passes the usual eligibility; otherwise the radius scan runs as usual.
     /// </summary>
@@ -282,7 +282,7 @@ public class DispatchOfferEngine
             if (matchedStep == null)
             {
                 var reason = scanResult.ExhaustedAllSteps
-                    ? "Quá bán kính 10 km không tìm được thợ phù hợp (BR-03)."
+                    ? "Quá bán kính 30 km không tìm được thợ phù hợp (BR-03)."
                     : "Không tìm thấy thợ phù hợp cho đơn hàng.";
 
                 if (await TryHoldForConsecutiveShiftFallbackAsync(orderId, assignmentSeq, cancellationToken))
