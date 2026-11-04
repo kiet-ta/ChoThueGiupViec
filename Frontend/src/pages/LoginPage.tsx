@@ -10,7 +10,7 @@ import { useAuth } from '@/auth/useAuth'
 import { apiClient, ApiError } from '@/services/api'
 import type { AuthResult } from '@/auth/session'
 
-const input = 'h-12 w-full rounded-lg border border-stone-300 bg-white px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-emerald-800'
+const input = 'h-12 w-full rounded-lg border border-stone-300 bg-white px-4 text-sm placeholder:text-stone-400 outline-none focus-visible:ring-2 focus-visible:ring-emerald-800'
 export function LoginPage({ admin = false }: { admin?: boolean }) {
   const { status, session, login } = useAuth()
   const [params] = useSearchParams()
@@ -65,10 +65,10 @@ export function LoginPage({ admin = false }: { admin?: boolean }) {
       <Link to="/" className="mb-10 flex items-center gap-2 font-bold text-[#1a2f25] lg:hidden"><House /> TỔ ẤM</Link>
       {admin && <span className="rounded-full bg-[#1a2f25] px-3 py-1 text-xs text-white">Quản trị viên</span>}
       <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[#1a2f25]">{admin ? 'Đăng nhập quản trị' : 'Đăng nhập hoặc đăng ký'}</h1>
-      <p className="mt-3 text-sm text-stone-500">{admin ? 'Dùng email Admin được cấp.' : tab === 'customer' ? 'Nhập số điện thoại, mã 6 số sẽ gửi qua SMS.' : 'Đăng nhập tài khoản công ty cung cấp thợ.'}</p>
+      <p className="mt-3 text-sm text-stone-500">{admin ? 'Dùng email Admin được cấp.' : tab === 'customer' ? 'Nhập số điện thoại, mã 6 số sẽ gửi qua SMS.' : 'Dùng email và mật khẩu đã đăng ký doanh nghiệp.'}</p>
       {!admin && <div className="mt-8 flex rounded-lg bg-stone-200 p-1" role="tablist" aria-label="Loại tài khoản">{(['customer','partner'] as const).map(t => <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => { setTab(t); setError(null) }} className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${tab === t ? 'bg-white text-[#1a2f25] shadow-sm' : 'text-stone-600'}`}>{t === 'customer' ? 'Khách hàng' : 'Đối tác'}</button>)}</div>}
       <form onSubmit={submit} noValidate className="mt-8 flex flex-col gap-5">
-        {admin || tab === 'partner' ? <><label className="flex flex-col gap-2 text-sm font-medium">Email<input className={input} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={!!error?.fields.email} />{field('email')}</label><label className="flex flex-col gap-2 text-sm font-medium">Mật khẩu<input className={input} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} aria-invalid={!!error?.fields.password} />{field('password')}</label></> : step === 'phone' ? <label className="flex flex-col gap-2 text-sm font-medium">Số điện thoại<input className={input} type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)} aria-invalid={!!error?.fields.phonenumber} placeholder="0912 345 678" />{field('phonenumber')}</label> : (
+        {admin || tab === 'partner' ? <><label className="flex flex-col gap-2 text-sm font-medium">Email<input className={input} type="email" placeholder={admin ? "Email quản trị" : "email@congty.vn"} autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={!!error?.fields.email} />{field('email')}</label><label className="flex flex-col gap-2 text-sm font-medium">Mật khẩu<input className={input} type="password" placeholder="Nhập mật khẩu" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} aria-invalid={!!error?.fields.password} />{field('password')}</label></> : step === 'phone' ? <label className="flex flex-col gap-2 text-sm font-medium">Số điện thoại<input className={input} type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)} aria-invalid={!!error?.fields.phonenumber} placeholder="0912 345 678" />{field('phonenumber')}</label> : (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-stone-600">
               Nhập mã 6 số đã gửi đến <span className="font-semibold text-stone-900">{phone}</span>.{' '}
