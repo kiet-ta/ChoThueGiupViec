@@ -2,6 +2,18 @@
 // Rules: .spec/contracts/customers.md 2.1/2.2 (validation), booking.md 1.3 (area bracket, workers), Address.RoomMaxAreaM2 30, Address.HouseMaxFloors 10.
 import type { Address, AddressBody, HousingType } from './types.ts'
 
+/** Keep return paths inside the customer area, including after URL normalization. */
+export function safeAddressNext(next: string | null): string | null {
+  if (!next?.startsWith('/app/') || next.includes('//') || next.includes('\\') || [...next].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)) return null
+  try {
+    const url = new URL(next, 'https://example.invalid')
+    if (url.origin !== 'https://example.invalid' || !url.pathname.startsWith('/app/')) return null
+    return url.pathname + url.search + url.hash
+  } catch {
+    return null
+  }
+}
+
 export const ROOM_MAX_AREA_M2 = 30
 export const HOUSE_MAX_FLOORS = 10
 export const STANDARD_MAX_AREA_M2 = 80

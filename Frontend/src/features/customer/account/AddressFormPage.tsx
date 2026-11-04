@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CircleAlert, Loader, Ruler } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { accountApi } from './api'
 import {
   accountProblem, bandText, DEFAULT_LATITUDE, DEFAULT_LONGITUDE, formFromAddress, HOUSING_TYPES, parseNumber, toAddressBody, totalArea,
-  validateAddress, wardsOf, type AddressErrors, type AddressForm,
+  safeAddressNext, validateAddress, wardsOf, type AddressErrors, type AddressForm,
 } from './view'
 
 const input = 'mt-1 h-11 w-full rounded-lg border border-stone-300 bg-white px-3'
@@ -17,6 +17,7 @@ const blank: AddressForm = {
 export function AddressFormPage() {
   const id = Number(useParams().addressId) || null
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [units, setUnits] = useState<Record<string, string[]> | null>(null)
   const [form, setForm] = useState<AddressForm>(blank)
   const [loaded, setLoaded] = useState(id === null)
@@ -101,9 +102,18 @@ export function AddressFormPage() {
     setBanner(null)
     try {
       const body = toAddressBody(form)
-      if (id === null) await accountApi.createAddress(body)
-      else await accountApi.updateAddress(id, body)
-      navigate('/app/addresses')
+      if (id === null) {
+        const created = await accountApi.createAddress(body)
+        const next = safeAddressNext(params.get('next'))
+        if (next) {
+          const url = new URL(next, 'https://example.invalid')
+          url.searchParams.set('address', String(created.addressId))
+          navigate(url.pathname + url.search + url.hash)
+        } else navigate('/app/addresses')
+      } else {
+        await accountApi.updateAddress(id, body)
+        navigate('/app/addresses')
+      }
     } catch (e) {
       const err = e as ApiError
       const f = Object.fromEntries(Object.entries(err.fieldErrors ?? {}).map(([k, v]) => [k.toLowerCase(), v[0]]))

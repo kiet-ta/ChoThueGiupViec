@@ -16,6 +16,7 @@ const radio = (on: boolean) => <span className={`mt-1 grid h-4 w-4 shrink-0 plac
 export function BookingPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const requestedAddress = Number(params.get('address')) || null
   const workerParam = Number(params.get('worker')) || null
   const [availability, setAvailability] = useState<{ workerId: number; shifts: FreeShift[] | null; failed: boolean } | null>(null)
   const [favoriteName, setFavoriteName] = useState<string | null>(null)
@@ -41,13 +42,13 @@ export function BookingPage() {
         if (cancelled) return
         setOptions(opts)
         setAddresses(list)
-        setAddressId((list.find((a) => a.isDefault) ?? list[0])?.addressId ?? null)
+        setAddressId((list.find((a) => a.addressId === requestedAddress) ?? list.find((a) => a.isDefault) ?? list[0])?.addressId ?? null)
       })
       .catch((e: unknown) => !cancelled && setLoadError(e instanceof ApiError ? e.message : 'Không tải được dữ liệu đặt ca.'))
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [requestedAddress])
 
   // "Đặt thợ này" from the favorites: show the worker's name (a wish for Economy, ignored for Premium).
   useEffect(() => {
@@ -90,6 +91,9 @@ export function BookingPage() {
   // A choice made for Economy may be invalid for Premium: drop it instead of sending it.
   const selectionValid = date !== null && shiftCode !== null && blocked(date, shiftCode) === null
   const canSubmit = !submitting && addressId !== null && quote !== null && selectionValid
+  const returnParams = new URLSearchParams(params)
+  returnParams.set('tier', tier)
+  const addAddressUrl = `/app/addresses/new?${new URLSearchParams({ next: `/app/booking?${returnParams}` })}`
 
   async function submit() {
     if (!canSubmit || date === null || shiftCode === null || addressId === null) return
@@ -128,9 +132,9 @@ export function BookingPage() {
           {quoteError && <p role="alert" className="mt-3 text-sm text-red-700">{quoteError}</p>}
         </section>
         <section className={card}>
-          <h2 className="text-lg font-semibold">2. Địa chỉ</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">2. Địa chỉ</h2><div className="flex gap-4 text-sm font-semibold text-emerald-900"><Link to={addAddressUrl}>+ Thêm địa chỉ</Link><Link to="/app/addresses">Quản lý</Link></div></div>
           {addresses.length === 0
-            ? <p className="mt-4 text-sm text-stone-500">Bạn chưa có địa chỉ nào. Hãy thêm địa chỉ trong ứng dụng TỔ ẤM rồi quay lại.</p>
+            ? <div className="mt-4"><p className="text-sm text-stone-500">Bạn chưa có địa chỉ nào.</p><Link to={addAddressUrl} className="mt-3 inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 text-sm font-semibold text-white">Thêm địa chỉ</Link></div>
             : <div className="mt-4 space-y-3">{addresses.map((a) => <button key={a.addressId} type="button" aria-pressed={addressId === a.addressId} className={choice(addressId === a.addressId)} onClick={() => { if (addressId !== a.addressId) { setQuotes({}); setQuoteError(null); setAddressId(a.addressId) } }}>
               {radio(addressId === a.addressId)}<Home size={18} className="mt-0.5 text-[#1a2f25]" />
               <span><b>{a.label}</b><span className="block text-sm text-stone-500">{a.addressLine} · {a.district} · {a.totalAreaM2} m²</span></span>
