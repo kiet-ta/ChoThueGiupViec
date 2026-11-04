@@ -27,6 +27,7 @@ public class PaymentsModule : IModule
         services.AddScoped<IExtensionRefundService>(sp => sp.GetRequiredService<RefundService>());
         services.AddScoped<IDevPaymentQuery, EfDevPaymentQuery>();
         services.AddScoped<DevPaymentService>();
+        services.AddSingleton<ISandboxPaymentAutoConfirmService, CommonService.Infrastructure.Services.SandboxPaymentAutoConfirmService>();
         services.AddHostedService<PaymentReconciliationWorker>();
         AddMoMoGateway(services, configuration);
         AddVnPayGateway(services, configuration);

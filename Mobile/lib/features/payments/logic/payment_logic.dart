@@ -17,7 +17,7 @@ const String sandboxBannerText = 'SANDBOX – no real money';
 const Duration defaultPollInterval = Duration(seconds: 3);
 
 /// How long a sandbox (Fake gateway) payment waits before the screen confirms it by itself.
-const Duration defaultSandboxAutoConfirmDelay = Duration(seconds: 5);
+const Duration defaultSandboxAutoConfirmDelay = Duration(seconds: 3);
 
 /// Only a waiting payment of the Fake gateway can be confirmed by the app (backend `DevPaymentService`: FAKE- references only).
 bool isSandboxAutoConfirmable(Payment payment) =>

@@ -91,7 +91,7 @@ export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }
   return <div className="mx-auto max-w-3xl">
     <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Thanh toán</p>
     <h1 className="mt-1 text-3xl font-semibold">{isExtension ? 'Thanh toán phần làm thêm' : 'Thanh toán'} đơn {order?.orderCode ?? (orderId ? `#${orderId}` : '')}</h1>
-    {(payment?.sandbox ?? true) && <div className="mt-6 flex gap-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><FlaskConical size={18} className="mt-0.5 shrink-0" /><div><b>SANDBOX</b>. Không dùng tiền thật. Mã QR dưới đây chỉ để thử luồng.</div></div>}
+    {(payment?.sandbox ?? true) && <div className="mt-6 flex gap-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><FlaskConical size={18} className="mt-0.5 shrink-0" /><div><b>SANDBOX</b>. Không dùng tiền thật. Mã QR dưới đây chỉ để thử luồng.{state === 'PENDING' && <p className="mt-1 font-medium text-amber-800">Hệ thống tự động xác nhận chuyển tiền sau 3 giây không cần admin duyệt.</p>}</div></div>}
     <section className="mt-4 rounded-xl border border-stone-200 bg-white p-6">
       {loading && !payment && <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tạo mã thanh toán…</p>}
       {problem && !payment && <div role="alert" className="space-y-4">

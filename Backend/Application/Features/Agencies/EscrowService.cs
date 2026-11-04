@@ -138,7 +138,8 @@ public class EscrowService(
     ICurrentUser currentUser,
     IClock clock,
     IOptions<BusinessRules> rules,
-    ILogger<EscrowService>? logger = null) : ISlaPenaltyService
+    ILogger<EscrowService>? logger = null,
+    ISandboxPaymentAutoConfirmService? autoConfirmer = null) : ISlaPenaltyService
 {
     /// <summary>provenance: a lost optimistic update re-reads; four writers on one agency at once is already far beyond real traffic.</summary>
     private const int MaxAttempts = 5;
@@ -224,6 +225,7 @@ public class EscrowService(
         };
         payments.Add(transaction);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        autoConfirmer?.ScheduleAutoConfirm(transaction.PaymentId, qr.GatewayTxnRef);
         return new DepositPurchaseDto(transaction.PaymentId, qr.GatewayTxnRef, amount, qr.QrPayload, qr.PayUrl, qr.ExpiresAtUtc);
     }
 

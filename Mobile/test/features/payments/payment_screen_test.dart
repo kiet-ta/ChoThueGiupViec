@@ -237,7 +237,7 @@ void main() {
     });
 
     testWidgets(
-      'a Fake-gateway payment confirms itself after 5 seconds, without an admin',
+      'a Fake-gateway payment confirms itself after 3 seconds, without an admin',
       (tester) async {
         final service = ConfirmingPaymentsService();
         final clock = TestClock();
@@ -252,7 +252,7 @@ void main() {
           find.byKey(const Key('payment-auto-confirm-note')),
           findsOneWidget,
         );
-        await elapse(tester, clock, const Duration(seconds: 4));
+        await elapse(tester, clock, const Duration(seconds: 2));
         expect(service.confirmed, isEmpty);
 
         await elapse(tester, clock, const Duration(seconds: 1));

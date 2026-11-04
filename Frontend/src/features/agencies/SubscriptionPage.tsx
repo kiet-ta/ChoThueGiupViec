@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { StatusBadge } from '@/components/status'
 import { Button } from '@/components/ui/button'
 import { useResource } from '@/hooks/use-resource'
@@ -16,6 +16,15 @@ export function SubscriptionPage() {
   const action = useAction()
   // Today in Vietnam (UTC+7), read once per visit.
   const [today] = useState(() => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10))
+
+  useEffect(() => {
+    if (!purchase) return
+    const timer = setTimeout(() => {
+      setPurchase(null)
+      state.reload()
+    }, 3500)
+    return () => clearTimeout(timer)
+  }, [purchase, state])
 
   async function buy(packageId: number) {
     const result = await action.run(() => agenciesApi.subscribe(packageId))

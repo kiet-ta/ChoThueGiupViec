@@ -30,6 +30,15 @@ void main() {
     expect(sandboxBannerText, 'SANDBOX – no real money');
   });
 
+  test('sandbox auto-confirm defaults to 3 seconds', () {
+    expect(defaultSandboxAutoConfirmDelay, const Duration(seconds: 3));
+    expect(
+      sandboxAutoConfirmNote(defaultSandboxAutoConfirmDelay),
+      'Sandbox: thanh toán tự được xác nhận sau 3 giây.',
+    );
+    expect(isSandboxAutoConfirmable(payment()), isTrue);
+  });
+
   group('phase', () {
     test('follows the server status', () {
       expect(phaseOf(payment(status: 'SUCCESS'), _created), PaymentPhase.paid);

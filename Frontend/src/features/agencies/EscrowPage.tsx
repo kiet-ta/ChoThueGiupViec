@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DataTable, type Column } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 import { useResource } from '@/hooks/use-resource'
@@ -22,6 +22,16 @@ export function EscrowPage() {
   const [appealNotice, setAppealNotice] = useState<string | null>(null)
   const topUp = useAction()
   const appeal = useAction()
+
+  useEffect(() => {
+    if (!deposit) return
+    const timer = setTimeout(() => {
+      setDeposit(null)
+      state.reload()
+      ledger.reload()
+    }, 3500)
+    return () => clearTimeout(timer)
+  }, [deposit, state, ledger])
 
   async function startDeposit() {
     const value = parseAmount(amount)
