@@ -8,10 +8,11 @@ import { LandingNav } from '@/features/landing/LandingNav'
 import { PriceCalculator } from '@/features/landing/PriceCalculator'
 import { PricingPlans } from '@/features/landing/PricingPlans'
 import { RoomSlider } from '@/features/landing/RoomSlider'
+import { ShiftSchedule } from '@/features/landing/ShiftSchedule'
 import { Testimonials } from '@/features/landing/Testimonials'
 import { gsap, ScrollTrigger, prefersReducedMotion } from '@/features/landing/motion'
 
-// Public landing page at `/` (ticket #569). Visual reference: Frontend/ui-template/plandingPageWeb.html.
+// Public landing page at `/` (ticket #569). Elevated with modern interactive layouts & GSAP motion inspired by arena3.
 export function LandingPage() {
   const root = useRef<HTMLDivElement>(null)
 
@@ -29,10 +30,10 @@ export function LandingPage() {
       gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach((el) => {
         gsap.from(el, {
           opacity: 0,
-          y: 40,
-          duration: 0.9,
+          y: 35,
+          duration: 0.85,
           ease: 'power3.out',
-          scrollTrigger: { trigger: el, start: 'top 90%', once: true },
+          scrollTrigger: { trigger: el, start: 'top 88%', once: true },
         })
       })
       ScrollTrigger.refresh()
@@ -50,6 +51,7 @@ export function LandingPage() {
       <LandingNav />
       <main>
         <Hero />
+        <ShiftSchedule />
         <PriceCalculator />
         <Bento />
         <RoomSlider />

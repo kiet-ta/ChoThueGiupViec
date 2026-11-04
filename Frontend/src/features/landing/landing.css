@@ -14,6 +14,8 @@
   --lp-ink: #2f3a34;
   --lp-ink-soft: #6b7280;
   --lp-line: rgba(47, 58, 52, 0.12);
+  --lp-glass-bg: rgba(250, 248, 243, 0.85);
+  --lp-glass-border: rgba(255, 255, 255, 0.5);
 
   background: var(--lp-ivory);
   color: var(--lp-ink);
@@ -28,7 +30,30 @@
 
 .landing .lp-num {
   font-variant-numeric: tabular-nums;
+
   letter-spacing: -0.02em;
+}
+
+
+/* Glass & Progress Bar inspired by modern interactive UI */
+.lp-glass {
+  background: var(--lp-glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--lp-glass-border);
+}
+
+.lp-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--lp-mist), var(--lp-amber));
+  transform-origin: 0% 50%;
+  transform: scaleX(0);
+  z-index: 60;
+  pointer-events: none;
 }
 
 /* Buttons: 8 px radius, primary solid, secondary white + 1 px brand outline */
@@ -58,6 +83,64 @@
 /* Boxes: 12 px radius */
 .lp-card { border-radius: 12px; }
 
+/* VIP Gloss Sheen Sweep Effect on hover (arena3 style) */
+.lp-vip-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+}
+
+.lp-vip-card::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -120%;
+  width: 80%;
+  height: 220%;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.02) 25%,
+    rgba(255, 255, 255, 0.32) 48%,
+    rgba(197, 236, 201, 0.55) 50%,
+    rgba(255, 255, 255, 0.32) 52%,
+    rgba(255, 255, 255, 0.02) 75%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  transition: transform 0.85s cubic-bezier(0.19, 1, 0.22, 1);
+  opacity: 0;
+  z-index: 20;
+}
+
+.lp-vip-card:hover::after {
+  opacity: 1;
+  transform: rotate(25deg) translate(350%, 0);
+}
+
+.lp-vip-card:hover {
+  border-color: rgba(197, 236, 201, 0.4) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(197, 236, 201, 0.15) !important;
+}
+
+/* Bento image rendering optimization - eliminates stutter/jank */
+.lp-bento-media {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Pricing punch & toggle */
+.lp-price-punch {
+  display: inline-block;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+.lp-price-punch.is-changing {
+  transform: scale(0.92) translateY(-4px);
+  opacity: 0.5;
+}
+
 /* Range slider */
 .lp-range { -webkit-appearance: none; appearance: none; background: transparent; height: 28px; width: 100%; }
 .lp-range::-webkit-slider-runnable-track { height: 6px; border-radius: 9999px; background: var(--lp-track, #e2e3de); }
@@ -71,10 +154,10 @@
 
 /* Room slider */
 .lp-slide {
-  opacity: 0.45;
-  transform: scale(0.965);
+  opacity: 0.3;
+  transform: scale(0.985);
   transform-origin: 0 50%;
-  transition: opacity 0.8s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .lp-slide.is-on { opacity: 1; transform: none; }
 .lp-track { transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1); }
@@ -90,9 +173,9 @@
 
 /* Pinned control sequence. `is-pinned` is added by GSAP only on desktop, so the stacked fallback works without JS. */
 .lp-seq.is-pinned { min-height: 100vh; display: flex; align-items: center; padding-top: 7rem; padding-bottom: 4rem; }
-.lp-seq.is-pinned .lp-stage { position: relative; height: 27rem; }
+.lp-seq.is-pinned .lp-stage { position: relative; height: 32rem; min-height: 32rem; }
 .lp-seq.is-pinned .lp-panel { position: absolute; inset: 0; }
-.lp-seq.is-pinned .lp-panel:not(:first-child) { opacity: 0; }
+.lp-seq.is-pinned .lp-panel:not(:first-child) { opacity: 0; pointer-events: none; }
 
 /* Testimonials */
 .lp-quote { grid-area: 1 / 1; transition: opacity 0.6s ease, transform 0.6s ease; opacity: 0; transform: translateY(16px); pointer-events: none; }
