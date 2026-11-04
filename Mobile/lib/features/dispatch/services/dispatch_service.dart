@@ -1,4 +1,5 @@
 import '../../../core/device/camera_wrapper.dart';
+import '../../../core/device/device_camera_wrapper.dart';
 import '../../../core/device/location_wrapper.dart';
 import '../../../core/network/api_client.dart';
 import '../models/check_in_result.dart';
@@ -26,7 +27,8 @@ class DispatchService {
     this.isMock = false,
   }) : _apiClient = apiClient ?? ApiClient(),
        _locationWrapper = locationWrapper ?? LocationWrapper(),
-       _cameraWrapper = cameraWrapper ?? CameraWrapper() {
+       _cameraWrapper =
+           cameraWrapper ?? (isMock ? CameraWrapper() : DeviceCameraWrapper()) {
     if (isMock) {
       _mockOffer = JobOffer(
         assignmentId: 1001,

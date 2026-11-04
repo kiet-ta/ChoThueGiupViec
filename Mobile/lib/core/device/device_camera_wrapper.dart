@@ -9,8 +9,8 @@ typedef PickImage = Future<XFile?> Function(ImageSource source);
 
 /// The real camera and photo library (`image_picker`), behind [ICameraWrapper].
 ///
-/// [CameraWrapper] stays the mock-able wrapper that Dispatch, Disputes and their tests use; a screen that needs the real
-/// device passes this one. The picture is scaled to [maxWidthPx] and re-encoded as JPEG at [jpegQuality]: a phone photo is
+/// [CameraWrapper] stays the mock-able wrapper that tests use; Dispatch, Disputes and WorkerPhotos
+/// default to this real wrapper so physical devices and emulators open the camera instead of returning mock paths. The picture is scaled to [maxWidthPx] and re-encoded as JPEG at [jpegQuality]: a phone photo is
 /// often above the 5 MB the server accepts, and the server measures sharpness on a 640 px copy anyway.
 class DeviceCameraWrapper implements ICameraWrapper {
   static const double maxWidthPx = 1920;
