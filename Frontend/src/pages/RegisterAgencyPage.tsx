@@ -13,7 +13,7 @@ import {
 import { ApiError } from '@/services/api'
 
 const INPUT =
-  'h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive'
+  'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm placeholder:text-stone-400 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive'
 
 interface FieldProps {
   label: string
@@ -24,15 +24,17 @@ interface FieldProps {
   type?: string
   autoComplete?: string
   hint?: string
+  placeholder: string
 }
 
-function Field({ label, name, form, errors, onChange, type = 'text', autoComplete, hint }: FieldProps) {
+function Field({ label, name, form, errors, onChange, type = 'text', autoComplete, hint, placeholder }: FieldProps) {
   return (
     <label className="flex flex-col gap-1 text-sm">
       {label}
       <input
         className={INPUT}
         type={type}
+        placeholder={placeholder}
         autoComplete={autoComplete}
         value={form[name]}
         onChange={(e) => onChange(name, e.target.value)}
@@ -103,14 +105,15 @@ export function RegisterAgencyPage() {
         <h1 className="text-xl font-semibold">Đăng ký đối tác doanh nghiệp</h1>
         <p className="text-sm text-muted-foreground">Công ty cung cấp nhân sự đăng ký một lần; sau khi nạp ký quỹ tối thiểu, công ty được nhận đơn Premium.</p>
 
-        <Field label="Mã số thuế" name="taxCode" form={form} errors={errors} onChange={change} hint="10 chữ số, hoặc 10 chữ số-3 chữ số cho chi nhánh" />
-        <Field label="Tên pháp lý của công ty" name="legalName" form={form} errors={errors} onChange={change} />
-        <Field label="Người đại diện pháp luật" name="legalRepresentative" form={form} errors={errors} onChange={change} />
-        <Field label="Số điện thoại liên hệ" name="contactPhone" form={form} errors={errors} onChange={change} autoComplete="tel" />
-        <Field label="Email (dùng để đăng nhập)" name="contactEmail" form={form} errors={errors} onChange={change} type="email" autoComplete="username" />
+        <Field label="Mã số thuế" name="taxCode" placeholder="0123456789-001" form={form} errors={errors} onChange={change} hint="10 chữ số, hoặc 10 chữ số-3 chữ số cho chi nhánh" />
+        <Field label="Tên pháp lý của công ty" name="legalName" placeholder="Nhập tên pháp lý của công ty" form={form} errors={errors} onChange={change} />
+        <Field label="Người đại diện pháp luật" name="legalRepresentative" placeholder="Nhập người đại diện pháp luật" form={form} errors={errors} onChange={change} />
+        <Field label="Số điện thoại liên hệ" name="contactPhone" placeholder="0912 345 678" form={form} errors={errors} onChange={change} autoComplete="tel" />
+        <Field label="Email (dùng để đăng nhập)" name="contactEmail" placeholder="email@congty.vn" form={form} errors={errors} onChange={change} type="email" autoComplete="username" />
         <Field
           label="Mật khẩu"
           name="password"
+          placeholder="Từ 10 ký tự, gồm chữ hoa, chữ thường và chữ số"
           form={form}
           errors={errors}
           onChange={change}
@@ -121,8 +124,8 @@ export function RegisterAgencyPage() {
 
         <fieldset className="flex flex-col gap-3 rounded-lg border border-border p-3">
           <legend className="px-1 text-sm font-medium">Tài khoản nhận tiền (tuỳ chọn, có thể khai sau)</legend>
-          <Field label="Ngân hàng" name="bankName" form={form} errors={errors} onChange={change} />
-          <Field label="Số tài khoản" name="bankAccountNo" form={form} errors={errors} onChange={change} hint="6 đến 30 chữ số" />
+          <Field label="Ngân hàng" name="bankName" placeholder="Nhập tên ngân hàng" form={form} errors={errors} onChange={change} />
+          <Field label="Số tài khoản" name="bankAccountNo" placeholder="6 đến 30 chữ số" form={form} errors={errors} onChange={change} hint="6 đến 30 chữ số" />
         </fieldset>
 
         {message && (
