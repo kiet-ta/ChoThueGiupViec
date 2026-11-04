@@ -74,7 +74,7 @@ public class DispatchOfferEngineTests
         public Harness()
         {
             Clock.Set(StartTime);
-            var rules = MicrosoftOptions.Create(new BusinessRules());
+            var rules = MicrosoftOptions.Create(new BusinessRules { Dispatch = new() { RadiusStepsKm = [5.0, 10.0, 20.0, 30.0] } });
             var scanner = new SteppedRadiusDispatchScanner(Query, rules, MicrosoftOptions.Create(new MatchingScoreOptions()));
             Engine = new DispatchOfferEngine(scanner, Repo, Clock, Mediator, rules, Capacity);
         }
@@ -245,17 +245,17 @@ public class DispatchOfferEngineTests
     }
 
     [Fact]
-    public async Task StartDispatchForOrder_exhausts_over_10km_and_publishes_AssignmentFailed()
+    public async Task StartDispatchForOrder_exhausts_over_30km_and_publishes_AssignmentFailed()
     {
         var h = new Harness();
-        h.AddWorker(105, slotId: 50, distanceKm: 12.0); // beyond 10 km
+        h.AddWorker(105, slotId: 50, distanceKm: 35.0); // beyond 30 km
 
         var offer = await h.OfferAsync(509);
 
         Assert.Null(offer);
         var evt = Assert.IsType<AssignmentFailed>(Assert.Single(h.Mediator.PublishedEvents));
         Assert.Equal(509, evt.OrderId);
-        Assert.Contains("10 km", evt.Reason);
+        Assert.Contains("30 km", evt.Reason);
         Assert.Empty(h.Repo.Assignments);
     }
 
@@ -293,7 +293,7 @@ public class DispatchOfferEngineTests
         var rows = h.Repo.Assignments.Values.OrderBy(a => a.AssignmentSeq).ToList();
         Assert.Equal(2, offers.Count);
         Assert.Equal([703, 701], rows.Select(a => a.WorkerId)); // seat 1 the favorite, seat 2 the usual best candidate
-        Assert.Equal(7, rows[0].DispatchRadiusKm); // the smallest step that reaches 6 km
+        Assert.Equal(10, rows[0].DispatchRadiusKm); // the smallest step that reaches 6 km
         Assert.Equal(113, rows[0].SlotId);
     }
 
@@ -311,13 +311,13 @@ public class DispatchOfferEngineTests
     }
 
     [Fact]
-    public async Task DispatchPaidOrder_ignores_a_preferred_worker_beyond_10_km()
+    public async Task DispatchPaidOrder_ignores_a_preferred_worker_beyond_30_km()
     {
         var h = new Harness();
         h.Repo.Orders[522] = new DispatchOrderContext(
             522, 201, ServiceTier.Economy, ShiftDate, "SANG", 1, OrderLocation, 260000m, PreferredWorkerId: 703);
         h.AddWorker(701, slotId: 131, distanceKm: 3.0);
-        h.AddWorker(703, slotId: 133, distanceKm: 12.0);
+        h.AddWorker(703, slotId: 133, distanceKm: 35.0);
 
         var offers = await h.Engine.DispatchPaidOrderAsync(522);
 

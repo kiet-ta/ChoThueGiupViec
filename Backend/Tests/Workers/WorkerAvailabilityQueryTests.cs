@@ -218,9 +218,9 @@ public class WorkerAvailabilityQueryTests
         await transaction.RollbackAsync();
     }
 
-    /// <summary>Decisions D24: the search matches on the registered work area, and a worker is found only inside the search step and their own radius.</summary>
+    /// <summary>Decisions D24 / BE-DISP-02: the search matches on the registered work area base point without worker radius cap.</summary>
     [Fact]
-    public async Task FindAvailableFreelancersAsync_UsesTheRegisteredWorkAreaAndTheWorkersOwnRadius()
+    public async Task FindAvailableFreelancersAsync_UsesTheRegisteredWorkAreaWithoutWorkerRadiusCap()
     {
         if (!IsSqlServerAvailable()) return;
 
@@ -272,7 +272,7 @@ public class WorkerAvailabilityQueryTests
 
         // Other freelancers may already be in the database: look only at the three workers of this test.
         Assert.Contains(found, x => x.WorkerId == okWorker.WorkerId);
-        Assert.DoesNotContain(found, x => x.WorkerId == tooSmall.WorkerId);
+        Assert.Contains(found, x => x.WorkerId == tooSmall.WorkerId);
         Assert.DoesNotContain(found, x => x.WorkerId == noArea.WorkerId);
 
         // The 5 km step does not find the worker with a 10 km radius: they are 8 km away.
@@ -280,6 +280,7 @@ public class WorkerAvailabilityQueryTests
             new AvailabilityQuery(slotDate, shiftCode, center, RadiusKm: 5.0, Limit: 10),
             CancellationToken.None);
         Assert.DoesNotContain(step5, x => x.WorkerId == okWorker.WorkerId);
+        Assert.DoesNotContain(step5, x => x.WorkerId == tooSmall.WorkerId);
 
         await transaction.RollbackAsync();
     }

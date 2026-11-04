@@ -177,7 +177,7 @@ public class MatchingScoreCalculatorTests
     }
 
     [Fact]
-    public void RankCandidates_OrdersCandidatesByTotalScoreDescending()
+    public void RankCandidates_OrdersCandidatesByDistanceAscending()
     {
         var candidates = new List<DispatchCandidate>
         {
@@ -231,5 +231,23 @@ public class MatchingScoreCalculatorTests
 
         Assert.Equal(200, ranked[0].Candidate.WorkerId);
         Assert.Equal(100, ranked[1].Candidate.WorkerId);
+    }
+
+    [Fact]
+    public void RankCandidates_PrioritizesCloserDistanceOverHigherScore()
+    {
+        // Candidate 1 is closer (1.0 km) but has lower rating/jobs
+        // Candidate 2 is farther (2.5 km) but has perfect rating/jobs
+        var candidates = new List<DispatchCandidate>
+        {
+            new() { WorkerId = 1, WorkerType = "FREELANCER", DistanceKm = 1.0, RatingAvg = 4.1m, CompletedJobs = 10 },
+            new() { WorkerId = 2, WorkerType = "FREELANCER", DistanceKm = 2.5, RatingAvg = 5.0m, CompletedJobs = 50 },
+        };
+
+        var ranked = MatchingScoreCalculator.RankCandidates(candidates, searchRadiusKm: 5.0);
+
+        Assert.Equal(2, ranked.Count);
+        Assert.Equal(1, ranked[0].Candidate.WorkerId);
+        Assert.Equal(2, ranked[1].Candidate.WorkerId);
     }
 }

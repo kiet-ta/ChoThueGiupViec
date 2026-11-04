@@ -94,9 +94,9 @@ public static class MatchingScoreCalculator
     }
 
     /// <summary>
-    /// Evaluates and ranks all candidates descending by total matching score.
+    /// Evaluates and ranks all candidates ascending by distance, then descending by matching score.
     /// Ineligible candidates are filtered out.
-    /// Tie-breaking order: TotalScore DESC -> DistanceKm ASC -> RatingAvg DESC -> CompletedJobs DESC.
+    /// Tie-breaking order: DistanceKm ASC -> TotalScore DESC -> RatingAvg DESC -> CompletedJobs DESC.
     /// </summary>
     public static IReadOnlyList<(DispatchCandidate Candidate, MatchingScoreResult Result)> RankCandidates(
         IEnumerable<DispatchCandidate> candidates,
@@ -110,8 +110,8 @@ public static class MatchingScoreCalculator
         return candidates
             .Select(c => (Candidate: c, Result: CalculateScore(c, searchRadiusKm, opt)))
             .Where(x => x.Result.IsEligible)
-            .OrderByDescending(x => x.Result.TotalScore)
-            .ThenBy(x => x.Candidate.DistanceKm)
+            .OrderBy(x => x.Candidate.DistanceKm)
+            .ThenByDescending(x => x.Result.TotalScore)
             .ThenByDescending(x => x.Candidate.RatingAvg)
             .ThenByDescending(x => x.Candidate.CompletedJobs)
             .ToList();

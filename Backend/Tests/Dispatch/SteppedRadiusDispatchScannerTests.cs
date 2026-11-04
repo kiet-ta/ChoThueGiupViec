@@ -9,7 +9,7 @@ namespace CommonService.Tests.Dispatch;
 
 public class SteppedRadiusDispatchScannerTests
 {
-    private readonly BusinessRules _businessRules = new();
+    private readonly BusinessRules _businessRules = new() { Dispatch = new() { RadiusStepsKm = [5.0, 10.0, 20.0, 30.0] } };
     private readonly MatchingScoreOptions _matchingScoreOptions = new();
 
     [Fact]
@@ -40,10 +40,10 @@ public class SteppedRadiusDispatchScannerTests
     }
 
     [Fact]
-    public async Task Scan_progresses_from_5km_to_7km_when_no_worker_in_5km()
+    public async Task Scan_progresses_from_5km_to_10km_when_no_worker_in_5km()
     {
         var fakeQuery = new FakeWorkerAvailabilityQuery();
-        // Worker is at 6.2 km (outside 5 km, inside 7 km)
+        // Worker is at 6.2 km (outside 5 km, inside 10 km)
         fakeQuery.Workers.Add(new AvailableWorker(WorkerId: 201, SlotId: 1, DistanceKm: 6.2));
 
         var scanner = new SteppedRadiusDispatchScanner(
@@ -61,7 +61,7 @@ public class SteppedRadiusDispatchScannerTests
 
         Assert.NotNull(result.BestCandidate);
         Assert.Equal(201, result.BestCandidate.Value.Candidate.WorkerId);
-        Assert.Equal(7.0, result.MatchedRadiusKm);
+        Assert.Equal(10.0, result.MatchedRadiusKm);
         Assert.Equal(2, result.StepsExecuted.Count);
         Assert.Empty(result.StepsExecuted[0].RankedCandidates);
         Assert.Single(result.StepsExecuted[1].RankedCandidates);
@@ -69,11 +69,11 @@ public class SteppedRadiusDispatchScannerTests
     }
 
     [Fact]
-    public async Task Scan_progresses_to_10km_when_no_worker_in_5km_and_7km()
+    public async Task Scan_progresses_to_20km_when_no_worker_within_10km()
     {
         var fakeQuery = new FakeWorkerAvailabilityQuery();
-        // Worker is at 8.5 km (outside 7 km, inside 10 km)
-        fakeQuery.Workers.Add(new AvailableWorker(WorkerId: 301, SlotId: 1, DistanceKm: 8.5));
+        // Worker is at 15.0 km (outside 10 km, inside 20 km)
+        fakeQuery.Workers.Add(new AvailableWorker(WorkerId: 301, SlotId: 1, DistanceKm: 15.0));
 
         var scanner = new SteppedRadiusDispatchScanner(
             fakeQuery,
@@ -90,7 +90,7 @@ public class SteppedRadiusDispatchScannerTests
 
         Assert.NotNull(result.BestCandidate);
         Assert.Equal(301, result.BestCandidate.Value.Candidate.WorkerId);
-        Assert.Equal(10.0, result.MatchedRadiusKm);
+        Assert.Equal(20.0, result.MatchedRadiusKm);
         Assert.Equal(3, result.StepsExecuted.Count);
         Assert.Empty(result.StepsExecuted[0].RankedCandidates);
         Assert.Empty(result.StepsExecuted[1].RankedCandidates);
@@ -99,11 +99,42 @@ public class SteppedRadiusDispatchScannerTests
     }
 
     [Fact]
-    public async Task Scan_exhausts_all_steps_when_no_worker_within_10km()
+    public async Task Scan_progresses_to_30km_when_no_worker_within_20km()
     {
         var fakeQuery = new FakeWorkerAvailabilityQuery();
-        // Worker is at 12.0 km (outside 10 km)
-        fakeQuery.Workers.Add(new AvailableWorker(WorkerId: 401, SlotId: 1, DistanceKm: 12.0));
+        // Worker is at 25.0 km (outside 20 km, inside 30 km)
+        fakeQuery.Workers.Add(new AvailableWorker(WorkerId: 351, SlotId: 1, DistanceKm: 25.0));
+
+        var scanner = new SteppedRadiusDispatchScanner(
+            fakeQuery,
+            MicrosoftOptions.Create(_businessRules),
+            MicrosoftOptions.Create(_matchingScoreOptions)
+        );
+
+        var result = await scanner.ScanCandidatesAsync(
+            ServiceTier.Economy,
+            new DateOnly(2026, 10, 10),
+            "TOI",
+            new GeoPoint(10.762622, 106.660172)
+        );
+
+        Assert.NotNull(result.BestCandidate);
+        Assert.Equal(351, result.BestCandidate.Value.Candidate.WorkerId);
+        Assert.Equal(30.0, result.MatchedRadiusKm);
+        Assert.Equal(4, result.StepsExecuted.Count);
+        Assert.Empty(result.StepsExecuted[0].RankedCandidates);
+        Assert.Empty(result.StepsExecuted[1].RankedCandidates);
+        Assert.Empty(result.StepsExecuted[2].RankedCandidates);
+        Assert.Single(result.StepsExecuted[3].RankedCandidates);
+        Assert.False(result.ExhaustedAllSteps);
+    }
+
+    [Fact]
+    public async Task Scan_exhausts_all_steps_when_no_worker_within_30km()
+    {
+        var fakeQuery = new FakeWorkerAvailabilityQuery();
+        // Worker is at 35.0 km (outside 30 km)
+        fakeQuery.Workers.Add(new AvailableWorker(WorkerId: 401, SlotId: 1, DistanceKm: 35.0));
 
         var scanner = new SteppedRadiusDispatchScanner(
             fakeQuery,
@@ -120,7 +151,7 @@ public class SteppedRadiusDispatchScannerTests
 
         Assert.Null(result.BestCandidate);
         Assert.Null(result.MatchedRadiusKm);
-        Assert.Equal(3, result.StepsExecuted.Count);
+        Assert.Equal(4, result.StepsExecuted.Count);
         Assert.True(result.ExhaustedAllSteps);
     }
 
