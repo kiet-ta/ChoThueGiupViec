@@ -106,6 +106,43 @@ void main() {
       expect(find.text('Đã duyệt'), findsOneWidget);
     });
 
+    testWidgets('the result button goes back to the first route', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => WorkerEkycScreen(ekycService: mockService),
+                  ),
+                ),
+                child: const Text('trang-chu'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('trang-chu'));
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 3; i++) {
+        await tapVisible(tester, find.text('Tiếp theo'));
+        await tester.pumpAndSettle();
+      }
+      await tapVisible(tester, find.text('Gửi xác minh'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Làm lại xác minh'), findsNothing);
+      await tapVisible(tester, find.text('Về trang chủ'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WorkerEkycScreen), findsNothing);
+      expect(find.text('trang-chu'), findsOneWidget);
+    });
+
     group('last step layout', () {
       Future<void> goToLastStep(WidgetTester tester) async {
         await tester.pumpWidget(

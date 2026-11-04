@@ -192,6 +192,23 @@ class ApiClient {
     );
   }
 
+  Future<ApiResponse<T>> patch<T>(
+    String path, {
+    Object? body,
+    Map<String, String>? queryParams,
+    T Function(dynamic)? fromJson,
+    bool requiresAuth = true,
+  }) {
+    return _sendRequest<T>(
+      'PATCH',
+      path,
+      body: body,
+      queryParams: queryParams,
+      fromJson: fromJson,
+      requiresAuth: requiresAuth,
+    );
+  }
+
   Future<ApiResponse<T>> delete<T>(
     String path, {
     Map<String, String>? queryParams,

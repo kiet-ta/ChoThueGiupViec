@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
+import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/avatar_initials.dart';
 import '../../../core/widgets/grouped_list_card.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_page.dart';
+import '../../../core/widgets/nordic_text_input.dart';
 import '../../agencies/routes.dart';
+import '../../customers/widgets/sign_out_dialog.dart';
 import '../../disputes/models/dispute_models.dart';
 import '../../disputes/routes.dart';
 import '../../disputes/screens/dispute_screen.dart';
@@ -83,6 +87,24 @@ class _WorkerScreenState extends State<WorkerScreen> {
         .catchError((_) {});
   }
 
+  /// Asks the worker for a new name, saves it and shows it; a refused name keeps the old one.
+  Future<void> _editName() async {
+    final service = widget.profile ?? WorkersProfileService();
+    final saved = await showDialog<String>(
+      context: context,
+      builder: (_) => _EditNameDialog(
+        initialName: _fullName ?? '',
+        save: service.updateFullName,
+      ),
+    );
+    if (saved != null && mounted) setState(() => _fullName = saved);
+  }
+
+  /// Asks first, like the customer screens, then signs out.
+  Future<void> _confirmSignOut(VoidCallback onSignOut) async {
+    if (await confirmCustomerSignOut(context) && mounted) onSignOut();
+  }
+
   void _open(BuildContext context, String route, {Object? arguments}) {
     Navigator.of(context).pushNamed(route, arguments: arguments);
   }
@@ -115,6 +137,12 @@ class _WorkerScreenState extends State<WorkerScreen> {
                 key: const Key('worker-account-name'),
                 style: NordicTypography.titleMedium,
               ),
+            ),
+            IconButton(
+              key: const Key('worker-account-edit-name'),
+              tooltip: 'Sửa tên',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: _editName,
             ),
           ],
         ),
@@ -169,7 +197,7 @@ class _WorkerScreenState extends State<WorkerScreen> {
               icon: Icons.logout,
               title: 'Đăng xuất',
               danger: true,
-              onTap: onSignOut,
+              onTap: () => _confirmSignOut(onSignOut),
             ),
           ],
         ),
@@ -178,5 +206,98 @@ class _WorkerScreenState extends State<WorkerScreen> {
     return pushed
         ? NordicPage.pushed(title: 'Hồ sơ và chất lượng', children: children)
         : NordicPage.tab(title: 'Tài khoản', children: children);
+  }
+}
+
+/// The dialog that edits the worker's name. It pops the name the server kept, or null when cancelled.
+class _EditNameDialog extends StatefulWidget {
+  final String initialName;
+  final Future<String> Function(String name) save;
+
+  const _EditNameDialog({required this.initialName, required this.save});
+
+  @override
+  State<_EditNameDialog> createState() => _EditNameDialogState();
+}
+
+class _EditNameDialogState extends State<_EditNameDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialName,
+  );
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _fail(String message) {
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _error = message;
+    });
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final name = await widget.save(_controller.text);
+      if (mounted) Navigator.pop(context, name);
+    } on ArgumentError catch (e) {
+      _fail(e.message.toString());
+    } on ApiException catch (e) {
+      _fail('Chưa lưu được tên: ${e.message}');
+    } catch (_) {
+      _fail('Chưa lưu được tên. Bạn thử lại sau nhé.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Sửa tên', style: NordicTypography.h3),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          NordicTextInput(
+            label: 'Họ và tên',
+            controller: _controller,
+            textInputAction: TextInputAction.done,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: NordicSpace.xs),
+            Text(
+              _error!,
+              key: const Key('worker-name-error'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          key: const Key('worker-name-cancel'),
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text(
+            'Huỷ',
+            style: TextStyle(color: NordicColors.textSecondary),
+          ),
+        ),
+        ElevatedButton(
+          key: const Key('worker-name-save'),
+          onPressed: _saving ? null : _submit,
+          child: const Text('Lưu'),
+        ),
+      ],
+    );
   }
 }
