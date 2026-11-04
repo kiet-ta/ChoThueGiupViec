@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/api'
-import type { Address, AddressBody, CustomerProfile, FavoriteWorker, ProfileBody } from './types'
+import type { Address, AddressBody, CustomerProfile, FavoriteWorker, ProfileBody, ReverseGeocodeResult } from './types'
 
 export const accountApi = {
   addresses: () => apiClient.get<Address[]>('/customers/me/addresses'),
@@ -11,4 +11,6 @@ export const accountApi = {
   removeFavorite: (workerId: number) => apiClient.delete<null>(`/customers/me/favorite-workers/${workerId}`),
   profile: () => apiClient.get<CustomerProfile>('/customers/me'),
   updateProfile: (body: ProfileBody) => apiClient.put<CustomerProfile>('/customers/me', body),
+  reverseGeocode: (latitude: number, longitude: number) =>
+    apiClient.post<ReverseGeocodeResult>('/locations/reverse-geocode', { latitude, longitude }),
 }

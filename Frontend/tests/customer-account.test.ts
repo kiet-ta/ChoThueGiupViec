@@ -5,7 +5,7 @@ import {
   toAddressBody, totalArea, validateAddress, validateProfile, wardsOf, workStatusLabel, type AddressForm,
 } from '../src/features/customer/account/view.ts'
 import { vnAdminUnits } from '../src/features/customer/account/vn-admin-units.ts'
-import type { Address } from '../src/features/customer/account/types.ts'
+import type { Address, ReverseGeocodeResult } from '../src/features/customer/account/types.ts'
 
 const form = (over: Partial<AddressForm> = {}): AddressForm => ({
   label: 'Nhà', city: 'Thành phố Hồ Chí Minh', district: 'Phường Sài Gòn', addressLine: '12 Lê Lợi', housingType: 'HOUSE', floorAreaM2: '29', numFloors: '2',
@@ -137,5 +137,37 @@ describe('profile and favorites helpers', () => {
     assert.match(accountProblem({ status: 409 }, true), /đã có đơn/)
     assert.match(accountProblem({ status: 404 }), /Không tìm thấy/)
     assert.equal(accountProblem({ status: 500, message: 'Lỗi' }), 'Lỗi')
+  })
+})
+
+describe('reverse geocode auto-fill integration', () => {
+  it('applies reverse geocoding result into form fields and validates cleanly', () => {
+    const initial = form({ label: 'Văn phòng', housingType: 'APARTMENT', floorAreaM2: '50', numFloors: '1' })
+    const geoResult: ReverseGeocodeResult = {
+      city: 'Thành phố Hồ Chí Minh',
+      district: 'Phường Bến Nghé',
+      addressLine: '123 Lê Lợi, Quận 1',
+      formattedAddress: '123 Lê Lợi, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh',
+      latitude: 10.7769,
+      longitude: 106.7009,
+    }
+
+    const updated: AddressForm = {
+      ...initial,
+      city: geoResult.city || initial.city,
+      district: geoResult.district || initial.district,
+      addressLine: geoResult.addressLine || initial.addressLine,
+      latitude: geoResult.latitude,
+      longitude: geoResult.longitude,
+    }
+
+    assert.equal(updated.city, 'Thành phố Hồ Chí Minh')
+    assert.equal(updated.district, 'Phường Bến Nghé')
+    assert.equal(updated.addressLine, '123 Lê Lợi, Quận 1')
+    assert.equal(updated.label, 'Văn phòng')
+    assert.equal(updated.housingType, 'APARTMENT')
+    assert.equal(updated.latitude, 10.7769)
+    assert.equal(updated.longitude, 106.7009)
+    assert.deepEqual(validateAddress(updated), {})
   })
 })

@@ -22,6 +22,7 @@ export function AddressFormPage() {
   const [loaded, setLoaded] = useState(id === null)
   const [errors, setErrors] = useState<AddressErrors>({})
   const [banner, setBanner] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [locating, setLocating] = useState(false)
   const [located, setLocated] = useState(false)
@@ -55,11 +56,34 @@ export function AddressFormPage() {
   function useMyLocation() {
     if (!('geolocation' in navigator)) return setBanner('Trình duyệt không hỗ trợ định vị.')
     setLocating(true)
+    setBanner(null)
+    setNotice(null)
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm((prev) => ({ ...prev, latitude: Number(pos.coords.latitude.toFixed(6)), longitude: Number(pos.coords.longitude.toFixed(6)) }))
-        setLocated(true)
-        setLocating(false)
+      async (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(6))
+        const lng = Number(pos.coords.longitude.toFixed(6))
+        try {
+          const res = await accountApi.reverseGeocode(lat, lng)
+          setForm((prev) => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng,
+            city: res.city || prev.city,
+            district: res.district || prev.district,
+            addressLine: res.addressLine || prev.addressLine,
+          }))
+          clear('city', 'district', 'addressLine', 'location')
+          setLocated(true)
+          setNotice('Đã định vị và tự động điền địa chỉ từ vị trí hiện tại.')
+        } catch {
+          // Graceful degradation: keeps coordinates
+          setForm((prev) => ({ ...prev, latitude: lat, longitude: lng }))
+          clear('location')
+          setLocated(true)
+          setNotice('Đã lấy toạ độ GPS. Vui lòng kiểm tra và nhập địa chỉ bên trên.')
+        } finally {
+          setLocating(false)
+        }
       },
       () => {
         setBanner('Không lấy được vị trí. Địa chỉ sẽ dùng vị trí mặc định của thành phố.')
@@ -118,7 +142,7 @@ export function AddressFormPage() {
         {total === null ? 'Nhập diện tích để xem khung giá.' : <span><b>{parseNumber(form.floorAreaM2)} m² × {parseNumber(form.numFloors)} tầng = {total} m²</b> · {bandText(total)}</span>}</p>
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <button type="button" onClick={useMyLocation} disabled={locating} className="h-9 rounded-lg border border-stone-300 px-3 font-semibold disabled:opacity-50">{locating ? 'Đang định vị…' : 'Dùng vị trí của tôi'}</button>
-        <span className="text-stone-500">{located ? `Đã lấy vị trí (${form.latitude}, ${form.longitude}).` : 'Chưa định vị: dùng vị trí mặc định để tìm thợ gần nhà.'}</span>
+        <span className={notice ? 'font-medium text-[#1a2f25]' : 'text-stone-500'}>{notice ? notice : located ? `Đã lấy vị trí (${form.latitude}, ${form.longitude}).` : 'Chưa định vị: dùng vị trí mặc định để tìm thợ gần nhà.'}</span>
       </div>
       {err('location')}
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isDefault} onChange={(e) => set('isDefault', e.target.checked)} />Đặt làm địa chỉ mặc định</label>

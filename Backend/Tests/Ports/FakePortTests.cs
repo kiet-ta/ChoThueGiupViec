@@ -41,7 +41,7 @@ public class FakePortTests
             .Where(t => t.IsInterface && t.Namespace == typeof(IClock).Namespace)
             .ToList();
 
-        Assert.Equal(20, ports.Count);
+        Assert.Equal(21, ports.Count);
         foreach (var port in ports)
         {
             var instance = provider.GetRequiredService(port);
@@ -471,5 +471,18 @@ public class FakePortTests
 
         quality.VolScore = 99.9;
         Assert.False((await quality.AssessAsync(Stream.Null)).IsAccepted);
+    }
+    [Fact]
+    public async Task FakeReverseGeocodeService_returns_deterministic_address()
+    {
+        var geocoding = new FakeReverseGeocodeService();
+        var hcm = await geocoding.ReverseGeocodeAsync(10.7769, 106.7009);
+        Assert.NotNull(hcm);
+        Assert.Equal("Thành phố Hồ Chí Minh", hcm.City);
+        Assert.Equal("Phường Bến Nghé", hcm.District);
+        Assert.Equal("123 Lê Lợi, Quận 1", hcm.AddressLine);
+
+        var outside = await geocoding.ReverseGeocodeAsync(0.0, 0.0);
+        Assert.Null(outside);
     }
 }

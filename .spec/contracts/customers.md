@@ -148,6 +148,30 @@ The shifts the favorite worker is free for: `BOOKING_SLOT` rows in `AVAILABLE` (
 | 400 | `to` before `from`, or a range longer than `Booking.MaxDaysAhead` days |
 | 404 | the worker is not in the caller's favorites (a customer does not browse other workers' calendars) |
 
+
+### 2.4 Reverse Geocoding (REVERSE-GEOCODE-01, #637)
+
+**`POST /api/v1/locations/reverse-geocode`** (Requires `[Authorize]`)
+```json
+{
+  "latitude": 10.776889,
+  "longitude": 106.700806
+}
+```
+-> 200 `data: ReverseGeocodeResult`:
+```json
+{
+  "city": "Thành phố Hồ Chí Minh",
+  "district": "Phường Bến Nghé",
+  "addressLine": "123 Lê Lợi, Quận 1",
+  "formattedAddress": "123 Lê Lợi, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh",
+  "latitude": 10.776889,
+  "longitude": 106.700806
+}
+```
+- Unrecognized or outside coverage: 200 with `success: false`, retained coordinates, and message.
+- Coordinates out of valid range: 400.
+
 ## 3. Out of scope / owned elsewhere
 - Creating orders, price, slots: M2 (`booking.md`). The order screen reads addresses only through this module's endpoints; Booking never reads `CUSTOMER_ADDRESS` directly (modules talk through ports/events only, overview §3.5).
 - Worker profile data shown in the favorites list: M4 owns `WORKER` (C3).

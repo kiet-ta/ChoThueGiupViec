@@ -261,6 +261,15 @@ A freelancer never said where they work, so the dispatch search could only use t
 3. **Mandatory:** a freelancer with no work area is never offered a job. Agency staff are not concerned (Economy only matches freelancers; Premium goes to the agency).
 4. Contract: `workers.md` section 2.3B (`GET` / `PUT /api/workers/me/work-area`).
 
+
+### D25 Reverse Geocoding with Goong Maps (REVERSE-GEOCODE-01, #637; owner decision 2026-11-04)
+
+When a customer taps "Dùng vị trí của tôi" on the address form, the system resolves coordinates into structured Vietnamese address components via Backend proxy endpoint `POST /api/v1/locations/reverse-geocode` ([Authorize]).
+1. **Provider:** Goong Maps Geocode API (`https://rsapi.goong.io/Geocode?latlng={lat},{lng}&api_key={key}`). Configured via `Goong:ApiKey` or environment variable `GOONG__APIKEY`.
+2. **Offline & Test Fallback:** In Development and CI without an API key, `GoongReverseGeocodeService` seamlessly falls back to `FakeReverseGeocodeService` (deterministic mock addresses within Vietnam bounds).
+3. **Data Mapping:** Normalizes `city` (34 provinces/cities in `vnAdminUnits`), `district` (ward/commune in `vnAdminUnits`), and `addressLine` (`[house number + street + legacy district]`).
+4. **Graceful Degradation:** If reverse geocoding fails or is unavailable, GPS coordinates are retained on the client form and manual entry remains unblocked.
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery. Escrow withdrawal by an agency (D16: an Admin settles outside the system).
 
