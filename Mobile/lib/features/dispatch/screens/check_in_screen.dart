@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/device/camera_wrapper.dart';
@@ -58,6 +60,22 @@ class _CheckInScreenState extends State<CheckInScreen> {
   bool _isSubmittingPhoto = false;
   bool _isRequestingCustomerConfirmation = false;
 
+  /// The worker asked the customer to confirm the arrival; the screen reads the assignment until it is checked in (#659).
+  bool _awaitingCustomer = false;
+  bool _checkingCustomer = false;
+  Timer? _customerPoll;
+
+  /// How often the waiting screen reads the assignment.
+  static const Duration customerPollInterval = Duration(seconds: 5);
+
+  /// The statuses that mean the check-in is done (the customer confirmed, or the work already started).
+  static const Set<String> checkedInStatuses = {
+    'CHECKED_IN',
+    'IN_PROGRESS',
+    'AWAITING_ACCEPTANCE',
+    'COMPLETED',
+  };
+
   /// Bumped on every failure so the message shakes.
   int _errors = 0;
 
@@ -71,6 +89,24 @@ class _CheckInScreenState extends State<CheckInScreen> {
     _refreshCurrentGps();
   }
 
+  @override
+  void dispose() {
+    _customerPoll?.cancel();
+    super.dispose();
+  }
+
+  /// A result for an assignment the server already has as checked in.
+  CheckInResult _confirmedResult(String method) => CheckInResult(
+    checkInId: _checkInResult?.checkInId ?? 0,
+    assignmentId: widget.assignmentId,
+    checkedInAt: DateTime.now(),
+    distanceMeters: _checkInResult?.distanceMeters ?? 0,
+    isGpsVerified: false,
+    requiresAlternativeVerification: false,
+    verificationMethod: method,
+    isCustomerConfirmed: method == DispatchService.customerConfirmationMethod,
+  );
+
   Future<void> _loadDetail() async {
     setState(() {
       _detail = null;
@@ -83,6 +119,12 @@ class _CheckInScreenState extends State<CheckInScreen> {
       if (!mounted) return;
       setState(() {
         _detail = response.success ? response.data : null;
+        // Opened again after the check-in (or the customer's confirmation): show it as done.
+        if (_detail != null &&
+            checkedInStatuses.contains(_detail!.status) &&
+            _checkInResult == null) {
+          _checkInResult = _confirmedResult(alreadyCheckedInMethod);
+        }
         _detailError = _detail == null
             ? (response.message.isNotEmpty
                   ? response.message
@@ -200,15 +242,21 @@ class _CheckInScreenState extends State<CheckInScreen> {
     });
 
     try {
-      final result = await _dispatchService.requestCustomerConfirmation(
+      await _dispatchService.requestCustomerConfirmation(
         assignmentId: widget.assignmentId,
       );
 
       if (!mounted) return;
       setState(() {
-        _checkInResult = result;
         _isRequestingCustomerConfirmation = false;
+        _awaitingCustomer = true;
       });
+      _customerPoll?.cancel();
+      _customerPoll = Timer.periodic(
+        customerPollInterval,
+        (_) => _checkCustomerConfirmation(),
+      );
+      await _checkCustomerConfirmation();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -218,6 +266,35 @@ class _CheckInScreenState extends State<CheckInScreen> {
       });
     }
   }
+
+  /// Reads the assignment; once it is checked in the customer has confirmed (`GET /api/v1/workers/assignments/{id}`).
+  Future<void> _checkCustomerConfirmation() async {
+    if (_checkingCustomer || !_awaitingCustomer) return;
+    _checkingCustomer = true;
+    try {
+      final response = await _assignmentsService.getAssignment(
+        widget.assignmentId,
+      );
+      if (!mounted) return;
+      final status = response.success ? response.data?.status : null;
+      if (status != null && checkedInStatuses.contains(status)) {
+        _customerPoll?.cancel();
+        setState(() {
+          _awaitingCustomer = false;
+          _checkInResult = _confirmedResult(
+            DispatchService.customerConfirmationMethod,
+          );
+        });
+      }
+    } catch (_) {
+      // A failed read keeps waiting; the next tick or "Kiểm tra lại" tries again.
+    } finally {
+      _checkingCustomer = false;
+    }
+  }
+
+  /// The method of a result rebuilt from an assignment that was already checked in when the screen opened.
+  static const String alreadyCheckedInMethod = 'ALREADY_CHECKED_IN';
 
   @override
   Widget build(BuildContext context) {
@@ -236,6 +313,16 @@ class _CheckInScreenState extends State<CheckInScreen> {
   /// The one main button of the state on screen, above the home indicator.
   List<Widget>? _buildActions() {
     if (_detail == null || _isLoading) return null;
+    if (_awaitingCustomer) {
+      return [
+        NordicButton(
+          key: const Key('check_customer_confirmation_button'),
+          label: 'Kiểm tra lại',
+          variant: NordicButtonVariant.secondary,
+          onPressed: _checkCustomerConfirmation,
+        ),
+      ];
+    }
     if (_verified) {
       return [
         NordicButton(
@@ -286,6 +373,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
         SizedBox(height: NordicSpace.xl),
         LoadingStateWidget(message: 'Đang xác nhận vị trí của bạn...'),
       ];
+    }
+
+    if (_awaitingCustomer) {
+      return _buildAwaitingCustomerView();
     }
 
     // Success view when verified (GPS or fallback)
@@ -449,8 +540,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
     String message = 'Đã xác nhận bằng vị trí của bạn.';
     if (method == 'PLATE_PHOTO') {
       message = 'Đã xác nhận bằng ảnh biển số nhà.';
-    } else if (method == 'CUSTOMER_CONFIRMATION') {
+    } else if (method == DispatchService.customerConfirmationMethod) {
       message = 'Gia chủ đã xác nhận bạn đến nơi.';
+    } else if (method == alreadyCheckedInMethod) {
+      message = 'Bạn đã check-in cho ca làm này.';
     }
 
     return [
@@ -475,6 +568,42 @@ class _CheckInScreenState extends State<CheckInScreen> {
       const SizedBox(height: NordicSpace.sm),
       const Center(
         child: StatusPill('Đã xác nhận', tone: PillTone.ok, dot: true),
+      ),
+      const SizedBox(height: NordicSpace.md),
+      const Text(
+        'Ca làm bắt đầu khi bạn chụp ảnh trước khi dọn.',
+        key: Key('work_starts_hint'),
+        textAlign: TextAlign.center,
+        style: NordicTypography.bodySmall,
+      ),
+    ];
+  }
+
+  /// Waiting for the customer to confirm the arrival in their app (#659).
+  List<Widget> _buildAwaitingCustomerView() {
+    return [
+      const SizedBox(height: NordicSpace.xl),
+      const Icon(
+        Icons.hourglass_top_rounded,
+        size: 64.0,
+        color: NordicColors.primary,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      Text(
+        'Đang chờ gia chủ xác nhận',
+        key: const Key('awaiting_customer_title'),
+        textAlign: TextAlign.center,
+        style: NordicTypography.h2.copyWith(color: NordicColors.primary),
+      ),
+      const SizedBox(height: NordicSpace.xs),
+      const Text(
+        'Gia chủ sẽ thấy yêu cầu trong mục Đơn của tôi. Khi gia chủ xác nhận, bạn bắt đầu ca làm được.',
+        textAlign: TextAlign.center,
+        style: NordicTypography.bodyRegular,
+      ),
+      const SizedBox(height: NordicSpace.sm),
+      const Center(
+        child: StatusPill('Chờ xác nhận', tone: PillTone.warn, dot: true),
       ),
     ];
   }

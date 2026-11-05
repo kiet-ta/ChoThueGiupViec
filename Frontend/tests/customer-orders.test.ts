@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  arrivalCandidates, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnTime,
+  ARRIVED_HINT, arrivalCandidates, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -97,6 +97,13 @@ describe('timeline', () => {
     assert.equal(current([worker('IN_PROGRESS'), worker('AWAITING_ACCEPTANCE')]), 'acceptance')
     assert.equal(current([worker('UNKNOWN')]), 'assigned')
     assert.equal(current([]), 'assigned')
+  })
+  it('explains on the arrived step that the work starts with the before photos', () => {
+    const arrived = (workers: ProgressAssignment[]) => timeline('ASSIGNED', false, workers).find((s) => s.key === 'arrived')
+    assert.equal(arrived([worker('CHECKED_IN')])?.hint, ARRIVED_HINT)
+    assert.equal(ARRIVED_HINT, 'Ca bắt đầu khi thợ chụp ảnh trước khi dọn.')
+    assert.equal(arrived([worker('IN_PROGRESS')])?.hint, undefined)
+    assert.equal(arrived([worker('ASSIGNED')])?.hint, undefined)
   })
   it('marks where a cancelled order stopped', () => {
     assert.deepEqual(states('CANCELLED'), ['cancelled', 'todo', 'todo', 'todo', 'todo', 'todo', 'todo'])

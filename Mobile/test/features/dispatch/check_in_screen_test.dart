@@ -61,6 +61,29 @@ const _address = '12 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh';
 ApiResponse<WorkerAssignmentDetailDto> _ok() =>
     const ApiResponse(success: true, message: '', data: _detail);
 
+/// The same job with another status (#659).
+ApiResponse<WorkerAssignmentDetailDto> _status(String status) => ApiResponse(
+  success: true,
+  message: '',
+  data: WorkerAssignmentDetailDto(
+    assignmentId: _detail.assignmentId,
+    orderId: _detail.orderId,
+    orderCode: _detail.orderCode,
+    slotDate: _detail.slotDate,
+    shiftCode: _detail.shiftCode,
+    startTime: _detail.startTime,
+    endTime: _detail.endTime,
+    status: status,
+    serviceTier: _detail.serviceTier,
+    addressLine: _detail.addressLine,
+    district: _detail.district,
+    city: _detail.city,
+    latitude: _detail.latitude,
+    longitude: _detail.longitude,
+    payoutAmount: _detail.payoutAmount,
+  ),
+);
+
 void main() {
   group('CheckInScreen Widget Tests', () {
     late DispatchService service;
@@ -273,6 +296,115 @@ void main() {
 
         expect(find.text('Bạn đã đến nơi'), findsOneWidget);
         expect(find.text('Đã xác nhận bằng ảnh biển số nhà.'), findsOneWidget);
+      },
+    );
+
+    Future<void> phone(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+    }
+
+    Future<void> farCheckIn(WidgetTester tester) async {
+      service.setMockCheckInResult(
+        CheckInResult(
+          checkInId: 2002,
+          assignmentId: 1001,
+          checkedInAt: DateTime.now(),
+          distanceMeters: 6675.0,
+          isGpsVerified: false,
+          requiresAlternativeVerification: true,
+          verificationMethod: 'GPS',
+          isCustomerConfirmed: false,
+        ),
+      );
+      await tester.tap(find.byKey(const Key('check_in_gps_button')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'asking the customer waits for the confirmation and never claims it (#659)',
+      (tester) async {
+        await phone(tester);
+        final assignments = _FakeAssignments([_ok(), _status('ASSIGNED')]);
+        await tester.pumpWidget(createScreen(assignments: assignments));
+        await tester.pumpAndSettle();
+        await farCheckIn(tester);
+
+        await tester.tap(
+          find.byKey(const Key('request_customer_confirmation_button')),
+        );
+        await tester.pump();
+
+        expect(find.text('Đang chờ gia chủ xác nhận'), findsOneWidget);
+        expect(find.text('Chờ xác nhận'), findsOneWidget);
+        expect(find.text('Bạn đã đến nơi'), findsNothing);
+        expect(find.text('Gia chủ đã xác nhận bạn đến nơi.'), findsNothing);
+        expect(find.byKey(const Key('continue_to_job_button')), findsNothing);
+        expect(
+          find.byKey(const Key('check_customer_confirmation_button')),
+          findsOneWidget,
+        );
+
+        // Still ASSIGNED on the next read: still waiting.
+        await tester.pump(const Duration(seconds: 5));
+        expect(find.text('Đang chờ gia chủ xác nhận'), findsOneWidget);
+        expect(assignments.calls, greaterThanOrEqualTo(3));
+
+        // Leaving the screen stops the poll.
+        await tester.pumpWidget(const SizedBox());
+        final calls = assignments.calls;
+        await tester.pump(const Duration(seconds: 15));
+        expect(assignments.calls, calls);
+      },
+    );
+
+    testWidgets(
+      'the customer confirmation turns the screen to the success view (#659)',
+      (tester) async {
+        await phone(tester);
+        final assignments = _FakeAssignments([
+          _ok(),
+          _status('ASSIGNED'),
+          _status('CHECKED_IN'),
+        ]);
+        await tester.pumpWidget(createScreen(assignments: assignments));
+        await tester.pumpAndSettle();
+        await farCheckIn(tester);
+        await tester.tap(
+          find.byKey(const Key('request_customer_confirmation_button')),
+        );
+        await tester.pump();
+        expect(find.text('Đang chờ gia chủ xác nhận'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const Key('check_customer_confirmation_button')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Bạn đã đến nơi'), findsOneWidget);
+        expect(find.text('Gia chủ đã xác nhận bạn đến nơi.'), findsOneWidget);
+        expect(find.byKey(const Key('work_starts_hint')), findsOneWidget);
+        expect(find.byKey(const Key('continue_to_job_button')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'opening an assignment that is already checked in shows it as done (#659)',
+      (tester) async {
+        await phone(tester);
+        await tester.pumpWidget(
+          createScreen(assignments: _FakeAssignments([_status('CHECKED_IN')])),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Bạn đã đến nơi'), findsOneWidget);
+        expect(find.text('Bạn đã check-in cho ca làm này.'), findsOneWidget);
+        expect(find.byKey(const Key('continue_to_job_button')), findsOneWidget);
+        expect(find.byKey(const Key('check_in_gps_button')), findsNothing);
       },
     );
   });

@@ -154,7 +154,7 @@ export function OrderDetailPage() {
           <h2 className="text-lg font-semibold">Tiến trình</h2>
           <ol className="mt-4 space-y-4">{steps.map((s) => <li key={s.key} className="flex items-center gap-3">
             <span className={`grid h-7 w-7 place-items-center rounded-full ${dotStyle[s.state]}`}>{dot[s.state]}</span>
-            <span className={s.state === 'todo' ? 'text-stone-400' : 'font-medium'}>{s.label}{s.state === 'cancelled' && ' · Đã hủy'}</span></li>)}</ol>
+            <span className={s.state === 'todo' ? 'text-stone-400' : 'font-medium'}>{s.label}{s.state === 'cancelled' && ' · Đã hủy'}{s.hint && <span className="block text-sm font-normal text-stone-500">{s.hint}</span>}</span></li>)}</ol>
         </section>
         {ext && <section className={card} aria-label="Làm lần 2">
           <h2 className="flex items-center gap-2 text-lg font-semibold"><Clock size={18} />Làm lần 2</h2>
