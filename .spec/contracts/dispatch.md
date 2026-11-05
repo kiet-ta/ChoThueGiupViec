@@ -246,8 +246,22 @@ Khách hàng theo dõi realtime trạng thái điều phối đơn đặt.
 ```
 *Lưu ý bảo mật (Q17): `workerPhone` chỉ hiển thị khi trạng thái là `ASSIGNED` hoặc `CHECKED_IN` trong ngày ca làm việc.*
 
+#### `GET /api/v1/dispatch/assignments/{assignmentId}/check-in`
+Khách (policy `CustomerOnly`) xem ca làm có đang chờ mình xác nhận thợ đã đến không (CUST-ARRIVAL-01, #657). `awaitingCustomerConfirmation = true` khi ca còn `ASSIGNED` và lượt check-in GPS gần nhất bị lệch > 100m mà chưa ai xác nhận thay. Ca không phải của khách -> `404`.
+
+- Response 200:
+```json
+{
+  "assignmentId": 1001,
+  "status": "ASSIGNED",
+  "awaitingCustomerConfirmation": true,
+  "distanceMeters": 6675.33,
+  "attemptedAt": "2026-10-15T07:55:00Z"
+}
+```
+
 #### `POST /api/v1/dispatch/assignments/{assignmentId}/check-in/confirm`
-Khách xác nhận thợ đã có mặt tại nhà khi GPS của thợ bị lệch > 100m (BR-04).
+Khách xác nhận thợ đã có mặt tại nhà khi GPS của thợ bị lệch > 100m (BR-04). Chỉ khi `awaitingCustomerConfirmation = true`, ngược lại `409` `data.code = ARRIVAL_NOT_PENDING`; ca không phải của khách -> `404`. `CHECKIN_LOG.fallback_method` lưu `CUSTOMER_CONFIRM` (cột `varchar(20)`).
 
 - Response 200:
 ```json

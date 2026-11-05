@@ -44,6 +44,7 @@ public class DispatchModule : IModule
         services.AddScoped<CustomerAbsentService>();
         services.AddScoped<WorkerDispatchService>();
         services.AddScoped<ConsecutiveShiftFallbackService>();
+        services.AddScoped<CustomerArrivalService>(); // customer confirms the arrival when the GPS is off (BR-04, #657)
         services.AddScoped<IAdminIncidentQuery, EfAdminIncidentQuery>(); // Admin incident monitor (read only)
         services.AddHostedService<OfferExpiryWorker>();
     }
