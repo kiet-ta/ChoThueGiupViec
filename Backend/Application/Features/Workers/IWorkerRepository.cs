@@ -30,6 +30,12 @@ public interface IWorkerRepository : IRepository<Worker, int>
     Task AddJobPhotoAsync(JobPhoto photo, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Marks the accepted photos of one assignment, phase and angle as no longer accepted, because a new accepted photo replaces them
+    /// (WORKERS-PHOTO-02, #661). The change is saved by the next <see cref="SaveChangesAsync"/>, together with the new photo.
+    /// </summary>
+    Task RetireAcceptedJobPhotosAsync(long assignmentId, string photoPhase, byte angleNo, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Completes the assignment only if it is still AWAITING_ACCEPTANCE: one conditional update of the assignment (status, completion times,
     /// commission, payout) and, in the same transaction, <c>CompletedJobs + 1</c> and BUSY -&gt; IDLE of the worker. Returns false, with nothing
     /// changed, when another request completed or changed the assignment first, so two concurrent accepts complete it once. The tracked copies of

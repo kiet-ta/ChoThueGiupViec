@@ -121,6 +121,18 @@ public class EfWorkerRepository(AppDbContext dbContext) : IWorkerRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task RetireAcceptedJobPhotosAsync(long assignmentId, string photoPhase, byte angleNo, CancellationToken cancellationToken = default)
+    {
+        // Tracked on purpose: the change is saved with the new photo by SaveChangesAsync (one save, #661).
+        var replaced = await dbContext.JobPhotos
+            .Where(p => p.AssignmentId == assignmentId && p.PhotoPhase == photoPhase && p.AngleNo == angleNo && p.IsAccepted)
+            .ToListAsync(cancellationToken);
+        foreach (var photo in replaced)
+        {
+            photo.IsAccepted = false;
+        }
+    }
+
     public async Task AddJobPhotoAsync(JobPhoto photo, CancellationToken cancellationToken = default)
     {
         await dbContext.JobPhotos.AddAsync(photo, cancellationToken);

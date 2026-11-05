@@ -66,6 +66,16 @@ public class JobPhotoRealUploadTests
         public Task<IReadOnlyList<JobPhoto>> GetJobPhotosAsync(long assignmentId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<JobPhoto>>(assignmentId == AssignmentId ? Photos.ToList() : []);
 
+        public Task RetireAcceptedJobPhotosAsync(long assignmentId, string photoPhase, byte angleNo, CancellationToken cancellationToken = default)
+        {
+            foreach (var p in Photos.Where(p => p.AssignmentId == assignmentId && p.PhotoPhase == photoPhase && p.AngleNo == angleNo && p.IsAccepted))
+            {
+                p.IsAccepted = false;
+            }
+
+            return Task.CompletedTask;
+        }
+
         public Task AddJobPhotoAsync(JobPhoto photo, CancellationToken cancellationToken = default)
         {
             photo.PhotoId = _nextPhotoId++;
@@ -186,6 +196,81 @@ public class JobPhotoRealUploadTests
 
         Assert.Contains("angleNo", ex.Errors.Keys);
         Assert.True(matching.Data!.IsAccepted);
+    }
+
+    // ---- replace a photo (WORKERS-PHOTO-02, #661) ------------------------------------------------------------------------------
+
+    private static async Task<(PhotoRepository Repository, JobPhotoService Service)> FivePhotosAsync(string phase = "BEFORE")
+    {
+        var repository = new PhotoRepository(JobAssignmentStatus.InProgress);
+        var service = WorkerService(repository, new FakeFileStorage());
+        for (byte angle = 1; angle <= 5; angle++)
+        {
+            await service.UploadFileAsync(AssignmentId, "BEFORE", angle, File(TestPhotos.SharpJpeg()));
+        }
+
+        if (phase == "AFTER")
+        {
+            for (byte angle = 1; angle <= 5; angle++)
+            {
+                await service.UploadFileAsync(AssignmentId, "AFTER", angle, File(TestPhotos.SharpJpeg()));
+            }
+        }
+
+        return (repository, service);
+    }
+
+    [Theory]
+    [InlineData("BEFORE")]
+    [InlineData("AFTER")]
+    public async Task UploadFileAsync_AfterFivePhotos_ASharpPhotoForAnAngleReplacesItsPhoto(string phase)
+    {
+        var (repository, service) = await FivePhotosAsync(phase);
+        var old = repository.Photos.Single(p => p.PhotoPhase == phase && p.AngleNo == 3 && p.IsAccepted);
+
+        var replaced = await service.UploadFileAsync(AssignmentId, phase, 3, File(TestPhotos.SharpJpeg()));
+
+        Assert.True(replaced.Data!.IsAccepted);
+        Assert.False(old.IsAccepted);
+        var accepted = repository.Photos.Where(p => p.PhotoPhase == phase && p.IsAccepted).ToList();
+        Assert.Equal(5, accepted.Count);
+        Assert.Equal(replaced.Data.PhotoId, accepted.Single(p => p.AngleNo == 3).PhotoId);
+    }
+
+    [Fact]
+    public async Task UploadFileAsync_ABlurredReplacement_IsRefused_AndTheOldPhotoStaysAccepted()
+    {
+        var (repository, service) = await FivePhotosAsync();
+        var old = repository.Photos.Single(p => p.PhotoPhase == "BEFORE" && p.AngleNo == 2 && p.IsAccepted);
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            service.UploadFileAsync(AssignmentId, "BEFORE", 2, File(TestPhotos.BlurredJpeg())));
+
+        Assert.Contains("volScore", ex.Errors.Keys);
+        Assert.True(old.IsAccepted);
+        Assert.Equal(5, repository.Photos.Count(p => p.PhotoPhase == "BEFORE" && p.IsAccepted));
+    }
+
+    [Fact]
+    public async Task UploadFileAsync_TheSameAngleTwiceBeforeFivePhotos_KeepsOneAcceptedPhotoForIt()
+    {
+        var repository = new PhotoRepository(JobAssignmentStatus.InProgress);
+        var service = WorkerService(repository, new FakeFileStorage());
+
+        await service.UploadFileAsync(AssignmentId, "BEFORE", 1, File(TestPhotos.SharpJpeg()));
+        await service.UploadFileAsync(AssignmentId, "BEFORE", 1, File(TestPhotos.SharpJpeg()));
+
+        Assert.Single(repository.Photos, p => p.PhotoPhase == "BEFORE" && p.AngleNo == 1 && p.IsAccepted);
+        Assert.Equal(2, repository.Photos.Count);
+    }
+
+    [Fact]
+    public async Task UploadFileAsync_ASixthAngle_IsStillRefused()
+    {
+        var (_, service) = await FivePhotosAsync();
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            service.UploadFileAsync(AssignmentId, "BEFORE", 6, File(TestPhotos.SharpJpeg())));
     }
 
     public static TheoryData<string, string> RefusedFiles => new()
