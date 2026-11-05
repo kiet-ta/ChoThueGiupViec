@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  cancelReasonError, cancelReasonText, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnTime,
+  arrivalCandidates, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -79,23 +79,44 @@ describe('orderActions: after the shift', () => {
 })
 
 describe('timeline', () => {
-  const states = (status: string, after = false) => timeline(status, after).map((s) => s.state)
-  it('marks the step an order is at', () => {
-    assert.deepEqual(states('PENDING_PAYMENT'), ['current', 'todo', 'todo', 'todo'])
-    assert.deepEqual(states('DISPATCHING'), ['done', 'current', 'todo', 'todo'])
-    assert.deepEqual(states('ASSIGNED'), ['done', 'done', 'current', 'todo'])
-    assert.deepEqual(states('COMPLETED'), ['done', 'done', 'done', 'done'])
+  const states = (status: string, after = false, workers: ProgressAssignment[] = []) => timeline(status, after, workers).map((s) => s.state)
+  it('has the 7 steps with arrived and working', () => {
+    assert.deepEqual(timeline('ASSIGNED').map((s) => s.label), ['Thanh toán', 'Tìm thợ', 'Đã có thợ', 'Thợ đã đến', 'Thợ đang làm', 'Chờ nghiệm thu', 'Hoàn tất'])
   })
-  it('labels the assigned step from visible assignments without changing its state', () => {
-    const step = (workers: ProgressAssignment[]) => timeline('ASSIGNED', false, workers)[2]
-    assert.deepEqual(step([worker('ASSIGNED'), worker('CHECKED_IN')]), { key: 'assigned', label: 'Có thợ, chờ đến giờ làm', state: 'current' })
-    assert.equal(step([worker('ASSIGNED'), worker('IN_PROGRESS')]).label, 'Thợ đang làm')
-    assert.equal(step([worker('IN_PROGRESS'), worker('AWAITING_ACCEPTANCE')]).label, 'Chờ bạn nghiệm thu')
-    assert.equal(step([]).label, 'Có thợ, chờ đến giờ làm')
+  it('marks the step an order is at', () => {
+    assert.deepEqual(states('PENDING_PAYMENT'), ['current', 'todo', 'todo', 'todo', 'todo', 'todo', 'todo'])
+    assert.deepEqual(states('DISPATCHING'), ['done', 'current', 'todo', 'todo', 'todo', 'todo', 'todo'])
+    assert.deepEqual(states('ASSIGNED'), ['done', 'done', 'current', 'todo', 'todo', 'todo', 'todo'])
+    assert.deepEqual(states('COMPLETED'), ['done', 'done', 'done', 'done', 'done', 'done', 'done'])
+  })
+  it('follows the most advanced visible assignment of an assigned order', () => {
+    const current = (workers: ProgressAssignment[]) => timeline('ASSIGNED', false, workers).find((s) => s.state === 'current')?.key
+    assert.equal(current([worker('ASSIGNED')]), 'assigned')
+    assert.equal(current([worker('ASSIGNED'), worker('CHECKED_IN')]), 'arrived')
+    assert.equal(current([worker('CHECKED_IN'), worker('IN_PROGRESS')]), 'working')
+    assert.equal(current([worker('IN_PROGRESS'), worker('AWAITING_ACCEPTANCE')]), 'acceptance')
+    assert.equal(current([worker('UNKNOWN')]), 'assigned')
+    assert.equal(current([]), 'assigned')
   })
   it('marks where a cancelled order stopped', () => {
-    assert.deepEqual(states('CANCELLED'), ['cancelled', 'todo', 'todo', 'todo'])
-    assert.deepEqual(states('CANCELLED', true), ['done', 'cancelled', 'todo', 'todo'])
+    assert.deepEqual(states('CANCELLED'), ['cancelled', 'todo', 'todo', 'todo', 'todo', 'todo', 'todo'])
+    assert.deepEqual(states('CANCELLED', true), ['done', 'cancelled', 'todo', 'todo', 'todo', 'todo', 'todo'])
+  })
+})
+
+describe('arrival confirmation', () => {
+  it('asks only for assigned workers of an assigned order', () => {
+    assert.deepEqual(arrivalCandidates('ASSIGNED', [{ ...worker('ASSIGNED'), assignmentId: 7 }, { ...worker('CHECKED_IN'), assignmentId: 8 }]), [7])
+    assert.deepEqual(arrivalCandidates('COMPLETED', [{ ...worker('ASSIGNED'), assignmentId: 7 }]), [])
+  })
+  it('names the worker and rounds the distance', () => {
+    assert.equal(arrivalText('Phạm Thị Nhận', 6675.33), 'Thợ Phạm Thị Nhận báo đã đến nhưng vị trí GPS chưa khớp địa chỉ (cách khoảng 6.675 m).')
+    assert.equal(arrivalText(null, null), 'Thợ báo đã đến nhưng vị trí GPS chưa khớp địa chỉ.')
+  })
+  it('explains a refused confirmation', () => {
+    assert.equal(arrivalProblem({ status: 409 }), 'Thợ chưa báo đến nơi hoặc đã được xác nhận.')
+    assert.equal(arrivalProblem({ status: 404 }), 'Không tìm thấy ca làm này.')
+    assert.equal(arrivalProblem({ status: 500 }), 'Không xác nhận được. Vui lòng thử lại.')
   })
 })
 

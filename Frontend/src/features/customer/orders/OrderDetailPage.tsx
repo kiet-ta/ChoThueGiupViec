@@ -7,7 +7,7 @@ import type { Order } from '../booking/types'
 import { dayText, shiftLabel, statusLabel, tierLabel } from '../booking/view'
 import { ordersApi } from './api'
 import type { AddressDetail, OrderProgress } from './types'
-import { assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, vnTime } from './view'
+import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, vnTime, type ArrivalStatus } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const dot = { done: <Check size={14} />, current: <Loader size={14} className="animate-spin" />, todo: <Circle size={14} />, cancelled: <X size={14} /> }
@@ -26,6 +26,10 @@ export function OrderDetailPage() {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [refund, setRefund] = useState<{ orderId: number; refunded: boolean } | null>(null)
+  const [arrivals, setArrivals] = useState<ArrivalStatus[]>([])
+  const [askArrival, setAskArrival] = useState<number | null>(null)
+  const [arrivalBusy, setArrivalBusy] = useState(false)
+  const [arrivalError, setArrivalError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -34,6 +38,10 @@ export function OrderDetailPage() {
       setProgress(p)
       setNow(new Date())
       setError(null)
+      // CUST-ARRIVAL-01: a worker whose GPS was more than 100 m off waits for the customer's confirmation.
+      const ids = arrivalCandidates(o.orderStatus, p.assignments)
+      const answers = await Promise.all(ids.map((id) => ordersApi.arrival(id).catch(() => null)))
+      setArrivals(answers.filter((a): a is ArrivalStatus => a !== null && a.awaitingCustomerConfirmation))
     } catch (e) {
       setError(orderProblem(e as ApiError))
     }
@@ -68,6 +76,22 @@ export function OrderDetailPage() {
       .catch(() => undefined)
     return () => { cancelled = true }
   }, [cancelledOrder, orderId])
+
+  async function confirmArrival(assignmentId: number) {
+    setArrivalBusy(true)
+    setArrivalError(null)
+    try {
+      await ordersApi.confirmArrival(assignmentId)
+      setAskArrival(null)
+      setNotice('Đã xác nhận thợ đã đến.')
+      await load()
+    } catch (e) {
+      setArrivalError(arrivalProblem(e as ApiError))
+      await load()
+    } finally {
+      setArrivalBusy(false)
+    }
+  }
 
   if (error && !order) return <div role="alert" className="space-y-4"><p className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p><Link to="/app/orders" className="underline">Về danh sách đơn</Link></div>
   if (!order || !progress) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
@@ -114,6 +138,18 @@ export function OrderDetailPage() {
           <p className="mt-2 text-sm text-stone-600">{cancelReasonText(order)}</p>
           {refund?.orderId === orderId && refund.refunded && <p className="mt-2 text-sm font-semibold">Đã hoàn tiền</p>}
         </section>}
+        {arrivals.map((arrival) => {
+          const worker = progress.assignments.find((a) => a.assignmentId === arrival.assignmentId)
+          return <section key={arrival.assignmentId} className="rounded-xl border border-amber-300 bg-amber-50 p-6" aria-label="Xác nhận thợ đã đến">
+            <h2 className="flex items-center gap-2 text-lg font-semibold"><MapPin size={18} />Thợ báo đã đến nơi</h2>
+            <p className="mt-2 text-sm text-stone-700">{arrivalText(worker?.workerName ?? null, arrival.distanceMeters)}</p>
+            <p className="mt-1 text-sm text-stone-700">Nếu thợ đã có mặt tại nhà, hãy xác nhận.</p>
+            {arrivalError && <p role="alert" className="mt-3 text-sm text-red-700">{arrivalError}</p>}
+            {askArrival === arrival.assignmentId
+              ? <div className="mt-4 flex flex-wrap gap-3"><button type="button" disabled={arrivalBusy} onClick={() => void confirmArrival(arrival.assignmentId)} className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white disabled:opacity-60">{arrivalBusy ? 'Đang xác nhận…' : 'Đúng, thợ đang ở nhà tôi'}</button><button type="button" disabled={arrivalBusy} onClick={() => setAskArrival(null)} className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 font-semibold">Chưa</button></div>
+              : <button type="button" onClick={() => { setArrivalError(null); setAskArrival(arrival.assignmentId) }} className="mt-4 inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Xác nhận thợ đã đến</button>}
+          </section>
+        })}
         <section className={card}>
           <h2 className="text-lg font-semibold">Tiến trình</h2>
           <ol className="mt-4 space-y-4">{steps.map((s) => <li key={s.key} className="flex items-center gap-3">

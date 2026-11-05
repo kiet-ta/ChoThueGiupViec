@@ -180,7 +180,7 @@ public class FieldCheckInService
     /// <summary>
     /// Resolves check-in through alternative fallback verification (BR-04):
     /// 1. 'PLATE_PHOTO': Worker takes house plate/number photo.
-    /// 2. 'CUSTOMER_CONFIRMATION': Customer confirms directly on web/mobile UI.
+    /// 2. 'CUSTOMER_CONFIRM': Customer confirms directly on web/mobile UI (CustomerArrivalService; varchar(20) column).
     /// </summary>
     public async Task<FieldCheckInResult> ResolveFallbackCheckInAsync(
         long assignmentId,

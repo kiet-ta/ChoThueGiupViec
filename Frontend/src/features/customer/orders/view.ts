@@ -103,24 +103,65 @@ export function orderActions(
 
 export type StepState = 'done' | 'current' | 'todo' | 'cancelled'
 export interface TimelineStep {
-  key: 'paid' | 'dispatch' | 'assigned' | 'completed'
+  key: 'paid' | 'dispatch' | 'assigned' | 'arrived' | 'working' | 'acceptance' | 'completed'
   label: string
   state: StepState
 }
 
-/** The 4-step timeline (Thanh toán, Tìm thợ, Có thợ, Hoàn tất) for an order status. A cancelled order marks the step it stopped at. */
+const TIMELINE: { key: TimelineStep['key']; label: string }[] = [
+  { key: 'paid', label: 'Thanh toán' },
+  { key: 'dispatch', label: 'Tìm thợ' },
+  { key: 'assigned', label: 'Đã có thợ' },
+  { key: 'arrived', label: 'Thợ đã đến' },
+  { key: 'working', label: 'Thợ đang làm' },
+  { key: 'acceptance', label: 'Chờ nghiệm thu' },
+  { key: 'completed', label: 'Hoàn tất' },
+]
+
+/** How far an assignment got on the timeline (index of its step); unknown statuses do not move it. */
+const ASSIGNMENT_STEP: Record<string, number> = { ASSIGNED: 2, CHECKED_IN: 3, IN_PROGRESS: 4, AWAITING_ACCEPTANCE: 5, COMPLETED: 5 }
+
+/**
+ * The 7-step timeline (CUST-ARRIVAL-01): Thanh toán, Tìm thợ, Đã có thợ, Thợ đã đến, Thợ đang làm, Chờ nghiệm thu, Hoàn tất.
+ * An ASSIGNED order is at the step of its most advanced visible assignment. A cancelled order marks the step it stopped at.
+ */
 export function timeline(orderStatus: string, cancelledAfterPayment = false, assignments: ProgressAssignment[] = []): TimelineStep[] {
-  const keys: TimelineStep['key'][] = ['paid', 'dispatch', 'assigned', 'completed']
-  const assignedLabel = assignments.some((a) => a.assignmentStatus === 'AWAITING_ACCEPTANCE') ? 'Chờ bạn nghiệm thu'
-    : assignments.some((a) => a.assignmentStatus === 'IN_PROGRESS') ? 'Thợ đang làm' : 'Có thợ, chờ đến giờ làm'
-  const labels = { paid: 'Thanh toán', dispatch: 'Tìm thợ', assigned: assignedLabel, completed: 'Hoàn tất' }
-  const reached: Record<string, number> = { PENDING_PAYMENT: 0, PAID: 1, DISPATCHING: 1, ASSIGNED: 2, COMPLETED: 4 }
   if (orderStatus === 'CANCELLED') {
     const stop = cancelledAfterPayment ? 1 : 0
-    return keys.map((key, i) => ({ key, label: labels[key], state: i < stop ? 'done' : i === stop ? 'cancelled' : 'todo' }))
+    return TIMELINE.map((s, i) => ({ ...s, state: i < stop ? 'done' : i === stop ? 'cancelled' : 'todo' }))
   }
-  const index = reached[orderStatus] ?? 0
-  return keys.map((key, i) => ({ key, label: labels[key], state: i < index ? 'done' : i === index ? 'current' : 'todo' }))
+  const base: Record<string, number> = { PENDING_PAYMENT: 0, PAID: 1, DISPATCHING: 1, AWAITING_FALLBACK: 1, ASSIGNED: 2, COMPLETED: TIMELINE.length }
+  let index = base[orderStatus] ?? 0
+  if (orderStatus === 'ASSIGNED') index = Math.max(index, ...assignments.map((a) => ASSIGNMENT_STEP[a.assignmentStatus] ?? 2))
+  return TIMELINE.map((s, i) => ({ ...s, state: i < index ? 'done' : i === index ? 'current' : 'todo' }))
+}
+
+/** `GET /dispatch/assignments/{id}/check-in` (CUST-ARRIVAL-01). */
+export interface ArrivalStatus {
+  assignmentId: number
+  status: string
+  awaitingCustomerConfirmation: boolean
+  distanceMeters: number | null
+  attemptedAt: string | null
+}
+
+/** The sentence of the "worker says they arrived" card. */
+export function arrivalText(workerName: string | null, distanceMeters: number | null): string {
+  const who = workerName?.trim() ? `Thợ ${workerName.trim()}` : 'Thợ'
+  const far = distanceMeters !== null && Number.isFinite(distanceMeters) ? ` (cách khoảng ${new Intl.NumberFormat('vi-VN').format(Math.round(distanceMeters))} m)` : ''
+  return `${who} báo đã đến nhưng vị trí GPS chưa khớp địa chỉ${far}.`
+}
+
+/** The assignments of an ASSIGNED order whose check-in the customer may have to confirm. */
+export function arrivalCandidates(orderStatus: string, assignments: ProgressAssignment[]): number[] {
+  return orderStatus === 'ASSIGNED' ? assignments.filter((a) => a.assignmentStatus === 'ASSIGNED').map((a) => a.assignmentId) : []
+}
+
+/** Error of the confirmation, in Vietnamese. */
+export function arrivalProblem(error: { status?: number; message?: string }): string {
+  if (error.status === 409) return 'Thợ chưa báo đến nơi hoặc đã được xác nhận.'
+  if (error.status === 404) return 'Không tìm thấy ca làm này.'
+  return 'Không xác nhận được. Vui lòng thử lại.'
 }
 
 /** 0.5 to `maxHours` (4) in 0.5 steps (decision B11). */
