@@ -234,36 +234,29 @@ class DispatchService {
     throw const ApiException(500, 'Dữ liệu xác nhận ảnh không hợp lệ');
   }
 
-  /// Requests customer in-app confirmation fallback when GPS is deviating > 100m.
+  /// Asks the customer to confirm the arrival in their app when the GPS is more than 100 m off (BR-04).
+  ///
+  /// The customer confirms on their side (`POST /api/v1/dispatch/assignments/{id}/check-in/confirm`, #657); the worker cannot
+  /// do it. So this never claims a confirmation: it returns a waiting result, and the check-in screen reads the assignment
+  /// until it is `CHECKED_IN` (MOB-WORKER-ARRIVAL-01, #659).
   Future<CheckInResult> requestCustomerConfirmation({
     required int assignmentId,
   }) async {
-    if (isMock) {
-      return CheckInResult(
-        checkInId: 2003,
-        assignmentId: assignmentId,
-        checkedInAt: DateTime.now(),
-        distanceMeters: 150.0,
-        isGpsVerified: false,
-        requiresAlternativeVerification: false,
-        verificationMethod: 'CUSTOMER_CONFIRMATION',
-        platePhotoUrl: null,
-        isCustomerConfirmed: true,
-      );
-    }
-
     return CheckInResult(
-      checkInId: 2003,
+      checkInId: 0,
       assignmentId: assignmentId,
       checkedInAt: DateTime.now(),
-      distanceMeters: 150.0,
+      distanceMeters: 0,
       isGpsVerified: false,
-      requiresAlternativeVerification: false,
-      verificationMethod: 'CUSTOMER_CONFIRMATION',
+      requiresAlternativeVerification: true,
+      verificationMethod: customerConfirmationMethod,
       platePhotoUrl: null,
-      isCustomerConfirmed: true,
+      isCustomerConfirmed: false,
     );
   }
+
+  /// The verification method shown for a customer confirmation.
+  static const String customerConfirmationMethod = 'CUSTOMER_CONFIRMATION';
 
   /// Logs a phone call attempt to the customer via system mask (Q17).
   Future<CallLogResult> logCallAttempt(int assignmentId) async {
