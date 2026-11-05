@@ -84,6 +84,8 @@ public class WorkersClockTests
                 .Select(a => new JobPhoto { AssignmentId = AssignmentId, PhotoPhase = photoPhase, AngleNo = (byte)a, IsAccepted = true })
                 .ToList());
 
+        public Task RetireAcceptedJobPhotosAsync(long assignmentId, string photoPhase, byte angleNo, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public Task AddJobPhotoAsync(JobPhoto photo, CancellationToken cancellationToken = default)
         {
             AddedPhotos.Add(photo);

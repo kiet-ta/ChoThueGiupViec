@@ -212,9 +212,9 @@ public class JobPhotoService(
                 $"Photos can only be added after check-in and while the job runs (assignment status {assignment.AssignmentStatus}).");
         }
 
-        // Check max accepted photos per phase
+        // Max accepted photos per phase. A photo for an angle that already has one replaces it (#661), so only the other angles count.
         var acceptedPhotosInPhase = await workerRepository.GetAcceptedJobPhotosByPhaseAsync(assignmentId, phase, ct);
-        if (acceptedPhotosInPhase.Count >= _rules.Photos.MaxPerPhase)
+        if (acceptedPhotosInPhase.Count(p => p.AngleNo != angleNo) >= _rules.Photos.MaxPerPhase)
         {
             throw new BusinessRuleViolationException($"Phase '{phase}' already reached maximum allowed accepted photos ({_rules.Photos.MaxPerPhase}).");
         }
@@ -258,6 +258,12 @@ public class JobPhotoService(
             IsAccepted = isAccepted,
             CapturedAt = nowUtc
         };
+
+        // A sharp photo replaces the accepted photo of the same angle (#661); a blurry one leaves it as it is.
+        if (isAccepted)
+        {
+            await workerRepository.RetireAcceptedJobPhotosAsync(assignment.AssignmentId, phase, angleNo, ct);
+        }
 
         await workerRepository.AddJobPhotoAsync(photo, ct);
 
