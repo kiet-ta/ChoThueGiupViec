@@ -270,6 +270,13 @@ When a customer taps "Dùng vị trí của tôi" on the address form, the syste
 3. **Data Mapping:** Normalizes `city` (34 provinces/cities in `vnAdminUnits`), `district` (ward/commune in `vnAdminUnits`), and `addressLine` (`[house number + street + legacy district]`).
 4. **Graceful Degradation:** If reverse geocoding fails or is unavailable, GPS coordinates are retained on the client form and manual entry remains unblocked.
 
+### D27 OpenStreetMap (OSM Photon) Reverse Geocoding (REVERSE-GEOCODE-02, #664; owner decision 2026-11-07)
+
+To eliminate dependency on paid map services and pending account approvals, the primary reverse geocoding provider is updated to `OsmReverseGeocodeService` using OSM Photon (`https://photon.komoot.io/reverse`).
+1. **Cost & Activation:** 100% free, requires no credit card, no account registration, and no pending approval queue.
+2. **Offline & Test Fallback:** When unreachable or offline, gracefully delegates to `FakeReverseGeocodeService` for fast, deterministic CI test runs.
+3. **Compatibility:** Implements `IReverseGeocodeService` and serves `POST /api/v1/locations/reverse-geocode` cleanly conforming to `.spec/contracts/customers.md` §2.4.
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery. Escrow withdrawal by an agency (D16: an Admin settles outside the system).
 
