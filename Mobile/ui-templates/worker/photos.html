@@ -1,49 +1,938 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Worker · Ảnh trước / sau</title>
-<link rel="stylesheet" href="../assets/tokens.css"><link rel="stylesheet" href="../assets/components.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker · Chụp ảnh trước và sau (Tập trung & Tinh gọn)</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/components.css">
 <script src="../assets/app.js"></script>
 <style>
-  .angle { display: grid; grid-template-columns: 1fr 64px 64px; gap: 8px; align-items: center; padding: 10px 0; }
-  .angle + .angle { border-top: 1px solid var(--border); }
-  .slot { height: 64px; border-radius: var(--r-md); display: grid; place-items: center; }
-  .slot.ok { background: var(--primary-fixed); color: var(--primary); }
-  .slot.empty { border: 1.5px dashed var(--outline-variant); color: var(--text-2); }
+  :root {
+    --card-bg: #FFFFFF;
+    --card-border: #E5E7EB;
+    --badge-ok-bg: #C5ECC9;
+    --badge-ok-text: #1B4D27;
+    --badge-warn-bg: #FFDAD6;
+    --badge-warn-text: #BA1A1A;
+    --locked-bg: #F0EEE9;
+    --locked-text: #8E918F;
+  }
+
+  .desktop-layout {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 32px;
+    padding: 24px;
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+
+  .dev-panel {
+    width: 280px;
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 840px) {
+    .desktop-layout {
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+      gap: 16px;
+    }
+    .dev-panel {
+      width: 390px;
+      max-width: 100%;
+    }
+  }
+
+  /* HERO FOCUS CARD (PHẦN ĐANG CHỤP LÀ CHÍNH) */
+  .hero-card {
+    background: #FFFFFF;
+    border: 2px solid var(--primary);
+    border-radius: var(--r-lg);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 3px 12px rgba(65, 100, 72, 0.12);
+  }
+  .hero-preview-box {
+    width: 100%;
+    height: 140px;
+    border-radius: var(--r-md);
+    background: var(--surface-low);
+    border: 1.5px dashed var(--outline-variant);
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .hero-preview-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .hero-preview-box.ok {
+    border: 1.5px solid #2F6B3F;
+  }
+  .hero-preview-box.loading {
+    border: 1.5px solid var(--primary);
+    background: #F4F9F4;
+  }
+  .hero-overlay-tag {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    right: 8px;
+    background: rgba(27, 42, 31, 0.85);
+    backdrop-filter: blur(4px);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* COMPACT ANGLE CHECKLIST (DANH SÁCH THU NHỎ GỌN GÀNG) */
+  .angle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: var(--r-md);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .angle-row:hover {
+    background: #F8F9FA;
+  }
+  .angle-row.active {
+    border-color: var(--primary);
+    background: #F0F6F1;
+  }
+  .angle-row .angle-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .angle-row .angle-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--surface-low);
+    color: var(--text-2);
+    font-size: 11px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .angle-row.active .angle-num {
+    background: var(--primary);
+    color: #FFF;
+  }
+  .angle-row .angle-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .angle-status-pills {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+  }
+  .mini-slot {
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .mini-slot.ok {
+    background: #C5ECC9;
+    color: #1B4D27;
+  }
+  .mini-slot.active-target {
+    background: var(--primary);
+    color: #FFFFFF;
+  }
+  .mini-slot.pending {
+    background: var(--surface-low);
+    color: var(--text-2);
+    border: 1px dashed var(--border);
+  }
+  .mini-slot.locked {
+    background: var(--locked-bg);
+    color: var(--locked-text);
+  }
+
+  /* Spinner */
+  .spinner {
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid rgba(65, 100, 72, 0.2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    display: none;
+    place-items: center;
+    padding: 20px;
+  }
+  .modal-overlay.open {
+    display: grid;
+  }
+  .modal-card {
+    background: #FFFFFF;
+    border-radius: 20px;
+    max-width: 320px;
+    width: 100%;
+    padding: 18px;
+    box-shadow: 0 16px 36px rgba(0,0,0,0.2);
+  }
+
+  /* Toast Notification */
+  .toast {
+    position: absolute;
+    top: 56px;
+    left: 20px;
+    right: 20px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 500;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    z-index: 50;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .toast.show { display: flex; }
+  .toast.ok { background: #2F6B3F; color: #FFFFFF; }
+  .toast.bad { background: #BA1A1A; color: #FFFFFF; }
+
+  .badge-phase {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 6px;
+  }
+  .badge-phase.before {
+    background: #E2ECE3;
+    color: #1F4A2B;
+  }
+  .badge-phase.after {
+    background: #E8EEF5;
+    color: #1A3E6D;
+  }
+
+  .btn-submit-ready {
+    background: #2F6B3F !important;
+    color: #FFFFFF !important;
+    animation: pulseReady 1.5s infinite alternate;
+  }
+  @keyframes pulseReady {
+    0% { transform: scale(1); box-shadow: 0 4px 14px rgba(47, 107, 63, 0.4); }
+    100% { transform: scale(1.02); box-shadow: 0 6px 20px rgba(47, 107, 63, 0.65); }
+  }
 </style>
 </head>
 <body>
-<!-- /workers/photos · POST /api/workers/assignments/{id}/photos. 5 angles, BEFORE then AFTER of the same angle (AFTER refused without an accepted BEFORE).
-     Then POST /api/workers/assignments/{id}/submit-completion. VoL decision is the server's (Q03). -->
-<div class="phone has-btnbar">
-  <main class="screen">
-    <div class="appbar"><a href="execution.html" class="icon-btn"><span class="ms">arrow_back</span></a><span class="title">Ảnh</span><span class="icon-btn"></span></div>
 
-    <div class="grid2">
-      <div class="stat"><div class="label">Trước</div><div class="num m">5<span class="muted" style="font-size:16px">/5</span></div><div class="bar mt-sm"><i style="width:100%"></i></div></div>
-      <div class="stat"><div class="label">Sau</div><div class="num m">3<span class="muted" style="font-size:16px">/5</span></div><div class="bar mt-sm"><i style="width:60%"></i></div></div>
+<div class="desktop-layout">
+
+  <!-- PHONE CONTAINER -->
+  <div class="phone has-btnbar" style="height: 844px; position: relative;">
+    
+    <!-- Top notification toast -->
+    <div id="toast" class="toast ok">
+      <span class="ms sm">check_circle</span>
+      <span id="toastMsg" class="grow">Thao tác thành công</span>
     </div>
 
-    <div class="card mt" style="padding:4px 16px">
-      <div class="row between xs muted" style="padding:10px 0 0"><span></span><span style="display:grid;grid-template-columns:64px 64px;gap:8px;text-align:center"><span>Trước</span><span>Sau</span></span></div>
-      <div class="angle"><span class="h3">1 · Toàn cảnh</span><span class="slot ok"><span class="ms">check</span></span><span class="slot ok"><span class="ms">check</span></span></div>
-      <div class="angle"><span class="h3">2 · Bàn ghế &amp; tủ</span><span class="slot ok"><span class="ms">check</span></span><span class="slot ok"><span class="ms">check</span></span></div>
-      <div class="angle"><span class="h3">3 · Cửa kính</span><span class="slot ok"><span class="ms">check</span></span><span class="slot ok"><span class="ms">check</span></span></div>
-      <div class="angle"><span class="h3">4 · Sàn nhà</span><span class="slot ok"><span class="ms">check</span></span><a href="photos.html?full" class="slot empty"><span class="ms">add_a_photo</span></a></div>
-      <div class="angle"><span class="h3">5 · Khu vực bếp</span><span class="slot ok"><span class="ms">check</span></span><a href="photos.html?full" class="slot empty"><span class="ms">add_a_photo</span></a></div>
+    <main class="screen" style="padding-top: 8px;">
+      <!-- App bar -->
+      <div class="appbar" style="margin-bottom: 2px;">
+        <a href="execution.html" class="icon-btn" title="Quay lại"><span class="ms">arrow_back</span></a>
+        <span class="title">Ảnh trước và sau</span>
+        <button type="button" class="icon-btn" onclick="openHelp()" title="Hướng dẫn"><span class="ms">help_outline</span></button>
+      </div>
+
+      <!-- KPI Statistics Dashboard (Con số gọn gàng) -->
+      <div class="grid2" style="margin-bottom: 10px;">
+        <div class="stat" style="padding: 10px 12px;">
+          <div class="row between">
+            <span class="label" style="margin-bottom: 0; font-size: 11px;"><span class="ms" style="font-size: 14px;">photo_camera</span>Trước</span>
+            <span id="badgeBefore" class="pill" style="height: 20px; font-size: 10.5px;">0/5</span>
+          </div>
+          <div class="num m mt-xs" id="statBeforeNum" style="font-size: 22px;">0<span class="muted" style="font-size:14px" id="statBeforeMax">/5</span></div>
+          <div class="bar mt-xs" style="height: 4px;"><i id="statBeforeBar" style="width:0%"></i></div>
+        </div>
+
+        <div class="stat" style="padding: 10px 12px;">
+          <div class="row between">
+            <span class="label" style="margin-bottom: 0; font-size: 11px;"><span class="ms" style="font-size: 14px;">done_all</span>Sau</span>
+            <span id="badgeAfter" class="pill" style="height: 20px; font-size: 10.5px;">0/5</span>
+          </div>
+          <div class="num m mt-xs" id="statAfterNum" style="font-size: 22px;">0<span class="muted" style="font-size:14px" id="statAfterMax">/5</span></div>
+          <div class="bar mt-xs" style="height: 4px;"><i id="statAfterBar" style="width:0%"></i></div>
+        </div>
+      </div>
+
+      <!-- 1. HERO FOCUS CARD (PHẦN ĐANG CHỤP - NỔI BẬT LÀM CHÍNH) -->
+      <div id="heroCard" class="hero-card">
+        <div class="row between">
+          <div class="row" style="gap: 6px;">
+            <div style="width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #FFF; display: grid; place-items: center; flex: none;">
+              <span class="ms" style="font-size: 15px;">center_focus_strong</span>
+            </div>
+            <div>
+              <div class="h3" id="heroAngleTitle" style="font-size: 14.5px; color: var(--text);">Góc 1 · Toàn cảnh</div>
+            </div>
+          </div>
+
+          <div class="row" style="gap: 6px;">
+            <span id="heroPhaseBadge" class="badge-phase before">ẢNH TRƯỚC</span>
+            <button type="button" class="btn ghost sm" onclick="triggerActiveCapture('gallery')" style="height: 28px; padding: 0 8px; font-size: 11px;" title="Chọn từ thư viện">
+              <span class="ms sm" style="font-size: 15px;">photo_library</span>Thư viện
+            </button>
+          </div>
+        </div>
+
+        <!-- Khung Viewfinder / Ảnh xem trước của góc đang chụp -->
+        <div id="heroPreviewBox" class="hero-preview-box" onclick="triggerActiveCapture('camera')">
+          <div class="col center" id="heroPromptContent">
+            <span class="ms lg" style="color: var(--primary); font-size: 36px;">photo_camera</span>
+            <span class="xs" style="font-weight: 600; color: var(--text); margin-top: 4px;">Chạm vào đây để chụp ảnh</span>
+            <span class="xs muted" id="heroSubPrompt">Hướng camera vào góc này</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. DANH SÁCH GÓC CHỤP THU NHỎ (COMPACT CHECKLIST: BIẾT CÒN LẠI MẤY PHẦN) -->
+      <div class="row between" style="margin-bottom: 6px; align-items: center;">
+        <span class="xs caps" style="font-weight: 700; color: var(--text-2);" id="compactListTitle">DANH SÁCH CÁC GÓC (5)</span>
+        <button type="button" class="row small primary-text" onclick="openAddAngleModal()" style="font-weight: 600; font-size: 12px; background: none; border: none; cursor: pointer; padding: 2px 4px;">
+          <span class="ms sm" style="font-size: 15px;">add_circle</span>Thêm góc
+        </button>
+      </div>
+
+      <!-- Danh sách góc dạng hàng nhỏ gọn -->
+      <div id="compactAngleListContainer">
+        <!-- Dynamically rendered via JS -->
+      </div>
+
+      <!-- Nút thêm góc nhanh -->
+      <button type="button" class="btn ghost block mt-xs" onclick="openAddAngleModal()" style="border-style: dashed; border-width: 1px; height: 36px; font-size: 12px; margin-bottom: 12px;">
+        <span class="ms sm">add</span>Thêm góc chụp khác (+ Góc)
+      </button>
+
+    </main>
+
+    <!-- 3. PERSISTENT BOTTOM ACTION BAR: NÚT CHỤP ẢNH -> NGHIỆM THU -->
+    <div class="btn-bar" style="background: linear-gradient(to top, var(--canvas) 85%, rgba(250,248,243,0));">
+      <button id="submitJobBtn" type="button" class="btn block" onclick="handleBottomAction()">
+        <span class="ms" id="bottomBtnIcon">photo_camera</span>
+        <span id="submitBtnText">Chụp ảnh</span>
+      </button>
     </div>
-  </main>
-  <div class="btn-bar"><a id="submit" href="today.html" class="btn block disabled">Gửi nghiệm thu · còn 2 ảnh</a></div>
+
+  </div>
+
+  <!-- CONTROL / SIMULATION PANEL -->
+  <div class="dev-panel">
+    <div class="h3" style="margin-bottom: 6px;">Công cụ test</div>
+    <p class="xs muted" style="margin-bottom: 10px; font-size: 11px;">
+      Phương án A: Tối thiểu 5 góc. Danh sách thu nhỏ gọn, tập trung góc đang chụp.
+    </p>
+
+    <div class="col" style="gap: 8px;">
+      <label class="row" style="font-size: 12px; cursor: pointer;">
+        <input type="checkbox" id="chkSimulateBlur" style="width: 15px; height: 15px; accent-color: var(--error);">
+        <span>Mô phỏng ảnh mờ (&lt; 100)</span>
+      </label>
+
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 2px 0;">
+
+      <button type="button" class="btn ghost sm block" onclick="quickFillPhase('BEFORE')">
+        Điền nhanh ảnh TRƯỚC
+      </button>
+
+      <button type="button" class="btn ghost sm block" onclick="quickFillPhase('AFTER')">
+        Điền nhanh ảnh SAU
+      </button>
+
+      <button type="button" class="btn ghost sm block" onclick="quickFillAll()">
+        Điền đủ tất cả góc
+      </button>
+
+      <button type="button" class="btn danger sm block" onclick="resetAllData()">
+        Đặt lại (Reset)
+      </button>
+    </div>
+  </div>
+
 </div>
+
+<!-- MODAL: THÊM GÓC CHỤP MỚI -->
+<div id="addAngleModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="row between" style="margin-bottom: 12px;">
+      <span class="h3">Thêm góc chụp</span>
+      <button type="button" onclick="closeAddAngleModal()" style="background: none; border: none; cursor: pointer;">
+        <span class="ms">close</span>
+      </button>
+    </div>
+
+    <div class="chips" style="margin-bottom: 12px;">
+      <button type="button" class="chip" onclick="selectPresetAngle('Ban công')">Ban công</button>
+      <button type="button" class="chip" onclick="selectPresetAngle('Phòng WC')">Phòng WC</button>
+      <button type="button" class="chip" onclick="selectPresetAngle('Phòng ngủ')">Phòng ngủ</button>
+      <button type="button" class="chip" onclick="selectPresetAngle('Trần &amp; đèn')">Trần &amp; đèn</button>
+    </div>
+
+    <div class="field" style="margin-bottom: 14px;">
+      <input type="text" id="customAngleTitle" class="input" placeholder="Hoặc gõ tên góc khác..." style="height: 40px; font-size: 13px;">
+    </div>
+
+    <div class="row" style="gap: 8px;">
+      <button type="button" class="btn ghost grow sm" onclick="closeAddAngleModal()">Hủy</button>
+      <button type="button" class="btn grow sm" onclick="confirmAddAngle()">Thêm góc</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: XÁC NHẬN NGHIỆM THU -->
+<div id="successModal" class="modal-overlay">
+  <div class="modal-card" style="text-align: center;">
+    <div style="width: 50px; height: 50px; border-radius: 50%; background: #C5ECC9; color: #1B4D27; display: grid; place-items: center; margin: 0 auto 12px;">
+      <span class="ms" style="font-size: 28px;">task_alt</span>
+    </div>
+    <div class="h2" style="font-size: 18px; margin-bottom: 6px;">Đã gửi nghiệm thu</div>
+    <p class="xs muted" style="margin-bottom: 16px;">
+      Đạt chuẩn <strong id="modalSummaryCount">5/5 góc</strong>
+    </p>
+    <button type="button" class="btn block" onclick="closeSuccessModal()">
+      Xong
+    </button>
+  </div>
+</div>
+
 <script>
-  // Prototype only: tapping an empty slot shows the "all photos taken" state.
-  if (location.search.includes("full")) {
-    document.querySelectorAll(".slot.empty").forEach((n) => { n.className = "slot ok"; n.innerHTML = '<span class="ms">check</span>'; });
-    document.querySelectorAll(".num.m")[1].innerHTML = '5<span class="muted" style="font-size:16px">/5</span>';
-    document.querySelectorAll(".bar > i")[1].style.width = "100%";
-    const b = document.getElementById("submit"); b.classList.remove("disabled"); b.textContent = "Gửi nghiệm thu";
+  // Mặc định tối thiểu 5 góc (Phương án A)
+  let angles = [
+    { id: 1, name: "Toàn cảnh", before: null, after: null },
+    { id: 2, name: "Bàn ghế & tủ", before: null, after: null },
+    { id: 3, name: "Cửa kính", before: null, after: null },
+    { id: 4, name: "Sàn nhà", before: null, after: null },
+    { id: 5, name: "Khu vực bếp", before: null, after: null }
+  ];
+
+  // Target angle currently in hero focus
+  let currentTarget = { angleId: 1, phase: "BEFORE" };
+
+  const SAMPLE_IMAGES = {
+    before: [
+      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&auto=format&fit=crop&q=60",
+      "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&auto=format&fit=crop&q=60",
+      "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=400&auto=format&fit=crop&q=60",
+      "https://images.unsplash.com/photo-1581579186913-45ac3e6efe93?w=400&auto=format&fit=crop&q=60",
+      "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=400&auto=format&fit=crop&q=60"
+    ],
+    after: [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=60",
+      "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?w=400&auto=format&fit=crop&q=60",
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&auto=format&fit=crop&q=60",
+      "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=400&auto=format&fit=crop&q=60",
+      "https://images.unsplash.com/photo-160058515526-990dced4db0d?w=400&auto=format&fit=crop&q=60"
+    ]
+  };
+
+  let toastTimer;
+  function showToast(msg, isOk = true) {
+    const t = document.getElementById("toast");
+    const m = document.getElementById("toastMsg");
+    m.textContent = msg;
+    t.className = "toast show " + (isOk ? "ok" : "bad");
+    t.querySelector(".ms").textContent = isOk ? "check_circle" : "error_outline";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.classList.remove("show"); }, 2800);
   }
+
+  // Find next unfulfilled target
+  function updateTargetGuide() {
+    const firstMissingBefore = angles.find(a => !a.before || !a.before.isAccepted);
+    if (firstMissingBefore) {
+      currentTarget = { angleId: firstMissingBefore.id, phase: "BEFORE" };
+    } else {
+      const firstMissingAfter = angles.find(a => !a.after || !a.after.isAccepted);
+      if (firstMissingAfter) {
+        currentTarget = { angleId: firstMissingAfter.id, phase: "AFTER" };
+      } else {
+        currentTarget = { angleId: null, phase: "COMPLETED" };
+      }
+    }
+    renderHeroFocusCard();
+  }
+
+  // 1. RENDER HERO FOCUS CARD (PHẦN ĐANG CHỤP LÀ CHÍNH)
+  function renderHeroFocusCard() {
+    const titleEl = document.getElementById("heroAngleTitle");
+    const badgeEl = document.getElementById("heroPhaseBadge");
+    const previewBox = document.getElementById("heroPreviewBox");
+
+    if (currentTarget.phase === "COMPLETED") {
+      titleEl.textContent = `Đủ ${angles.length}/${angles.length} góc`;
+      badgeEl.className = "badge-phase before";
+      badgeEl.textContent = "HOÀN TẤT";
+      badgeEl.style.background = "var(--badge-ok-bg)";
+      badgeEl.style.color = "var(--badge-ok-text)";
+      previewBox.className = "hero-preview-box ok";
+      previewBox.innerHTML = `
+        <div class="col center">
+          <span class="ms lg" style="color: #2F6B3F; font-size: 38px;">task_alt</span>
+          <span class="xs" style="font-weight: 700; color: #1B4D27; margin-top: 4px;">Đã đủ điều kiện nghiệm thu!</span>
+          <span class="xs muted">Nhấn nút bên dưới để gửi hồ sơ</span>
+        </div>
+      `;
+      return;
+    }
+
+    const angle = angles.find(a => a.id === currentTarget.angleId);
+    if (!angle) return;
+
+    titleEl.textContent = `Góc ${angle.id} · ${angle.name}`;
+
+    const isBefore = currentTarget.phase === "BEFORE";
+    badgeEl.className = `badge-phase ${isBefore ? 'before' : 'after'}`;
+    badgeEl.textContent = isBefore ? "ẢNH TRƯỚC" : "ẢNH SAU";
+
+    // Kiểm tra xem góc + phase hiện tại đã có ảnh chưa
+    const currentPhoto = isBefore ? angle.before : angle.after;
+
+    if (currentPhoto && currentPhoto.isAccepted) {
+      previewBox.className = "hero-preview-box ok";
+      previewBox.innerHTML = `
+        <img src="${currentPhoto.url}" alt="Ảnh đã chụp">
+        <div class="hero-overlay-tag">
+          <span>✓ ${isBefore ? 'Trước' : 'Sau'} đạt</span>
+          <span>Độ nét: ${currentPhoto.volScore}</span>
+        </div>
+      `;
+    } else {
+      previewBox.className = "hero-preview-box";
+      previewBox.innerHTML = `
+        <div class="col center" id="heroPromptContent">
+          <span class="ms lg" style="color: var(--primary); font-size: 34px;">photo_camera</span>
+          <span class="xs" style="font-weight: 600; color: var(--text); margin-top: 4px;">Chụp ảnh ${isBefore ? 'Trước' : 'Sau'}</span>
+          <span class="xs muted">Chạm vào đây để mở máy ảnh</span>
+        </div>
+      `;
+    }
+  }
+
+  // 2. RENDER COMPACT ANGLE CHECKLIST (DANH SÁCH CÁC GÓC THU NHỎ GỌN GÀNG)
+  function renderCompactAngleList() {
+    const container = document.getElementById("compactAngleListContainer");
+    container.innerHTML = "";
+
+    angles.forEach(angle => {
+      const isTarget = currentTarget.angleId === angle.id;
+
+      // Slot Trước
+      let beforePill = "";
+      if (angle.before && angle.before.isAccepted) {
+        beforePill = `<span class="mini-slot ok" title="Trước: đạt">✓ ${angle.before.volScore}</span>`;
+      } else if (isTarget && currentTarget.phase === "BEFORE") {
+        beforePill = `<span class="mini-slot active-target">📸 Đang chụp</span>`;
+      } else {
+        beforePill = `<span class="mini-slot pending">Trước</span>`;
+      }
+
+      // Slot Sau
+      let afterPill = "";
+      const isLockedAfter = !angle.before || !angle.before.isAccepted;
+      if (angle.after && angle.after.isAccepted) {
+        afterPill = `<span class="mini-slot ok" title="Sau: đạt">✓ ${angle.after.volScore}</span>`;
+      } else if (isTarget && currentTarget.phase === "AFTER") {
+        afterPill = `<span class="mini-slot active-target">📸 Đang chụp</span>`;
+      } else if (isLockedAfter) {
+        afterPill = `<span class="mini-slot locked">🔒</span>`;
+      } else {
+        afterPill = `<span class="mini-slot pending">Sau</span>`;
+      }
+
+      // Phương án A: Chỉ hiện nút bớt góc khi số góc > 5 (các góc tự thêm)
+      const canDelete = angles.length > 5;
+      const deleteBtn = canDelete ? `
+        <button type="button" onclick="event.stopPropagation(); deleteAngle(${angle.id})" style="background: none; border: none; cursor: pointer; color: var(--error); padding: 2px 4px; margin-left: 4px;" title="Bớt góc này">
+          <span class="ms sm" style="font-size: 16px;">delete_outline</span>
+        </button>
+      ` : "";
+
+      const rowDiv = document.createElement("div");
+      rowDiv.className = `angle-row ${isTarget ? 'active' : ''}`;
+      rowDiv.onclick = () => selectAngleRow(angle.id);
+
+      rowDiv.innerHTML = `
+        <div class="angle-info">
+          <div class="angle-num">${angle.id}</div>
+          <div class="angle-name">${angle.name}</div>
+        </div>
+        <div class="angle-status-pills">
+          ${beforePill}
+          ${afterPill}
+          ${deleteBtn}
+        </div>
+      `;
+
+      container.appendChild(rowDiv);
+    });
+
+    document.getElementById("compactListTitle").textContent = `TIẾN ĐỘ CÁC GÓC (${angles.length})`;
+  }
+
+  // Chọn 1 góc trong danh sách thu nhỏ để đưa lên làm HERO CHÍNH
+  function selectAngleRow(angleId) {
+    const angle = angles.find(a => a.id === angleId);
+    if (!angle) return;
+
+    if (!angle.before || !angle.before.isAccepted) {
+      currentTarget = { angleId, phase: "BEFORE" };
+    } else if (!angle.after || !angle.after.isAccepted) {
+      currentTarget = { angleId, phase: "AFTER" };
+    } else {
+      currentTarget = { angleId, phase: "BEFORE" }; // xem lại
+    }
+
+    renderHeroFocusCard();
+    renderCompactAngleList();
+    updateKPIsAndBottomBar();
+  }
+
+  // Trigger Capture
+  function triggerActiveCapture(source = 'camera') {
+    if (currentTarget.phase === "COMPLETED") {
+      submitForCompletion();
+      return;
+    }
+    takePhotoForAngle(currentTarget.angleId, currentTarget.phase);
+  }
+
+  function takePhotoForAngle(angleId, phase) {
+    const angle = angles.find(a => a.id === angleId);
+    if (!angle) return;
+
+    if (phase === "AFTER" && (!angle.before || !angle.before.isAccepted)) {
+      showToast("Cần ảnh Trước của góc này trước!", false);
+      return;
+    }
+
+    // Hiệu ứng đo nét trong hero box
+    const previewBox = document.getElementById("heroPreviewBox");
+    previewBox.className = "hero-preview-box loading";
+    previewBox.innerHTML = `
+      <div class="col center">
+        <div class="spinner"></div>
+        <div class="xs muted mt-xs" style="font-weight: 600;">Đang kiểm tra độ nét VoL...</div>
+      </div>
+    `;
+
+    setTimeout(() => {
+      const isSimulateBlur = document.getElementById("chkSimulateBlur").checked;
+
+      if (isSimulateBlur) {
+        const lowScore = (40 + Math.random() * 45).toFixed(1);
+        if (phase === "BEFORE") angle.before = null;
+        else angle.after = null;
+
+        showToast(`Ảnh mờ (${lowScore} < 100). Chụp lại!`, false);
+        renderHeroFocusCard();
+        renderCompactAngleList();
+        updateKPIsAndBottomBar();
+        return;
+      }
+
+      const sampleList = phase === "BEFORE" ? SAMPLE_IMAGES.before : SAMPLE_IMAGES.after;
+      const randomImg = sampleList[(angleId - 1) % sampleList.length];
+      const volScore = (100 + Math.random() * 1200).toFixed(1);
+
+      const photoRecord = {
+        url: randomImg,
+        volScore: volScore,
+        isAccepted: true
+      };
+
+      if (phase === "BEFORE") {
+        angle.before = photoRecord;
+        showToast(`Trước Góc ${angleId}: ${volScore} (Đạt)`, true);
+        // TỰ ĐỘNG CHUYỂN SANG YÊU CẦU ẢNH SAU CỦA CHÍNH GÓC ĐÓ
+        if (!angle.after || !angle.after.isAccepted) {
+          currentTarget = { angleId: angleId, phase: "AFTER" };
+        } else {
+          updateTargetGuide();
+        }
+      } else {
+        angle.after = photoRecord;
+        showToast(`Sau Góc ${angleId}: ${volScore} (Đạt)`, true);
+        // ĐÃ XONG CẢ 2 PHẦN CỦA GÓC NÀY -> CHUYỂN TIẾP SANG GÓC THIẾU KẾ TIẾP
+        const nextMissing = angles.find(a => (!a.before || !a.before.isAccepted) || (!a.after || !a.after.isAccepted));
+        if (nextMissing) {
+          if (!nextMissing.before || !nextMissing.before.isAccepted) {
+            currentTarget = { angleId: nextMissing.id, phase: "BEFORE" };
+          } else {
+            currentTarget = { angleId: nextMissing.id, phase: "AFTER" };
+          }
+        } else {
+          currentTarget = { angleId: null, phase: "COMPLETED" };
+        }
+      }
+
+      renderHeroFocusCard();
+      renderCompactAngleList();
+      updateKPIsAndBottomBar();
+
+    }, 750);
+  }
+
+  function updateKPIsAndBottomBar() {
+    const totalAngles = angles.length;
+    const beforeCount = angles.filter(a => a.before && a.before.isAccepted).length;
+    const afterCount = angles.filter(a => a.after && a.after.isAccepted).length;
+
+    // Stat Before
+    document.getElementById("statBeforeNum").innerHTML = `${beforeCount}<span class="muted" style="font-size:14px">/${totalAngles}</span>`;
+    document.getElementById("statBeforeMax").textContent = `/${totalAngles}`;
+    document.getElementById("statBeforeBar").style.width = `${(beforeCount / totalAngles) * 100}%`;
+    const bBadge = document.getElementById("badgeBefore");
+    if (beforeCount === totalAngles) {
+      bBadge.className = "pill ok";
+      bBadge.textContent = `✓ ${totalAngles}/${totalAngles}`;
+    } else {
+      bBadge.className = "pill";
+      bBadge.textContent = `${beforeCount}/${totalAngles}`;
+    }
+
+    // Stat After
+    document.getElementById("statAfterNum").innerHTML = `${afterCount}<span class="muted" style="font-size:14px">/${totalAngles}</span>`;
+    document.getElementById("statAfterMax").textContent = `/${totalAngles}`;
+    document.getElementById("statAfterBar").style.width = `${(afterCount / totalAngles) * 100}%`;
+    const aBadge = document.getElementById("badgeAfter");
+    if (afterCount === totalAngles) {
+      aBadge.className = "pill ok";
+      aBadge.textContent = `✓ ${totalAngles}/${totalAngles}`;
+    } else {
+      aBadge.className = "pill";
+      aBadge.textContent = `${afterCount}/${totalAngles}`;
+    }
+
+    // CÂU IF KIỂM TRA ĐỦ ẢNH: CHUYỂN NÚT "CHỤP ẢNH" THÀNH "NGHIỆM THU"
+    const submitBtn = document.getElementById("submitJobBtn");
+    const submitText = document.getElementById("submitBtnText");
+    const submitIcon = submitBtn.querySelector(".ms");
+
+    const isAllBeforeAccepted = beforeCount >= 5 && beforeCount === totalAngles;
+    const isAllAfterAccepted = afterCount >= 5 && afterCount === totalAngles;
+
+    if (isAllBeforeAccepted && isAllAfterAccepted) {
+      submitBtn.className = "btn block btn-submit-ready";
+      submitIcon.textContent = "task_alt";
+      submitText.textContent = "Nghiệm thu";
+    } else {
+      submitBtn.className = "btn block";
+      submitIcon.textContent = "photo_camera";
+      submitText.textContent = "Chụp ảnh";
+    }
+  }
+
+  function handleBottomAction() {
+    const totalAngles = angles.length;
+    const beforeCount = angles.filter(a => a.before && a.before.isAccepted).length;
+    const afterCount = angles.filter(a => a.after && a.after.isAccepted).length;
+
+    const isAllBeforeAccepted = beforeCount >= 5 && beforeCount === totalAngles;
+    const isAllAfterAccepted = afterCount >= 5 && afterCount === totalAngles;
+
+    if (isAllBeforeAccepted && isAllAfterAccepted) {
+      submitForCompletion();
+    } else {
+      triggerActiveCapture('camera');
+    }
+  }
+
+  function submitForCompletion() {
+    const totalAngles = angles.length;
+    const beforeCount = angles.filter(a => a.before && a.before.isAccepted).length;
+    const afterCount = angles.filter(a => a.after && a.after.isAccepted).length;
+
+    if (beforeCount < totalAngles || afterCount < totalAngles) {
+      showToast("Chưa đủ ảnh Trước và Sau!", false);
+      return;
+    }
+
+    document.getElementById("modalSummaryCount").textContent = `${totalAngles}/${totalAngles} góc`;
+    document.getElementById("successModal").classList.add("open");
+  }
+
+  function closeSuccessModal() {
+    document.getElementById("successModal").classList.remove("open");
+    location.href = "today.html";
+  }
+
+  function openAddAngleModal() {
+    document.getElementById("customAngleTitle").value = "";
+    document.getElementById("addAngleModal").classList.add("open");
+  }
+
+  function closeAddAngleModal() {
+    document.getElementById("addAngleModal").classList.remove("open");
+  }
+
+  function selectPresetAngle(title) {
+    document.getElementById("customAngleTitle").value = title;
+  }
+
+  function confirmAddAngle() {
+    const title = document.getElementById("customAngleTitle").value.trim();
+
+    if (!title) {
+      alert("Vui lòng nhập hoặc chọn tên góc!");
+      return;
+    }
+
+    const nextId = angles.length + 1;
+    angles.push({
+      id: nextId,
+      name: title,
+      before: null,
+      after: null
+    });
+
+    closeAddAngleModal();
+    updateTargetGuide();
+    renderHeroFocusCard();
+    renderCompactAngleList();
+    updateKPIsAndBottomBar();
+    showToast(`Đã thêm Góc ${nextId}: ${title}`);
+  }
+
+  // PHƯƠNG ÁN A: TỐI THIỂU 5 GÓC
+  function deleteAngle(id) {
+    const target = angles.find(a => a.id === id);
+    if (!target) return;
+
+    if (angles.length <= 5) {
+      alert("Phương án A quy định: Tối thiểu 5 góc chụp!");
+      return;
+    }
+
+    if (target.before || target.after) {
+      if (!confirm(`Góc ${target.id} (${target.name}) đã có ảnh chụp. Bạn có chắc muốn bớt góc này không?`)) {
+        return;
+      }
+    }
+
+    angles = angles.filter(a => a.id !== id);
+    // Đánh số lại
+    angles.forEach((a, idx) => {
+      a.id = idx + 1;
+    });
+
+    updateTargetGuide();
+    renderHeroFocusCard();
+    renderCompactAngleList();
+    updateKPIsAndBottomBar();
+    showToast(`Đã bớt góc ${target.name}. Còn lại ${angles.length} góc.`);
+  }
+
+  function openHelp() {
+    alert("Phương án A:\n- Tối thiểu 5 góc đối ứng.\n- Bấm nút Chụp ảnh dưới cùng để thao tác nhanh.");
+  }
+
+  function quickFillPhase(phase) {
+    angles.forEach((angle, idx) => {
+      const sampleList = phase === "BEFORE" ? SAMPLE_IMAGES.before : SAMPLE_IMAGES.after;
+      const randomImg = sampleList[idx % sampleList.length];
+      const photoRecord = {
+        url: randomImg,
+        volScore: (150 + Math.random() * 1100).toFixed(1),
+        isAccepted: true
+      };
+      if (phase === "BEFORE") angle.before = photoRecord;
+      else if (angle.before) angle.after = photoRecord;
+    });
+    updateTargetGuide();
+    renderHeroFocusCard();
+    renderCompactAngleList();
+    updateKPIsAndBottomBar();
+    showToast(`Đã điền ảnh ${phase === 'BEFORE' ? 'Trước' : 'Sau'}`);
+  }
+
+  function quickFillAll() {
+    quickFillPhase('BEFORE');
+    quickFillPhase('AFTER');
+    showToast(`Đã đủ tất cả góc! Nút chuyển thành 'Nghiệm thu'.`);
+  }
+
+  function resetAllData() {
+    angles = angles.slice(0, 5);
+    angles.forEach(a => {
+      a.before = null;
+      a.after = null;
+    });
+    document.getElementById("chkSimulateBlur").checked = false;
+    updateTargetGuide();
+    renderHeroFocusCard();
+    renderCompactAngleList();
+    updateKPIsAndBottomBar();
+    showToast("Đã đặt lại dữ liệu ban đầu.");
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    updateTargetGuide();
+    renderHeroFocusCard();
+    renderCompactAngleList();
+    updateKPIsAndBottomBar();
+  });
 </script>
+
 </body>
 </html>
