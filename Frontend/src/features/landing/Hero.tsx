@@ -49,12 +49,12 @@ export function Hero() {
 
         <h1
           data-hero-in
-          className="max-w-4xl text-balance text-[clamp(2.6rem,5vw,5rem)] font-extrabold leading-[1.04] tracking-[-0.035em] text-white drop-shadow-md"
+          className="lp-hero-title max-w-4xl text-balance text-[clamp(2.6rem,5vw,5rem)] font-extrabold leading-[1.04] tracking-[-0.035em] text-white"
         >
-          Dọn nhà theo giờ, đúng hẹn, <span className="text-(--lp-mist)">giá cố định.</span>
+          Mang <span className="text-[#FFD749]">BÃ</span> đi xa, <span className="text-(--lp-mist)">Cho nhà êm ấm</span>
         </h1>
-        <p data-hero-in className="mt-6 max-w-2xl text-lg leading-relaxed text-white/95 md:text-xl font-medium drop-shadow-sm">
-          Chuyên viên mang đủ đồ nghề tiêu chuẩn đến tận nhà. Nghiệm thu từng góc sạch bóng, hài lòng rồi bạn mới thanh toán.
+        <p data-hero-in className="lp-hero-desc mt-6 max-w-2xl text-lg leading-relaxed text-white/95 md:text-xl font-medium">
+          Chuyên viên trang bị trọn bộ dụng cụ chuyên dụng, phục vụ tận nơi. Khách hàng trực tiếp nghiệm thu từng khu vực; trao an tâm và hài lòng đến khách hàng.
         </p>
         
         <div data-hero-in className="mt-8 flex flex-wrap items-center gap-3">

@@ -30,8 +30,16 @@
 
 .landing .lp-num {
   font-variant-numeric: tabular-nums;
-
   letter-spacing: -0.02em;
+}
+
+/* Hero typography shadow - subtle tilt from left to right (x > 0, y > 0) to improve legibility over photographic backdrop */
+.landing .lp-hero-title {
+  text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.75);
+}
+
+.landing .lp-hero-desc {
+  text-shadow: 1.5px 1.5px 3.5px rgba(0, 0, 0, 0.8);
 }
 
 

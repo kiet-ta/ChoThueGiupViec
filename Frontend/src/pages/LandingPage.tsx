@@ -21,7 +21,7 @@ export function LandingPage() {
     const html = document.documentElement
     const previous = html.style.scrollBehavior
     const previousTitle = document.title
-    document.title = 'TỔ ẤM | Dọn nhà theo giờ, đúng hẹn, giá cố định'
+    document.title = 'TỔ ẤM | Mang BÃ đi xa, Cho nhà êm ấm'
     if (!prefersReducedMotion()) html.style.scrollBehavior = 'smooth'
 
     // Scroll reveals for every [data-reveal] block. Revert on unmount so no trigger survives navigation to /login.
