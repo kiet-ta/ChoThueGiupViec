@@ -13,17 +13,25 @@ import 'package:mobile/features/disputes/services/api_evidence_uploader.dart';
 class FakeCamera implements ICameraWrapper {
   CapturedImage? image;
   int captures = 0;
+  int galleryPicks = 0;
+  Object? captureError;
+  Object? galleryError;
 
   FakeCamera(this.image);
 
   @override
   Future<CapturedImage?> capturePhoto() async {
     captures++;
+    if (captureError != null) throw captureError!;
     return image;
   }
 
   @override
-  Future<CapturedImage?> pickFromGallery() async => image;
+  Future<CapturedImage?> pickFromGallery() async {
+    galleryPicks++;
+    if (galleryError != null) throw galleryError!;
+    return image;
+  }
 }
 
 final png = Uint8List.fromList([
@@ -253,6 +261,93 @@ void main() {
         uploader(photo(png)).pickAndUpload(),
         throwsA(isA<ApiException>()),
       );
+    });
+
+    test(
+      'pickAndUpload with fromGallery true calls pickFromGallery and uploads',
+      () async {
+        final camera = FakeCamera(photo(png));
+        final up = ApiEvidenceUploader(
+          role: DisputeRole.customer,
+          camera: camera,
+          client: ApiClient(
+            baseUrl: 'http://${server.address.host}:${server.port}',
+          ),
+        );
+
+        final url = await up.pickAndUpload(fromGallery: true);
+
+        expect(camera.galleryPicks, 1);
+        expect(camera.captures, 0);
+        expect(url, '/files/dispute-evidence/x.png');
+      },
+    );
+
+    test(
+      'camera error falls back to gallery when fromGallery is false',
+      () async {
+        final camera = FakeCamera(photo(png))
+          ..captureError = Exception('Camera unavailable on platform');
+        final up = ApiEvidenceUploader(
+          role: DisputeRole.customer,
+          camera: camera,
+          client: ApiClient(
+            baseUrl: 'http://${server.address.host}:${server.port}',
+          ),
+        );
+
+        final url = await up.pickAndUpload();
+
+        expect(camera.captures, 1);
+        expect(camera.galleryPicks, 1);
+        expect(url, '/files/dispute-evidence/x.png');
+      },
+    );
+
+    test(
+      'camera error and gallery error throws clear permission ApiException',
+      () async {
+        final camera = FakeCamera(photo(png))
+          ..captureError = Exception('Camera error')
+          ..galleryError = Exception('Gallery error');
+        final up = ApiEvidenceUploader(
+          role: DisputeRole.customer,
+          camera: camera,
+          client: ApiClient(
+            baseUrl: 'http://${server.address.host}:${server.port}',
+          ),
+        );
+
+        await expectLater(
+          up.pickAndUpload(),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Không mở được camera hoặc thư viện ảnh'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('a photo over 5 MB is refused before upload', () async {
+      final largeBytes = Uint8List(5 * 1024 * 1024 + 1);
+      largeBytes[0] = 0xFF;
+      largeBytes[1] = 0xD8;
+      largeBytes[2] = 0xFF;
+
+      await expectLater(
+        uploader(photo(largeBytes)).pickAndUpload(),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('5 MB'),
+          ),
+        ),
+      );
+      expect(seen, isEmpty);
     });
   });
 }

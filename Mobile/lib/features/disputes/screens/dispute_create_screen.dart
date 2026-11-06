@@ -71,14 +71,59 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
       _evidence.isNotEmpty &&
       _evidence.length <= maxEvidenceCount;
 
-  Future<void> _addPhoto() async {
+  Future<void> _pickPhoto() async {
+    if (_uploading || _evidence.length >= maxEvidenceCount) return;
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: NordicColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: NordicRadius.sheetTop),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: NordicSpace.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                key: const Key('dispute-pick-camera'),
+                leading: const Icon(
+                  Icons.photo_camera_outlined,
+                  color: NordicColors.primary,
+                ),
+                title: const Text(
+                  'Chụp ảnh',
+                  style: NordicTypography.bodyRegular,
+                ),
+                onTap: () => Navigator.of(ctx).pop('camera'),
+              ),
+              ListTile(
+                key: const Key('dispute-pick-gallery'),
+                leading: const Icon(
+                  Icons.photo_library_outlined,
+                  color: NordicColors.primary,
+                ),
+                title: const Text(
+                  'Chọn từ thư viện',
+                  style: NordicTypography.bodyRegular,
+                ),
+                onTap: () => Navigator.of(ctx).pop('gallery'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    await _addPhoto(fromGallery: source == 'gallery');
+  }
+
+  Future<void> _addPhoto({bool fromGallery = false}) async {
     if (_uploading || _evidence.length >= maxEvidenceCount) return;
     setState(() {
       _uploading = true;
       _failure = null;
     });
     try {
-      final url = await _uploader.pickAndUpload();
+      final url = await _uploader.pickAndUpload(fromGallery: fromGallery);
       if (!mounted) return;
       setState(() {
         if (url != null) _evidence.add(url);
@@ -86,6 +131,9 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _failure = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _failure = 'Không thể thêm ảnh. Vui lòng thử lại.');
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -333,7 +381,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
             isLoading: _uploading,
             onPressed: _uploading || _evidence.length >= maxEvidenceCount
                 ? null
-                : _addPhoto,
+                : _pickPhoto,
           )
         else
           const NordicCard(

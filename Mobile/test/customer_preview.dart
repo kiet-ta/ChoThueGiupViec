@@ -420,10 +420,16 @@ class PreviewDisputes implements IDisputesService {
 }
 
 class PreviewUploader implements IEvidenceUploader {
+  int _counter = 0;
+
   @override
   bool get isAvailable => true;
+
   @override
-  Future<String?> pickAndUpload() async => null;
+  Future<String?> pickAndUpload({bool fromGallery = false}) async {
+    _counter++;
+    return '/files/dispute-evidence/preview_$_counter.jpg';
+  }
 }
 
 Widget customerPreview(

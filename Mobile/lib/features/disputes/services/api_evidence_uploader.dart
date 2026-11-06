@@ -33,17 +33,42 @@ class ApiEvidenceUploader implements IEvidenceUploader {
   bool get isAvailable => true;
 
   @override
-  Future<String?> pickAndUpload() async {
-    final photo = await _camera.capturePhoto();
+  Future<String?> pickAndUpload({bool fromGallery = false}) async {
+    CapturedImage? photo;
+    try {
+      photo = fromGallery
+          ? await _camera.pickFromGallery()
+          : await _camera.capturePhoto();
+    } catch (_) {
+      // If camera capture failed (e.g. on Windows or emulator without camera, or permission issue),
+      // attempt gallery as fallback before giving up.
+      if (!fromGallery) {
+        try {
+          photo = await _camera.pickFromGallery();
+        } catch (_) {}
+      }
+      if (photo == null) {
+        throw const ApiException(
+          0,
+          'Không mở được camera hoặc thư viện ảnh. Hãy cấp quyền cho ứng dụng trong Cài đặt rồi thử lại.',
+        );
+      }
+    }
     if (photo == null) return null; // the person cancelled
 
     final bytes = photo.bytes;
     if (bytes == null || bytes.isEmpty) {
-      throw const ApiException(0, 'Không đọc được ảnh vừa chụp. Hãy chụp lại.');
+      throw const ApiException(0, 'Không đọc được ảnh vừa chọn. Hãy chụp lại.');
     }
     final type = imageContentType(bytes);
     if (type == null) {
       throw const ApiException(0, 'Chỉ nhận ảnh JPEG, PNG hoặc WebP.');
+    }
+    if (bytes.length > 5 * 1024 * 1024) {
+      throw const ApiException(
+        0,
+        'Ảnh lớn hơn 5 MB. Vui lòng chọn ảnh nhỏ hơn.',
+      );
     }
 
     final response = await _client.post<String>(
