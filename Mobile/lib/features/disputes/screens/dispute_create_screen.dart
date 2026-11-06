@@ -89,7 +89,10 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                   Icons.photo_camera_outlined,
                   color: NordicColors.primary,
                 ),
-                title: const Text('Chụp ảnh', style: NordicTypography.bodyRegular),
+                title: const Text(
+                  'Chụp ảnh',
+                  style: NordicTypography.bodyRegular,
+                ),
                 onTap: () => Navigator.of(ctx).pop('camera'),
               ),
               ListTile(

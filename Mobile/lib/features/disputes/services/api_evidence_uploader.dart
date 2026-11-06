@@ -65,7 +65,10 @@ class ApiEvidenceUploader implements IEvidenceUploader {
       throw const ApiException(0, 'Chỉ nhận ảnh JPEG, PNG hoặc WebP.');
     }
     if (bytes.length > 5 * 1024 * 1024) {
-      throw const ApiException(0, 'Ảnh lớn hơn 5 MB. Vui lòng chọn ảnh nhỏ hơn.');
+      throw const ApiException(
+        0,
+        'Ảnh lớn hơn 5 MB. Vui lòng chọn ảnh nhỏ hơn.',
+      );
     }
 
     final response = await _client.post<String>(
