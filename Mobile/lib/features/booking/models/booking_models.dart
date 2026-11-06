@@ -255,6 +255,33 @@ class ExtensionStatus {
   ExtensionStatus._();
 }
 
+/// What `GET /api/v1/dispatch/assignments/{id}/check-in` returns (CUST-ARRIVAL-01).
+class CustomerArrivalStatus {
+  final int assignmentId;
+  final String assignmentStatus;
+  final bool awaitingCustomerConfirmation;
+  final double? distanceMeters;
+  final DateTime? attemptedAt;
+
+  const CustomerArrivalStatus({
+    required this.assignmentId,
+    required this.assignmentStatus,
+    required this.awaitingCustomerConfirmation,
+    this.distanceMeters,
+    this.attemptedAt,
+  });
+
+  factory CustomerArrivalStatus.fromJson(Map<String, dynamic> json) =>
+      CustomerArrivalStatus(
+        assignmentId: _int(json['assignmentId']),
+        assignmentStatus: json['assignmentStatus'] as String? ?? '',
+        awaitingCustomerConfirmation:
+            json['awaitingCustomerConfirmation'] as bool? ?? false,
+        distanceMeters: (json['distanceMeters'] as num?)?.toDouble(),
+        attemptedAt: _date(json['attemptedAt']),
+      );
+}
+
 /// `OrderSummary` of the history list (booking.md section 2).
 class OrderSummary {
   final int orderId;

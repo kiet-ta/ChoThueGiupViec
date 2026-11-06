@@ -140,6 +140,15 @@ class FakeOrderService implements IOrderService {
   Object? listError;
   final pagesAsked = <int>[];
 
+  // Arrival
+  Map<int, CustomerArrivalStatus> arrivals = {};
+  @override
+  Future<CustomerArrivalStatus?> getArrivalStatus(int assignmentId) =>
+      Future.value(arrivals[assignmentId]);
+
+  @override
+  Future<bool> confirmArrival(int assignmentId) => Future.value(true);
+
   @override
   Future<BookingOrder> getOrder(int orderId) {
     orderReads++;

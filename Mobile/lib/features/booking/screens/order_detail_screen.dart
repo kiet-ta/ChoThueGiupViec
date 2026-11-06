@@ -40,6 +40,7 @@ import '../routes.dart';
 import 'booking_screen.dart';
 import '../services/fallback_service.dart';
 import '../services/order_service.dart';
+import 'arrival_prompt_card.dart';
 import 'fallback_prompt_card.dart';
 import 'order_status_pill.dart';
 
@@ -119,6 +120,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   double? _extHours;
   String? _extError;
 
+  // Worker check-in arrival confirmation (CUST-ARRIVAL-01)
+  int _arrivalRequest = 0;
+  Map<int, CustomerArrivalStatus> _pendingArrivals = {};
+
   @override
   void initState() {
     super.initState();
@@ -171,6 +176,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _loading = false;
       });
       unawaited(_loadRatingEligibility(order, progress));
+      unawaited(_loadArrivals(order, progress));
       _watch();
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -222,6 +228,45 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     });
   }
 
+  Future<void> _loadArrivals(BookingOrder order, OrderProgress progress) async {
+    final request = ++_arrivalRequest;
+    if (order.orderStatus != OrderStatus.assigned) {
+      if (mounted && _pendingArrivals.isNotEmpty) {
+        setState(() => _pendingArrivals = {});
+      }
+      return;
+    }
+    final assigned = progress.assignments.where(
+      (a) => a.assignmentStatus == AssignmentStatus.assigned,
+    );
+    if (assigned.isEmpty) {
+      if (mounted && _pendingArrivals.isNotEmpty) {
+        setState(() => _pendingArrivals = {});
+      }
+      return;
+    }
+    final results = await Future.wait(
+      assigned.map((a) async {
+        try {
+          final arrival = await _service.getArrivalStatus(a.assignmentId);
+          return (a.assignmentId, arrival);
+        } catch (_) {
+          return (a.assignmentId, null);
+        }
+      }),
+    );
+    if (!mounted || request != _arrivalRequest) return;
+    final map = <int, CustomerArrivalStatus>{};
+    for (final (id, arrival) in results) {
+      if (arrival != null && arrival.awaitingCustomerConfirmation) {
+        map[id] = arrival;
+      }
+    }
+    setState(() {
+      _pendingArrivals = map;
+    });
+  }
+
   /// Keeps asking while the order can still change.
   void _watch() {
     _pollTimer?.cancel();
@@ -244,6 +289,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _progress = progress;
       });
       unawaited(_loadRatingEligibility(order, progress));
+      unawaited(_loadArrivals(order, progress));
       if (!shouldPollOrder(order.orderStatus)) {
         _pollTimer?.cancel();
         _pollTimer = null;
@@ -761,6 +807,35 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           onAnswered: _refresh,
         ),
         const SizedBox(height: NordicSpace.sm),
+      ],
+      if (_pendingArrivals.isNotEmpty) ...[
+        for (final entry in _pendingArrivals.entries) ...[
+          Builder(
+            builder: (context) {
+              final assignment = progress.assignments
+                  .cast<ProgressAssignment?>()
+                  .firstWhere(
+                    (a) => a?.assignmentId == entry.key,
+                    orElse: () => null,
+                  );
+              return ArrivalPromptCard(
+                key: ValueKey('arrival-${entry.key}'),
+                assignmentId: entry.key,
+                workerName: assignment?.workerName,
+                distanceMeters: entry.value.distanceMeters,
+                service: _service,
+                onConfirmed: () {
+                  setState(() {
+                    _notice = 'Đã xác nhận thợ đã đến.';
+                    _pendingArrivals.remove(entry.key);
+                  });
+                  _refresh();
+                },
+              );
+            },
+          ),
+          const SizedBox(height: NordicSpace.sm),
+        ],
       ],
       const SectionTitle('Tiến trình'),
       NordicCard(child: _timeline(displayStatus)),
