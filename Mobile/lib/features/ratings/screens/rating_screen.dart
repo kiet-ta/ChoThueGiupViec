@@ -10,6 +10,7 @@ import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/progress_ring.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../customers/services/favorite_worker_service.dart';
 import '../logic/rating_logic.dart';
 import '../models/rating_models.dart';
 import '../services/ratings_service.dart';
@@ -22,10 +23,14 @@ class RatingScreenArgs {
   /// Shown in the title ("Đánh giá Nguyễn Thị Mai"); optional.
   final String? ratedName;
 
+  /// Worker id when role == RatingRole.customer; optional.
+  final int? workerId;
+
   const RatingScreenArgs({
     required this.role,
     required this.assignmentId,
     this.ratedName,
+    this.workerId,
   });
 }
 
@@ -34,14 +39,18 @@ class RatingScreen extends StatefulWidget {
   final RatingRole role;
   final int assignmentId;
   final String? ratedName;
+  final int? workerId;
   final IRatingsService? service;
+  final FavoriteWorkerService? favoriteService;
 
   const RatingScreen({
     super.key,
     required this.role,
     required this.assignmentId,
     this.ratedName,
+    this.workerId,
     this.service,
+    this.favoriteService,
   });
 
   @override
@@ -52,6 +61,7 @@ enum _Phase { loading, loadFailed, closed, form, submitted }
 
 class _RatingScreenState extends State<RatingScreen> {
   late final IRatingsService _service;
+  late final FavoriteWorkerService _favoriteService;
   final _comment = TextEditingController();
 
   _Phase _phase = _Phase.loading;
@@ -65,11 +75,16 @@ class _RatingScreenState extends State<RatingScreen> {
   String? _failure;
   bool _sending = false;
 
+  bool _isFavorite = false;
+  bool _favoriteLoading = false;
+
   @override
   void initState() {
     super.initState();
     _service = widget.service ?? RatingsService();
+    _favoriteService = widget.favoriteService ?? FavoriteWorkerService();
     _loadWindow();
+    _loadFavoriteStatus();
   }
 
   @override
@@ -96,6 +111,58 @@ class _RatingScreenState extends State<RatingScreen> {
         _loadError = e.isNotFound ? 'Không tìm thấy ca làm này.' : e.message;
         _phase = _Phase.loadFailed;
       });
+    }
+  }
+
+  Future<void> _loadFavoriteStatus() async {
+    if (widget.role != RatingRole.customer || widget.workerId == null) return;
+    try {
+      final list = await _favoriteService.getFavoriteWorkers();
+      if (!mounted) return;
+      setState(() {
+        _isFavorite = list.any((w) => w.workerId == widget.workerId);
+      });
+    } catch (_) {
+      // Silently ignore check error; defaults to not favorited.
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final workerId = widget.workerId;
+    if (workerId == null || _favoriteLoading) return;
+    setState(() => _favoriteLoading = true);
+    final willFavorite = !_isFavorite;
+    try {
+      if (willFavorite) {
+        await _favoriteService.addFavoriteWorker(workerId);
+      } else {
+        await _favoriteService.removeFavoriteWorker(workerId);
+      }
+      if (!mounted) return;
+      setState(() {
+        _isFavorite = willFavorite;
+        _favoriteLoading = false;
+      });
+      final name = widget.ratedName;
+      final message = willFavorite
+          ? (name != null
+                ? 'Đã thêm $name vào danh sách yêu thích'
+                : 'Đã thêm vào danh sách yêu thích')
+          : (name != null
+                ? 'Đã bỏ $name khỏi danh sách yêu thích'
+                : 'Đã bỏ khỏi danh sách yêu thích');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _favoriteLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể cập nhật danh sách yêu thích'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -210,6 +277,73 @@ class _RatingScreenState extends State<RatingScreen> {
     );
   }
 
+  Widget _favoriteToggle() {
+    if (widget.role != RatingRole.customer || widget.workerId == null) {
+      return const SizedBox.shrink();
+    }
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(
+          top: NordicSpace.xs,
+          bottom: NordicSpace.sm,
+        ),
+        child: Semantics(
+          button: true,
+          label: _isFavorite
+              ? 'Bỏ yêu thích người làm'
+              : 'Thêm người làm vào danh sách yêu thích',
+          child: InkWell(
+            key: const Key('rating-favorite-toggle'),
+            borderRadius: BorderRadius.circular(20),
+            onTap: _favoriteLoading ? null : _toggleFavorite,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14.0,
+                vertical: 8.0,
+              ),
+              decoration: BoxDecoration(
+                color: _isFavorite
+                    ? NordicColors.primaryFixed
+                    : NordicColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isFavorite
+                      ? NordicColors.primary
+                      : NordicColors.borderVariant,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    key: const Key('rating-favorite-icon'),
+                    size: 20.0,
+                    color: _isFavorite
+                        ? NordicColors.primary
+                        : NordicColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8.0),
+                  Text(
+                    _isFavorite ? 'Thợ yêu thích' : 'Lưu vào thợ yêu thích',
+                    style: NordicTypography.bodySmall.copyWith(
+                      color: _isFavorite
+                          ? NordicColors.primary
+                          : NordicColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _thanks() {
     return ListView(
       padding: const EdgeInsets.all(20.0),
@@ -237,6 +371,10 @@ class _RatingScreenState extends State<RatingScreen> {
           textAlign: TextAlign.center,
           style: NordicTypography.bodySmall,
         ),
+        if (widget.role == RatingRole.customer && widget.workerId != null) ...[
+          const SizedBox(height: NordicSpace.lg),
+          _favoriteToggle(),
+        ],
       ],
     );
   }
@@ -248,8 +386,17 @@ class _RatingScreenState extends State<RatingScreen> {
       children: [
         if (widget.ratedName != null) ...[
           Center(child: AvatarInitials(widget.ratedName!, size: 72.0)),
-          const SizedBox(height: NordicSpace.sm),
+          const SizedBox(height: NordicSpace.xs),
+          Center(
+            child: Text(
+              widget.ratedName!,
+              key: const Key('rating-worker-name'),
+              style: NordicTypography.titleSmall,
+            ),
+          ),
+          const SizedBox(height: NordicSpace.xs),
         ],
+        _favoriteToggle(),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
