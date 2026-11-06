@@ -24,6 +24,12 @@ abstract class IOrderService {
     required int assignmentId,
     required double extraHours,
   });
+
+  /// Check whether a worker check-in is waiting for customer confirmation (CUST-ARRIVAL-01).
+  Future<CustomerArrivalStatus?> getArrivalStatus(int assignmentId);
+
+  /// Confirm the worker's arrival (CUST-ARRIVAL-01).
+  Future<bool> confirmArrival(int assignmentId);
 }
 
 /// booking.md 3.1 and 3.4 to 3.8 over the shared [ApiClient]. Failures are thrown as [ApiException] (with its business `code`).
@@ -108,5 +114,30 @@ class OrderService implements IOrderService {
       fromJson: (json) => OrderExtension.fromJson(json as Map<String, dynamic>),
     );
     return _require(response.data, 'yêu cầu làm thêm giờ');
+  }
+
+  @override
+  Future<CustomerArrivalStatus?> getArrivalStatus(int assignmentId) async {
+    try {
+      final response = await _client.get<CustomerArrivalStatus>(
+        '/api/v1/dispatch/assignments/$assignmentId/check-in',
+        fromJson: (json) =>
+            CustomerArrivalStatus.fromJson(json as Map<String, dynamic>),
+      );
+      return response.data;
+    } on ApiException catch (e) {
+      if (e.isNotFound) return null;
+      rethrow;
+    }
+  }
+
+  @override
+  Future<bool> confirmArrival(int assignmentId) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      '/api/v1/dispatch/assignments/$assignmentId/check-in/confirm',
+      body: {},
+      fromJson: (json) => json as Map<String, dynamic>,
+    );
+    return response.data?['isCustomerConfirmed'] as bool? ?? true;
   }
 }

@@ -111,6 +111,22 @@ class FakeOrderService implements IOrderService {
   Object? listError;
   final pagesAsked = <int>[];
 
+  // Arrival
+  Map<int, CustomerArrivalStatus> arrivals = {};
+  final confirmedArrivals = <int>[];
+  Object? arrivalError;
+
+  @override
+  Future<CustomerArrivalStatus?> getArrivalStatus(int assignmentId) =>
+      Future.value(arrivals[assignmentId]);
+
+  @override
+  Future<bool> confirmArrival(int assignmentId) {
+    confirmedArrivals.add(assignmentId);
+    if (arrivalError != null) return Future.error(arrivalError!);
+    return Future.value(true);
+  }
+
   @override
   Future<BookingOrder> getOrder(int orderId) {
     orderReads++;
@@ -332,6 +348,27 @@ void main() {
 
       expect(timelineTicks(), findsNWidgets(3)); // Thanh toán, Tìm thợ, Có thợ
     });
+
+    testWidgets(
+      'shows ArrivalPromptCard when worker arrival is awaiting confirmation',
+      (tester) async {
+        final assigned = FakeOrderService()
+          ..status = OrderStatus.assigned
+          ..workers = [_worker(7, AssignmentStatus.assigned)]
+          ..arrivals = {
+            7: const CustomerArrivalStatus(
+              assignmentId: 7,
+              assignmentStatus: AssignmentStatus.assigned,
+              awaitingCustomerConfirmation: true,
+              distanceMeters: 520.0,
+            ),
+          };
+        await pumpDetail(tester, assigned);
+
+        expect(find.byKey(const Key('arrival-title-7')), findsOneWidget);
+        expect(find.byKey(const Key('arrival-btn-start-7')), findsOneWidget);
+      },
+    );
 
     testWidgets('a dispatching order leaves "Tìm người làm" open', (
       tester,
