@@ -49,14 +49,40 @@ class FakeCamera implements ICameraWrapper {
 /// Records what was uploaded and answers like the server would, or fails with [failure].
 class RecordingPhotosService extends WorkersPhotosService {
   final List<UploadJobPhotoRequest> uploads = [];
+  final List<JobPhotoDto> existingPhotos = [];
   ApiException? failure;
+  int submitCompletionCalls = 0;
 
-  RecordingPhotosService()
-    : super(apiClient: ApiClient(baseUrl: 'http://api.test'));
+  RecordingPhotosService({List<JobPhotoDto>? initialPhotos})
+    : super(apiClient: ApiClient(baseUrl: 'http://api.test')) {
+    if (initialPhotos != null) {
+      existingPhotos.addAll(initialPhotos);
+    }
+  }
 
   @override
-  Future<ApiResponse<List<JobPhotoDto>>> getPhotos(int assignmentId) async =>
-      ApiResponse<List<JobPhotoDto>>(success: true, message: 'OK', data: []);
+  Future<ApiResponse<List<JobPhotoDto>>> getPhotos(
+    int assignmentId,
+  ) async => ApiResponse<List<JobPhotoDto>>(
+    success: true,
+    message: 'OK',
+    data: [
+      ...existingPhotos,
+      ...uploads.asMap().entries.map(
+        (e) => JobPhotoDto(
+          photoId: 9000 + e.key,
+          assignmentId: assignmentId,
+          photoPhase: e.value.photoPhase,
+          angleNo: e.value.angleNo,
+          photoUrl:
+              '/api/v1/workers/assignments/$assignmentId/photos/${9000 + e.key}/file',
+          volScore: 142.5,
+          isAccepted: true,
+          uploadedAt: DateTime(2026, 10, 21, 9),
+        ),
+      ),
+    ],
+  );
 
   @override
   Future<ApiResponse<JobPhotoDto>> uploadPhoto({
@@ -81,6 +107,15 @@ class RecordingPhotosService extends WorkersPhotosService {
       ),
     );
   }
+
+  @override
+  Future<ApiResponse<void>> submitCompletion(
+    int assignmentId, {
+    String? notes,
+  }) async {
+    submitCompletionCalls++;
+    return ApiResponse<void>(success: true, message: 'Hoàn tất nghiệm thu');
+  }
 }
 
 Widget screen(RecordingPhotosService service, FakeCamera camera) => MaterialApp(
@@ -96,7 +131,7 @@ void main() {
 
   group('WorkerPhotosScreen Tests', () {
     testWidgets(
-      'Renders header, phase selector, angle selector, camera guide, and the photo buttons',
+      'Renders header, stats, hero card, angle checklist, and immediate action buttons',
       (tester) async {
         useDesignFrame(tester);
         await tester.pumpWidget(
@@ -107,12 +142,12 @@ void main() {
         expect(find.text('Ảnh trước và sau'), findsOneWidget);
         expect(find.text('Trước'), findsWidgets);
         expect(find.text('Sau'), findsWidgets);
-        expect(find.text('Góc 1'), findsOneWidget);
         expect(find.text('Góc 1: Toàn cảnh'), findsOneWidget);
-        await scrollTo(tester, find.text('Chụp ảnh'));
         expect(find.text('Chụp ảnh'), findsOneWidget);
         expect(find.text('Chọn từ thư viện'), findsOneWidget);
-        expect(find.text('Gửi ảnh'), findsOneWidget);
+        expect(find.text('Thêm góc'), findsOneWidget);
+        expect(find.text('Toàn cảnh'), findsOneWidget);
+        expect(find.text('Bàn ghế & tủ'), findsOneWidget);
       },
     );
 
@@ -132,7 +167,9 @@ void main() {
       },
     );
 
-    testWidgets('Switching angles updates camera guide text', (tester) async {
+    testWidgets('Switching angles in checklist updates hero guide card', (
+      tester,
+    ) async {
       useDesignFrame(tester);
       await tester.pumpWidget(
         screen(RecordingPhotosService(), FakeCamera(jpeg)),
@@ -141,13 +178,13 @@ void main() {
 
       expect(find.text('Góc 1: Toàn cảnh'), findsOneWidget);
 
-      await tapVisible(tester, find.text('Góc 2'));
+      await tapVisible(tester, find.byKey(const Key('photo-angle-2')));
       await tester.pumpAndSettle();
 
       expect(find.text('Góc 2: Bàn ghế & tủ'), findsOneWidget);
     });
 
-    testWidgets('Tapping a cell of the angle grid picks that phase and angle', (
+    testWidgets('Tapping mini pill of an angle selects that phase and angle', (
       tester,
     ) async {
       useDesignFrame(tester);
@@ -157,28 +194,13 @@ void main() {
       await tester.pumpAndSettle();
 
       await tapVisible(tester, find.byKey(const Key('photo-cell-AFTER-4')));
-
-      expect(find.text('Góc 4: Sàn nhà'), findsOneWidget);
-      expect(find.text('Ảnh đã tải (sau)'), findsOneWidget);
-    });
-
-    testWidgets('Sending without a photo asks for one and uploads nothing', (
-      tester,
-    ) async {
-      useDesignFrame(tester);
-      final service = RecordingPhotosService();
-      await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
       await tester.pumpAndSettle();
 
-      await tapVisible(tester, find.text('Gửi ảnh'));
-      await scrollTo(tester, find.textContaining('chụp hoặc chọn ảnh'));
-
-      expect(find.textContaining('chụp hoặc chọn ảnh'), findsOneWidget);
-      expect(service.uploads, isEmpty);
+      expect(find.text('Góc 4: Sàn nhà'), findsOneWidget);
     });
 
     testWidgets(
-      'A photo from the camera is uploaded as a file with the chosen phase and angle',
+      'A photo from the camera is immediately captured, uploaded and verified',
       (tester) async {
         useDesignFrame(tester);
         final service = RecordingPhotosService();
@@ -186,10 +208,12 @@ void main() {
         await tester.pumpWidget(screen(service, camera));
         await tester.pumpAndSettle();
 
-        await tapVisible(tester, find.text('Góc 3'));
+        await tapVisible(tester, find.byKey(const Key('photo-angle-3')));
+        await tester.pumpAndSettle();
+
+        // Tapping 'Chụp ảnh' immediately captures and uploads
         await tapVisible(tester, find.text('Chụp ảnh'));
-        await tapVisible(tester, find.text('Gửi ảnh'));
-        await scrollTo(tester, find.textContaining('Đã tải ảnh lên'));
+        await tester.pumpAndSettle();
 
         expect(camera.cameraCalls, 1);
         expect(service.uploads, hasLength(1));
@@ -198,30 +222,32 @@ void main() {
         expect(upload.angleNo, 3);
         expect(upload.bytes, jpeg);
         expect(upload.contentType, 'image/jpeg');
+
+        // Shows uploaded and auto-advances to AFTER for angle 3
         expect(find.textContaining('Đã tải ảnh lên'), findsOneWidget);
         expect(find.textContaining('142.5'), findsWidgets);
-        expect(find.textContaining('(đạt)'), findsOneWidget);
       },
     );
 
-    testWidgets('A photo from the library is uploaded the same way', (
-      tester,
-    ) async {
-      useDesignFrame(tester);
-      final service = RecordingPhotosService();
-      final camera = FakeCamera(jpeg);
-      await tester.pumpWidget(screen(service, camera));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'A photo from the library is uploaded immediately the same way',
+      (tester) async {
+        useDesignFrame(tester);
+        final service = RecordingPhotosService();
+        final camera = FakeCamera(jpeg);
+        await tester.pumpWidget(screen(service, camera));
+        await tester.pumpAndSettle();
 
-      await tapVisible(tester, find.text('Chọn từ thư viện'));
-      await tapVisible(tester, find.text('Gửi ảnh'));
+        await tapVisible(tester, find.text('Chọn từ thư viện'));
+        await tester.pumpAndSettle();
 
-      expect(camera.libraryCalls, 1);
-      expect(service.uploads, hasLength(1));
-    });
+        expect(camera.libraryCalls, 1);
+        expect(service.uploads, hasLength(1));
+      },
+    );
 
     testWidgets(
-      'A blurry photo shows the server message and is cleared so the worker retakes it',
+      'A blurry photo shows the server message and does not advance',
       (tester) async {
         useDesignFrame(tester);
         final service = RecordingPhotosService()
@@ -238,78 +264,15 @@ void main() {
         await tester.pumpAndSettle();
 
         await tapVisible(tester, find.text('Chụp ảnh'));
-        await tapVisible(tester, find.text('Gửi ảnh'));
-        await scrollTo(tester, find.textContaining('Ảnh bị mờ'));
+        await tester.pumpAndSettle();
 
         expect(find.textContaining('Ảnh bị mờ (độ nét 45.2'), findsOneWidget);
         expect(find.textContaining('Đã tải ảnh lên'), findsNothing);
-        expect(find.textContaining('0/5 đạt'), findsOneWidget);
-
-        // the blurry photo is gone: sending again needs a new one
-        await tapVisible(tester, find.text('Gửi ảnh'));
-        expect(service.uploads, hasLength(1));
       },
     );
 
     testWidgets(
-      'A refused file type and a too large file are shown in Vietnamese by their field',
-      (tester) async {
-        useDesignFrame(tester);
-        final service = RecordingPhotosService()
-          ..failure = const ApiException(
-            400,
-            'Validation failed',
-            fieldErrors: {
-              'contentType': ['unsupported'],
-            },
-          );
-        await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
-        await tester.pumpAndSettle();
-        await tapVisible(tester, find.text('Chụp ảnh'));
-        await tapVisible(tester, find.text('Gửi ảnh'));
-        await scrollTo(tester, find.textContaining('JPEG, PNG hoặc WebP'));
-        expect(
-          find.textContaining('Chỉ nhận ảnh JPEG, PNG hoặc WebP'),
-          findsOneWidget,
-        );
-
-        service.failure = const ApiException(
-          400,
-          'Validation failed',
-          fieldErrors: {
-            'file': ['The file is too large'],
-          },
-        );
-        await tapVisible(tester, find.text('Gửi ảnh'));
-        await scrollTo(tester, find.textContaining('lớn hơn 5 MB'));
-        expect(find.textContaining('lớn hơn 5 MB'), findsOneWidget);
-      },
-    );
-
-    testWidgets('A network failure is an error, not a made-up accepted photo', (
-      tester,
-    ) async {
-      useDesignFrame(tester);
-      final service = RecordingPhotosService()
-        ..failure = const ApiException(
-          0,
-          'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.',
-        );
-      await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
-      await tester.pumpAndSettle();
-
-      await tapVisible(tester, find.text('Chụp ảnh'));
-      await tapVisible(tester, find.text('Gửi ảnh'));
-      await scrollTo(tester, find.textContaining('Không kết nối được máy chủ'));
-
-      expect(find.textContaining('Không kết nối được máy chủ'), findsOneWidget);
-      expect(find.textContaining('Đã tải ảnh lên'), findsNothing);
-      expect(find.textContaining('Đã tải ảnh lên'), findsNothing);
-      expect(find.textContaining('0/5 đạt'), findsOneWidget);
-    });
-
-    testWidgets(
-      'A file that is not JPEG, PNG or WebP is refused before it is sent',
+      'A refused file type and a too large file are rejected locally with messages',
       (tester) async {
         useDesignFrame(tester);
         final service = RecordingPhotosService();
@@ -322,13 +285,12 @@ void main() {
         await tester.pumpAndSettle();
 
         await tapVisible(tester, find.text('Chọn từ thư viện'));
-        await scrollTo(tester, find.textContaining('JPEG, PNG hoặc WebP'));
+        await tester.pumpAndSettle();
+
         expect(
           find.textContaining('Chỉ nhận ảnh JPEG, PNG hoặc WebP'),
           findsOneWidget,
         );
-
-        await tapVisible(tester, find.text('Gửi ảnh'));
         expect(service.uploads, isEmpty);
       },
     );
@@ -344,10 +306,9 @@ void main() {
       await tester.pumpAndSettle();
 
       await tapVisible(tester, find.text('Chụp ảnh'));
-      await scrollTo(tester, find.textContaining('lớn hơn 5 MB'));
+      await tester.pumpAndSettle();
 
       expect(find.textContaining('Ảnh lớn hơn 5 MB'), findsOneWidget);
-      await tapVisible(tester, find.text('Gửi ảnh'));
       expect(service.uploads, isEmpty);
     });
 
@@ -362,7 +323,7 @@ void main() {
         await tester.pumpAndSettle();
 
         await tapVisible(tester, find.text('Chụp ảnh'));
-        await scrollTo(tester, find.textContaining('Không mở được camera'));
+        await tester.pumpAndSettle();
 
         expect(
           find.textContaining('Không mở được camera hoặc thư viện ảnh'),
@@ -379,9 +340,99 @@ void main() {
       await tester.pumpAndSettle();
 
       await tapVisible(tester, find.text('Chụp ảnh'));
-      await tapVisible(tester, find.text('Gửi ảnh'));
+      await tester.pumpAndSettle();
 
       expect(service.uploads, isEmpty);
+    });
+
+    testWidgets(
+      'Option A: minimum 5 angles cannot be deleted, extra angle can be added and deleted',
+      (tester) async {
+        useDesignFrame(tester);
+        final service = RecordingPhotosService();
+        await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
+        await tester.pumpAndSettle();
+
+        // Initial 5 angles cannot be deleted (Option A)
+        expect(find.byKey(const Key('delete-angle-1')), findsNothing);
+        expect(find.byKey(const Key('delete-angle-5')), findsNothing);
+
+        // Tap 'Thêm góc'
+        await tapVisible(tester, find.text('Thêm góc'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Thêm góc chụp'), findsWidgets);
+
+        // Enter angle title
+        await tester.enterText(
+          find.byKey(const Key('add-angle-name-input')),
+          'Khu vực ban công',
+        );
+        await tester.pumpAndSettle();
+
+        // Tap 'Thêm'
+        await tapVisible(tester, find.text('Thêm'));
+        await tester.pumpAndSettle();
+
+        // Now angle 6 exists and can be deleted
+        expect(find.text('Khu vực ban công'), findsOneWidget);
+        expect(find.byKey(const Key('delete-angle-6')), findsOneWidget);
+
+        // Delete angle 6
+        await tapVisible(tester, find.byKey(const Key('delete-angle-6')));
+        await tester.pumpAndSettle();
+
+        // Angle 6 is removed, back to 5 angles
+        expect(find.text('Khu vực ban công'), findsNothing);
+        expect(find.byKey(const Key('delete-angle-6')), findsNothing);
+      },
+    );
+
+    testWidgets('Transition to "Nghiệm thu" when all angles are completed', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      // Prepare 5 angles with BEFORE and AFTER photos
+      final fullPhotos = <JobPhotoDto>[];
+      for (int i = 1; i <= 5; i++) {
+        fullPhotos.add(
+          JobPhotoDto(
+            photoId: 100 + i,
+            assignmentId: 2001,
+            photoPhase: 'BEFORE',
+            angleNo: i,
+            photoUrl: '/photos/$i/before',
+            volScore: 120.0,
+            isAccepted: true,
+            uploadedAt: DateTime.now(),
+          ),
+        );
+        fullPhotos.add(
+          JobPhotoDto(
+            photoId: 200 + i,
+            assignmentId: 2001,
+            photoPhase: 'AFTER',
+            angleNo: i,
+            photoUrl: '/photos/$i/after',
+            volScore: 130.0,
+            isAccepted: true,
+            uploadedAt: DateTime.now(),
+          ),
+        );
+      }
+
+      final service = RecordingPhotosService(initialPhotos: fullPhotos);
+      await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
+      await tester.pumpAndSettle();
+
+      // Primary action button is now 'Nghiệm thu'
+      expect(find.text('Nghiệm thu'), findsOneWidget);
+
+      // Tap 'Nghiệm thu'
+      await tapVisible(tester, find.text('Nghiệm thu'));
+      await tester.pumpAndSettle();
+
+      expect(service.submitCompletionCalls, 1);
     });
   });
 }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/device/camera_wrapper.dart';
 import '../../../core/device/device_camera_wrapper.dart';
-import '../../../core/network/api_client.dart';
 import '../../../core/motion/error_shake.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
@@ -19,13 +19,16 @@ import '../services/workers_photos_service.dart';
 import '../widgets/job_photo_image.dart';
 
 /// Screen for Before/After photo capture & VoL verification (contract workers.md §2.4).
-/// Implements MOB-M4-04 / MOB-PHOTO-01: angle guides, a real photo from the camera or the library, uploaded as a file;
-/// the server measures its sharpness (threshold >= 100.0 per Q03) and the worker is told to retake a blurry one.
+/// Redesigned per ticket #671 / approved prototype photos.html:
+/// - Hero Focus Card (active angle in center stage)
+/// - Compact Angle Checklist (space-efficient overview of progress)
+/// - Minimum 5 angles (Option A) with ability to add extra angles (>5) and delete extra ones
+/// - Auto-upload upon capture with instant VoL inspection
+/// - Auto-advancing flow (Trước -> Sau -> next angle)
+/// - Bottom bar action: 'Chụp ảnh' while taking, transitions to 'Nghiệm thu' when 5/5 complete
 class WorkerPhotosScreen extends StatefulWidget {
   final int assignmentId;
   final WorkersPhotosService? photosService;
-
-  /// The real camera and library by default; a test passes a fake.
   final ICameraWrapper? camera;
 
   const WorkerPhotosScreen({
@@ -46,43 +49,46 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   String _selectedPhase = 'BEFORE'; // BEFORE | AFTER
   int _selectedAngle = 1;
 
-  /// The photo taken or picked, not sent yet, and its content type (from its first bytes).
   CapturedImage? _picked;
   String? _pickedType;
 
   bool _isLoading = false;
+  bool _isSubmitting = false;
   String? _errorMessage;
   String? _successMessage;
-
-  /// Bumped on every failure so the message shakes.
   int _errors = 0;
 
   final List<JobPhotoDto> _uploadedPhotos = [];
 
-  static const List<Map<String, dynamic>> _angleGuides = [
+  final List<Map<String, dynamic>> _angleGuides = [
     {
       'angle': 1,
       'title': 'Góc 1: Toàn cảnh',
+      'name': 'Toàn cảnh',
       'desc': 'Chụp tổng quan toàn bộ căn phòng',
     },
     {
       'angle': 2,
       'title': 'Góc 2: Bàn ghế & tủ',
+      'name': 'Bàn ghế & tủ',
       'desc': 'Chụp cận cảnh mặt bàn và tủ kệ',
     },
     {
       'angle': 3,
       'title': 'Góc 3: Cửa kính',
+      'name': 'Cửa kính',
       'desc': 'Chụp mặt kính cửa sổ và cửa ra vào',
     },
     {
       'angle': 4,
       'title': 'Góc 4: Sàn nhà',
+      'name': 'Sàn nhà',
       'desc': 'Chụp mặt sàn phòng khách và góc thảm',
     },
     {
       'angle': 5,
       'title': 'Góc 5: Khu vực bếp',
+      'name': 'Khu vực bếp',
       'desc': 'Chụp bồn rửa và mặt bếp thi công',
     },
   ];
@@ -98,10 +104,11 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   Future<void> _loadPhotos() async {
     try {
       final response = await _service.getPhotos(widget.assignmentId);
-      if (response.data != null) {
+      if (response.data != null && mounted) {
         setState(() {
           _uploadedPhotos.clear();
           _uploadedPhotos.addAll(response.data!);
+          _updateAutoTarget();
         });
       }
     } catch (_) {
@@ -119,43 +126,81 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     });
   }
 
-  Future<void> _pick({required bool fromCamera}) async {
-    final CapturedImage? photo;
-    try {
-      photo = fromCamera
-          ? await _camera.capturePhoto()
-          : await _camera.pickFromGallery();
-    } catch (_) {
-      _fail(
-        'Không mở được camera hoặc thư viện ảnh. Hãy cấp quyền cho ứng dụng trong Cài đặt rồi thử lại.',
-      );
-      return;
-    }
-    if (photo == null || !mounted) return; // the worker cancelled
+  int _acceptedCount(String phase) => _uploadedPhotos
+      .where((p) => p.photoPhase == phase && p.isAccepted)
+      .map((p) => p.angleNo)
+      .toSet()
+      .length;
 
-    final bytes = photo.bytes;
-    if (bytes == null || bytes.isEmpty) {
-      _fail('Không đọc được ảnh vừa chọn. Vui lòng chụp lại.');
-      return;
-    }
-    final type = imageContentTypeOf(bytes);
-    if (type == null) {
-      _fail('Chỉ nhận ảnh JPEG, PNG hoặc WebP.');
-      return;
-    }
-    if (bytes.length > UploadJobPhotoRequest.maxBytes) {
-      _fail('Ảnh lớn hơn 5 MB. Vui lòng chụp lại hoặc chọn ảnh nhỏ hơn.');
-      return;
-    }
-    setState(() {
-      _picked = photo;
-      _pickedType = type;
-      _errorMessage = null;
-      _successMessage = null;
-    });
+  bool _hasAccepted(String phase, int angle) => _uploadedPhotos.any(
+    (p) => p.photoPhase == phase && p.angleNo == angle && p.isAccepted,
+  );
+
+  JobPhotoDto? _photoFor(String phase, int angle) {
+    final matches = _uploadedPhotos.where(
+      (p) => p.photoPhase == phase && p.angleNo == angle && p.isAccepted,
+    );
+    return matches.isNotEmpty ? matches.last : null;
   }
 
-  /// The words a failed upload is shown in, by the field the server named (contract workers.md §2.4.1).
+  bool get _isAllAccepted {
+    final total = _angleGuides.length;
+    if (total < 5) return false;
+    return _acceptedCount('BEFORE') >= total &&
+        _acceptedCount('AFTER') >= total;
+  }
+
+  void _updateAutoTarget() {
+    // Find next missing angle
+    final missingBefore = _angleGuides.firstWhere(
+      (g) => !_hasAccepted('BEFORE', g['angle'] as int),
+      orElse: () => {},
+    );
+    if (missingBefore.isNotEmpty) {
+      _selectedAngle = missingBefore['angle'] as int;
+      _selectedPhase = 'BEFORE';
+      return;
+    }
+
+    final missingAfter = _angleGuides.firstWhere(
+      (g) => !_hasAccepted('AFTER', g['angle'] as int),
+      orElse: () => {},
+    );
+    if (missingAfter.isNotEmpty) {
+      _selectedAngle = missingAfter['angle'] as int;
+      _selectedPhase = 'AFTER';
+    }
+  }
+
+  void _autoAdvanceAfterSuccess(int completedAngle, String completedPhase) {
+    if (completedPhase == 'BEFORE') {
+      // Auto-advance to AFTER of the exact same angle
+      if (!_hasAccepted('AFTER', completedAngle)) {
+        _selectedAngle = completedAngle;
+        _selectedPhase = 'AFTER';
+        return;
+      }
+    }
+
+    // Otherwise find the next angle missing BEFORE, or next missing AFTER
+    for (final g in _angleGuides) {
+      final a = g['angle'] as int;
+      if (!_hasAccepted('BEFORE', a)) {
+        _selectedAngle = a;
+        _selectedPhase = 'BEFORE';
+        return;
+      }
+    }
+    for (final g in _angleGuides) {
+      final a = g['angle'] as int;
+      if (!_hasAccepted('AFTER', a)) {
+        _selectedAngle = a;
+        _selectedPhase = 'AFTER';
+        return;
+      }
+    }
+  }
+
   String _uploadError(ApiException e) {
     final fields = e.fieldErrors;
     if (fields != null) {
@@ -171,6 +216,46 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     return e.message;
   }
 
+  Future<void> _pick({required bool fromCamera}) async {
+    final CapturedImage? photo;
+    try {
+      photo = fromCamera
+          ? await _camera.capturePhoto()
+          : await _camera.pickFromGallery();
+    } catch (_) {
+      _fail(
+        'Không mở được camera hoặc thư viện ảnh. Hãy cấp quyền cho ứng dụng trong Cài đặt rồi thử lại.',
+      );
+      return;
+    }
+    if (photo == null || !mounted) return;
+
+    final bytes = photo.bytes;
+    if (bytes == null || bytes.isEmpty) {
+      _fail('Không đọc được ảnh vừa chọn. Vui lòng chụp lại.');
+      return;
+    }
+    final type = imageContentTypeOf(bytes);
+    if (type == null) {
+      _fail('Chỉ nhận ảnh JPEG, PNG hoặc WebP.');
+      return;
+    }
+    if (bytes.length > UploadJobPhotoRequest.maxBytes) {
+      _fail('Ảnh lớn hơn 5 MB. Vui lòng chụp lại hoặc chọn ảnh nhỏ hơn.');
+      return;
+    }
+
+    setState(() {
+      _picked = photo;
+      _pickedType = type;
+      _errorMessage = null;
+      _successMessage = null;
+    });
+
+    // Auto-upload immediately upon capture / selection
+    await _uploadPhoto();
+  }
+
   Future<void> _uploadPhoto() async {
     final picked = _picked;
     final bytes = picked?.bytes;
@@ -180,14 +265,8 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       return;
     }
 
-    // Angle matching check for AFTER phase
     if (_selectedPhase == 'AFTER') {
-      final hasBeforeAngle = _uploadedPhotos.any(
-        (p) =>
-            p.photoPhase == 'BEFORE' &&
-            p.angleNo == _selectedAngle &&
-            p.isAccepted,
-      );
+      final hasBeforeAngle = _hasAccepted('BEFORE', _selectedAngle);
       if (!hasBeforeAngle && _uploadedPhotos.isNotEmpty) {
         _fail(
           'Góc $_selectedAngle chưa có ảnh trước được chấp nhận. Hãy chọn đúng góc.',
@@ -202,12 +281,15 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       _successMessage = null;
     });
 
+    final targetAngle = _selectedAngle;
+    final targetPhase = _selectedPhase;
+
     try {
       final response = await _service.uploadPhoto(
         assignmentId: widget.assignmentId,
         request: UploadJobPhotoRequest(
-          photoPhase: _selectedPhase,
-          angleNo: _selectedAngle,
+          photoPhase: targetPhase,
+          angleNo: targetAngle,
           bytes: bytes,
           contentType: type,
         ),
@@ -220,19 +302,22 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
+        _uploadedPhotos.removeWhere(
+          (p) => p.photoPhase == saved.photoPhase && p.angleNo == saved.angleNo,
+        );
         _uploadedPhotos.add(saved);
         _picked = null;
         _pickedType = null;
         _successMessage =
             'Đã tải ảnh lên. Độ nét: ${saved.volScore.toStringAsFixed(1)} (đạt)';
+        _autoAdvanceAfterSuccess(targetAngle, targetPhase);
       });
     } on ApiException catch (e) {
       if (!mounted) return;
       final blurry = e.fieldErrors?.containsKey('volScore') ?? false;
       setState(() {
         if (blurry) {
-          _picked =
-              null; // a blurry photo is not sent again: the worker retakes it
+          _picked = null;
           _pickedType = null;
         }
       });
@@ -243,9 +328,143 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     }
   }
 
-  List<JobPhotoDto> get _currentPhasePhotos => _uploadedPhotos
-      .where((p) => p.photoPhase == _selectedPhase && p.isAccepted)
-      .toList();
+  Future<void> _submitCompletion() async {
+    if (!_isAllAccepted) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await _service.submitCompletion(widget.assignmentId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã gửi nghiệm thu. Chờ gia chủ xác nhận.'),
+        ),
+      );
+      Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _fail('Chưa gửi được nghiệm thu: ${e.message}');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _fail('Chưa gửi được nghiệm thu. Vui lòng thử lại.');
+    }
+  }
+
+  void _addAngle(String name) {
+    if (name.trim().isEmpty) return;
+    setState(() {
+      final nextAngle = _angleGuides.length + 1;
+      _angleGuides.add({
+        'angle': nextAngle,
+        'title': 'Góc $nextAngle: ${name.trim()}',
+        'name': name.trim(),
+        'desc': 'Chụp kiểm tra khu vực ${name.trim()}',
+      });
+      _selectedAngle = nextAngle;
+      _selectedPhase = 'BEFORE';
+    });
+  }
+
+  void _deleteAngle(int angleNo) {
+    if (_angleGuides.length <= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phương án A: Tối thiểu 5 góc chụp!')),
+      );
+      return;
+    }
+    setState(() {
+      _angleGuides.removeWhere((g) => g['angle'] == angleNo);
+      _uploadedPhotos.removeWhere((p) => p.angleNo == angleNo);
+      for (int i = 0; i < _angleGuides.length; i++) {
+        final newNo = i + 1;
+        _angleGuides[i]['angle'] = newNo;
+        final name = _angleGuides[i]['name'] as String;
+        _angleGuides[i]['title'] = 'Góc $newNo: $name';
+      }
+      if (_selectedAngle > _angleGuides.length) {
+        _selectedAngle = _angleGuides.length;
+      }
+    });
+  }
+
+  void _showAddAngleDialog() {
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: NordicRadius.cardAll),
+          title: const Text(
+            'Thêm góc chụp',
+            style: NordicTypography.titleSmall,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                spacing: NordicSpace.xs,
+                runSpacing: NordicSpace.xs,
+                children: [
+                  for (final preset in [
+                    'Ban công',
+                    'Phòng WC',
+                    'Phòng ngủ',
+                    'Trần & đèn',
+                  ])
+                    ActionChip(
+                      label: Text(preset, style: NordicTypography.labelSmall),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _addAngle(preset);
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: NordicSpace.md),
+              TextField(
+                key: const Key('add-angle-name-input'),
+                controller: textController,
+                decoration: const InputDecoration(
+                  hintText: 'Nhập tên góc khác...',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Hủy'),
+            ),
+            NordicButton(
+              label: 'Thêm',
+              variant: NordicButtonVariant.primary,
+              onPressed: () {
+                if (textController.text.trim().isNotEmpty) {
+                  Navigator.of(ctx).pop();
+                  _addAngle(textController.text.trim());
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _angleName(int angle) {
+    final guide = _angleGuides.firstWhere(
+      (g) => g['angle'] == angle,
+      orElse: () => _angleGuides.first,
+    );
+    if (guide.containsKey('name')) return guide['name'] as String;
+    final title = guide['title'] as String;
+    final i = title.indexOf(': ');
+    return i < 0 ? title : title.substring(i + 2);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -257,28 +476,35 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     return NordicPage.pushed(
       title: 'Ảnh trước và sau',
       actions: [
-        NordicButton(
-          label: 'Gửi ảnh',
-          variant: NordicButtonVariant.primary,
-          isLoading: _isLoading,
-          onPressed: _uploadPhoto,
-        ),
+        // Primary bottom action button (Chụp ảnh while incomplete, Nghiệm thu when complete)
+        if (_isAllAccepted)
+          NordicButton(
+            key: const Key('photo-submit-button'),
+            label: _isSubmitting ? 'Đang gửi…' : 'Nghiệm thu',
+            variant: NordicButtonVariant.primary,
+            icon: const Icon(Icons.task_alt, size: 18.0),
+            isLoading: _isSubmitting,
+            onPressed: _submitCompletion,
+          )
+        else
+          NordicButton(
+            key: const Key('photo-capture-button'),
+            label: 'Chụp ảnh',
+            variant: NordicButtonVariant.primary,
+            icon: const Icon(Icons.photo_camera_outlined, size: 18.0),
+            isLoading: _isLoading,
+            onPressed: () => _pick(fromCamera: true),
+          ),
       ],
       children: [
-        const Text(
-          'Chụp 3–5 góc. Ảnh sau phải đúng góc với ảnh trước và có độ nét ≥ 100.',
-          style: NordicTypography.bodySmall,
-        ),
-        const SizedBox(height: NordicSpace.md),
-
-        // Count per phase
+        // KPI statistics
         Row(
           children: [
             Expanded(
               child: StatTile(
                 label: 'Trước',
                 value: '${_acceptedCount('BEFORE')}',
-                unit: '/5',
+                unit: '/${_angleGuides.length}',
               ),
             ),
             const SizedBox(width: NordicSpace.sm),
@@ -286,23 +512,15 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
               child: StatTile(
                 label: 'Sau',
                 value: '${_acceptedCount('AFTER')}',
-                unit: '/5',
+                unit: '/${_angleGuides.length}',
               ),
             ),
           ],
         ),
         const SizedBox(height: NordicSpace.md),
 
-        // Phase Switcher
-        _buildPhaseSegmentedControl(),
-        const SizedBox(height: NordicSpace.md),
-
-        // Angle x phase grid: tap a cell to pick that photo
-        _buildAngleSelector(),
-        const SizedBox(height: NordicSpace.md),
-
-        // Frame guide of the chosen angle
-        _buildCameraGuideOverlay(currentGuide),
+        // 1. HERO FOCUS CARD (Active angle in center stage)
+        _buildHeroFocusCard(currentGuide),
         const SizedBox(height: NordicSpace.md),
 
         // Messages
@@ -325,53 +543,393 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             foreground: NordicColors.primary,
           ),
 
-        // The photo about to be sent
-        if (_picked?.bytes != null) ...[
-          ClipRRect(
-            borderRadius: NordicRadius.tileAll,
-            child: Image.memory(
-              _picked!.bytes!,
-              height: 180.0,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const SizedBox(
-                height: 180.0,
-                child: Center(child: Text('Không xem trước được ảnh')),
-              ),
-            ),
+        // 2. COMPACT ANGLE CHECKLIST
+        _buildCompactAngleChecklist(),
+        const SizedBox(height: NordicSpace.md),
+
+        // Summary of uploaded count for tests
+        Text(
+          '${_uploadedPhotos.where((p) => p.photoPhase == _selectedPhase && p.isAccepted).length}/${_angleGuides.length} đạt',
+          key: const Key('uploaded-photos-count-text'),
+          style: NordicTypography.bodySmall.copyWith(
+            color: NordicColors.textSecondary,
           ),
-          const SizedBox(height: NordicSpace.sm),
-        ],
-
-        // Photo input
-        Row(
-          children: [
-            Expanded(
-              child: NordicButton(
-                label: 'Chụp ảnh',
-                variant: NordicButtonVariant.secondary,
-                onPressed: _isLoading ? null : () => _pick(fromCamera: true),
-              ),
-            ),
-            const SizedBox(width: NordicSpace.xs),
-            Expanded(
-              child: NordicButton(
-                label: 'Chọn từ thư viện',
-                variant: NordicButtonVariant.secondary,
-                onPressed: _isLoading ? null : () => _pick(fromCamera: false),
-              ),
-            ),
-          ],
         ),
-
-        const SizedBox(height: NordicSpace.gutter),
-        // List of Uploaded Photos
-        _buildUploadedPhotosList(),
       ],
     );
   }
 
-  /// A one-line result under the guide: an error (red) or a success (green), always with an icon and words.
+  Widget _buildHeroFocusCard(Map<String, dynamic> guide) {
+    final activePhoto = _photoFor(_selectedPhase, _selectedAngle);
+
+    return NordicCard(
+      isHighlighted: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.center_focus_strong,
+                size: 20.0,
+                color: NordicColors.primary,
+              ),
+              const SizedBox(width: NordicSpace.xs),
+              Expanded(
+                child: Text(
+                  guide['title'] as String,
+                  style: NordicTypography.titleSmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: NordicSpace.xs),
+              StatusPill(
+                _selectedPhase == 'BEFORE' ? 'Trước' : 'Sau',
+                tone: PillTone.ok,
+              ),
+            ],
+          ),
+          const SizedBox(height: NordicSpace.sm),
+
+          // Preview / Viewfinder
+          Pressable(
+            child: InkWell(
+              onTap: _isLoading ? null : () => _pick(fromCamera: true),
+              borderRadius: NordicRadius.tileAll,
+              child: Container(
+                width: double.infinity,
+                height: 140.0,
+                decoration: BoxDecoration(
+                  color: NordicColors.surfaceContainer,
+                  borderRadius: NordicRadius.tileAll,
+                  border: Border.all(
+                    color: activePhoto != null
+                        ? NordicColors.primary
+                        : NordicColors.borderVariant,
+                    width: activePhoto != null ? 2.0 : 1.5,
+                  ),
+                ),
+                child: _isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            CircularProgressIndicator(),
+                            SizedBox(height: NordicSpace.xs),
+                            Text(
+                              'Đang đo nét VoL...',
+                              style: NordicTypography.bodySmall,
+                            ),
+                          ],
+                        ),
+                      )
+                    : activePhoto != null
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(
+                            borderRadius: NordicRadius.tileAll,
+                            child: JobPhotoImage(
+                              service: _service,
+                              photo: activePhoto,
+                              height: 140.0,
+                              width: double.infinity,
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 6.0,
+                            left: 6.0,
+                            right: 6.0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8.0,
+                                vertical: 4.0,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.75),
+                                borderRadius: BorderRadius.circular(6.0),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '✓ ${_selectedPhase == "BEFORE" ? "Trước" : "Sau"} đạt',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11.0,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Độ nét: ${activePhoto.volScore.toStringAsFixed(1)}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11.0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.photo_camera_outlined,
+                              size: 36.0,
+                              color: NordicColors.primary,
+                            ),
+                            const SizedBox(height: NordicSpace.xxs),
+                            Text(
+                              'Chụp ảnh ${_selectedPhase == "BEFORE" ? "Trước" : "Sau"}',
+                              style: NordicTypography.titleSmall,
+                            ),
+                            const SizedBox(height: 2.0),
+                            const Text(
+                              'Chạm vào đây để mở máy ảnh',
+                              style: NordicTypography.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: NordicSpace.xs),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: _isLoading ? null : () => _pick(fromCamera: false),
+                icon: const Icon(
+                  Icons.photo_library_outlined,
+                  size: 16.0,
+                  color: NordicColors.textSecondary,
+                ),
+                label: const Text('Chọn từ thư viện'),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactAngleChecklist() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'TIẾN ĐỘ CÁC GÓC (${_angleGuides.length})',
+                style: NordicTypography.labelMedium.copyWith(
+                  color: NordicColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _showAddAngleDialog,
+              icon: const Icon(Icons.add_circle_outline, size: 16.0),
+              label: const Text('Thêm góc'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                minimumSize: const Size(0, 32),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: NordicSpace.xxs),
+
+        for (final guide in _angleGuides) ...[
+          _buildCompactAngleRow(guide['angle'] as int),
+          const SizedBox(height: NordicSpace.xxs),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCompactAngleRow(int angle) {
+    final isSelected = _selectedAngle == angle;
+    final beforePhoto = _photoFor('BEFORE', angle);
+    final afterPhoto = _photoFor('AFTER', angle);
+    final hasBefore = beforePhoto != null;
+    final hasAfter = afterPhoto != null;
+
+    return Pressable(
+      child: InkWell(
+        key: Key('photo-angle-$angle'),
+        borderRadius: NordicRadius.tileAll,
+        onTap: () {
+          setState(() {
+            _selectedAngle = angle;
+            if (!hasBefore) {
+              _selectedPhase = 'BEFORE';
+            } else if (!hasAfter) {
+              _selectedPhase = 'AFTER';
+            }
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: NordicSpace.sm,
+            vertical: NordicSpace.xs,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? NordicColors.primaryFixed.withValues(alpha: 0.3)
+                : NordicColors.surface,
+            borderRadius: NordicRadius.tileAll,
+            border: Border.all(
+              color: isSelected ? NordicColors.primary : NordicColors.border,
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 22.0,
+                height: 22.0,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? NordicColors.primary
+                      : NordicColors.surfaceContainer,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$angle',
+                  style: TextStyle(
+                    fontSize: 11.0,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? Colors.white : NordicColors.textTitle,
+                  ),
+                ),
+              ),
+              const SizedBox(width: NordicSpace.xs),
+              Expanded(
+                child: Text(
+                  _angleName(angle),
+                  style: NordicTypography.titleSmall.copyWith(fontSize: 13.5),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+
+              // Mini pill Trước
+              InkWell(
+                key: Key('photo-cell-BEFORE-$angle'),
+                onTap: () => setState(() {
+                  _selectedAngle = angle;
+                  _selectedPhase = 'BEFORE';
+                }),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6.0,
+                    vertical: 2.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: hasBefore
+                        ? NordicColors.primaryFixed
+                        : isSelected && _selectedPhase == 'BEFORE'
+                        ? NordicColors.primary
+                        : NordicColors.surfaceContainer,
+                    borderRadius: BorderRadius.circular(4.0),
+                  ),
+                  child: Text(
+                    hasBefore
+                        ? '✓ ${beforePhoto.volScore.toStringAsFixed(0)}'
+                        : isSelected && _selectedPhase == 'BEFORE'
+                        ? 'Đang chụp'
+                        : 'Trước',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: hasBefore
+                          ? NordicColors.primary
+                          : isSelected && _selectedPhase == 'BEFORE'
+                          ? Colors.white
+                          : NordicColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: NordicSpace.xxs),
+
+              // Mini pill Sau
+              InkWell(
+                key: Key('photo-cell-AFTER-$angle'),
+                onTap: () => setState(() {
+                  _selectedAngle = angle;
+                  _selectedPhase = 'AFTER';
+                }),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6.0,
+                    vertical: 2.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: hasAfter
+                        ? NordicColors.primaryFixed
+                        : isSelected && _selectedPhase == 'AFTER'
+                        ? NordicColors.primary
+                        : NordicColors.surfaceContainer,
+                    borderRadius: BorderRadius.circular(4.0),
+                  ),
+                  child: Text(
+                    hasAfter
+                        ? '✓ ${afterPhoto.volScore.toStringAsFixed(0)}'
+                        : isSelected && _selectedPhase == 'AFTER'
+                        ? 'Đang chụp'
+                        : hasBefore
+                        ? 'Sau'
+                        : '🔒',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: hasAfter
+                          ? NordicColors.primary
+                          : isSelected && _selectedPhase == 'AFTER'
+                          ? Colors.white
+                          : NordicColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Option A: Delete button only when > 5 angles
+              if (_angleGuides.length > 5) ...[
+                const SizedBox(width: NordicSpace.xxs),
+                IconButton(
+                  key: Key('delete-angle-$angle'),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 16.0,
+                    color: NordicColors.error,
+                  ),
+                  onPressed: () => _deleteAngle(angle),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _message(
     String text, {
     required IconData icon,
@@ -379,7 +937,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     required Color foreground,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: NordicSpace.md),
+      padding: const EdgeInsets.only(bottom: NordicSpace.sm),
       child: Container(
         padding: const EdgeInsets.all(NordicSpace.sm),
         decoration: BoxDecoration(
@@ -388,7 +946,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: foreground),
+            Icon(icon, color: foreground, size: 20.0),
             const SizedBox(width: NordicSpace.xs),
             Expanded(
               child: Text(
@@ -399,266 +957,6 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  int _acceptedCount(String phase) => _uploadedPhotos
-      .where((p) => p.photoPhase == phase && p.isAccepted)
-      .map((p) => p.angleNo)
-      .toSet()
-      .length;
-
-  bool _hasAccepted(String phase, int angle) => _uploadedPhotos.any(
-    (p) => p.photoPhase == phase && p.angleNo == angle && p.isAccepted,
-  );
-
-  /// `.seg`: Trước / Sau in one rounded track, the chosen one filled.
-  Widget _buildPhaseSegmentedControl() {
-    Widget segment(String phase, String label) {
-      final selected = _selectedPhase == phase;
-      return Expanded(
-        child: Pressable(
-          child: GestureDetector(
-            onTap: () => setState(() => _selectedPhase = phase),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: NordicSpace.sm),
-              decoration: BoxDecoration(
-                color: selected
-                    ? NordicColors.primary
-                    : NordicColors.surfaceContainer,
-                borderRadius: NordicRadius.pill,
-              ),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: NordicTypography.titleSmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: selected
-                      ? NordicColors.textInverse
-                      : NordicColors.textTitle,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(NordicSpace.xxs),
-      decoration: BoxDecoration(
-        color: NordicColors.surfaceContainer,
-        borderRadius: NordicRadius.pill,
-      ),
-      child: Row(
-        children: [segment('BEFORE', 'Trước'), segment('AFTER', 'Sau')],
-      ),
-    );
-  }
-
-  /// `.angle` rows: one per angle with a Trước and a Sau cell; a check when the server accepted the photo, a camera
-  /// icon when it is still missing. Tapping a cell chooses that phase and angle.
-  Widget _buildAngleSelector() {
-    Widget cell(String phase, int angle) {
-      final done = _hasAccepted(phase, angle);
-      final selected = _selectedPhase == phase && _selectedAngle == angle;
-      return Pressable(
-        child: InkWell(
-          key: Key('photo-cell-$phase-$angle'),
-          borderRadius: NordicRadius.tileAll,
-          onTap: () => setState(() {
-            _selectedPhase = phase;
-            _selectedAngle = angle;
-          }),
-          child: Container(
-            width: 64.0,
-            height: 48.0,
-            decoration: BoxDecoration(
-              color: done ? NordicColors.primaryFixed : null,
-              borderRadius: NordicRadius.tileAll,
-              border: done
-                  ? null
-                  : Border.all(
-                      color: selected
-                          ? NordicColors.primary
-                          : NordicColors.borderVariant,
-                      width: selected ? 2.0 : 1.5,
-                    ),
-            ),
-            child: Icon(
-              done ? Icons.check : Icons.add_a_photo_outlined,
-              color: done ? NordicColors.primary : NordicColors.textSecondary,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return NordicCard(
-      child: Column(
-        children: [
-          for (int i = 1; i <= 5; i++) ...[
-            if (i > 1) const Divider(height: NordicSpace.md),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    key: Key('photo-angle-$i'),
-                    onTap: () => setState(() => _selectedAngle = i),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Góc $i',
-                          style: _selectedAngle == i
-                              ? NordicTypography.titleSmall.copyWith(
-                                  color: NordicColors.primary,
-                                )
-                              : NordicTypography.titleSmall,
-                        ),
-                        Text(_angleName(i), style: NordicTypography.bodySmall),
-                      ],
-                    ),
-                  ),
-                ),
-                cell('BEFORE', i),
-                const SizedBox(width: NordicSpace.xs),
-                cell('AFTER', i),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// "Toàn cảnh" from "Góc 1: Toàn cảnh".
-  String _angleName(int angle) {
-    final title =
-        _angleGuides.firstWhere(
-              (g) => g['angle'] == angle,
-              orElse: () => _angleGuides.first,
-            )['title']
-            as String;
-    final i = title.indexOf(': ');
-    return i < 0 ? title : title.substring(i + 2);
-  }
-
-  Widget _buildCameraGuideOverlay(Map<String, dynamic> guide) {
-    return NordicCard(
-      isHighlighted: true,
-      child: Row(
-        children: [
-          const Icon(Icons.crop_free, size: 40.0, color: NordicColors.primary),
-          const SizedBox(width: NordicSpace.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  guide['title'] as String,
-                  style: NordicTypography.titleSmall,
-                ),
-                const SizedBox(height: NordicSpace.xxs),
-                Text(
-                  guide['desc'] as String,
-                  style: NordicTypography.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: NordicSpace.xs),
-          StatusPill(
-            _selectedPhase == 'BEFORE' ? 'Trước' : 'Sau',
-            tone: PillTone.ok,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUploadedPhotosList() {
-    final photos = _currentPhasePhotos;
-
-    return NordicCard(
-      child: Padding(
-        padding: const EdgeInsets.all(NordicSpace.xxs),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Ảnh đã tải (${_selectedPhase == "BEFORE" ? "trước" : "sau"})',
-                    style: NordicTypography.titleSmall,
-                  ),
-                ),
-                const SizedBox(width: NordicSpace.xs),
-                Text(
-                  '${photos.length}/5 đạt',
-                  style: NordicTypography.titleSmall.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: NordicColors.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: NordicSpace.sm),
-            if (photos.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: NordicSpace.sm),
-                child: Center(
-                  child: Text(
-                    'Chưa có ảnh nào ở phần này.',
-                    style: NordicTypography.bodySmall,
-                  ),
-                ),
-              )
-            else
-              for (final p in photos) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: NordicRadius.tileAll,
-                          child: JobPhotoImage(
-                            service: _service,
-                            photo: p,
-                            height: 40.0,
-                            width: 40.0,
-                            compact: true,
-                          ),
-                        ),
-                        const SizedBox(width: NordicSpace.xs),
-                        const Icon(
-                          Icons.check_circle,
-                          color: NordicColors.primary,
-                          size: 18.0,
-                        ),
-                        const SizedBox(width: NordicSpace.xs),
-                        Text(
-                          'Góc ${p.angleNo}',
-                          style: NordicTypography.labelMedium,
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Độ nét ${p.volScore.toStringAsFixed(1)}',
-                      style: NordicTypography.bodySmall.copyWith(
-                        color: NordicColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                if (p != photos.last) const Divider(),
-              ],
           ],
         ),
       ),
