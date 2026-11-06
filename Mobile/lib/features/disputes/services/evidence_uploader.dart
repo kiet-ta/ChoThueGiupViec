@@ -7,7 +7,7 @@ abstract class IEvidenceUploader {
   bool get isAvailable;
 
   /// Lets the person pick a photo and uploads it; null when the person cancelled.
-  Future<String?> pickAndUpload();
+  Future<String?> pickAndUpload({bool fromGallery = false});
 }
 
 /// For a build that cannot attach photos at all.
@@ -18,5 +18,5 @@ class UnavailableEvidenceUploader implements IEvidenceUploader {
   bool get isAvailable => false;
 
   @override
-  Future<String?> pickAndUpload() async => null;
+  Future<String?> pickAndUpload({bool fromGallery = false}) async => null;
 }

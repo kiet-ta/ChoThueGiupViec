@@ -61,11 +61,13 @@ class FakeUploader implements IEvidenceUploader {
   bool isAvailable;
   final urls = <String?>[];
   Object? error;
+  bool? lastFromGallery;
 
   FakeUploader({this.isAvailable = true});
 
   @override
-  Future<String?> pickAndUpload() async {
+  Future<String?> pickAndUpload({bool fromGallery = false}) async {
+    lastFromGallery = fromGallery;
     if (error != null) throw error!;
     return urls.isEmpty ? 'https://files.example/photo.jpg' : urls.removeAt(0);
   }
@@ -138,6 +140,10 @@ Future<void> fillForm(
     await tester.ensureVisible(find.byKey(const Key('dispute-add-photo')));
     await tester.tap(find.byKey(const Key('dispute-add-photo')));
     await tester.pumpAndSettle();
+    if (find.byKey(const Key('dispute-pick-gallery')).evaluate().isNotEmpty) {
+      await tester.tap(find.byKey(const Key('dispute-pick-gallery')));
+      await tester.pumpAndSettle();
+    }
   }
 }
 
@@ -312,6 +318,8 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('dispute-add-photo')));
       await tester.tap(find.byKey(const Key('dispute-add-photo')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dispute-pick-gallery')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('dispute-evidence-0')), findsOneWidget);
       expect(submitEnabled(tester), isTrue);
     });
@@ -356,6 +364,8 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('dispute-add-photo')));
       await tester.tap(find.byKey(const Key('dispute-add-photo')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dispute-pick-gallery')));
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('dispute-evidence-0')), findsNothing);
     });
@@ -370,8 +380,24 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('dispute-add-photo')));
       await tester.tap(find.byKey(const Key('dispute-add-photo')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dispute-pick-gallery')));
+      await tester.pumpAndSettle();
 
       expect(find.text('Không tải được ảnh.'), findsOneWidget);
+    });
+
+    testWidgets('picking from camera passes fromGallery false', (tester) async {
+      final uploader = FakeUploader();
+      await pumpForm(tester, FakeDisputesService(), uploader);
+
+      await tester.ensureVisible(find.byKey(const Key('dispute-add-photo')));
+      await tester.tap(find.byKey(const Key('dispute-add-photo')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dispute-pick-camera')));
+      await tester.pumpAndSettle();
+
+      expect(uploader.lastFromGallery, isFalse);
+      expect(find.byKey(const Key('dispute-evidence-0')), findsOneWidget);
     });
 
     testWidgets(
