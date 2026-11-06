@@ -132,6 +132,45 @@ public class ReverseGeocodeTests
         Assert.NotNull(result);
         Assert.Equal("Thành phố Hồ Chí Minh", result.City);
     }
+
+    [Fact]
+    public void Osm_parser_normalizes_components_correctly()
+    {
+        var props = new OsmReverseGeocodeService.OsmPhotonProperties
+        {
+            HouseNumber = "17",
+            Street = "Phố Trần Nguyên Hãn",
+            Locality = "Khu phố cổ",
+            District = "Hoàn Kiếm",
+            City = "Hà Nội",
+            Country = "Việt Nam",
+            Postcode = "11024"
+        };
+
+        var parsed = OsmReverseGeocodeService.ParsePhotonResult(props, 21.0285, 105.8542);
+
+        Assert.Equal("Thành phố Hà Nội", parsed.City);
+        Assert.Equal("Hoàn Kiếm", parsed.District);
+        Assert.Equal("17 Phố Trần Nguyên Hãn", parsed.AddressLine);
+        Assert.Contains("17 Phố Trần Nguyên Hãn", parsed.FormattedAddress);
+        Assert.Contains("Hoàn Kiếm", parsed.FormattedAddress);
+        Assert.Contains("Thành phố Hà Nội", parsed.FormattedAddress);
+        Assert.Equal(21.0285, parsed.Latitude);
+        Assert.Equal(105.8542, parsed.Longitude);
+    }
+
+    [Fact]
+    public async Task OsmService_fallback_to_Fake_on_error_or_offline()
+    {
+        var service = new OsmReverseGeocodeService(
+            new HttpClient(),
+            NullLogger<OsmReverseGeocodeService>.Instance);
+
+        var result = await service.ReverseGeocodeAsync(10.7769, 106.7009);
+        Assert.NotNull(result);
+        Assert.Equal("Thành phố Hồ Chí Minh", result.City);
+        Assert.NotNull(result.District);
+    }
 }
 
 public class LocationsControllerTests
