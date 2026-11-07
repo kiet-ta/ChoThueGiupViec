@@ -15,6 +15,7 @@ import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../models/job_photo_models.dart';
+import '../services/workers_assignments_service.dart';
 import '../services/workers_photos_service.dart';
 import '../widgets/job_photo_image.dart';
 
@@ -26,15 +27,18 @@ import '../widgets/job_photo_image.dart';
 /// - Auto-upload upon capture with instant VoL inspection
 /// - Auto-advancing flow (Trước -> Sau -> next angle)
 /// - Bottom bar action: 'Chụp ảnh' while taking, transitions to 'Nghiệm thu' when 5/5 complete
+/// - Once the job is already handed over (AWAITING_ACCEPTANCE / COMPLETED) the capture and submit actions are gone (#677)
 class WorkerPhotosScreen extends StatefulWidget {
   final int assignmentId;
   final WorkersPhotosService? photosService;
+  final WorkersAssignmentsService? assignmentsService;
   final ICameraWrapper? camera;
 
   const WorkerPhotosScreen({
     super.key,
     required this.assignmentId,
     this.photosService,
+    this.assignmentsService,
     this.camera,
   });
 
@@ -44,6 +48,7 @@ class WorkerPhotosScreen extends StatefulWidget {
 
 class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   late final WorkersPhotosService _service;
+  late final WorkersAssignmentsService _assignmentsService;
   late final ICameraWrapper _camera;
 
   String _selectedPhase = 'BEFORE'; // BEFORE | AFTER
@@ -54,6 +59,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
 
   bool _isLoading = false;
   bool _isSubmitting = false;
+
+  /// The job was already handed to the customer: nothing can be captured or submitted any more.
+  bool _submitted = false;
   String? _errorMessage;
   String? _successMessage;
   int _errors = 0;
@@ -97,8 +105,26 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   void initState() {
     super.initState();
     _service = widget.photosService ?? WorkersPhotosService();
+    _assignmentsService =
+        widget.assignmentsService ?? WorkersAssignmentsService();
     _camera = widget.camera ?? DeviceCameraWrapper();
     _loadPhotos();
+    _loadStatus();
+  }
+
+  /// Reads whether the job was already submitted. Returns false when the status cannot be read, so a flaky network never
+  /// blocks the worker (the server stays the final judge of the submit).
+  Future<bool> _loadStatus() async {
+    try {
+      final response = await _assignmentsService.getAssignment(
+        widget.assignmentId,
+      );
+      final submitted = response.data?.isSubmittedForAcceptance ?? false;
+      if (submitted && mounted) setState(() => _submitted = true);
+      return submitted;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _loadPhotos() async {
@@ -329,20 +355,28 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   }
 
   Future<void> _submitCompletion() async {
-    if (!_isAllAccepted) return;
+    if (!_isAllAccepted || _submitted) return;
     setState(() => _isSubmitting = true);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await _service.submitCompletion(widget.assignmentId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      setState(() {
+        _isSubmitting = false;
+        _submitted = true;
+      });
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Đã gửi nghiệm thu. Chờ gia chủ xác nhận.'),
         ),
       );
-      Navigator.of(context).pop();
+      navigator.popUntil((route) => route.isFirst);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
+      // The job may have been submitted already (a double tap, another device): say so instead of the server's English text.
+      if (await _loadStatus()) return;
       _fail('Chưa gửi được nghiệm thu: ${e.message}');
     } catch (_) {
       if (!mounted) return;
@@ -475,28 +509,37 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
 
     return NordicPage.pushed(
       title: 'Ảnh trước và sau',
-      actions: [
-        // Primary bottom action button (Chụp ảnh while incomplete, Nghiệm thu when complete)
-        if (_isAllAccepted)
-          NordicButton(
-            key: const Key('photo-submit-button'),
-            label: _isSubmitting ? 'Đang gửi…' : 'Nghiệm thu',
-            variant: NordicButtonVariant.primary,
-            icon: const Icon(Icons.task_alt, size: 18.0),
-            isLoading: _isSubmitting,
-            onPressed: _submitCompletion,
-          )
-        else
-          NordicButton(
-            key: const Key('photo-capture-button'),
-            label: 'Chụp ảnh',
-            variant: NordicButtonVariant.primary,
-            icon: const Icon(Icons.photo_camera_outlined, size: 18.0),
-            isLoading: _isLoading,
-            onPressed: () => _pick(fromCamera: true),
-          ),
-      ],
+      // Primary bottom action button (Chụp ảnh while incomplete, Nghiệm thu when complete); none once handed over
+      actions: _submitted
+          ? null
+          : [
+              if (_isAllAccepted)
+                NordicButton(
+                  key: const Key('photo-submit-button'),
+                  label: _isSubmitting ? 'Đang gửi…' : 'Nghiệm thu',
+                  variant: NordicButtonVariant.primary,
+                  icon: const Icon(Icons.task_alt, size: 18.0),
+                  isLoading: _isSubmitting,
+                  onPressed: _submitCompletion,
+                )
+              else
+                NordicButton(
+                  key: const Key('photo-capture-button'),
+                  label: 'Chụp ảnh',
+                  variant: NordicButtonVariant.primary,
+                  icon: const Icon(Icons.photo_camera_outlined, size: 18.0),
+                  isLoading: _isLoading,
+                  onPressed: () => _pick(fromCamera: true),
+                ),
+            ],
       children: [
+        if (_submitted)
+          _message(
+            'Đang chờ gia chủ xác nhận. Ca này đã được gửi nghiệm thu.',
+            icon: Icons.hourglass_top_rounded,
+            background: NordicColors.primaryFixed,
+            foreground: NordicColors.primary,
+          ),
         // KPI statistics
         Row(
           children: [
@@ -594,7 +637,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
           // Preview / Viewfinder
           Pressable(
             child: InkWell(
-              onTap: _isLoading ? null : () => _pick(fromCamera: true),
+              onTap: _isLoading || _submitted
+                  ? null
+                  : () => _pick(fromCamera: true),
               borderRadius: NordicRadius.tileAll,
               child: Container(
                 width: double.infinity,
@@ -704,7 +749,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton.icon(
-                onPressed: _isLoading ? null : () => _pick(fromCamera: false),
+                onPressed: _isLoading || _submitted
+                    ? null
+                    : () => _pick(fromCamera: false),
                 icon: const Icon(
                   Icons.photo_library_outlined,
                   size: 16.0,
@@ -739,7 +786,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
               ),
             ),
             TextButton.icon(
-              onPressed: _showAddAngleDialog,
+              onPressed: _submitted ? null : _showAddAngleDialog,
               icon: const Icon(Icons.add_circle_outline, size: 16.0),
               label: const Text('Thêm góc'),
               style: TextButton.styleFrom(
@@ -917,7 +964,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                     size: 16.0,
                     color: NordicColors.error,
                   ),
-                  onPressed: () => _deleteAngle(angle),
+                  onPressed: _submitted ? null : () => _deleteAngle(angle),
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),

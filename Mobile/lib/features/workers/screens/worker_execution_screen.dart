@@ -9,6 +9,7 @@ import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../routes.dart';
+import '../services/workers_assignments_service.dart';
 import '../services/workers_photos_service.dart';
 
 /// Screen for Worker Job Execution during active shift (contract workers.md §2.5), ui-templates `worker/execution.html`.
@@ -22,11 +23,13 @@ class WorkerExecutionScreen extends StatefulWidget {
   final int maxShiftMinutes; // Default 240 mins (4 hours) per PRD BR-01
   final int initialElapsedSeconds;
   final WorkersPhotosService? photosService;
+  final WorkersAssignmentsService? assignmentsService;
 
   const WorkerExecutionScreen({
     super.key,
     required this.assignmentId,
     this.photosService,
+    this.assignmentsService,
     this.workZone,
     this.maxShiftMinutes = 240,
     this.initialElapsedSeconds = 0,
@@ -42,11 +45,30 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
   bool _isTimerRunning = true;
   bool _isSubmitting = false;
 
+  /// The job was already handed to the customer, so it cannot be submitted again (#677).
+  bool _submitted = false;
+
   @override
   void initState() {
     super.initState();
     _elapsedSeconds = widget.initialElapsedSeconds;
     _startTimer();
+    _loadStatus();
+  }
+
+  /// Reads whether the job was already submitted. Returns false when the status cannot be read, so a flaky network never
+  /// blocks the worker (the server stays the final judge of the submit).
+  Future<bool> _loadStatus() async {
+    try {
+      final response =
+          await (widget.assignmentsService ?? WorkersAssignmentsService())
+              .getAssignment(widget.assignmentId);
+      final submitted = response.data?.isSubmittedForAcceptance ?? false;
+      if (submitted && mounted) setState(() => _submitted = true);
+      return submitted;
+    } catch (_) {
+      return false;
+    }
   }
 
   void _startTimer() {
@@ -80,6 +102,7 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
   }
 
   Future<void> _submitCompletion() async {
+    if (_submitted) return;
     setState(() => _isSubmitting = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -96,6 +119,8 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
+      // Already submitted (a double tap, another device): the button locks instead of showing the server's English text.
+      if (await _loadStatus()) return;
       messenger.showSnackBar(
         SnackBar(content: Text('Chưa gửi được nghiệm thu: ${e.message}')),
       );
@@ -128,9 +153,13 @@ class _WorkerExecutionScreenState extends State<WorkerExecutionScreen> {
             const SizedBox(height: NordicSpace.xs),
             NordicButton(
               key: const Key('submit_completion_button'),
-              label: _isSubmitting ? 'Đang gửi…' : 'Gửi nghiệm thu',
+              label: _submitted
+                  ? 'Đã gửi nghiệm thu, chờ gia chủ xác nhận'
+                  : _isSubmitting
+                  ? 'Đang gửi…'
+                  : 'Gửi nghiệm thu',
               variant: NordicButtonVariant.secondary,
-              onPressed: _isSubmitting ? null : _submitCompletion,
+              onPressed: _isSubmitting || _submitted ? null : _submitCompletion,
             ),
           ],
         ),
