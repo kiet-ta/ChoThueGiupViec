@@ -229,6 +229,91 @@ void main() {
       expect(updated?.city, 'Thành phố Hồ Chí Minh');
       expect(updated?.district, 'Phường Bến Thành');
     });
+
+    testWidgets(
+      'tapping a location preset triggers reverse geocode and auto-fills address, city, and ward',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: AddressFormScreen(addressService: service),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Scroll down to GPS Coordinate picker
+        await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+        await tester.pumpAndSettle();
+
+        // Tap Hanoi preset chip
+        await tester.tap(find.text('Hoàn Kiếm, Hà Nội'));
+        await tester.pumpAndSettle();
+
+        // Verify SnackBar shown
+        expect(
+          find.text('Đã tự động điền địa chỉ từ vị trí toạ độ.'),
+          findsOneWidget,
+        );
+
+        // Scroll back up to verify fields auto-filled
+        await tester.drag(find.byType(ListView).first, const Offset(0, 500));
+        await tester.pumpAndSettle();
+
+        expect(find.text('1 Đinh Tiên Hoàng'), findsOneWidget);
+        expect(find.text('Thành phố Hà Nội'), findsOneWidget);
+        expect(find.text('Phường Hoàn Kiếm'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'graceful degradation when reverse geocode fails retains coordinates and displays fallback notice',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        service.mockReverseGeocodeHandler = (lat, lng) =>
+            throw Exception('Service unavailable');
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: AddressFormScreen(addressService: service),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Scroll down to GPS Coordinate picker
+        await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+        await tester.pumpAndSettle();
+
+        // Tap preset chip
+        await tester.tap(find.text('Q.7, TP.HCM'));
+        await tester.pumpAndSettle();
+
+        // Verify fallback notice
+        expect(
+          find.text(
+            'Đã lưu toạ độ. Vui lòng kiểm tra và nhập địa chỉ bên trên.',
+          ),
+          findsOneWidget,
+        );
+
+        // Verify coordinate display has Q.7 coordinates
+        expect(find.textContaining('10.7412'), findsOneWidget);
+        expect(find.textContaining('106.7028'), findsOneWidget);
+      },
+    );
   });
 }
 

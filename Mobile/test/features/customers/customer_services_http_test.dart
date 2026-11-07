@@ -149,6 +149,49 @@ void main() {
         apiError(0),
       );
     });
+
+    test('reverseGeocode calls POST /api/v1/locations/reverse-geocode with Bearer token', () async {
+      backend.on(
+        'POST',
+        '/api/v1/locations/reverse-geocode',
+        200,
+        FakeBackend.ok({
+          'city': 'Thành phố Hồ Chí Minh',
+          'district': 'Phường Bến Nghé',
+          'addressLine': '123 Lê Lợi, Quận 1',
+          'formattedAddress':
+              '123 Lê Lợi, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh',
+          'latitude': 10.7769,
+          'longitude': 106.7009,
+        }),
+      );
+
+      final result = await service().reverseGeocode(10.7769, 106.7009);
+
+      expect(result.city, 'Thành phố Hồ Chí Minh');
+      expect(result.district, 'Phường Bến Nghé');
+      expect(result.addressLine, '123 Lê Lợi, Quận 1');
+      expect(result.latitude, 10.7769);
+      expect(result.longitude, 106.7009);
+      expect(
+        backend.authHeaders['POST /api/v1/locations/reverse-geocode'],
+        'Bearer tok-123',
+      );
+    });
+
+    test('reverseGeocode throws on 401 unauthenticated', () async {
+      backend.on(
+        'POST',
+        '/api/v1/locations/reverse-geocode',
+        401,
+        FakeBackend.error('Phiên đăng nhập đã hết hạn.'),
+      );
+
+      await expectLater(
+        service().reverseGeocode(10.7769, 106.7009),
+        apiError(401, 'Phiên đăng nhập đã hết hạn.'),
+      );
+    });
   });
 
   group('FavoriteWorkerService', () {

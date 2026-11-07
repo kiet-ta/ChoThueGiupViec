@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
 import '../models/customer_address.dart';
+import '../models/reverse_geocode_result.dart';
 import '../../../core/network/api_config.dart';
 
 /// Service managing customer address book matching .spec/contracts/customers.md §2.2.
@@ -19,6 +20,10 @@ class CustomerAddressService {
   // In-memory store, used only in mock mode
   final List<CustomerAddress> _mockStore = [];
   int _mockIdCounter = 100;
+
+  /// Optional override for [reverseGeocode] in mock/testing mode.
+  ReverseGeocodeResult Function(double lat, double lng)?
+  mockReverseGeocodeHandler;
 
   CustomerAddressService({
     String? baseUrl,
@@ -246,6 +251,86 @@ class CustomerAddressService {
         _mockStore[0] = _mockStore[0].copyWith(isDefault: true);
       }
     }
+  }
+
+  /// POST /api/v1/locations/reverse-geocode
+  Future<ReverseGeocodeResult> reverseGeocode(
+    double latitude,
+    double longitude,
+  ) async {
+    if (latitude < -90.0 || latitude > 90.0) {
+      throw ArgumentError('Vĩ độ (latitude) không hợp lệ (-90 đến 90).');
+    }
+    if (longitude < -180.0 || longitude > 180.0) {
+      throw ArgumentError('Kinh độ (longitude) không hợp lệ (-180 đến 180).');
+    }
+
+    if (!isMock) {
+      final envelope = await apiRequest(
+        _httpClient,
+        'POST',
+        Uri.parse('$baseUrl/api/v1/locations/reverse-geocode'),
+        bearerToken: _tokenStorage.accessToken,
+        body: {'latitude': latitude, 'longitude': longitude},
+        fallbackMessage: 'Không thể xác định địa chỉ từ toạ độ.',
+      );
+      final data = envelope['data'] as Map<String, dynamic>? ?? envelope;
+      return ReverseGeocodeResult.fromJson(data);
+    }
+
+    if (mockReverseGeocodeHandler != null) {
+      return mockReverseGeocodeHandler!(latitude, longitude);
+    }
+
+    return _mockReverseGeocode(latitude, longitude);
+  }
+
+  ReverseGeocodeResult _mockReverseGeocode(double latitude, double longitude) {
+    if ((latitude - 21.0285).abs() < 0.01 &&
+        (longitude - 105.8542).abs() < 0.01) {
+      return ReverseGeocodeResult(
+        city: 'Thành phố Hà Nội',
+        district: 'Phường Hoàn Kiếm',
+        addressLine: '1 Đinh Tiên Hoàng',
+        formattedAddress:
+            '1 Đinh Tiên Hoàng, Phường Hoàn Kiếm, Thành phố Hà Nội',
+        latitude: latitude,
+        longitude: longitude,
+      );
+    }
+    if ((latitude - 10.7412).abs() < 0.01 &&
+        (longitude - 106.7028).abs() < 0.01) {
+      return ReverseGeocodeResult(
+        city: 'Thành phố Hồ Chí Minh',
+        district: 'Phường Tân Hưng',
+        addressLine: '27 Nguyễn Hữu Thọ',
+        formattedAddress:
+            '27 Nguyễn Hữu Thọ, Phường Tân Hưng, Quận 7, Thành phố Hồ Chí Minh',
+        latitude: latitude,
+        longitude: longitude,
+      );
+    }
+    if ((latitude - 10.8031).abs() < 0.01 &&
+        (longitude - 106.7099).abs() < 0.01) {
+      return ReverseGeocodeResult(
+        city: 'Thành phố Hồ Chí Minh',
+        district: 'Phường Gia Định',
+        addressLine: '45 Bạch Đằng',
+        formattedAddress:
+            '45 Bạch Đằng, Phường Gia Định, Bình Thạnh, Thành phố Hồ Chí Minh',
+        latitude: latitude,
+        longitude: longitude,
+      );
+    }
+    return ReverseGeocodeResult(
+      city: 'Thành phố Hồ Chí Minh',
+      district: 'Phường Bến Thành',
+      addressLine: '123 Lê Lợi',
+      formattedAddress:
+          '123 Lê Lợi, Phường Bến Thành, Quận 1, Thành phố Hồ Chí Minh',
+      latitude: latitude,
+      longitude: longitude,
+    );
   }
 
   void _validateAddressInput(CustomerAddress input) {
