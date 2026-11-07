@@ -12,6 +12,7 @@ import 'package:mobile/features/workers/screens/worker_photos_screen.dart';
 import 'package:mobile/features/workers/services/workers_photos_service.dart';
 
 import 'design_frame.dart';
+import 'fake_assignments_service.dart';
 
 final jpeg = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3, 4]);
 
@@ -52,6 +53,7 @@ class RecordingPhotosService extends WorkersPhotosService {
   final List<JobPhotoDto> existingPhotos = [];
   ApiException? failure;
   int submitCompletionCalls = 0;
+  ApiException? submitFailure;
 
   RecordingPhotosService({List<JobPhotoDto>? initialPhotos})
     : super(apiClient: ApiClient(baseUrl: 'http://api.test')) {
@@ -114,17 +116,38 @@ class RecordingPhotosService extends WorkersPhotosService {
     String? notes,
   }) async {
     submitCompletionCalls++;
+    if (submitFailure != null) throw submitFailure!;
     return ApiResponse<void>(success: true, message: 'Hoàn tất nghiệm thu');
   }
 }
 
-Widget screen(RecordingPhotosService service, FakeCamera camera) => MaterialApp(
+Widget screen(
+  RecordingPhotosService service,
+  FakeCamera camera, {
+  FakeAssignmentsService? assignments,
+}) => MaterialApp(
   home: WorkerPhotosScreen(
     assignmentId: 2001,
     photosService: service,
+    assignmentsService: assignments ?? FakeAssignmentsService(),
     camera: camera,
   ),
 );
+
+List<JobPhotoDto> allFivePhotos() => [
+  for (var i = 1; i <= 5; i++)
+    for (final phase in ['BEFORE', 'AFTER'])
+      JobPhotoDto(
+        photoId: (phase == 'BEFORE' ? 100 : 200) + i,
+        assignmentId: 2001,
+        photoPhase: phase,
+        angleNo: i,
+        photoUrl: '/photos/$i/$phase',
+        volScore: 120.0,
+        isAccepted: true,
+        uploadedAt: DateTime.now(),
+      ),
+];
 
 void main() {
   setUp(() => TokenStorage().clear());
@@ -434,5 +457,162 @@ void main() {
 
       expect(service.submitCompletionCalls, 1);
     });
+
+    testWidgets(
+      'A job already awaiting acceptance has no Nghiệm thu / Chụp ảnh button and says it is waiting (#677)',
+      (tester) async {
+        useDesignFrame(tester);
+        final service = RecordingPhotosService(initialPhotos: allFivePhotos());
+        await tester.pumpWidget(
+          screen(
+            service,
+            FakeCamera(jpeg),
+            assignments: FakeAssignmentsService(status: 'AWAITING_ACCEPTANCE'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('photo-submit-button')), findsNothing);
+        expect(find.byKey(const Key('photo-capture-button')), findsNothing);
+        expect(find.text('Nghiệm thu'), findsNothing);
+        expect(
+          find.textContaining('Đang chờ gia chủ xác nhận'),
+          findsOneWidget,
+        );
+        expect(service.submitCompletionCalls, 0);
+      },
+    );
+
+    testWidgets('A completed job also hides the submit action (#677)', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        screen(
+          RecordingPhotosService(initialPhotos: allFivePhotos()),
+          FakeCamera(jpeg),
+          assignments: FakeAssignmentsService(status: 'COMPLETED'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('photo-submit-button')), findsNothing);
+    });
+
+    testWidgets('An IN_PROGRESS job with 5/5 photos still shows Nghiệm thu', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        screen(
+          RecordingPhotosService(initialPhotos: allFivePhotos()),
+          FakeCamera(jpeg),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('photo-submit-button')), findsOneWidget);
+      expect(find.textContaining('Đang chờ gia chủ xác nhận'), findsNothing);
+    });
+
+    testWidgets('When the status cannot be read the worker can still submit', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      final service = RecordingPhotosService(initialPhotos: allFivePhotos());
+      await tester.pumpWidget(
+        screen(
+          service,
+          FakeCamera(jpeg),
+          assignments: FakeAssignmentsService(
+            failure: const ApiException(0, 'offline'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('photo-submit-button')), findsOneWidget);
+      await tapVisible(tester, find.text('Nghiệm thu'));
+      expect(service.submitCompletionCalls, 1);
+    });
+
+    testWidgets(
+      'If the server says the job is already submitted, the screen locks with a Vietnamese notice, not the English error',
+      (tester) async {
+        useDesignFrame(tester);
+        final assignments = FakeAssignmentsService();
+        final service = RecordingPhotosService(initialPhotos: allFivePhotos())
+          ..submitFailure = const ApiException(
+            409,
+            'Cannot submit completion for assignment in status AwaitingAcceptance.',
+          );
+        await tester.pumpWidget(
+          screen(service, FakeCamera(jpeg), assignments: assignments),
+        );
+        await tester.pumpAndSettle();
+
+        // Another device submits meanwhile.
+        assignments.status = 'AWAITING_ACCEPTANCE';
+        await tapVisible(tester, find.text('Nghiệm thu'));
+        await tester.pumpAndSettle();
+
+        expect(service.submitCompletionCalls, 1);
+        expect(find.textContaining('Cannot submit'), findsNothing);
+        expect(
+          find.textContaining('Đang chờ gia chủ xác nhận'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('photo-submit-button')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'After a successful submit the app returns to the first screen, not the shift screen below',
+      (tester) async {
+        useDesignFrame(tester);
+        final service = RecordingPhotosService(initialPhotos: allFivePhotos());
+        Widget photos() => WorkerPhotosScreen(
+          assignmentId: 2001,
+          photosService: service,
+          assignmentsService: FakeAssignmentsService(),
+          camera: FakeCamera(jpeg),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (home) => Scaffold(
+                body: TextButton(
+                  onPressed: () => Navigator.of(home).push(
+                    MaterialPageRoute<void>(
+                      builder: (shift) => Scaffold(
+                        body: TextButton(
+                          key: const Key('open-photos'),
+                          onPressed: () => Navigator.of(shift).push(
+                            MaterialPageRoute<void>(builder: (_) => photos()),
+                          ),
+                          child: const Text('shift screen'),
+                        ),
+                      ),
+                    ),
+                  ),
+                  child: const Text('home'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('home'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('open-photos')));
+        await tester.pumpAndSettle();
+
+        await tapVisible(tester, find.text('Nghiệm thu'));
+        await tester.pumpAndSettle();
+
+        expect(service.submitCompletionCalls, 1);
+        expect(find.text('home'), findsOneWidget);
+        expect(find.text('shift screen'), findsNothing);
+      },
+    );
   });
 }

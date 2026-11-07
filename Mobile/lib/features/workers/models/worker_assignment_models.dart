@@ -141,6 +141,10 @@ class WorkerAssignmentDetailDto {
     );
   }
 
+  /// True once the worker has handed the job over (`submit-completion` is accepted only while `IN_PROGRESS`).
+  bool get isSubmittedForAcceptance =>
+      status == 'AWAITING_ACCEPTANCE' || status == 'COMPLETED';
+
   /// The address as one line for the screen: street, district, city (empty parts left out).
   String get fullAddress => [
     addressLine,
