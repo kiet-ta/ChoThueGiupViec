@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/customers/models/customer_address.dart';
+import 'package:mobile/features/customers/models/reverse_geocode_result.dart';
 import 'package:mobile/features/customers/services/customer_address_service.dart';
 
 void main() {
@@ -160,5 +161,50 @@ void main() {
         }
       },
     );
+
+    group('reverseGeocode', () {
+      test(
+        'returns mock structured address for Ho Chi Minh and Hanoi presets',
+        () async {
+          final q1 = await service.reverseGeocode(10.7769, 106.7009);
+          expect(q1.city, 'Thành phố Hồ Chí Minh');
+          expect(q1.district, 'Phường Bến Thành');
+          expect(q1.addressLine, '123 Lê Lợi');
+
+          final q7 = await service.reverseGeocode(10.7412, 106.7028);
+          expect(q7.city, 'Thành phố Hồ Chí Minh');
+          expect(q7.district, 'Phường Tân Hưng');
+          expect(q7.addressLine, '27 Nguyễn Hữu Thọ');
+
+          final hanoi = await service.reverseGeocode(21.0285, 105.8542);
+          expect(hanoi.city, 'Thành phố Hà Nội');
+          expect(hanoi.district, 'Phường Hoàn Kiếm');
+          expect(hanoi.addressLine, '1 Đinh Tiên Hoàng');
+        },
+      );
+
+      test('validates coordinate bounds', () async {
+        expect(() => service.reverseGeocode(95.0, 106.0), throwsArgumentError);
+        expect(() => service.reverseGeocode(-95.0, 106.0), throwsArgumentError);
+        expect(() => service.reverseGeocode(10.0, 185.0), throwsArgumentError);
+        expect(() => service.reverseGeocode(10.0, -185.0), throwsArgumentError);
+      });
+
+      test('uses mockReverseGeocodeHandler when provided', () async {
+        service.mockReverseGeocodeHandler = (lat, lng) => ReverseGeocodeResult(
+          city: 'Thành phố Đà Nẵng',
+          district: 'Phường Hải Châu 1',
+          addressLine: '99 Bạch Đằng',
+          formattedAddress: '99 Bạch Đằng, Hải Châu, Đà Nẵng',
+          latitude: lat,
+          longitude: lng,
+        );
+
+        final result = await service.reverseGeocode(16.0544, 108.2022);
+        expect(result.city, 'Thành phố Đà Nẵng');
+        expect(result.district, 'Phường Hải Châu 1');
+        expect(result.addressLine, '99 Bạch Đằng');
+      });
+    });
   });
 }

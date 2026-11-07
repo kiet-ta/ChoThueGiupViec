@@ -50,4 +50,62 @@ void main() {
       expect(matchesAdminUnitQuery('Xã Bình Chánh', '   '), isTrue);
     });
   });
+
+  group('matchAdminCity', () {
+    test('matches exact, without prefix, and case/accent-insensitive', () {
+      expect(matchAdminCity('Thành phố Hồ Chí Minh'), 'Thành phố Hồ Chí Minh');
+      expect(matchAdminCity('TP. Hồ Chí Minh'), 'Thành phố Hồ Chí Minh');
+      expect(matchAdminCity('ho chi minh'), 'Thành phố Hồ Chí Minh');
+      expect(matchAdminCity('Hà Nội'), 'Thành phố Hà Nội');
+      expect(matchAdminCity('ha noi'), 'Thành phố Hà Nội');
+      expect(matchAdminCity('Đà Nẵng'), 'Thành phố Đà Nẵng');
+      expect(matchAdminCity(''), isNull);
+      expect(matchAdminCity(null), isNull);
+      expect(matchAdminCity('Thành phố Không Tồn Tại'), isNull);
+    });
+  });
+
+  group('matchAdminWard', () {
+    test('matches exact ward and stripped prefix', () {
+      const city = 'Thành phố Hồ Chí Minh';
+      expect(matchAdminWard(city, 'Phường Bến Thành'), 'Phường Bến Thành');
+      expect(matchAdminWard(city, 'Bến Thành'), 'Phường Bến Thành');
+      expect(matchAdminWard(city, 'ben thanh'), 'Phường Bến Thành');
+      expect(matchAdminWard(city, 'Phường Tân Hưng'), 'Phường Tân Hưng');
+      expect(matchAdminWard(city, 'tan hung'), 'Phường Tân Hưng');
+    });
+
+    test('matches ward embedded in address line or formatted address', () {
+      const city = 'Thành phố Hồ Chí Minh';
+      expect(
+        matchAdminWard(city, 'Quận 1', addressLine: '123 Lê Lợi, P. Bến Thành'),
+        'Phường Bến Thành',
+      );
+      expect(
+        matchAdminWard(
+          city,
+          'Quận 1',
+          formattedAddress: 'Số 1 Đồng Khởi, Phường Sài Gòn, TP.HCM',
+        ),
+        'Phường Sài Gòn',
+      );
+      expect(
+        matchAdminWard(
+          city,
+          'Quận 7',
+          formattedAddress: '27 Nguyễn Hữu Thọ, Phường Tân Hưng, Quận 7',
+        ),
+        'Phường Tân Hưng',
+      );
+    });
+
+    test('returns null when city is invalid or ward cannot be found', () {
+      expect(matchAdminWard(null, 'Phường Bến Thành'), isNull);
+      expect(
+        matchAdminWard('Thành phố Không Tồn Tại', 'Phường Bến Thành'),
+        isNull,
+      );
+      expect(matchAdminWard('Thành phố Hà Nội', 'Phường Không Hề Có'), isNull);
+    });
+  });
 }

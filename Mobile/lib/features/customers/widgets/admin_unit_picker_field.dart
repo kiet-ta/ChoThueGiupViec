@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_typography.dart';
+import '../models/vn_admin_units.dart';
 
 const _foldedLetters = {
   'a': 'àáạảãâầấậẩẫăằắặẳẵ',
@@ -32,6 +33,107 @@ String foldVietnamese(String text) {
 bool matchesAdminUnitQuery(String name, String query) {
   final folded = foldVietnamese(query.trim());
   return folded.isEmpty || foldVietnamese(name).contains(folded);
+}
+
+/// Matches raw city name against keys of [vietnamAdminUnits].
+/// Strips prefix 'Thành phố', 'Tỉnh', 'TP.', etc., and ignores case/accents.
+String? matchAdminCity(String? rawCity) {
+  if (rawCity == null || rawCity.trim().isEmpty) return null;
+  final trimmed = rawCity.trim();
+  if (vietnamAdminUnits.containsKey(trimmed)) return trimmed;
+
+  String stripPrefix(String s) =>
+      foldVietnamese(s)
+          .replaceAll('thanh pho', '')
+          .replaceAll('tp.', '')
+          .replaceAll('tp', '')
+          .replaceAll('tinh', '')
+          .replaceAll(RegExp(r'[^a-z0-9]'), '')
+          .trim();
+
+  final foldedRaw = stripPrefix(trimmed);
+  if (foldedRaw.isEmpty) return null;
+
+  for (final key in vietnamAdminUnits.keys) {
+    if (stripPrefix(key) == foldedRaw) {
+      return key;
+    }
+  }
+
+  for (final key in vietnamAdminUnits.keys) {
+    final stripped = stripPrefix(key);
+    if (stripped.isNotEmpty &&
+        (stripped.contains(foldedRaw) || foldedRaw.contains(stripped))) {
+      return key;
+    }
+  }
+
+  return null;
+}
+
+/// Matches raw ward/district name (and optional addressLine/formattedAddress) against wards in [city].
+/// Strips prefix 'Phường', 'Xã', 'Thị trấn', 'P.', etc., and ignores case/accents.
+String? matchAdminWard(
+  String? city,
+  String? rawWard, {
+  String? addressLine,
+  String? formattedAddress,
+}) {
+  if (city == null) return null;
+  final wards = vietnamAdminUnits[city];
+  if (wards == null || wards.isEmpty) return null;
+
+  String stripPrefix(String s) =>
+      foldVietnamese(s)
+          .replaceAll('phuong', '')
+          .replaceAll('p.', '')
+          .replaceAll('xa', '')
+          .replaceAll('thi tran', '')
+          .replaceAll('tt.', '')
+          .replaceAll(RegExp(r'[^a-z0-9]'), '')
+          .trim();
+
+  String normalize(String s) =>
+      foldVietnamese(s).replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  if (rawWard != null && rawWard.trim().isNotEmpty) {
+    final trimmed = rawWard.trim();
+    if (wards.contains(trimmed)) return trimmed;
+
+    final strippedRaw = stripPrefix(trimmed);
+    if (strippedRaw.isNotEmpty) {
+      for (final w in wards) {
+        if (stripPrefix(w) == strippedRaw) {
+          return w;
+        }
+      }
+      for (final w in wards) {
+        final sw = stripPrefix(w);
+        if (sw.isNotEmpty &&
+            (sw.contains(strippedRaw) || strippedRaw.contains(sw))) {
+          return w;
+        }
+      }
+    }
+  }
+
+  final extraSources = [
+    if (addressLine != null && addressLine.isNotEmpty) addressLine,
+    if (formattedAddress != null && formattedAddress.isNotEmpty)
+      formattedAddress,
+  ];
+
+  for (final source in extraSources) {
+    final normSource = normalize(source);
+    for (final w in wards) {
+      final strippedW = stripPrefix(w);
+      if (strippedW.length >= 3 && normSource.contains(strippedW)) {
+        return w;
+      }
+    }
+  }
+
+  return null;
 }
 
 /// Required read-only field of the address form that opens a searchable list of [options] (province, then ward).

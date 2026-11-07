@@ -132,6 +132,65 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     });
   }
 
+  Future<void> _onCoordinatesChanged(double lat, double lng) async {
+    setState(() {
+      _latitude = lat;
+      _longitude = lng;
+    });
+
+    try {
+      final res = await _service.reverseGeocode(lat, lng);
+      if (!mounted) return;
+
+      setState(() {
+        if (res.addressLine.isNotEmpty) {
+          _addressLineController.text = res.addressLine;
+        } else if (res.formattedAddress.isNotEmpty) {
+          _addressLineController.text = res.formattedAddress;
+        }
+
+        final newCity = matchAdminCity(res.city) ?? _city;
+        final cityChanged = newCity != _city;
+        _city = newCity;
+
+        final matchedWard = matchAdminWard(
+          _city,
+          res.district,
+          addressLine: res.addressLine,
+          formattedAddress: res.formattedAddress,
+        );
+        if (matchedWard != null) {
+          _ward = matchedWard;
+        } else if (cityChanged) {
+          _ward = null;
+        }
+      });
+
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã tự động điền địa chỉ từ vị trí toạ độ.'),
+          duration: Duration(seconds: 3),
+          backgroundColor: NordicColors.primary,
+        ),
+      );
+    } catch (_) {
+      // Graceful degradation: keeps coordinates, does not overwrite manually typed fields
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Đã lưu toạ độ. Vui lòng kiểm tra và nhập địa chỉ bên trên.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       setState(() => _formErrors++);
@@ -364,12 +423,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   child: GpsCoordinatePicker(
                     latitude: _latitude,
                     longitude: _longitude,
-                    onCoordinatesChanged: (lat, lng) {
-                      setState(() {
-                        _latitude = lat;
-                        _longitude = lng;
-                      });
-                    },
+                    onCoordinatesChanged: _onCoordinatesChanged,
                   ),
                 ),
                 const SizedBox(height: NordicSpace.md),
