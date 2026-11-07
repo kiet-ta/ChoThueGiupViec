@@ -26,6 +26,7 @@ class RatingsFeatureModule extends FeatureModule {
           role: args.role,
           assignmentId: args.assignmentId,
           ratedName: args.ratedName,
+          workerId: args.workerId,
         );
       }
       return const _NoJobToRate();

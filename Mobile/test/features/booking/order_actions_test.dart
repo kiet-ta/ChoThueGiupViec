@@ -211,6 +211,7 @@ void main() {
         expect(args.role, RatingRole.customer);
         expect(args.assignmentId, 8);
         expect(args.ratedName, 'Nguyễn Thị Lan');
+        expect(args.workerId, 58);
       },
     );
 

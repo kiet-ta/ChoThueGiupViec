@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/features/customers/services/favorite_worker_service.dart';
 import 'package:mobile/features/ratings/models/rating_models.dart';
 import 'package:mobile/features/ratings/screens/rating_screen.dart';
 import 'package:mobile/features/ratings/services/ratings_service.dart';
@@ -50,6 +51,8 @@ Future<void> pumpScreen(
   FakeRatingsService service, {
   RatingRole role = RatingRole.customer,
   String? name,
+  int? workerId,
+  FavoriteWorkerService? favoriteService,
 }) async {
   tester.view.physicalSize = const Size(390, 1400);
   tester.view.devicePixelRatio = 1.0;
@@ -64,7 +67,9 @@ Future<void> pumpScreen(
         role: role,
         assignmentId: 7,
         ratedName: name,
+        workerId: workerId,
         service: service,
+        favoriteService: favoriteService,
       ),
     ),
   );
@@ -433,6 +438,152 @@ void main() {
 
         await tester.tap(find.byKey(const Key('s-5')));
         expect(picked, 5);
+      },
+    );
+  });
+
+  group('Favorite worker toggle on RatingScreen', () {
+    testWidgets(
+      'does not show favorite toggle when role is worker or workerId is null',
+      (tester) async {
+        final service = FakeRatingsService();
+        final favorites = FavoriteWorkerService(isMock: true);
+
+        // worker role
+        await pumpScreen(
+          tester,
+          service,
+          role: RatingRole.worker,
+          workerId: 101,
+          favoriteService: favorites,
+        );
+        expect(find.byKey(const Key('rating-favorite-toggle')), findsNothing);
+
+        // customer role without workerId
+        await pumpScreen(
+          tester,
+          service,
+          role: RatingRole.customer,
+          workerId: null,
+          favoriteService: favorites,
+        );
+        expect(find.byKey(const Key('rating-favorite-toggle')), findsNothing);
+      },
+    );
+
+    testWidgets('shows inactive heart when worker is not yet favorited', (
+      tester,
+    ) async {
+      final service = FakeRatingsService();
+      final favorites = FavoriteWorkerService(isMock: true);
+
+      await pumpScreen(
+        tester,
+        service,
+        role: RatingRole.customer,
+        name: 'Trần Văn Nam',
+        workerId: 999,
+        favoriteService: favorites,
+      );
+
+      expect(find.byKey(const Key('rating-favorite-toggle')), findsOneWidget);
+      expect(find.text('Lưu vào thợ yêu thích'), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
+    });
+
+    testWidgets('shows active heart when worker is already in favorites', (
+      tester,
+    ) async {
+      final service = FakeRatingsService();
+      final favorites = FavoriteWorkerService(isMock: true);
+
+      // 101 is pre-seeded in FavoriteWorkerService mock
+      await pumpScreen(
+        tester,
+        service,
+        role: RatingRole.customer,
+        name: 'Nguyễn Thị Mai',
+        workerId: 101,
+        favoriteService: favorites,
+      );
+
+      expect(find.byKey(const Key('rating-favorite-toggle')), findsOneWidget);
+      expect(find.text('Thợ yêu thích'), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    });
+
+    testWidgets('toggles favorite on tap and shows snackbar feedback', (
+      tester,
+    ) async {
+      final service = FakeRatingsService();
+      final favorites = FavoriteWorkerService(isMock: true);
+
+      await pumpScreen(
+        tester,
+        service,
+        role: RatingRole.customer,
+        name: 'Lê Văn Tám',
+        workerId: 888,
+        favoriteService: favorites,
+      );
+
+      // Initially not favorited
+      expect(find.text('Lưu vào thợ yêu thích'), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
+
+      // Tap to add
+      await tester.tap(find.byKey(const Key('rating-favorite-toggle')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Thợ yêu thích'), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+      expect(
+        find.text('Đã thêm Lê Văn Tám vào danh sách yêu thích'),
+        findsOneWidget,
+      );
+
+      final currentFavorites = await favorites.getFavoriteWorkers();
+      expect(currentFavorites.any((w) => w.workerId == 888), isTrue);
+
+      // Wait for previous snackbar to clear
+      await tester.pump(const Duration(seconds: 3));
+
+      // Tap to remove
+      await tester.tap(find.byKey(const Key('rating-favorite-toggle')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Lưu vào thợ yêu thích'), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
+      expect(
+        find.text('Đã bỏ Lê Văn Tám khỏi danh sách yêu thích'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'favorite toggle is also shown on thanks screen after submitting rating',
+      (tester) async {
+        final service = FakeRatingsService();
+        final favorites = FavoriteWorkerService(isMock: true);
+
+        await pumpScreen(
+          tester,
+          service,
+          role: RatingRole.customer,
+          name: 'Nguyễn Thị Mai',
+          workerId: 101,
+          favoriteService: favorites,
+        );
+
+        await fillCustomer(tester);
+        await tester.tap(find.byKey(const Key('rating-submit')));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('rating-thanks')), findsOneWidget);
+        expect(find.byKey(const Key('rating-favorite-toggle')), findsOneWidget);
+        expect(find.text('Thợ yêu thích'), findsOneWidget);
       },
     );
   });
