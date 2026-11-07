@@ -176,26 +176,19 @@ public class OrderCreationServiceTests
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() => task);
 
     [Fact]
-    public async Task Economy_WithoutAvailableFreelancers_IsFullyBookedAndWritesNothing()
+    public async Task Economy_WithoutAvailableFreelancers_AllowsOrderCreation()
     {
         var f = new Fixture();
         f.Availability.Workers.Clear();
 
-        var error = await ConflictAsync(f.Service().CreateAsync(Request()));
+        var order = await f.Service().CreateAsync(Request());
 
-        Assert.Equal(BookingErrorCodes.FullyBooked, error.Code);
-        Assert.Equal("No freelancer is available for this shift near the address.", error.Message);
-        Assert.Empty(f.Orders.Saved);
-        var query = Assert.Single(f.Availability.Queries);
-        Assert.Equal(ShiftDate, query.Date);
-        Assert.Equal(BookingShifts.Morning, query.ShiftCode);
-        Assert.Equal(new GeoPoint(10.76, 106.66), query.Location);
-        Assert.Equal(10.0, query.RadiusKm);
-        Assert.Equal(1, query.Limit);
+        Assert.Equal(JobOrderStatus.PendingPayment, order.OrderStatus);
+        Assert.Single(f.Orders.Saved);
     }
 
     [Fact]
-    public async Task Economy_OneAvailableFreelancer_AllowsEvenTwoWorkerOrder()
+    public async Task Economy_AllowsOrderCreation_ForTwoWorkerOrder()
     {
         var f = new Fixture(90m);
 
@@ -203,25 +196,10 @@ public class OrderCreationServiceTests
 
         Assert.Equal(2, order.RequiredWorkers);
         Assert.Single(f.Orders.Saved);
-        Assert.Single(f.Availability.Queries);
     }
 
     [Fact]
-    public async Task Economy_UsesLastConfiguredRadius_OrTenWhenEmpty()
-    {
-        var configured = new Fixture();
-        configured.Rules.Dispatch.RadiusStepsKm = [3, 12];
-        await configured.Service().CreateAsync(Request());
-        Assert.Equal(12, Assert.Single(configured.Availability.Queries).RadiusKm);
-
-        var empty = new Fixture();
-        empty.Rules.Dispatch.RadiusStepsKm = [];
-        await empty.Service().CreateAsync(Request());
-        Assert.Equal(10, Assert.Single(empty.Availability.Queries).RadiusKm);
-    }
-
-    [Fact]
-    public async Task Economy_UnavailableFavorite_DoesNotBlockAnotherAvailableFreelancer()
+    public async Task Economy_FavoriteWorker_IsSavedOnOrder()
     {
         var f = new Fixture();
         await f.Service(new StubFavorites(77)).CreateAsync(Request(preferredWorkerId: 77));
