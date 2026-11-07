@@ -317,24 +317,26 @@ public class JobPhotoTests
         var (worker, assignment) = await SeedWorkerAndAssignmentAsync(db);
 
         var repository = new EfWorkerRepository(db);
-        var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
+        // A photo of an angle that already has one replaces it (#661), so the limit counts the OTHER angles only, and angleNo is 1..5:
+        // with the default limit of 5 it can no longer be reached. Lower the limit to 4 so a new angle (5) is over it.
+        var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules { Photos = new PhotoRules { MaxPerPhase = 4 } });
         var imageQuality = new ImageQualityService(rules);
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
         var handler = new JobPhotoService(repository, imageQuality, currentUser, rules, new FakeClock(), new FakeFileStorage(), new JobPhotoUploadPolicy(true));
 
-        // Upload 5 accepted BEFORE photos
-        for (byte angle = 1; angle <= 5; angle++)
+        // Upload 4 accepted BEFORE photos (angles 1..4)
+        for (byte angle = 1; angle <= 4; angle++)
         {
             await handler.UploadAsync(assignment.AssignmentId, new UploadJobPhotoRequest("BEFORE", angle, $"https://storage.local/jobs/angle{angle}.jpg"), CancellationToken.None);
         }
 
-        // Try 6th photo in BEFORE phase (using angle 1)
-        var req6 = new UploadJobPhotoRequest("BEFORE", 1, "https://storage.local/jobs/angle1_extra.jpg");
+        // A photo of a NEW angle (5) would be the 5th in the BEFORE phase
+        var req5 = new UploadJobPhotoRequest("BEFORE", 5, "https://storage.local/jobs/angle5_extra.jpg");
 
         // Act & Assert
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            handler.UploadAsync(assignment.AssignmentId, req6, CancellationToken.None));
+            handler.UploadAsync(assignment.AssignmentId, req5, CancellationToken.None));
 
         await transaction.RollbackAsync();
     }
