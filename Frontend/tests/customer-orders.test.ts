@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  ARRIVED_HINT, arrivalCandidates, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnTime,
+  ARRIVED_HINT, arrivalCandidates, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnDateTime, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -169,5 +169,26 @@ describe('forms, errors and paging', () => {
   it('has one tab per list filter, "all" first', () => {
     assert.equal(STATUS_TABS[0].status, null)
     assert.equal(new Set(STATUS_TABS.map((t) => t.status)).size, STATUS_TABS.length)
+  })
+})
+
+describe('BR-02 fallback', () => {
+  it('asks only for an order awaiting the fallback', () => {
+    assert.equal(hasFallback('AWAITING_FALLBACK'), true)
+    assert.equal(hasFallback('ASSIGNED'), false)
+  })
+  it('writes the question and the deadlines in Vietnam time', () => {
+    assert.equal(vnDateTime('2026-10-15T01:00:00Z'), '08:00, 15/10')
+    assert.equal(vnDateTime(null), '')
+    assert.match(fallbackQuestion('ca chiều', '2026-10-15'), /làm luôn ca chiều ngày 15\/10 ngay sau ca đã nhận/)
+    assert.equal(fallbackDeadlineText('AWAITING_CUSTOMER', '2026-10-15T01:00:00Z'), 'Hãy trả lời trước 08:00, 15/10. Nếu không trả lời, đơn sẽ tự hủy và hoàn tiền 100 %.')
+    assert.match(fallbackDeadlineText('AWAITING_WORKER', null), /Thợ có 2 phút/)
+  })
+  it('explains the outcome and the 409 codes', () => {
+    assert.match(fallbackOutcomeText('WORKER_ASKED'), /2 phút/)
+    assert.match(fallbackOutcomeText('CANCELLED'), /hoàn tiền 100 %/)
+    assert.match(fallbackProblem({ status: 409, data: { code: 'FALLBACK_NOT_WAITING' } }), /không còn hiệu lực/)
+    assert.match(fallbackProblem({ status: 409, data: { code: 'FALLBACK_ALREADY_ANSWERED' } }), /đã đồng ý/)
+    assert.match(fallbackProblem({ status: 404 }), /Không tìm thấy/)
   })
 })

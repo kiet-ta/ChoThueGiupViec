@@ -2,7 +2,7 @@ import { apiClient } from '@/services/api'
 import type { Order, OrderPage } from '../booking/types'
 import type { Payment } from '../payment/types'
 import type { AddressDetail, Extension, OrderProgress } from './types'
-import type { ArrivalStatus } from './view'
+import type { ArrivalStatus, FallbackAnswer, FallbackStatus } from './view'
 
 export const ORDERS_PAGE_SIZE = 20
 
@@ -17,6 +17,8 @@ export const ordersApi = {
   arrival: (assignmentId: number) => apiClient.get<ArrivalStatus>(`/dispatch/assignments/${assignmentId}/check-in`),
   confirmArrival: (assignmentId: number) =>
     apiClient.post<{ assignmentId: number; isCustomerConfirmed: boolean; status: string }>(`/dispatch/assignments/${assignmentId}/check-in/confirm`, {}),
+  fallback: (orderId: number) => apiClient.get<FallbackStatus>(`/dispatch/orders/${orderId}/fallback`),
+  answerFallback: (orderId: number, accept: boolean) => apiClient.post<FallbackAnswer>(`/dispatch/orders/${orderId}/fallback/respond`, { accept }),
   requestExtension: (orderId: number, assignmentId: number, extraHours: number) =>
     apiClient.post<Extension>(`/booking/orders/${orderId}/extensions`, { assignmentId, extraHours }),
 }
