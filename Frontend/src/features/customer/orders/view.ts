@@ -68,6 +68,8 @@ export interface OrderActions {
   canCancel: boolean
   canExtend: boolean
   showAcceptance: boolean
+  /** No assignment waits for acceptance and at least one is COMPLETED: the customer can look back at the accepted photos. */
+  showAcceptanceReview: boolean
   showRating: boolean
   showDispute: boolean
 }
@@ -76,7 +78,7 @@ export interface OrderActions {
  * What the customer may do on an order, from the order status, its visible assignments and the extension.
  * Cancel (3.7): not COMPLETED / CANCELLED, and not once the work has started (except PENDING_PAYMENT / PAID, which have no worker).
  * Extension (3.8): order ASSIGNED, a worker on site, no extension yet (one per order).
- * After the shift: acceptance while a worker waits for it; rating within 48 h and dispute within 24 h of a completed assignment.
+ * After the shift: acceptance while a worker waits for it, then a review of the accepted shift; rating within 48 h and dispute within 24 h of a completed assignment.
  */
 export function orderActions(
   orderStatus: string,
@@ -90,12 +92,14 @@ export function orderActions(
   const completedAt = assignments
     .filter((a) => a.assignmentStatus === 'COMPLETED' && a.completedAt)
     .map((a) => new Date(a.completedAt as string).getTime())
+  const awaiting = assignments.some((a) => a.assignmentStatus === 'AWAITING_ACCEPTANCE')
   const within = (hours: number) => completedAt.some((t) => now.getTime() - t <= hours * 3600_000)
   return {
     canPay: orderStatus === 'PENDING_PAYMENT',
     canCancel: cancellableStatus && (noWorkerYet || !started),
     canExtend: orderStatus === 'ASSIGNED' && extension === null && assignments.some((a) => ON_SITE.includes(a.assignmentStatus)),
-    showAcceptance: assignments.some((a) => a.assignmentStatus === 'AWAITING_ACCEPTANCE'),
+    showAcceptance: awaiting,
+    showAcceptanceReview: !awaiting && assignments.some((a) => a.assignmentStatus === 'COMPLETED'),
     showRating: within(RATING_WINDOW_HOURS),
     showDispute: within(DISPUTE_WINDOW_HOURS),
   }

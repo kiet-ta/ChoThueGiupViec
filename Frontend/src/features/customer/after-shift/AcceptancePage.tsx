@@ -6,7 +6,7 @@ import { ordersApi } from '../orders/api'
 import type { OrderProgress, ProgressAssignment } from '../orders/types'
 import { afterShiftApi } from './api'
 import type { JobPhoto } from './types'
-import { afterShiftProblem, anglePairs, anglesSummary, redoReasonError, REDO_REASON_MAX } from './view'
+import { acceptedLine, afterShiftProblem, anglePairs, anglesSummary, redoReasonError, REDO_REASON_MAX, reviewAssignments } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 
@@ -44,7 +44,8 @@ export function AcceptancePage() {
   const orderId = Number(useParams().orderId)
   const [progress, setProgress] = useState<OrderProgress | null>(null)
   const [orderCode, setOrderCode] = useState('')
-  const [photos, setPhotos] = useState<JobPhoto[] | null>(null)
+  const [loaded, setLoaded] = useState<{ assignmentId: number; photos: JobPhoto[] } | null>(null)
+  const [picked, setPicked] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [redo, setRedo] = useState(false)
   const [reason, setReason] = useState('')
@@ -66,13 +67,23 @@ export function AcceptancePage() {
     }
   }, [orderId])
 
+  // While a worker awaits acceptance the page is the acceptance; otherwise it reviews the COMPLETED assignments (one at a time).
+  const reviews = reviewAssignments(progress?.assignments ?? [])
   const target: ProgressAssignment | undefined = progress?.assignments.find((a) => a.assignmentStatus === 'AWAITING_ACCEPTANCE')
-    ?? progress?.assignments.find((a) => a.assignmentStatus === 'COMPLETED')
+    ?? reviews.find((a) => a.assignmentId === picked) ?? reviews[0]
+  const review = reviews.length > 0
   const assignmentId = target?.assignmentId
   useEffect(() => {
     if (assignmentId === undefined) return
-    afterShiftApi.photos(assignmentId).then(setPhotos).catch((e: unknown) => setError(afterShiftProblem(e as ApiError)))
+    let cancelled = false
+    afterShiftApi.photos(assignmentId)
+      .then((photos) => !cancelled && setLoaded({ assignmentId, photos }))
+      .catch((e: unknown) => !cancelled && setError(afterShiftProblem(e as ApiError)))
+    return () => {
+      cancelled = true
+    }
   }, [assignmentId])
+  const photos = loaded && loaded.assignmentId === assignmentId ? loaded.photos : null
 
   if (error && !progress) return <p role="alert" className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p>
   if (!progress) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
@@ -102,8 +113,13 @@ export function AcceptancePage() {
 
   return <div>
     <Link to={`/app/orders/${orderId}`} className="text-sm text-stone-500 underline">← Đơn {orderCode}</Link>
-    <h1 className="mt-3 text-3xl font-semibold">Nghiệm thu ca dọn</h1>
-    <p className="mt-2 text-stone-500">{photos ? anglesSummary(pairs) : 'Đang tải ảnh…'} Bạn chỉ chốt ca khi đồng ý với kết quả.</p>
+    <h1 className="mt-3 text-3xl font-semibold">{review ? 'Kết quả nghiệm thu' : 'Nghiệm thu ca dọn'}</h1>
+    {review && target && <p className="mt-2 flex gap-2 text-emerald-900"><CircleCheck size={18} className="mt-0.5 shrink-0" />{acceptedLine(target.completedAt)}</p>}
+    <p className="mt-2 text-stone-500">{photos ? anglesSummary(pairs) : 'Đang tải ảnh…'}{!review && ' Bạn chỉ chốt ca khi đồng ý với kết quả.'}</p>
+    {reviews.length > 1 && <div role="group" aria-label="Chọn thợ" className="mt-4 flex flex-wrap gap-2">
+      {reviews.map((a) => <button key={a.assignmentId} type="button" aria-pressed={a.assignmentId === target?.assignmentId} onClick={() => setPicked(a.assignmentId)}
+        className={`h-9 rounded-full border px-4 text-sm font-semibold ${a.assignmentId === target?.assignmentId ? 'border-[#1a2f25] bg-[#1a2f25] text-white' : 'border-stone-300'}`}>Thợ {a.workerName ?? `#${a.workerId}`}</button>)}
+    </div>}
     {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {done && <p role="status" className="mt-4 flex gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900"><CircleCheck size={16} className="mt-0.5 shrink-0" />{done} <Link to={`/app/orders/${orderId}`} className="underline">Về đơn</Link></p>}
     {!target && <p className="mt-6 rounded-xl border border-stone-200 bg-white p-6 text-stone-600">Chưa có ca nào chờ nghiệm thu.</p>}

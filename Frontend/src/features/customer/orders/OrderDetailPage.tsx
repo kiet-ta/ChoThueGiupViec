@@ -161,10 +161,11 @@ export function OrderDetailPage() {
           <p className="mt-2">Thêm {hoursText(ext.extraHours)} · {formatVnd(ext.extraAmount)} · <b>{extensionLabel(ext.extStatus)}</b></p>
           {ext.extStatus === 'PENDING_PAYMENT' && <Link to={`/app/orders/${order.orderId}/extension`} className="mt-3 inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Thanh toán phần thêm</Link>}
         </section>}
-        {(actions.showAcceptance || actions.showRating || actions.showDispute) && <section className={card}>
+        {(actions.showAcceptance || actions.showAcceptanceReview || actions.showRating || actions.showDispute) && <section className={card}>
           <h2 className="text-lg font-semibold">Sau ca</h2>
           <ul className="mt-2 divide-y divide-stone-100">
             {actions.showAcceptance && <li><Link to={`/app/orders/${order.orderId}/acceptance`} className="flex items-center gap-3 py-3"><MoreHorizontal size={18} /><span className="grow"><b>Xem ảnh và nghiệm thu</b><span className="block text-sm text-stone-500">So sánh trước/sau 5 góc</span></span><ChevronRight size={18} /></Link></li>}
+            {actions.showAcceptanceReview && <li><Link to={`/app/orders/${order.orderId}/acceptance`} className="flex items-center gap-3 py-3"><MoreHorizontal size={18} /><span className="grow"><b>Xem lại nghiệm thu</b><span className="block text-sm text-stone-500">Ảnh trước và sau ca, thời điểm nghiệm thu</span></span><ChevronRight size={18} /></Link></li>}
             {actions.showRating && <li><Link to={`/app/orders/${order.orderId}/rating`} className="flex items-center gap-3 py-3"><Star size={18} /><span className="grow"><b>Đánh giá thợ</b><span className="block text-sm text-stone-500">Trong 48 giờ sau ca</span></span><ChevronRight size={18} /></Link></li>}
             {actions.showDispute && <li><Link to={`/app/disputes/new?order=${order.orderId}`} className="flex items-center gap-3 py-3"><Flag size={18} /><span className="grow"><b>Khiếu nại</b><span className="block text-sm text-stone-500">Trong 24 giờ sau ca</span></span><ChevronRight size={18} /></Link></li>}
           </ul>
