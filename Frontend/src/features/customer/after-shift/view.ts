@@ -46,13 +46,19 @@ export function reviewAssignments<T extends { assignmentStatus: string; assignme
   return assignments.filter((a) => a.assignmentStatus === 'COMPLETED').sort((a, b) => a.assignmentSeq - b.assignmentSeq)
 }
 
-/** `Bạn đã nghiệm thu ca này lúc 14:05, 02/11/2026.` in Vietnam time (UTC+7, decision G-3); a missing or invalid time reads `Ca đã được nghiệm thu.` */
-export function acceptedLine(completedAt: string | null): string {
-  const t = completedAt ? new Date(completedAt).getTime() : NaN
-  if (Number.isNaN(t)) return 'Ca đã được nghiệm thu.'
+/** `14:05, 02/11/2026` in Vietnam time (UTC+7, decision G-3); null for a missing or invalid time. */
+export function vnStamp(iso: string | null): string | null {
+  const t = iso ? new Date(iso).getTime() : NaN
+  if (Number.isNaN(t)) return null
   const d = new Date(t + 7 * 3600_000)
   const two = (n: number) => String(n).padStart(2, '0')
-  return `Bạn đã nghiệm thu ca này lúc ${two(d.getUTCHours())}:${two(d.getUTCMinutes())}, ${two(d.getUTCDate())}/${two(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}.`
+  return `${two(d.getUTCHours())}:${two(d.getUTCMinutes())}, ${two(d.getUTCDate())}/${two(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`
+}
+
+/** `Bạn đã nghiệm thu ca này lúc 14:05, 02/11/2026.`; a missing or invalid time reads `Ca đã được nghiệm thu.` */
+export function acceptedLine(completedAt: string | null): string {
+  const at = vnStamp(completedAt)
+  return at ? `Bạn đã nghiệm thu ca này lúc ${at}.` : 'Ca đã được nghiệm thu.'
 }
 
 // ---------- Rating ----------
@@ -128,6 +134,21 @@ export const categoryLabel = (value: string) => CATEGORIES.find((c) => c.value =
 const STATUS_LABELS: Record<string, string> = { OPEN: 'Đã gửi', IN_REVIEW: 'Đang xử lý', RESOLVED: 'Đã giải quyết' }
 /** The label of the server value; an unknown value is shown as the server sent it. */
 export const disputeStatusLabel = (status: string) => STATUS_LABELS[status] ?? status
+
+const FAULT_PARTY_LABELS: Record<string, string> = { FREELANCER: 'Thợ', AGENCY: 'Đối tác', CUSTOMER: 'Khách hàng' }
+/** The label of `faultParty` (disputes.md: FREELANCER | AGENCY | CUSTOMER | null); an unknown value is shown as sent. */
+export const faultPartyLabel = (party: string | null) => (party ? FAULT_PARTY_LABELS[party] ?? party : null)
+
+/** The lines under the status: who was at fault and when it was decided (RESOLVED), or when an answer is due (OPEN / IN_REVIEW). */
+export function disputeOutcomeLines(d: Pick<Dispute, 'disputeStatus' | 'faultParty' | 'resolvedAt' | 'slaDueAt'>): string[] {
+  if (d.disputeStatus === 'RESOLVED') {
+    const party = faultPartyLabel(d.faultParty)
+    const at = vnStamp(d.resolvedAt)
+    return [party ? `Bên chịu trách nhiệm: ${party}` : 'Không xác định bên lỗi', ...(at ? [`Đã giải quyết lúc ${at}`] : [])]
+  }
+  const due = vnStamp(d.slaDueAt)
+  return due ? [`Hạn xử lý: ${due}`] : []
+}
 
 export interface DisputeForm {
   category: string

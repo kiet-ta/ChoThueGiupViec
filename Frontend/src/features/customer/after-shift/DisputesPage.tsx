@@ -6,7 +6,7 @@ import { formatDateTime } from '@/lib/format'
 import { bookingApi } from '../booking/api'
 import { afterShiftApi } from './api'
 import type { Dispute } from './types'
-import { afterShiftProblem, byNewest, categoryLabel, disputeStatusLabel } from './view'
+import { afterShiftProblem, byNewest, categoryLabel, disputeOutcomeLines, disputeStatusLabel } from './view'
 
 const tone: Record<string, string> = { OPEN: 'bg-amber-100 text-amber-900', IN_REVIEW: 'bg-amber-100 text-amber-900', RESOLVED: 'bg-emerald-100 text-emerald-900' }
 
@@ -42,7 +42,8 @@ export function DisputesPage() {
           <td className="px-5 py-4">{categoryLabel(d.category)}<span className="mt-1 block max-w-xs truncate text-xs text-stone-500">{d.description}</span></td>
           <td className="px-5 py-4 tabular-nums">{formatDateTime(d.createdAt)}</td>
           <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${tone[d.disputeStatus] ?? 'bg-stone-200'}`}>{disputeStatusLabel(d.disputeStatus)}</span>
-            {d.compensationAmount ? <span className="mt-1 block text-xs text-stone-500">Bồi hoàn {d.compensationAmount.toLocaleString('vi-VN')} đ</span> : null}</td>
+            {d.compensationAmount ? <span className="mt-1 block text-xs text-stone-500">Bồi hoàn {d.compensationAmount.toLocaleString('vi-VN')} đ</span> : null}
+            {disputeOutcomeLines(d).map((line) => <span key={line} className="mt-1 block text-xs text-stone-500">{line}</span>)}</td>
         </tr>)}</tbody>
       </table>
     </div>}
