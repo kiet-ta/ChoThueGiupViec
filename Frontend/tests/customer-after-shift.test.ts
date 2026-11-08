@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  acceptedLine, afterShiftProblem, anglePairs, anglesSummary, categoryLabel, disputeHoursLeft, disputeStatusLabel, evidenceFileError, formatWindow,
+  acceptedLine, afterShiftProblem, anglePairs, anglesSummary, categoryLabel, disputeHoursLeft, disputeOutcomeLines, faultPartyLabel, disputeStatusLabel, evidenceFileError, formatWindow,
   overallStars, ratingWindowText, redoReasonError, secondsUntil, reviewAssignments, validateDispute, validateRating,
 } from '../src/features/customer/after-shift/view.ts'
 import type { JobPhoto } from '../src/features/customer/after-shift/types.ts'
@@ -126,5 +126,20 @@ describe('acceptance review', () => {
     assert.equal(acceptedLine('2026-11-02T07:05:00Z'), 'Bạn đã nghiệm thu ca này lúc 14:05, 02/11/2026.')
     assert.equal(acceptedLine('2026-11-02T18:30:00Z'), 'Bạn đã nghiệm thu ca này lúc 01:30, 03/11/2026.')
     assert.equal(acceptedLine(null), 'Ca đã được nghiệm thu.')
+  })
+})
+
+describe('dispute outcome', () => {
+  const base = { disputeStatus: 'RESOLVED', faultParty: 'FREELANCER', resolvedAt: '2026-11-02T07:05:00Z', slaDueAt: '2026-11-03T07:05:00Z' }
+  it('labels the fault party', () => {
+    assert.deepEqual(['FREELANCER', 'AGENCY', 'CUSTOMER'].map(faultPartyLabel), ['Thợ', 'Đối tác', 'Khách hàng'])
+    assert.equal(faultPartyLabel(null), null)
+  })
+  it('says who was at fault and when a resolved dispute was decided', () => {
+    assert.deepEqual(disputeOutcomeLines(base), ['Bên chịu trách nhiệm: Thợ', 'Đã giải quyết lúc 14:05, 02/11/2026'])
+    assert.deepEqual(disputeOutcomeLines({ ...base, faultParty: null, resolvedAt: null }), ['Không xác định bên lỗi'])
+  })
+  it('gives the answer deadline of an open dispute', () => {
+    assert.deepEqual(disputeOutcomeLines({ ...base, disputeStatus: 'IN_REVIEW' }), ['Hạn xử lý: 14:05, 03/11/2026'])
   })
 })
