@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Check, ChevronRight, CircleAlert, Circle, Clock, Flag, Loader, MapPin, MoreHorizontal, Star, X } from 'lucide-react'
+import { Check, ChevronRight, CircleAlert, Circle, Clock, Flag, Loader, MapPin, MoreHorizontal, Star, Users, X } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
 import type { Order } from '../booking/types'
 import { dayText, shiftLabel, statusLabel, tierLabel } from '../booking/view'
 import { ordersApi } from './api'
 import type { AddressDetail, OrderProgress } from './types'
-import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, vnTime, type ArrivalStatus } from './view'
+import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, vnTime, type ArrivalStatus, type FallbackStatus } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const dot = { done: <Check size={14} />, current: <Loader size={14} className="animate-spin" />, todo: <Circle size={14} />, cancelled: <X size={14} /> }
@@ -30,6 +30,10 @@ export function OrderDetailPage() {
   const [askArrival, setAskArrival] = useState<number | null>(null)
   const [arrivalBusy, setArrivalBusy] = useState(false)
   const [arrivalError, setArrivalError] = useState<string | null>(null)
+  const [fallback, setFallback] = useState<FallbackStatus | null>(null)
+  const [askDecline, setAskDecline] = useState(false)
+  const [fallbackBusy, setFallbackBusy] = useState(false)
+  const [fallbackError, setFallbackError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +46,8 @@ export function OrderDetailPage() {
       const ids = arrivalCandidates(o.orderStatus, p.assignments)
       const answers = await Promise.all(ids.map((id) => ordersApi.arrival(id).catch(() => null)))
       setArrivals(answers.filter((a): a is ArrivalStatus => a !== null && a.awaitingCustomerConfirmation))
+      // BR-02 fallback: a 2-worker order that found one worker waits for the customer's choice.
+      setFallback(hasFallback(o.orderStatus) ? await ordersApi.fallback(orderId).catch(() => null) : null)
     } catch (e) {
       setError(orderProblem(e as ApiError))
     }
@@ -93,6 +99,21 @@ export function OrderDetailPage() {
     }
   }
 
+  async function answerFallback(accept: boolean) {
+    setFallbackBusy(true)
+    setFallbackError(null)
+    try {
+      const answer = await ordersApi.answerFallback(orderId, accept)
+      setAskDecline(false)
+      setNotice(fallbackOutcomeText(answer.outcome))
+    } catch (e) {
+      setFallbackError(fallbackProblem(e as ApiError))
+    } finally {
+      setFallbackBusy(false)
+      await load()
+    }
+  }
+
   if (error && !order) return <div role="alert" className="space-y-4"><p className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p><Link to="/app/orders" className="underline">Về danh sách đơn</Link></div>
   if (!order || !progress) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
 
@@ -137,6 +158,15 @@ export function OrderDetailPage() {
           <h2 className="text-lg font-semibold">Lý do hủy</h2>
           <p className="mt-2 text-sm text-stone-600">{cancelReasonText(order)}</p>
           {refund?.orderId === orderId && refund.refunded && <p className="mt-2 text-sm font-semibold">Đã hoàn tiền</p>}
+        </section>}
+        {fallback && fallback.state !== 'NOT_WAITING' && <section className="rounded-xl border border-amber-300 bg-amber-50 p-6" aria-label="Chỉ tìm được 1 thợ">
+          <h2 className="flex items-center gap-2 text-lg font-semibold"><Users size={18} />{fallback.state === 'AWAITING_WORKER' ? 'Đang chờ thợ xác nhận ca thứ hai' : 'Chỉ tìm được 1 thợ'}</h2>
+          {fallback.state === 'AWAITING_CUSTOMER' && <p className="mt-2 text-sm text-stone-700">{fallbackQuestion(fallback.secondShiftCode ? shiftLabel(fallback.secondShiftCode).toLowerCase() : 'ca tiếp theo', fallback.secondShiftDate)}</p>}
+          <p className="mt-1 text-sm text-stone-700">{fallbackDeadlineText(fallback.state, fallback.deadlineUtc)}</p>
+          {fallbackError && <p role="alert" className="mt-3 text-sm text-red-700">{fallbackError}</p>}
+          {fallback.state === 'AWAITING_CUSTOMER' && (askDecline
+            ? <div className="mt-4 flex flex-wrap gap-3"><span className="w-full text-sm font-semibold">Hủy đơn và hoàn tiền 100 %?</span><button type="button" disabled={fallbackBusy} onClick={() => void answerFallback(false)} className="inline-flex h-10 items-center rounded-lg bg-red-700 px-4 font-semibold text-white disabled:opacity-60">{fallbackBusy ? 'Đang gửi…' : 'Hủy đơn'}</button><button type="button" disabled={fallbackBusy} onClick={() => setAskDecline(false)} className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 font-semibold">Quay lại</button></div>
+            : <div className="mt-4 flex flex-wrap gap-3"><button type="button" disabled={fallbackBusy} onClick={() => void answerFallback(true)} className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white disabled:opacity-60">{fallbackBusy ? 'Đang gửi…' : 'Đồng ý 1 thợ làm 2 ca'}</button><button type="button" disabled={fallbackBusy} onClick={() => { setFallbackError(null); setAskDecline(true) }} className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 font-semibold">Hủy đơn, hoàn 100 %</button></div>)}
         </section>}
         {arrivals.map((arrival) => {
           const worker = progress.assignments.find((a) => a.assignmentId === arrival.assignmentId)

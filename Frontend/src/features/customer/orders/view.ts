@@ -221,5 +221,61 @@ export function orderProblem(error: { status?: number; message?: string; data?: 
   return error.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.'
 }
 
+// ---------- BR-02 fallback (dispatch.md 3.2): one worker found for a 2-worker order ----------
+/** `GET /dispatch/orders/{id}/fallback`; `state` = AWAITING_CUSTOMER | AWAITING_WORKER | NOT_WAITING (other fields null then). */
+export interface FallbackStatus {
+  orderId: number
+  state: string
+  workerId: number | null
+  secondShiftCode: string | null
+  secondShiftDate: string | null
+  deadlineUtc: string | null
+}
+/** `POST /dispatch/orders/{id}/fallback/respond`; `outcome` = WORKER_ASKED | CANCELLED. */
+export interface FallbackAnswer {
+  orderId: number
+  outcome: string
+  workerDeadlineUtc: string | null
+  message: string | null
+}
+
+/** Only an order in AWAITING_FALLBACK can wait for the customer's choice. */
+export const hasFallback = (orderStatus: string) => orderStatus === 'AWAITING_FALLBACK'
+
+/** `13:30, 15/10` in Vietnam time; empty for a missing or invalid value. */
+export function vnDateTime(iso: string | null): string {
+  const t = iso ? new Date(iso).getTime() : NaN
+  if (Number.isNaN(t)) return ''
+  const d = new Date(t + VN_OFFSET_MS).toISOString()
+  return `${d.slice(11, 16)}, ${d.slice(8, 10)}/${d.slice(5, 7)}`
+}
+
+/** The question of the card; `shift` is the label of `secondShiftCode`, `date` is `yyyy-MM-dd`. */
+export function fallbackQuestion(shift: string, date: string | null): string {
+  const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? ` ngày ${date.slice(8, 10)}/${date.slice(5, 7)}` : ''
+  return `Thợ đã nhận đơn có thể làm luôn ${shift}${day} ngay sau ca đã nhận (2 ca liên tiếp). Nếu không đồng ý, đơn sẽ được hủy và hoàn tiền 100 %.`
+}
+
+export function fallbackDeadlineText(state: string, deadlineUtc: string | null): string {
+  const at = vnDateTime(deadlineUtc)
+  if (state === 'AWAITING_WORKER') return `Thợ có${at ? ` đến ${at}` : ' 2 phút'} để xác nhận ca thứ hai; nếu không, đơn sẽ được hủy và hoàn tiền 100 %.`
+  return `Hãy trả lời${at ? ` trước ${at}` : ' trước giờ bắt đầu ca'}. Nếu không trả lời, đơn sẽ tự hủy và hoàn tiền 100 %.`
+}
+
+export function fallbackOutcomeText(outcome: string): string {
+  if (outcome === 'WORKER_ASKED') return 'Đã gửi đề nghị. Thợ có 2 phút để xác nhận ca thứ hai.'
+  if (outcome === 'CANCELLED') return 'Đơn đã được hủy và hoàn tiền 100 %.'
+  return 'Đã ghi nhận lựa chọn của bạn.'
+}
+
+/** Text of a failed answer: the 409 codes of the contract, 404, the server message otherwise. */
+export function fallbackProblem(error: { status?: number; message?: string; data?: unknown }): string {
+  const code = error.data && typeof error.data === 'object' ? (error.data as { code?: unknown }).code : undefined
+  if (code === 'FALLBACK_NOT_WAITING') return 'Lựa chọn này không còn hiệu lực. Trang đã được tải lại.'
+  if (code === 'FALLBACK_ALREADY_ANSWERED') return 'Bạn đã đồng ý rồi, đang chờ thợ xác nhận ca thứ hai.'
+  if (error.status === 404) return 'Không tìm thấy đơn.'
+  return error.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.'
+}
+
 /** Number of pages for `total` items. */
 export const pageCount = (total: number, pageSize: number) => Math.max(1, Math.ceil(total / pageSize))
