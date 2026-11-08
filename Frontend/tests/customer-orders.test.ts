@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  ARRIVED_HINT, arrivalCandidates, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, vnDateTime, vnTime,
+  ARRIVED_HINT, arrivalCandidates, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, toggleSaved, vnDateTime, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -190,5 +190,15 @@ describe('BR-02 fallback', () => {
     assert.match(fallbackProblem({ status: 409, data: { code: 'FALLBACK_NOT_WAITING' } }), /không còn hiệu lực/)
     assert.match(fallbackProblem({ status: 409, data: { code: 'FALLBACK_ALREADY_ANSWERED' } }), /đã đồng ý/)
     assert.match(fallbackProblem({ status: 404 }), /Không tìm thấy/)
+  })
+})
+
+describe('favorite toggle on the worker card', () => {
+  it('adds or removes the worker without changing the input set', () => {
+    const ids = new Set([3])
+    assert.deepEqual([...toggleSaved(ids, 7, true)].sort(), [3, 7])
+    assert.deepEqual([...toggleSaved(ids, 3, false)], [])
+    assert.deepEqual([...toggleSaved(ids, 3, true)], [3])
+    assert.deepEqual([...ids], [3])
   })
 })

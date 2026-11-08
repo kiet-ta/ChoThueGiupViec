@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Check, ChevronRight, CircleAlert, Circle, Clock, Flag, Loader, MapPin, MoreHorizontal, Star, Users, X } from 'lucide-react'
+import { Check, ChevronRight, CircleAlert, Circle, Clock, Flag, Heart, Loader, MapPin, MoreHorizontal, Star, Users, X } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
 import type { Order } from '../booking/types'
 import { dayText, shiftLabel, statusLabel, tierLabel } from '../booking/view'
+import { accountApi } from '../account/api'
+import { favoriteToggleError, favoriteToggleLabel } from '../account/view'
 import { ordersApi } from './api'
 import type { AddressDetail, OrderProgress } from './types'
-import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, vnTime, type ArrivalStatus, type FallbackStatus } from './view'
+import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, toggleSaved, vnTime, type ArrivalStatus, type FallbackStatus } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const dot = { done: <Check size={14} />, current: <Loader size={14} className="animate-spin" />, todo: <Circle size={14} />, cancelled: <X size={14} /> }
@@ -34,6 +36,10 @@ export function OrderDetailPage() {
   const [askDecline, setAskDecline] = useState(false)
   const [fallbackBusy, setFallbackBusy] = useState(false)
   const [fallbackError, setFallbackError] = useState<string | null>(null)
+  // Saved worker ids; null = the favorites list could not be read, so the hearts are hidden.
+  const [favIds, setFavIds] = useState<Set<number> | null>(null)
+  const [favBusy, setFavBusy] = useState<number | null>(null)
+  const [favError, setFavError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +70,29 @@ export function OrderDetailPage() {
     const timer = setInterval(() => void load(), POLL_PROGRESS_MS)
     return () => clearInterval(timer)
   }, [live, load])
+
+  useEffect(() => {
+    let cancelled = false
+    accountApi.favorites().then((list) => !cancelled && setFavIds(new Set(list.map((f) => f.workerId)))).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [orderId])
+
+  async function toggleFavorite(workerId: number) {
+    if (!favIds || favBusy !== null) return
+    const adding = !favIds.has(workerId)
+    setFavIds((ids) => (ids ? toggleSaved(ids, workerId, adding) : ids))
+    setFavBusy(workerId)
+    setFavError(null)
+    try {
+      if (adding) await accountApi.addFavorite(workerId)
+      else await accountApi.removeFavorite(workerId)
+    } catch {
+      setFavIds((ids) => (ids ? toggleSaved(ids, workerId, !adding) : ids))
+      setFavError(favoriteToggleError(adding))
+    } finally {
+      setFavBusy(null)
+    }
+  }
 
   const addressId = order?.addressId
   useEffect(() => {
@@ -208,7 +237,12 @@ export function OrderDetailPage() {
             : <ul className="mt-3 space-y-3">{progress.assignments.map((a) => <li key={a.assignmentId} className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-full bg-stone-200 text-sm font-semibold">{(a.workerName ?? '?').split(' ').map((w) => w[0]).slice(-2).join('')}</span>
               <span className="grow"><b>{a.workerName ?? 'Thợ'}</b><span className="block text-sm text-stone-500"><Star size={12} className="mr-1 inline" />{a.workerRatingAvg.toFixed(1)}</span></span>
+              {favIds && <button type="button" aria-pressed={favIds.has(a.workerId)} aria-label={favoriteToggleLabel(favIds.has(a.workerId))} title={favoriteToggleLabel(favIds.has(a.workerId))}
+                disabled={favBusy !== null} onClick={() => void toggleFavorite(a.workerId)}
+                className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border disabled:opacity-60 ${favIds.has(a.workerId) ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-stone-300 bg-white text-stone-600'}`}>
+                <Heart size={16} className={favIds.has(a.workerId) ? 'fill-current' : ''} /></button>}
               <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold">{assignmentLabel(a.assignmentStatus)}</span></li>)}</ul>}
+          {favError && <p role="alert" className="mt-2 text-sm text-red-700">{favError}</p>}
         </section>
         <section className={card}>
           <h2 className="text-lg font-semibold">Địa điểm</h2>
