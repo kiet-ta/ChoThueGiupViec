@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  accountProblem, areaBracket, areaText, bandText, canBookWorker, filterAdminUnits, formFromAddress, initials, parseNumber, phoneText, requiredWorkers,
+  accountProblem, areaBracket, favoriteToggleError, favoriteToggleLabel, isFavorite, areaText, bandText, canBookWorker, filterAdminUnits, formFromAddress, initials, parseNumber, phoneText, requiredWorkers,
   safeAddressNext, toAddressBody, totalArea, validateAddress, validateProfile, wardsOf, workStatusLabel, type AddressForm,
 } from '../src/features/customer/account/view.ts'
 import { vnAdminUnits } from '../src/features/customer/account/vn-admin-units.ts'
@@ -195,5 +195,18 @@ describe('reverse geocode auto-fill integration', () => {
     assert.equal(updated.latitude, 10.7769)
     assert.equal(updated.longitude, 106.7009)
     assert.deepEqual(validateAddress(updated), {})
+  })
+})
+
+describe('favorite toggle', () => {
+  it('knows whether the worker is saved and labels the toggle', () => {
+    assert.equal(isFavorite([{ workerId: 3 }, { workerId: 7 }], 7), true)
+    assert.equal(isFavorite([], 7), false)
+    assert.equal(favoriteToggleLabel(true), 'Đã lưu vào yêu thích')
+    assert.equal(favoriteToggleLabel(false), 'Lưu thợ yêu thích')
+  })
+  it('explains a failed toggle', () => {
+    assert.match(favoriteToggleError(true), /Chưa lưu được/)
+    assert.match(favoriteToggleError(false), /Chưa bỏ được/)
   })
 })

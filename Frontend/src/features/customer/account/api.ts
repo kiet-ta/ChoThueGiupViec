@@ -8,6 +8,7 @@ export const accountApi = {
   updateAddress: (id: number, body: AddressBody) => apiClient.put<Address>(`/customers/me/addresses/${id}`, body),
   deleteAddress: (id: number) => apiClient.delete<null>(`/customers/me/addresses/${id}`),
   favorites: () => apiClient.get<FavoriteWorker[]>('/customers/me/favorite-workers'),
+  addFavorite: (workerId: number) => apiClient.put<FavoriteWorker>(`/customers/me/favorite-workers/${workerId}`, {}),
   removeFavorite: (workerId: number) => apiClient.delete<null>(`/customers/me/favorite-workers/${workerId}`),
   profile: () => apiClient.get<CustomerProfile>('/customers/me'),
   updateProfile: (body: ProfileBody) => apiClient.put<CustomerProfile>('/customers/me', body),
