@@ -186,3 +186,12 @@ export function accountProblem(error: { status?: number; message?: string; field
   if (error.status === 404) return 'Không tìm thấy mục này. Có thể nó đã bị xóa.'
   return error.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.'
 }
+
+// ---------- Favorite toggle (rating page; PUT / DELETE /customers/me/favorite-workers/{workerId}, both idempotent) ----------
+export const isFavorite = (favorites: { workerId: number }[], workerId: number) => favorites.some((f) => f.workerId === workerId)
+
+export const favoriteToggleLabel = (saved: boolean) => (saved ? 'Đã lưu vào yêu thích' : 'Lưu thợ yêu thích')
+
+/** The line shown when the toggle failed and was rolled back; `adding` = the customer tried to save the worker. */
+export const favoriteToggleError = (adding: boolean) =>
+  adding ? 'Chưa lưu được thợ vào yêu thích. Vui lòng thử lại.' : 'Chưa bỏ được thợ khỏi yêu thích. Vui lòng thử lại.'
