@@ -277,5 +277,13 @@ export function fallbackProblem(error: { status?: number; message?: string; data
   return error.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.'
 }
 
+/** The saved worker ids after the customer saves (`adding`) or removes `workerId`; the input set is not changed. */
+export function toggleSaved(ids: ReadonlySet<number>, workerId: number, adding: boolean): Set<number> {
+  const next = new Set(ids)
+  if (adding) next.add(workerId)
+  else next.delete(workerId)
+  return next
+}
+
 /** Number of pages for `total` items. */
 export const pageCount = (total: number, pageSize: number) => Math.max(1, Math.ceil(total / pageSize))
