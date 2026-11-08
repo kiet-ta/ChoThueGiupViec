@@ -66,6 +66,11 @@ describe('orderActions: after the shift', () => {
     assert.equal(orderActions('ASSIGNED', [worker('AWAITING_ACCEPTANCE')], null, now).showAcceptance, true)
     assert.equal(orderActions('ASSIGNED', [worker('IN_PROGRESS')], null, now).showAcceptance, false)
   })
+  it('offers the acceptance review once no worker awaits acceptance and one is completed', () => {
+    assert.equal(orderActions('COMPLETED', [worker('COMPLETED')], null, now).showAcceptanceReview, true)
+    assert.equal(orderActions('ASSIGNED', [worker('COMPLETED'), { ...worker('AWAITING_ACCEPTANCE'), assignmentId: 2 }], null, now).showAcceptanceReview, false)
+    assert.equal(orderActions('ASSIGNED', [worker('IN_PROGRESS')], null, now).showAcceptanceReview, false)
+  })
   it('opens the dispute window for 24 h and the rating window for 48 h', () => {
     const at = (hoursAgo: number) => new Date(now.getTime() - hoursAgo * 3600_000).toISOString()
     const a = orderActions('COMPLETED', [worker('COMPLETED', at(10))], null, now)

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  afterShiftProblem, anglePairs, anglesSummary, categoryLabel, disputeHoursLeft, disputeStatusLabel, evidenceFileError, formatWindow,
-  overallStars, ratingWindowText, redoReasonError, secondsUntil, validateDispute, validateRating,
+  acceptedLine, afterShiftProblem, anglePairs, anglesSummary, categoryLabel, disputeHoursLeft, disputeStatusLabel, evidenceFileError, formatWindow,
+  overallStars, ratingWindowText, redoReasonError, secondsUntil, reviewAssignments, validateDispute, validateRating,
 } from '../src/features/customer/after-shift/view.ts'
 import type { JobPhoto } from '../src/features/customer/after-shift/types.ts'
 
@@ -113,5 +113,18 @@ describe('redo and errors', () => {
     assert.match(afterShiftProblem({ status: 409, message: 'The shift ended more than 24 h ago.' }), /không còn hợp lệ/)
     assert.match(afterShiftProblem({ status: 404 }), /Không tìm thấy/)
     assert.match(afterShiftProblem({ status: 500 }), /Đã có lỗi/)
+  })
+})
+
+describe('acceptance review', () => {
+  const a = (assignmentSeq: number, assignmentStatus: string) => ({ assignmentId: assignmentSeq, assignmentSeq, assignmentStatus })
+  it('reviews the completed assignments by seq, none while one awaits acceptance', () => {
+    assert.deepEqual(reviewAssignments([a(2, 'COMPLETED'), a(1, 'COMPLETED'), a(3, 'CANCELLED')]).map((x) => x.assignmentSeq), [1, 2])
+    assert.deepEqual(reviewAssignments([a(1, 'COMPLETED'), a(2, 'AWAITING_ACCEPTANCE')]), [])
+  })
+  it('states the acceptance time in Vietnam time', () => {
+    assert.equal(acceptedLine('2026-11-02T07:05:00Z'), 'Bạn đã nghiệm thu ca này lúc 14:05, 02/11/2026.')
+    assert.equal(acceptedLine('2026-11-02T18:30:00Z'), 'Bạn đã nghiệm thu ca này lúc 01:30, 03/11/2026.')
+    assert.equal(acceptedLine(null), 'Ca đã được nghiệm thu.')
   })
 })

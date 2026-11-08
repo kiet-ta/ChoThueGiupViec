@@ -40,6 +40,21 @@ export function redoReasonError(reason: string): string | null {
   return null
 }
 
+/** The assignments to review on the acceptance page: none while one awaits acceptance (the page is then the acceptance itself), else the COMPLETED ones by seq. */
+export function reviewAssignments<T extends { assignmentStatus: string; assignmentSeq: number }>(assignments: T[]): T[] {
+  if (assignments.some((a) => a.assignmentStatus === 'AWAITING_ACCEPTANCE')) return []
+  return assignments.filter((a) => a.assignmentStatus === 'COMPLETED').sort((a, b) => a.assignmentSeq - b.assignmentSeq)
+}
+
+/** `Bạn đã nghiệm thu ca này lúc 14:05, 02/11/2026.` in Vietnam time (UTC+7, decision G-3); a missing or invalid time reads `Ca đã được nghiệm thu.` */
+export function acceptedLine(completedAt: string | null): string {
+  const t = completedAt ? new Date(completedAt).getTime() : NaN
+  if (Number.isNaN(t)) return 'Ca đã được nghiệm thu.'
+  const d = new Date(t + 7 * 3600_000)
+  const two = (n: number) => String(n).padStart(2, '0')
+  return `Bạn đã nghiệm thu ca này lúc ${two(d.getUTCHours())}:${two(d.getUTCMinutes())}, ${two(d.getUTCDate())}/${two(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}.`
+}
+
 // ---------- Rating ----------
 export const CRITERIA = [
   { key: 'punctuality', label: 'Đúng giờ' },
