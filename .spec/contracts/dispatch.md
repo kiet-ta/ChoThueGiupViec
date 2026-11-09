@@ -223,6 +223,8 @@ Báo sự cố bất khả kháng trên đường hoặc hiện trường (BR-10
 #### `GET /api/v1/dispatch/orders/{orderId}/status`
 Khách hàng theo dõi realtime trạng thái điều phối đơn đặt.
 
+*(Lưu ý triển khai: Trên Web/Mobile thực tế, tiến độ đơn và danh sách thợ được theo dõi tập trung qua endpoint `GET /api/v1/booking/orders/{orderId}/progress` và SignalR topic `job.tracking`, xem `booking.md` §3.6 và quyết định B9).*
+
 - Response 200:
 ```json
 {
@@ -272,30 +274,8 @@ Khách xác nhận thợ đã có mặt tại nhà khi GPS của thợ bị lệ
 }
 ```
 
-#### `POST /api/v1/dispatch/orders/{orderId}/incidents/accept-substitute`
-Khách đồng ý với thợ thay thế sau sự cố của thợ ban đầu.
-
-- Response 200:
-```json
-{
-  "orderId": 501,
-  "substituteAccepted": true,
-  "newEstimatedArrival": "2026-10-15T08:30:00Z"
-}
-```
-
-#### `POST /api/v1/dispatch/orders/{orderId}/incidents/decline-substitute`
-Khách từ chối thợ thay thế hoặc quá 5 phút không tìm được thợ -> Hủy đơn và hoàn tiền 100%.
-
-- Response 200:
-```json
-{
-  "orderId": 501,
-  "cancelled": true,
-  "refundPercentage": 100.0,
-  "refundAmount": 260000.0
-}
-```
+#### Phản hồi thay thế / đổi ca (Đã hợp nhất vào Fallback API)
+*(Ghi chú: Bản dự thảo trước đây tách thành 2 route `POST .../incidents/accept-substitute` và `POST .../incidents/decline-substitute`. Trong mã nguồn thực tế, thao tác phản hồi của khách được chuẩn hóa vào endpoint duy nhất bên dưới: `POST /api/v1/dispatch/orders/{orderId}/fallback/respond` với body `{ "accept": true | false }`, cài đặt tại `CustomerFallbackController.cs`).*
 
 #### `GET /api/v1/dispatch/orders/{orderId}/fallback`
 Đơn 2 thợ chỉ tìm được 1 thợ (BR-02 fallback, #310). Đơn không hủy mà chờ khách chọn: cho cùng một thợ làm 2 ca liên tiếp hay hủy + hoàn 100 %. Đơn của người khác -> `404`.
@@ -332,38 +312,13 @@ Khách trả lời câu hỏi "Chỉ có 1 thợ: thợ làm 2 ca liên tiếp?"
 
 ### 3.3 Dành cho Quản Trị Viên (`AdminOnly`)
 
-#### `GET /api/v1/dispatch/admin/absent-reviews`
-Danh sách các ca báo khách vắng mặt đang chờ duyệt.
-
-- Response 200: `ApiResponse<List<CustomerAbsentReportDto>>`
-
-#### `POST /api/v1/dispatch/admin/absent-reviews/{assignmentId}/approve`
-Admin phê duyệt khách vắng mặt (Q10).
-Hệ thống xác thực nghiêm ngặt: GPS verified, wait >= 15 phút, calls >= 2.
-- Thợ nhận 40% `gross_amount` (`absence_fee_amount`) và chuyển trạng thái về `IDLE`.
-- Khách được hoàn 60% về phương thức thanh toán gốc.
-- Nền tảng giữ 0%.
-
-- Response 200:
-```json
-{
-  "assignmentId": 1001,
-  "approved": true,
-  "workerFeePaid": 104000.0,
-  "customerRefunded": 156000.0,
-  "approvedAt": "2026-10-15T08:30:00Z"
-}
-```
-
-#### `POST /api/v1/dispatch/admin/absent-reviews/{assignmentId}/reject`
-Admin từ chối báo cáo khách vắng mặt (nếu phát hiện gian lận).
-
-- Request body:
-```json
-{
-  "reason": "Khách xác nhận vẫn có mặt tại nhà qua camera"
-}
-```
+#### Quản trị duyệt khách vắng mặt (Thuộc module Admin M6)
+> **Chuyển giao:** Các endpoint quản trị duyệt khách vắng mặt thuộc quyền sở hữu của module **Admin (M6)**, quy định chi tiết tại hợp đồng [`admin.md` §2.2](admin.md) và cài đặt thực tế tại [`AdminAbsenceReportsController.cs`](file:///home/tak/openclaw/projects/ChoThueGiupViec/Backend/WebAPI/Controllers/Admin/AdminAbsenceReportsController.cs):
+> - `GET /api/v1/admin/absence-reports?status=&page=&pageSize=`
+> - `GET /api/v1/admin/absence-reports/{assignmentId}`
+> - `POST /api/v1/admin/absence-reports/{assignmentId}/approve`
+> - `POST /api/v1/admin/absence-reports/{assignmentId}/reject`
+> *(Lưu ý: Không dùng tiền tố `/api/v1/dispatch/admin/absent-reviews` trong mã nguồn thực tế).*
 
 #### `GET /api/v1/dispatch/admin/incidents`
 Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
@@ -371,10 +326,8 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 - Response 200: `ApiResponse<List<IncidentLogDto>>`
 - **Implemented by ADMIN-UAT-05** (`AdminDispatchController`, `EfAdminIncidentQuery`): newest first, at most 200 rows, from `INCIDENT_LOG` joined with `JOB_ASSIGNMENT` (worker id). The stored `redispatch_status` is mapped to the contract values: `PENDING_REDISPATCH` -> `SEARCHING`, `REPLACED` -> `REASSIGNED`, `DECLINED_BY_CUSTOMER` and `TIMEOUT_CANCELLED` -> `FAILED`. `reDispatchDeadline` = `reportedAt` + `IncidentService.RedispatchWindowMinutes` (5). `substituteWorkerId` is always null: the table does not store it. **Known gap:** no HTTP endpoint lets a worker report an incident yet (`IncidentService` exists, `WorkerDispatchController` has no incident action), so the list is empty until one exists. The Admin console shows exactly this list; it no longer falls back to invented sample incidents.
 
-#### `POST /api/v1/dispatch/admin/emergency-rescue`
-Admin can thiệp điều phối "Cứu hộ khẩn cấp" (Super-Freelancer) khi Agency không có thợ thay thế (Pha 2, §2.5, Q12).
-
-> **Note:** Tự động "Cứu hộ khẩn cấp" (Pha 2 §2.5, Q09/Q12) được kích hoạt bằng event `AgencySwapWindowExpired` từ Agencies (M5) khi:
+#### Cứu hộ khẩn cấp (Emergency Rescue — Event-driven, không có HTTP endpoint)
+> **Lưu ý:** Không có HTTP endpoint thủ công (`POST /api/v1/dispatch/admin/emergency-rescue`). Cơ chế "Cứu hộ khẩn cấp" (Pha 2 §2.5, Q09/Q12) chạy hoàn toàn tự động kích hoạt bằng event `AgencySwapWindowExpired` từ Agencies (M5) khi:
 > - Cửa sổ 30 phút tự đổi thợ hết hạn (sweep 30s), hoặc
 > - Agency báo bận trước giờ ca <= 2 h
 > Handler `AgencySwapWindowExpiredHandler` (Dispatch M3) gọi `MilestoneFailoverService.TriggerEmergencyRescueAsync`:
