@@ -37,8 +37,8 @@ Tests/                     CommonService.Tests.csproj (xUnit), e2e/, integration
 Properties/launchSettings.json
 ```
 
-### 2.1 Module folder convention (MVP5, 12 modules)
-Modules: `Identity, Customers, Booking, Payments, Dispatch, Workers, Agencies, Skills, Ratings, Disputes, Payouts, Admin`.
+### 2.1 Module folder convention (MVP5, 11 modules)
+Modules: `Identity, Customers, Booking, Payments, Dispatch, Workers, Agencies, Ratings, Disputes, Payouts, Admin` (Skills retired in REFACTOR-01 / REFACTOR-02).
 Each module owns exactly these four folders (exclusive: nobody else edits them):
 
 | Layer | Path |
@@ -62,8 +62,8 @@ Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInje
 - Already automatic, nothing to register: **controllers** (MVC scans the application assembly), **MediatR notification handlers** (`AddMediatR` scans the assembly in `Application/DependencyInjection.cs`), **validators** (`ValidationBehavior` validates the DataAnnotations of the remaining MediatR requests; a service validates its own input and throws `ValidationException`). A module's own services are registered in its `IModule.ConfigureServices`.
 - Tests: `Backend/Tests/Modularity/ModuleLoaderTests.cs` (a fake module in the test assembly resolves its service without touching `Program.cs`).
 
-### 2.4 Domain model (BASE-06): 25 entities, 3 state machines
-- **25 tables** = 20 of `GiupViec_Physical_DB_MVP5.drawio` + 5 of `.spec/decisions.md` section 3 (`PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN`), plus the added columns of SC-1 (`PARTNER_AGENCY` password/guarantee) and SC-8 (`failed_login_count`, `locked_until` on `ADMIN` and `PARTNER_AGENCY`). `TWO_WAY_RATING` UNIQUE (SC-5) is a persistence rule for BASE-07. The drawio title says "20 bảng" but the file contains 22 table cells (counted by script); the plan says 22.
+### 2.4 Domain model: 28 entities (28 tables), 3 state machines
+- **28 tables synchronized in `GiupViec_Physical_DB_MVP5.drawio`** = 20 original MVP5 tables retained + 8 added tables (`PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN` from initial decisions SC-2..SC-7; and `AGENCY_CAPACITY_HOLD`, `ESCROW_APPEAL`, `AGENCY_SWAP_WINDOW` from SC-11..SC-14) - 2 dead tables dropped (`SKILL` and `WORKER_SKILL` via REFACTOR-01 #580). `GiupViec_Physical_DB_MVP5.drawio` and `GiupViec_Physical_DB_MVP5.svg` reflect the full 28-table physical database schema with transparent boxes (border-only), publication-grade typography, and collision-free orthogonal stepped routing (hình bậc thang). Plus the added columns of SC-1 (`PARTNER_AGENCY` password/guarantee), SC-8 (`failed_login_count`, `locked_until` on `ADMIN` and `PARTNER_AGENCY`), SC-10 (`PAYMENT_TRANSACTION` refund columns), SC-12 (`agency_id` on payments, worker work areas #555), SC-15 (`shift_code` widened), SC-16 (`renewal_reminder_days`), and `preferred_worker_id` on `JOB_ORDER`. `TWO_WAY_RATING` UNIQUE (SC-5) is a persistence rule for BASE-07.
 - `Domain/Entities/<Entity>.cs`: `public partial class`, one scalar property per column (generated once from the drawio, then maintained by hand). **No navigation properties** (0-JOIN queries, PRD 5.2). Behaviour of a module is added in `<Entity>.<Module>.cs` partial files.
 - Types: `INT/BIGINT/TINYINT` -> `int/long/byte`, `DECIMAL` -> `decimal` (money = `DECIMAL(18,2)`, whole VND after rounding, decisions G-2), `DATETIME2` -> `DateTime` (UTC, G-3), `DATE/TIME` -> `DateOnly/TimeOnly`, `BIT` -> `bool`. `CustomerAddress.TotalAreaM2` is the computed `floor_area_m2 * num_floors`.
 - `Worker` is Single Table Inheritance: `WorkerType` and `AgencyId` have private setters and are set only by `Worker.CreateFreelancer` / `Worker.CreateAgencyStaff`, which enforces the drawio CHECK (freelancer has no agency, agency staff has one).

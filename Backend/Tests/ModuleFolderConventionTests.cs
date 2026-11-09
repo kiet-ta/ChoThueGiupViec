@@ -5,7 +5,7 @@ public class ModuleFolderConventionTests
     private static readonly string[] Modules =
     [
         "Identity", "Customers", "Booking", "Payments", "Dispatch", "Workers",
-        "Agencies", "Skills", "Ratings", "Disputes", "Payouts", "Admin"
+        "Agencies", "Ratings", "Disputes", "Payouts", "Admin"
     ];
 
     private static readonly string[] ModuleRoots =

@@ -1,6 +1,6 @@
 # Kế hoạch triển khai MVP5 — 6 người song song
 
-> Nguồn: `.spec/spec.md` (PRD-MVP5-FINAL) · **Quyết định đã chốt (tiếng Anh, bắt buộc tuân theo): `.spec/decisions.md`** · ERD vật lý: `Backend/GiupViec_Physical_DB_MVP5.drawio` (22 bảng) + 5 bảng bổ sung (`decisions.md` §3) = 27.
+> Nguồn: `.spec/spec.md` (PRD-MVP5-FINAL) · **Quyết định đã chốt (tiếng Anh, bắt buộc tuân theo): `.spec/decisions.md`** · ERD vật lý: `Backend/GiupViec_Physical_DB_MVP5.drawio` (28 bảng đã đồng bộ hoàn chỉnh).
 > Trạng thái: **DRAFT** — chờ người điều phối duyệt (checkpoint 2 trong HARNESS.md §6). Chưa có ticket GitHub nào cho các task bên dưới.
 > Lệnh cho agent: nói **"phân tích dự án"** → agent hỏi tên → in checklist của bạn (xem `AGENTS.md`).
 

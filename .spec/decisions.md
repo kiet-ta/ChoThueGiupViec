@@ -282,7 +282,8 @@ To eliminate dependency on paid map services and pending account approvals, the 
 
 SePay Test mode bank-transfer QR is in scope for the demo (owner request 2026-10-30; D23).
 
-## 3. Schema changes (authoritative until `Backend/GiupViec_Physical_DB_MVP5.drawio` is updated; BASE-06 must update the drawio or record the delta in `Backend/ARCHITECTURE.md`)
+## 3. Schema changes (synchronized in `Backend/GiupViec_Physical_DB_MVP5.drawio` & `.svg`: 28 tables)
+- **Status (2026-11-09):** `Backend/GiupViec_Physical_DB_MVP5.drawio` has been fully updated and synchronized to reflect all 28 tables, incorporating SC-1 through SC-16, dropping `SKILL`/`WORKER_SKILL` (REFACTOR-01 #580), using collision-free stepped orthogonal routing and transparent border-only boxes.
 - **SC-1** `PARTNER_AGENCY`: add `password_hash VARCHAR(255) NULL`, `guarantee_signed_at DATETIME2 NULL`, `guarantee_file_url NVARCHAR(500) NULL`.
 - **SC-2** New table `PRICE_RULE`: `rule_id INT IDENTITY PK`, `service_tier VARCHAR(10)`, `area_bracket VARCHAR(20)`, `unit_price DECIMAL(18,2)`, `is_active BIT`, `updated_at DATETIME2`, `updated_by INT NULL FK ADMIN`; `UNIQUE(service_tier, area_bracket)`.
 - **SC-3** New table `ADMIN_AUDIT_LOG` (append-only): `log_id BIGINT IDENTITY PK`, `actor_type VARCHAR(10)` (`ADMIN`|`SYSTEM`), `admin_id INT NULL FK ADMIN`, `entity_type VARCHAR(30)`, `entity_id VARCHAR(40)`, `field_name VARCHAR(50)`, `old_value NVARCHAR(500) NULL`, `new_value NVARCHAR(500) NULL`, `reason NVARCHAR(255) NULL`, `changed_at DATETIME2`.
@@ -300,7 +301,7 @@ SePay Test mode bank-transfer QR is in scope for the demo (owner request 2026-10
 - **SC-12** `WORKER`: add `work_lat DECIMAL(9,6) NULL`, `work_lng DECIMAL(9,6) NULL`, `work_radius_km TINYINT NULL`, `work_districts NVARCHAR(500) NULL`, `work_area_set_at DATETIME2 NULL` (WORKERS-AREA-01, #555, D24). Migration `AddWorkerWorkArea`.
 - **SC-9** `JOB_ASSIGNMENT.accepted_at` becomes `DATETIME2 NULL` (null while `OFFERED`, Q22 D1). The unique index on `slot_id` excludes `CANCELLED`, `CANCELLED_BY_WORKER`, `REASSIGNED` (Q22 D2).
 - **SC-10** `PAYMENT_TRANSACTION`: add `refunded_amount DECIMAL(18,2) NOT NULL DEFAULT 0`, `refund_reason NVARCHAR(255) NULL`, `refunded_at DATETIME2 NULL`. `txn_status = REFUNDED` once `refunded_amount > 0`; a refund is refused when it would exceed `amount` (contract `payments.md` P2, Q23 below; approval relayed by M2 from the leader, issue #259).
-- Table count becomes **27** (22 + `PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN`; it was 25 before SC-6/SC-7). Owners: `PRICE_RULE` -> M2, `ESCROW_TRANSACTION` -> M5, `ADMIN_AUDIT_LOG` -> M6 (others write to it through the `IAuditLog` port), `OTP_CODE` and `REFRESH_TOKEN` -> M1.
+- Table count is **28** in AppDbContext (20 original MVP5 retained + 5 initial additions `PRICE_RULE`, `ADMIN_AUDIT_LOG`, `ESCROW_TRANSACTION`, `OTP_CODE`, `REFRESH_TOKEN` + 3 Agency additions `AGENCY_CAPACITY_HOLD`, `ESCROW_APPEAL`, `AGENCY_SWAP_WINDOW` - 2 dropped `SKILL`/`WORKER_SKILL`). All 28 are fully visualized in `Backend/GiupViec_Physical_DB_MVP5.drawio` & `.svg`. Owners: `PRICE_RULE` -> M2, `ESCROW_TRANSACTION`, `AGENCY_CAPACITY_HOLD`, `ESCROW_APPEAL`, `AGENCY_SWAP_WINDOW` -> M5, `ADMIN_AUDIT_LOG` -> M6, `OTP_CODE` and `REFRESH_TOKEN` -> M1.
 
 ## 4. Configuration keys and DEFAULT values (single source for `BusinessRules`)
 | Key | DEFAULT | Source |
