@@ -88,6 +88,15 @@ Adding a module needs **no edit** to `Program.cs` or to a shared `DependencyInje
 
 The demo template classes were removed in BASE-09; all domain logic uses the 25 real MVP5 entities and modules.
 
+### 2.5 Query patterns & CQRS Read-Join Convention (PRD §5.2, decisions D26)
+- **Command / Write Side (Strictly 0-JOIN):** All mutations, dispatch slot holds, and state transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned) to prevent EF Core graph tracking bloat and deadlock cascades.
+- **Query / Read Side (The Rule of 3):** Explicit LINQ `join` is permitted for up to 2-3 tables under 4 strict rules:
+  1. Always use `.AsNoTracking()`.
+  2. Always project directly to DTOs/records (`Select(x => new Dto(...))`); never materialize whole entity graphs.
+  3. Join predicates must be backed by database indexes on Foreign Keys and Primary Keys.
+  4. Hard cap of maximum 3 tables per query. Multiple 1:N collection joins (Cartesian products) and joins on heavy telemetry tables (`CHECK_IN_LOG`, `JOB_PHOTO`, `ADMIN_AUDIT_LOG`) into customer transactional queries are strictly forbidden.
+- **Database Concurrency:** SQL Server operates with `READ_COMMITTED_SNAPSHOT ON` so that multi-table read queries read row versions without acquiring shared locks, preventing read-write deadlocks.
+
 ### 2.5 Cross-module ports (BASE-03)
 Modules never call each other: they use a **port** (interface + DTOs in `Application/Interfaces/Ports/`, namespace `CommonService.Application.Interfaces.Ports`) or a domain event. Every port has an in-memory **Fake** in `Infrastructure/Fakes/` registered by `AddFakePorts()` with `TryAdd`. `Infrastructure/DependencyInjection.cs` calls `AddModules(...)` first and `AddFakePorts()` **last**, so a real implementation registered by a module (`IModule.ConfigureServices`) wins and a port nobody implemented yet falls back to its Fake. Changing a port needs a "Scope exception" issue for M1.
 

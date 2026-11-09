@@ -277,6 +277,15 @@ To eliminate dependency on paid map services and pending account approvals, the 
 2. **Offline & Test Fallback:** When unreachable or offline, gracefully delegates to `FakeReverseGeocodeService` for fast, deterministic CI test runs.
 3. **Compatibility:** Implements `IReverseGeocodeService` and serves `POST /api/v1/locations/reverse-geocode` cleanly conforming to `.spec/contracts/customers.md` §2.4.
 
+### D26 CQRS Read-Join Convention (Architecture Refinement, 2026-11-09)
+1. **Write Side (Commands, State Transitions, Dispatch Matching):** Strictly 0-JOIN. All entity mutations, dispatch slot holds, and state machine transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned).
+2. **Read Side (Queries & Projections):** Explicit LINQ `join` is permitted under 4 mandatory constraints:
+   - **No tracking:** Must use `.AsNoTracking()`.
+   - **Direct projection:** Must project directly to DTOs/records (`select new Dto(...)`); never materialize whole entity graphs.
+   - **The Rule of 3:** Hard cap of maximum 3 tables per query. Multiple 1:N collection joins (Cartesian products) are forbidden. Heavy blob/telemetry tables (`CHECK_IN_LOG`, `JOB_PHOTO`, `ADMIN_AUDIT_LOG`) must never be joined into customer transactional views.
+   - **Indexed foreign keys:** All join predicates must be backed by database indexes on Foreign Keys and Primary Keys.
+3. **Database Concurrency:** Production and LocalDB SQL Server must have `READ_COMMITTED_SNAPSHOT ON` enabled so that multi-table read joins read from row versions and never take or wait on shared locks, completely eliminating read-write deadlocks.
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery. Escrow withdrawal by an agency (D16: an Admin settles outside the system).
 
