@@ -196,83 +196,8 @@ public class M6AcceptanceTests
 
             Assert.Equal([156000m, 50000m], refunds.Requests.Select(r => r.Amount).ToArray()); // the money that went back to the customers
 
-            // ---- BE-M6-04: the monthly batch.
-            PayoutBatchService Batch(AppDbContext db) =>
-                new(new EfPayoutRepository(db), new EfPayoutPenaltySource(db), new EfAuditLog(db, payoutClock), new UnitOfWork(db), payoutClock, publisher);
-
-            int batchId;
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                var built = await Batch(db).BuildAsync(period);
-
-                Assert.Equal(201, built.StatusCode);
-                Assert.Equal(3, built.Data!.ItemCount);
-                Assert.Equal(470000m + 80001m + 510000m, built.Data.TotalAmount);
-                batchId = built.Data.BatchId;
-            }
-
-            async Task AssertItemsAsync()
-            {
-                await using var db = new AppDbContext(PayoutBatchDatabaseTests.Options());
-                var items = (await Batch(db).GetAsync(batchId, null, null, null)).Data!.Items;
-                Assert.Equal(["Freelancer One", "Freelancer Two", "Payout Agency Co"], items.Select(i => i.PayeeName).ToArray());
-
-                var one = items[0];
-                Assert.Equal(3, one.JobCount); // two completed jobs and the absence fee
-                Assert.Equal(624000m, one.GrossAmount); // 260000 + 260000 + 104000
-                Assert.Equal(104000m, one.CommissionAmount); // 20 % of the two jobs only: the absence fee carries none
-                Assert.Equal(50000m, one.PenaltyAmount); // the dispute verdict became a deduction
-                Assert.Equal(470000m, one.NetAmount);
-
-                var two = items[1];
-                Assert.Equal(100001m, two.GrossAmount);
-                Assert.Equal(20000m, two.CommissionAmount); // 20000.2 rounded
-                Assert.Equal(80001m, two.NetAmount); // the freelancer's 80 %
-
-                var agency = items[2];
-                Assert.Equal("AGENCY", agency.PayeeType);
-                Assert.Equal(2, agency.JobCount); // one aggregated item for the agency, not one per run
-                Assert.Equal(600000m, agency.GrossAmount);
-                Assert.Equal(90000m, agency.CommissionAmount); // the agency's own 15 %
-                Assert.Equal(510000m, agency.NetAmount);
-            }
-
-            await AssertItemsAsync();
-
-            // Running it again changes nothing: the same batch, the same items, no assignment counted twice.
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                var again = await Batch(db).BuildAsync(period);
-
-                Assert.Equal(200, again.StatusCode);
-                Assert.Equal(batchId, again.Data!.BatchId);
-                Assert.Equal(470000m + 80001m + 510000m, again.Data.TotalAmount);
-            }
-
-            await AssertItemsAsync();
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                Assert.Equal(1, await db.PayoutBatches.CountAsync(b => b.PeriodMonth == period));
-                Assert.Equal(3, await db.PayoutItems.CountAsync(i => i.BatchId == batchId));
-                var paid = await db.JobAssignments.AsNoTracking()
-                    .CountAsync(a => seed.AssignmentIds.Contains(a.AssignmentId) && a.PayoutItemId != null);
-                Assert.Equal(6, paid); // five jobs and the absence fee, each exactly once
-            }
-
-            // Confirming closes the month for good.
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                var closed = await Batch(db).ConfirmAsync(seed.AdminId, batchId);
-                Assert.True(closed.Success);
-                Assert.Equal("CLOSED", closed.Data!.BatchStatus);
-            }
-
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                Assert.Equal(409, (await Batch(db).BuildAsync(period)).StatusCode);
-            }
-
-            await AssertItemsAsync();
+            // ---- BE-M6-04: the monthly settlement is no longer built from these rows. Since decision D28 it is computed from the ledger
+            // (Tests/Payouts/PayoutSettlementTests and PayoutSettlementSqlTests); this flow ends with the money decisions above.
         }
         finally
         {

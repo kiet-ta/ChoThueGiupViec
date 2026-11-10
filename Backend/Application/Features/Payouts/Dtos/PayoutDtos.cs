@@ -1,12 +1,5 @@
 namespace CommonService.Application.Features.Payouts.Dtos;
 
-/// <summary>Body of POST /api/v1/admin/payout-batches (contract payouts.md 2.1).</summary>
-public class BuildPayoutBatchRequestDto
-{
-    /// <summary><c>YYYY-MM</c>.</summary>
-    public string? PeriodMonth { get; init; }
-}
-
 public class PayoutBatchDto
 {
     public int BatchId { get; init; }
@@ -17,6 +10,7 @@ public class PayoutBatchDto
 
     public decimal TotalAmount { get; init; }
     public int ItemCount { get; init; }
+    /// <summary>Null when the system closed the month (every batch from decision D28 on).</summary>
     public int? ConfirmedBy { get; init; }
     public DateTime? ConfirmedAt { get; init; }
     public DateTime CreatedAt { get; init; }
@@ -36,6 +30,13 @@ public class PayoutItemDto
     public decimal GrossAmount { get; init; }
     public decimal CommissionAmount { get; init; }
     public decimal PenaltyAmount { get; init; }
+
+    /// <summary>What the worker withdrew during the month (the advance, decision F); 0 for an agency.</summary>
+    public decimal AdvanceAmount { get; init; }
+
+    /// <summary>The wallet balance carried in from the earlier months (negative when a penalty was larger than the month).</summary>
+    public decimal CarryInAmount { get; init; }
+
     public decimal NetAmount { get; init; }
     public string? BankName { get; init; }
 

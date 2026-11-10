@@ -29,10 +29,10 @@ public class PayoutExportService(IPayoutRepository payouts, IFileStorage storage
     private const string FilesUrlPrefix = "/files/";
 
     public static readonly IReadOnlyList<string> FreelancerHeaders =
-        ["full_name", "bank_name", "bank_account_no", "net_amount", "transfer_note"];
+        ["full_name", "bank_name", "bank_account_no", "advance_amount", "carry_in_amount", "net_amount", "transfer_note"];
 
     public static readonly IReadOnlyList<string> AgencySummaryHeaders =
-        ["agency_name", "bank_name", "bank_account_no", "job_count", "gross_amount", "commission_amount", "penalty_amount", "net_amount", "transfer_note"];
+        ["agency_name", "bank_name", "bank_account_no", "job_count", "gross_amount", "commission_amount", "penalty_amount", "carry_in_amount", "net_amount", "transfer_note"];
 
     public static readonly IReadOnlyList<string> AgencyDetailHeaders =
         ["agency_name", "assignment_id", "order_id", "completed_at", "worker_name", "gross_amount", "commission_amount", "net_amount"];
@@ -60,7 +60,7 @@ public class PayoutExportService(IPayoutRepository payouts, IFileStorage storage
                     var items = await payouts.GetAllItemsAsync(batchId, PayeeType.Freelancer, cancellationToken);
                     var rows = items
                         .Where(v => v.Item.NetAmount > 0) // nothing to transfer when a penalty took the whole month
-                        .Select(v => (IReadOnlyList<object?>)[v.PayeeName, v.BankName, v.Item.BankAccountNo, v.Item.NetAmount, note])
+                        .Select(v => (IReadOnlyList<object?>)[v.PayeeName, v.BankName, v.Item.BankAccountNo, v.Item.AdvanceAmount, v.Item.CarryInAmount, v.Item.NetAmount, note])
                         .ToList();
                     content = XlsxWriter.Build("Freelancer", FreelancerHeaders, rows);
                     break;
@@ -74,7 +74,7 @@ public class PayoutExportService(IPayoutRepository payouts, IFileStorage storage
                         .Select(v => (IReadOnlyList<object?>)
                         [
                             v.PayeeName, v.BankName, v.Item.BankAccountNo, v.Item.JobCount, v.Item.GrossAmount,
-                        v.Item.CommissionAmount, v.Item.PenaltyAmount, v.Item.NetAmount, note,
+                        v.Item.CommissionAmount, v.Item.PenaltyAmount, v.Item.CarryInAmount, v.Item.NetAmount, note,
                         ])
                         .ToList();
                     content = XlsxWriter.Build("Agency summary", AgencySummaryHeaders, rows);

@@ -17,10 +17,6 @@ public interface IPayoutPenaltySource
     Task<IReadOnlyDictionary<PayeeKey, decimal>> GetDecidedAsync(DateTime throughUtc, CancellationToken cancellationToken = default);
 }
 
-/// <summary>An assignment was attached to another payout item while this one was being built; the unit of work must be undone.</summary>
-public class PayoutClaimLostException(long assignmentId)
-    : Exception($"Assignment {assignmentId} is already attached to another payout item.");
-
 /// <summary>A payout item to be stored; <c>AssignmentIds</c> are the assignments it pays.</summary>
 public record NewPayoutItem(
     PayeeType PayeeType,
@@ -30,6 +26,8 @@ public record NewPayoutItem(
     decimal GrossAmount,
     decimal CommissionAmount,
     decimal PenaltyAmount,
+    decimal AdvanceAmount,
+    decimal CarryInAmount,
     decimal NetAmount,
     string BankAccountNo,
     IReadOnlyList<long> AssignmentIds);
@@ -56,10 +54,16 @@ public record PayoutItemView(PayoutItem Item, string PayeeName, string? BankName
 public interface IPayoutRepository
 {
     /// <summary>
-    /// A transaction-scoped lock on the month, so two simultaneous builds of one month run one after the other; false when it could
-    /// not be taken in time. Must be called inside the caller's unit of work.
+    /// A transaction-scoped lock on the month, so two simultaneous runs create its batch one after the other; false when it could not be
+    /// taken in time. Must be called inside the caller's unit of work.
     /// </summary>
     Task<bool> TryLockPeriodAsync(string periodMonth, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A transaction-scoped lock on one payee's wallet (<c>ledger-party:WORKER|AGENCY:{id}</c>, the one the withdrawal flow takes), so a
+    /// withdrawal approval and the settlement of that payee never interleave. Must be called inside the caller's unit of work.
+    /// </summary>
+    Task LockPayeeAsync(PayeeKey payee, CancellationToken cancellationToken = default);
 
     Task<PayoutBatch?> FindByPeriodAsync(string periodMonth, CancellationToken cancellationToken = default);
 
@@ -68,25 +72,23 @@ public interface IPayoutRepository
     /// <summary>Adds an empty DRAFT batch and saves it (the id is needed by the items).</summary>
     Task<PayoutBatch> AddDraftAsync(string periodMonth, DateTime nowUtc, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Assignments that can be paid in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>): COMPLETED by <c>completed_at</c>, ABSENT with
-    /// an absence fee by <c>updated_at</c>, and either not paid yet or already attached to an item of <paramref name="batchId"/>.
-    /// </summary>
-    Task<IReadOnlyList<PayoutAssignmentRow>> GetPayableAsync(
-        DateTime fromUtc, DateTime toUtc, int batchId, CancellationToken cancellationToken = default);
-
-    /// <summary>What CLOSED batches of earlier months already took as penalty, per payee.</summary>
-    Task<IReadOnlyDictionary<PayeeKey, decimal>> GetAppliedPenaltiesBeforeAsync(string periodMonth, CancellationToken cancellationToken = default);
+    /// <summary>The item the batch already holds for the payee (a settled payee is never settled again), or null.</summary>
+    Task<int?> FindItemIdAsync(int batchId, PayeeKey payee, CancellationToken cancellationToken = default);
 
     /// <summary>Bank account of each payee (<c>""</c> when it has none), keyed like the lines.</summary>
     Task<IReadOnlyDictionary<PayeeKey, string>> GetBankAccountsAsync(IReadOnlyCollection<PayeeKey> payees, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Releases the assignments of the batch's items, deletes the items, stores <paramref name="items"/>, attaches their assignments
-    /// (each only if still unpaid) and sets the batch total. Throws <see cref="PayoutClaimLostException"/> when an assignment was taken by
-    /// another batch meanwhile, which undoes the caller's unit of work.
+    /// Stores the payee's item, already TRANSFERRED (the settlement is a ledger entry, no real money moves, decision G-1), with zero figures:
+    /// the settlement entry refers to the item, and <see cref="CompleteItemAsync"/> then writes the figures. Returns the item id.
     /// </summary>
-    Task ReplaceItemsAsync(int batchId, IReadOnlyList<NewPayoutItem> items, decimal totalAmount, CancellationToken cancellationToken = default);
+    Task<int> AddItemAsync(int batchId, PayeeKey payee, string bankAccountNo, DateTime transferredAtUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Writes the figures of the item and attaches the assignments it pays (each only while still unattached).</summary>
+    Task CompleteItemAsync(int itemId, NewPayoutItem figures, CancellationToken cancellationToken = default);
+
+    /// <summary>The sum of the net amounts of the batch's items.</summary>
+    Task<decimal> SumNetAsync(int batchId, CancellationToken cancellationToken = default);
 
     Task<(IReadOnlyList<PayoutBatch> Items, int Total)> ListBatchesAsync(int page, int pageSize, CancellationToken cancellationToken = default);
 
@@ -109,8 +111,8 @@ public interface IPayoutRepository
     Task<IReadOnlyList<string>> GetPayeesWithoutBankAsync(int batchId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Closes the batch with ONE conditional update (only while DRAFT) and marks every item TRANSFERRED; false when it was not DRAFT any
-    /// more. The caller runs this inside its unit of work.
+    /// Closes the batch with ONE conditional update (only while DRAFT): the system closes it, so <c>confirmed_by</c> stays null, and the
+    /// total is stored. False when it was not DRAFT any more. The caller runs this inside its unit of work.
     /// </summary>
-    Task<bool> TryCloseAsync(int batchId, int adminId, DateTime nowUtc, CancellationToken cancellationToken = default);
+    Task<bool> TryCloseAsync(int batchId, decimal totalAmount, DateTime nowUtc, CancellationToken cancellationToken = default);
 }

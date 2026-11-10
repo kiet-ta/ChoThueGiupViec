@@ -1,4 +1,5 @@
 using System.Globalization;
+using CommonService.Application.Features.Ledger;
 using CommonService.Application.Features.Payouts.Dtos;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
@@ -6,6 +7,7 @@ using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Domain.Events;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace CommonService.Application.Features.Payouts.Services;
 
@@ -35,34 +37,39 @@ public class PayoutResult<T>
 
 public interface IPayoutBatchService
 {
-    /// <summary>Builds (201) or rebuilds the DRAFT (200) batch of a finished month (contract payouts.md 2.1).</summary>
-    Task<PayoutResult<PayoutBatchDto>> BuildAsync(string? periodMonth, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Settles a finished month from the ledger (decision D28, contract ledger.md section 7): one item per payee, a SETTLEMENT entry for
+    /// each positive net, and the batch CLOSED by the system. 201 when this call closed the month, 200 when it was closed before (a
+    /// closed month never changes and a re-run does nothing); 409 when a payee could not be settled (the next run continues).
+    /// </summary>
+    Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, CancellationToken cancellationToken = default);
 
     Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, CancellationToken cancellationToken = default);
 
     Task<PayoutResult<PayoutBatchDetailDto>> GetAsync(
         int batchId, string? payeeType, string? page, string? pageSize, CancellationToken cancellationToken = default);
-
-    /// <summary>Records that the transfers were made: CLOSED, items TRANSFERRED, <see cref="PayoutBatchClosed"/> (contract 2.4).</summary>
-    Task<PayoutResult<PayoutBatchDto>> ConfirmAsync(int adminId, int batchId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// The monthly payout batch (BE-M6-04, spec 4.4 step 3; decisions Q10, Q11, G-1, G-2, G-3). Nothing here calls a bank (G-1): confirming
-/// only records that the Admin made the transfers from the exported file.
+/// The monthly settlement (decisions Q10, Q11, G-1, G-2, G-3, D28). The month is computed from the ledger and closed by the system; nothing
+/// here calls a bank (G-1): a payee's money leaves the wallet as a SETTLEMENT entry, nobody confirms it. Each payee is settled in its own
+/// unit of work (wallet lock, item, SETTLEMENT entry), so a failure leaves the others done and a later run continues; a payee that
+/// already has an item is skipped, which makes a re-run safe.
 /// </summary>
 public class PayoutBatchService(
     IPayoutRepository payouts,
-    IPayoutPenaltySource penalties,
+    ILedgerQuery ledger,
+    ILedgerWriter writer,
     IAuditLog audit,
     IUnitOfWork unitOfWork,
     IClock clock,
-    IPublisher publisher) : IPayoutBatchService
+    IPublisher publisher,
+    ILogger<PayoutBatchService> logger) : IPayoutBatchService
 {
     /// <summary>Thrown inside the unit of work to undo it; never leaves this class.</summary>
-    private class BuildAbortedException(string message) : Exception(message);
+    private class SettleAbortedException(string message) : Exception(message);
 
-    public async Task<PayoutResult<PayoutBatchDto>> BuildAsync(string? periodMonth, CancellationToken cancellationToken = default)
+    public async Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, CancellationToken cancellationToken = default)
     {
         var period = periodMonth?.Trim();
         if (!PayoutConstants.TryParsePeriod(period, out var year, out var month))
@@ -77,7 +84,7 @@ public class PayoutBatchService(
         {
             return PayoutResult<PayoutBatchDto>.ValidationError(new Dictionary<string, string[]>
             {
-                ["periodMonth"] = ["Only a finished month can be built."],
+                ["periodMonth"] = ["Only a finished month can be settled."],
             });
         }
 
@@ -89,48 +96,110 @@ public class PayoutBatchService(
 
         try
         {
-            var (created, batchId, lines) = await unitOfWork.ExecuteInTransactionAsync<(bool Created, int BatchId, IReadOnlyList<PayoutLine>? Lines)>(async () =>
+            var batch = await unitOfWork.ExecuteInTransactionAsync(async () =>
             {
-                if (!await payouts.TryLockPeriodAsync(period!, cancellationToken)) throw new BuildAbortedException("Another build of this month is running.");
-
-                var batch = await payouts.FindByPeriodAsync(period!, cancellationToken);
-                if (batch is { BatchStatus: PayoutConstants.BatchClosed }) return (false, batch.BatchId, null);
-
-                var isNew = batch is null;
-                batch ??= await payouts.AddDraftAsync(period!, now, cancellationToken);
-
-                var rows = await payouts.GetPayableAsync(fromUtc, toUtc, batch.BatchId, cancellationToken);
-                var decided = await penalties.GetDecidedAsync(toUtc, cancellationToken);
-                var applied = await payouts.GetAppliedPenaltiesBeforeAsync(period!, cancellationToken);
-                var computed = PayoutCalculator.Build(rows, decided, applied);
-
-                var banks = await payouts.GetBankAccountsAsync(computed.Select(l => l.Payee).ToList(), cancellationToken);
-                var items = computed.Select(l => new NewPayoutItem(
-                    l.Payee.Type,
-                    l.Payee.Type == PayeeType.Freelancer ? l.Payee.Id : null,
-                    l.Payee.Type == PayeeType.Agency ? l.Payee.Id : null,
-                    l.JobCount, l.Gross, l.Commission, l.Penalty, l.Net,
-                    banks.GetValueOrDefault(l.Payee, string.Empty),
-                    l.AssignmentIds)).ToList();
-
-                await payouts.ReplaceItemsAsync(batch.BatchId, items, computed.Sum(l => l.Net), cancellationToken);
-                return (isNew, batch.BatchId, computed);
+                if (!await payouts.TryLockPeriodAsync(period!, cancellationToken)) throw new SettleAbortedException("Another run of this month is starting.");
+                return await payouts.FindByPeriodAsync(period!, cancellationToken) ?? await payouts.AddDraftAsync(period!, now, cancellationToken);
             }, cancellationToken);
 
-            if (lines is null) return PayoutResult<PayoutBatchDto>.Conflict("The batch of this month is closed and cannot change.");
+            if (batch.BatchStatus == PayoutConstants.BatchClosed)
+            {
+                var closedCount = (await payouts.CountItemsAsync([batch.BatchId], cancellationToken)).GetValueOrDefault(batch.BatchId);
+                return PayoutResult<PayoutBatchDto>.Ok(ToDto(batch, closedCount));
+            }
 
-            var stored = (await payouts.GetBatchAsync(batchId, cancellationToken))!;
-            var dto = ToDto(stored, lines.Count);
-            return created ? PayoutResult<PayoutBatchDto>.Created(dto) : PayoutResult<PayoutBatchDto>.Ok(dto);
+            var failed = 0;
+            foreach (var party in await ledger.GetSettlementPartiesAsync(toUtc, cancellationToken))
+            {
+                try
+                {
+                    await SettlePartyAsync(batch.BatchId, period!, party.Type, party.Id, fromUtc, toUtc, now, cancellationToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    failed++;
+                    logger.LogError(ex, "Settlement {Period}: could not settle {PartyType} {PartyId}; the next run continues.", period, party.Type, party.Id);
+                }
+            }
+
+            if (failed > 0)
+            {
+                return PayoutResult<PayoutBatchDto>.Conflict($"{failed} payee(s) could not be settled; the month stays open and the next run continues.");
+            }
+
+            var total = await payouts.SumNetAsync(batch.BatchId, cancellationToken);
+            var count = (await payouts.CountItemsAsync([batch.BatchId], cancellationToken)).GetValueOrDefault(batch.BatchId);
+            var closed = await unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                if (!await payouts.TryCloseAsync(batch.BatchId, total, now, cancellationToken)) return false; // another run closed it first
+
+                await audit.WriteAsync(
+                    new AuditEntry(AuditActorType.System, null, PayoutConstants.AuditEntityType, batch.BatchId.ToString(CultureInfo.InvariantCulture),
+                        PayoutConstants.AuditFieldName, PayoutConstants.BatchDraft, PayoutConstants.BatchClosed,
+                        string.Create(CultureInfo.InvariantCulture, $"Settled {period} from the ledger: {count} items, total {total:0}")),
+                    cancellationToken);
+                return true;
+            }, cancellationToken);
+
+            var stored = (await payouts.GetBatchAsync(batch.BatchId, cancellationToken))!;
+            if (!closed) return PayoutResult<PayoutBatchDto>.Ok(ToDto(stored, count));
+
+            await publisher.Publish(new PayoutBatchClosed(stored.BatchId, stored.PeriodMonth, stored.TotalAmount, count, now), cancellationToken);
+            return PayoutResult<PayoutBatchDto>.Created(ToDto(stored, count));
         }
-        catch (BuildAbortedException ex)
+        catch (SettleAbortedException ex)
         {
             return PayoutResult<PayoutBatchDto>.Conflict(ex.Message);
         }
-        catch (PayoutClaimLostException)
+    }
+
+    /// <summary>One payee: under its wallet lock, the item, then the SETTLEMENT entry computed under the ledger lock, then the figures.</summary>
+    private async Task SettlePartyAsync(
+        int batchId, string period, LedgerPartyType type, int id, DateTime fromUtc, DateTime toUtc, DateTime now, CancellationToken cancellationToken)
+    {
+        var payee = new PayeeKey(type == LedgerPartyType.Worker ? PayeeType.Freelancer : PayeeType.Agency, id);
+
+        await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            return PayoutResult<PayoutBatchDto>.Conflict("An assignment was paid by another batch while this one was built; try again.");
+            await payouts.LockPayeeAsync(payee, cancellationToken);
+            if (await payouts.FindItemIdAsync(batchId, payee, cancellationToken) is not null) return false; // settled by an earlier run
+
+            if (!(await ComputeAsync(type, id, fromUtc, toUtc, cancellationToken)).HasActivity) return false;
+
+            var banks = await payouts.GetBankAccountsAsync([payee], cancellationToken);
+            var bank = banks.GetValueOrDefault(payee, string.Empty);
+            var itemId = await payouts.AddItemAsync(batchId, payee, bank, now, cancellationToken);
+
+            // The figures are read again under the ledger lock, so no entry can slip in between the net and the SETTLEMENT entry.
+            SettlementFigures figures = null!;
+            await writer.AppendAsync(async _ =>
+            {
+                figures = await ComputeAsync(type, id, fromUtc, toUtc, cancellationToken);
+                IReadOnlyList<NewLedgerEntry> none = [];
+                return figures.Net > 0 ? [LedgerRules.Settlement(type, id, figures.Net, itemId, period)] : none;
+            }, cancellationToken);
+
+            await payouts.CompleteItemAsync(itemId, new NewPayoutItem(
+                payee.Type, payee.Type == PayeeType.Freelancer ? id : null, payee.Type == PayeeType.Agency ? id : null,
+                figures.JobCount, figures.Gross, figures.Commission, figures.Penalty, figures.Advance, figures.CarryIn, figures.Net,
+                bank, figures.AssignmentIds), cancellationToken);
+            return true;
+        }, cancellationToken);
+    }
+
+    private async Task<SettlementFigures> ComputeAsync(LedgerPartyType type, int id, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken)
+    {
+        var entries = await ledger.GetPartyEntriesAsync(type, id, toUtc, cancellationToken);
+        var earned = entries.Where(e => e.CreatedAt >= fromUtc && e.ToPartyType == type && e.ToPartyId == id
+            && e.EntryType is LedgerEntryType.JobEarning or LedgerEntryType.ExtensionEarning).ToList();
+        var commissions = new List<LedgerEntry>();
+        foreach (var group in earned.GroupBy(e => e.RefType))
+        {
+            commissions.AddRange(await ledger.GetCommissionsAsync(group.Key, group.Select(e => e.RefId).Distinct().ToList(), cancellationToken));
         }
+
+        var held = type == LedgerPartyType.Worker ? await ledger.GetHeldAsync(id, cancellationToken) : 0m;
+        return PayoutSettlementCalculator.Compute(type, id, entries, commissions, fromUtc, toUtc, held);
     }
 
     public async Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, CancellationToken cancellationToken = default)
@@ -188,40 +257,6 @@ public class PayoutBatchService(
         });
     }
 
-    public async Task<PayoutResult<PayoutBatchDto>> ConfirmAsync(int adminId, int batchId, CancellationToken cancellationToken = default)
-    {
-        var batch = await payouts.GetBatchAsync(batchId, cancellationToken);
-        if (batch is null) return PayoutResult<PayoutBatchDto>.NotFound();
-        if (batch.BatchStatus != PayoutConstants.BatchDraft) return PayoutResult<PayoutBatchDto>.Conflict("The batch is already closed.");
-
-        var count = (await payouts.CountItemsAsync([batchId], cancellationToken)).GetValueOrDefault(batchId);
-        if (count == 0) return PayoutResult<PayoutBatchDto>.Conflict("The batch has no items to disburse.");
-        if (PayoutConstants.TryParsePeriod(batch.PeriodMonth, out var year, out var month) && !IsFinished(year, month))
-        {
-            return PayoutResult<PayoutBatchDto>.Conflict("The month of this batch is not over yet.");
-        }
-
-        var now = clock.UtcNow;
-        var closed = await unitOfWork.ExecuteInTransactionAsync(async () =>
-        {
-            if (!await payouts.TryCloseAsync(batchId, adminId, now, cancellationToken)) return false; // closed between our read and now
-
-            await audit.WriteAsync(
-                new AuditEntry(AuditActorType.Admin, adminId, PayoutConstants.AuditEntityType, batchId.ToString(CultureInfo.InvariantCulture),
-                    PayoutConstants.AuditFieldName, PayoutConstants.BatchDraft, PayoutConstants.BatchClosed,
-                    string.Create(CultureInfo.InvariantCulture, $"Disbursement confirmed for {batch.PeriodMonth}: {count} items, total {batch.TotalAmount:0}")),
-                cancellationToken);
-            return true;
-        }, cancellationToken);
-
-        if (!closed) return PayoutResult<PayoutBatchDto>.Conflict("The batch is already closed.");
-
-        await publisher.Publish(new PayoutBatchClosed(batch.BatchId, batch.PeriodMonth, batch.TotalAmount, count, now), cancellationToken);
-
-        var stored = (await payouts.GetBatchAsync(batchId, cancellationToken))!;
-        return PayoutResult<PayoutBatchDto>.Ok(ToDto(stored, count));
-    }
-
     /// <summary>True once the Asia/Ho_Chi_Minh calendar has left the month (question P2).</summary>
     private bool IsFinished(int year, int month)
     {
@@ -252,6 +287,8 @@ public class PayoutBatchService(
         GrossAmount = view.Item.GrossAmount,
         CommissionAmount = view.Item.CommissionAmount,
         PenaltyAmount = view.Item.PenaltyAmount,
+        AdvanceAmount = view.Item.AdvanceAmount,
+        CarryInAmount = view.Item.CarryInAmount,
         NetAmount = view.Item.NetAmount,
         BankName = view.BankName,
         BankAccountNo = view.Item.BankAccountNo,
