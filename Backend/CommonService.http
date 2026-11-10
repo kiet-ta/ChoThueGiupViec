@@ -1,6 +1,14 @@
 @CommonService_HostAddress = http://localhost:5004
 
-GET {{CommonService_HostAddress}}/weatherforecast/
+# Health check
+GET {{CommonService_HostAddress}}/health
 Accept: application/json
+
+###
+
+# API examples (add more as needed)
+# GET {{CommonService_HostAddress}}/api/v1/agencies/workers
+# Accept: application/json
+# Authorization: Bearer {{token}}
 
 ###

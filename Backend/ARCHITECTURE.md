@@ -32,7 +32,7 @@ Infrastructure/            Implements ports. Depends on Application (+Domain)
   Services/                InMemoryCacheService (default)
   DependencyInjection.cs   AddInfrastructure(config): db, cache, unit of work, modules, fakes
 Middleware/                ErrorHandling, RequestResponseLogging, ResponseWrapper
-WebAPI/Controllers/        Thin controllers: ValuesController, module controllers
+WebAPI/Controllers/        Thin controllers: module controllers
 Tests/                     CommonService.Tests.csproj (xUnit), e2e/, integration/, GoldenRule.md (testing philosophy)
 Properties/launchSettings.json
 ```
