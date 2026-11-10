@@ -1,21 +1,10 @@
 // Pure logic of the payout pages (no React, so `node --test` covers it). Rules: .spec/contracts/payouts.md 2.1-2.4.
-import { DISPLAY_TIME_ZONE, formatDateTime, formatVnd } from '../../lib/format.ts'
+import { formatDateTime, formatVnd } from '../../lib/format.ts'
 import type { BatchStatus, ExportType, PayoutBatch, PayoutItem } from './types'
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent'
 
 // ---- months ---------------------------------------------------------------------------------
-
-/** The year and month of an instant on the Asia/Ho_Chi_Minh calendar (decision G-3). */
-export function localYearMonth(now: Date): { year: number; month: number } {
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: DISPLAY_TIME_ZONE, year: 'numeric', month: '2-digit' }).formatToParts(now)
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value)
-  return { year: get('year'), month: get('month') }
-}
-
-export function periodValue(year: number, month: number): string {
-  return `${year}-${String(month).padStart(2, '0')}`
-}
 
 /** `2026-10` becomes `Tháng 10/2026`; anything else is shown as it is. */
 export function periodLabel(period: string): string {
@@ -23,36 +12,14 @@ export function periodLabel(period: string): string {
   return m ? `Tháng ${Number(m[2])}/${m[1]}` : period
 }
 
-/**
- * The months a batch can be built for: finished months only (contract payouts.md 2.1, P2: the running month is refused), newest
- * first, `count` of them. The "today" is the Asia/Ho_Chi_Minh calendar, so just after midnight local time on the 1st the previous
- * month is already offered even if the UTC date is still the 31st.
- */
-export function finishedMonths(now: Date, count = 12): { value: string; label: string }[] {
-  const { year, month } = localYearMonth(now)
-  const options: { value: string; label: string }[] = []
-  let y = year
-  let m = month
-  for (let i = 0; i < count; i++) {
-    m -= 1
-    if (m === 0) {
-      m = 12
-      y -= 1
-    }
-    const value = periodValue(y, m)
-    options.push({ value, label: periodLabel(value) })
-  }
-  return options
-}
-
 // ---- labels ---------------------------------------------------------------------------------
 
 export function batchStatusInfo(status: string): { label: string; tone: Tone } {
   switch (status) {
     case 'DRAFT':
-      return { label: 'Nháp (chưa giải ngân)', tone: 'warning' }
+      return { label: 'Đang tất toán', tone: 'warning' }
     case 'CLOSED':
-      return { label: 'Đã giải ngân', tone: 'success' }
+      return { label: 'Đã tất toán', tone: 'success' }
     default:
       return { label: status, tone: 'neutral' }
   }
@@ -61,9 +28,9 @@ export function batchStatusInfo(status: string): { label: string; tone: Tone } {
 export function itemStatusInfo(status: string): { label: string; tone: Tone } {
   switch (status) {
     case 'PENDING':
-      return { label: 'Chờ chuyển', tone: 'warning' }
+      return { label: 'Chờ tất toán', tone: 'warning' }
     case 'TRANSFERRED':
-      return { label: 'Đã chuyển', tone: 'success' }
+      return { label: 'Đã tất toán', tone: 'success' }
     default:
       return { label: status, tone: 'neutral' }
   }
@@ -97,8 +64,16 @@ export interface BatchRow {
   status: { label: string; tone: Tone }
   items: number
   total: string
-  confirmedAt: string
+  /** `Hệ thống tự chốt lúc …` for a month the system settled, `Admin #3 lúc …` for an old confirmation, a dash while open. */
+  closedBy: string
   detailPath: string
+}
+
+/** Who closed the month and when: the system for every batch since decision D28 (`confirmedBy` is null), an Admin for an old one. */
+export function closedByText(b: Pick<PayoutBatch, 'confirmedBy' | 'confirmedAt'>): string {
+  if (!b.confirmedAt) return '—'
+  const at = formatDateTime(b.confirmedAt)
+  return b.confirmedBy === null ? `Hệ thống tự chốt lúc ${at}` : `Admin #${b.confirmedBy} lúc ${at}`
 }
 
 export function batchRow(b: PayoutBatch): BatchRow {
@@ -108,7 +83,7 @@ export function batchRow(b: PayoutBatch): BatchRow {
     status: batchStatusInfo(b.batchStatus),
     items: b.itemCount,
     total: formatVnd(b.totalAmount),
-    confirmedAt: b.confirmedAt ? formatDateTime(b.confirmedAt) : '—',
+    closedBy: closedByText(b),
     detailPath: `/admin/payout-batches/${b.batchId}`,
   }
 }
@@ -121,6 +96,8 @@ export interface ItemRow {
   gross: string
   commission: string
   penalty: string
+  advance: string
+  carryIn: string
   net: string
   bank: string
   account: string
@@ -139,21 +116,14 @@ export function itemRow(i: PayoutItem): ItemRow {
     gross: formatVnd(i.grossAmount),
     commission: formatVnd(i.commissionAmount),
     penalty: i.penaltyAmount > 0 ? formatVnd(-i.penaltyAmount) : '—',
+    advance: i.advanceAmount > 0 ? formatVnd(-i.advanceAmount) : '—',
+    carryIn: i.carryInAmount !== 0 ? formatVnd(i.carryInAmount) : '—',
     net: formatVnd(i.netAmount),
     bank: i.bankName?.trim() ? i.bankName : '—',
     account: missing ? 'Chưa có' : i.bankAccountNo,
     missingAccount: missing,
     status: itemStatusInfo(i.itemStatus),
   }
-}
-
-/** What confirming does, in words, for the confirmation step. No bank is called by the system (decision G-1). */
-export function confirmLines(b: Pick<PayoutBatch, 'periodMonth' | 'itemCount' | 'totalAmount'>): string[] {
-  return [
-    `${periodLabel(b.periodMonth)}: ${b.itemCount} người nhận, tổng ${formatVnd(b.totalAmount)}.`,
-    'Hệ thống không chuyển tiền: bạn xác nhận đã chuyển khoản theo file đã xuất.',
-    'Kỳ sẽ đóng và không thể dựng lại hay sửa.',
-  ]
 }
 
 /** The server's warning line (English, `<name> has no bank account number.`) in Vietnamese; any other line is shown as it is. */
@@ -170,36 +140,6 @@ export interface FailedCall {
   message: string
   data: unknown
   fieldErrors?: Record<string, string[]>
-}
-
-/** Build and rebuild (contract payouts.md 2.1): 400 a bad or unfinished month, 409 a closed batch or a busy month. */
-export function buildError(e: FailedCall): string {
-  switch (e.status) {
-    case 400:
-      return e.fieldErrors?.periodMonth?.[0] === 'Only a finished month can be built.'
-        ? 'Chỉ dựng được kỳ của tháng đã kết thúc.'
-        : 'Tháng không hợp lệ, hãy chọn lại.'
-    case 409:
-      return 'Kỳ của tháng này đã đóng, không thể dựng lại. Hoặc đang có lần dựng khác, hãy thử lại sau ít giây.'
-    case 0:
-      return 'Không kết nối được máy chủ.'
-    default:
-      return e.message || `Lỗi ${e.status}`
-  }
-}
-
-/** Confirm (contract payouts.md 2.4): 404, 409 already closed / no items / the month is not over. */
-export function confirmError(e: FailedCall): string {
-  switch (e.status) {
-    case 404:
-      return 'Không tìm thấy kỳ này.'
-    case 409:
-      return 'Không xác nhận được: kỳ đã đóng, chưa có người nhận nào, hoặc tháng chưa kết thúc. Đã tải lại kỳ.'
-    case 0:
-      return 'Không kết nối được máy chủ.'
-    default:
-      return e.message || `Lỗi ${e.status}`
-  }
 }
 
 // ---- file download --------------------------------------------------------------------------

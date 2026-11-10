@@ -14,7 +14,7 @@
 - [x] **LEDGER-11** History, summary and chain verification API — evidence: .harness/evidence/20261110-185056-L3.log
 - [x] **LEDGER-12** Exports and monthly statements — evidence: .harness/evidence/20261110-191101-L3.log
 - [x] **LEDGER-13** Admin ledger page — evidence: .harness/evidence/20261110-194139-L3.log
-- [ ] **LEDGER-14** Admin withdrawals and read-only payouts
+- [x] **LEDGER-14** Admin withdrawals and read-only payouts — evidence: .harness/evidence/20261110-195954-L3.log
 - [ ] **LEDGER-15** Partner transaction history
 - [ ] **LEDGER-16** Worker wallet and withdrawals
 - [ ] **LEDGER-17** Worker history and statements

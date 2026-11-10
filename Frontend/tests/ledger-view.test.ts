@@ -19,8 +19,17 @@ import {
   summaryCards,
   toQuery,
   verifyMessage,
+  REASON_MAX,
+  WITHDRAWAL_TABS,
+  approveConfirmText,
+  conflictCode,
+  reasonError,
+  shouldReloadAfter,
+  withdrawalActionError,
+  withdrawalRow,
+  withdrawalStatusInfo,
 } from '../src/features/ledger/view.ts'
-import type { LedgerEntry, LedgerFilters } from '../src/features/ledger/types.ts'
+import type { LedgerEntry, LedgerFilters, Withdrawal } from '../src/features/ledger/types.ts'
 
 const entry = (over: Partial<LedgerEntry> = {}): LedgerEntry => ({
   entryId: 12,
@@ -180,5 +189,94 @@ describe('errors', () => {
     assert.equal(exportErrorMessage(500, JSON.stringify({ message: 'Boom' })), 'Boom')
     assert.match(exportErrorMessage(403, ''), /không có quyền/)
     assert.match(exportErrorMessage(502, ''), /lỗi 502/)
+  })
+})
+
+const withdrawal = (over: Partial<Withdrawal> = {}): Withdrawal => ({
+  withdrawalId: 7,
+  workerId: 5,
+  workerName: 'Trần Thị Hà',
+  workerPhone: '0977000501',
+  amount: 100000,
+  status: 'PENDING',
+  bankAccountNo: '0012345678',
+  bankName: 'ACB',
+  requestedAt: '2026-11-05T02:00:00Z',
+  reviewedBy: null,
+  reviewedAt: null,
+  rejectReason: null,
+  entryId: null,
+  ...over,
+})
+
+describe('withdrawal requests', () => {
+  it('has the four tabs of the Admin in working order', () => {
+    assert.deepEqual(WITHDRAWAL_TABS.map((t) => [t.value, t.label]), [
+      ['PENDING', 'Chờ duyệt'],
+      ['PAID', 'Đã chi'],
+      ['REJECTED', 'Bị từ chối'],
+      ['CANCELLED', 'Đã huỷ'],
+    ])
+    assert.deepEqual(withdrawalStatusInfo('PENDING'), { label: 'Chờ duyệt', tone: 'warning' })
+    assert.equal(withdrawalStatusInfo('PAID').tone, 'success')
+    assert.equal(withdrawalStatusInfo('REJECTED').tone, 'danger')
+    assert.equal(withdrawalStatusInfo('X').label, 'X')
+  })
+
+  it('maps a pending request with the worker, the amount, the bank and the local time', () => {
+    const row = withdrawalRow(withdrawal())
+    assert.deepEqual([row.worker, row.phone, row.amount, row.bank, row.requestedAt, row.pending, row.detail], ['Trần Thị Hà', '0977000501', '100.000 đ', 'ACB · 0012345678', '05/11/2026 09:00', true, ''])
+  })
+
+  it('shows the reason of a rejection, the entry of a payment and no actions once decided', () => {
+    const rejected = withdrawalRow(withdrawal({ status: 'REJECTED', rejectReason: 'Thiếu chứng từ' }))
+    assert.deepEqual([rejected.pending, rejected.detail], [false, 'Thiếu chứng từ'])
+    const paid = withdrawalRow(withdrawal({ status: 'PAID', entryId: 31 }))
+    assert.deepEqual([paid.pending, paid.detail], [false, 'Bút toán #31'])
+    assert.equal(withdrawalRow(withdrawal({ status: 'CANCELLED' })).detail, '')
+  })
+
+  it('falls back when the worker has no name or no bank account (sandbox)', () => {
+    const row = withdrawalRow(withdrawal({ workerName: ' ', workerPhone: '', bankAccountNo: null, bankName: null }))
+    assert.deepEqual([row.worker, row.phone, row.bank], ['Thợ #5', '—', 'Chưa có tài khoản (sandbox)'])
+  })
+
+  it('asks for the approval in the words of the appendix', () => {
+    assert.equal(
+      approveConfirmText({ amount: '100.000 đ', worker: 'Trần Thị Hà' }),
+      'Duyệt chi 100.000 đ cho Trần Thị Hà? Sổ cái sẽ ghi bút toán rút tiền và không thể sửa.',
+    )
+  })
+
+  it('requires a reason of 1 to 255 characters after trimming', () => {
+    assert.ok(reasonError(''))
+    assert.ok(reasonError('   '))
+    assert.equal(reasonError('  Thiếu chứng từ  '), null)
+    assert.equal(reasonError('x'.repeat(REASON_MAX)), null)
+    assert.ok(reasonError('x'.repeat(REASON_MAX + 1)))
+    assert.equal(reasonError(' ' + 'x'.repeat(REASON_MAX) + ' '), null)
+  })
+
+  it('translates the error codes of the contract', () => {
+    const conflict = (code: unknown) => ({ status: 409, message: 'raw', data: code === undefined ? null : { code } })
+    assert.match(withdrawalActionError(conflict('WITHDRAWAL_INSUFFICIENT')), /không còn đủ.*từ chối yêu cầu/)
+    assert.match(withdrawalActionError(conflict('WITHDRAWAL_NOT_PENDING')), /đã được xử lý/)
+    assert.match(withdrawalActionError(conflict('LEDGER_BUSY')), /bận/)
+    assert.equal(withdrawalActionError(conflict('SOMETHING_ELSE')), 'raw')
+    assert.equal(withdrawalActionError(conflict(undefined)), 'raw')
+    assert.match(withdrawalActionError({ status: 404, message: 'x', data: null }), /Không tìm thấy/)
+    assert.equal(withdrawalActionError({ status: 400, message: 'x', data: null, fieldErrors: { reason: ['Hãy nhập lý do từ chối.'] } }), 'Hãy nhập lý do từ chối.')
+    assert.match(withdrawalActionError({ status: 0, message: 'x', data: null }), /kết nối/)
+    assert.equal(withdrawalActionError({ status: 500, message: '', data: null }), 'Lỗi 500')
+  })
+
+  it('reads the conflict code only from an object and reloads the list after a conflict or a missing request', () => {
+    assert.equal(conflictCode({ status: 409, message: '', data: { code: 'X' } }), 'X')
+    assert.equal(conflictCode({ status: 409, message: '', data: 'text' }), null)
+    assert.equal(conflictCode({ status: 409, message: '', data: { code: 5 } }), null)
+    assert.equal(shouldReloadAfter({ status: 409, message: '', data: null }), true)
+    assert.equal(shouldReloadAfter({ status: 404, message: '', data: null }), true)
+    assert.equal(shouldReloadAfter({ status: 400, message: '', data: null }), false)
+    assert.equal(shouldReloadAfter({ status: 0, message: '', data: null }), false)
   })
 })

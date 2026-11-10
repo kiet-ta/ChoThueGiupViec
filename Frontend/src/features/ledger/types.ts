@@ -68,3 +68,24 @@ export interface LedgerFilters {
   /** Digits only; needs a party type. */
   partyId: string
 }
+
+export type WithdrawalStatus = 'PENDING' | 'PAID' | 'REJECTED' | 'CANCELLED'
+
+/** A worker's advance request as the Admin sees it (`AdminWithdrawalDto`). */
+export interface Withdrawal {
+  withdrawalId: number
+  workerId: number
+  workerName: string
+  workerPhone: string
+  amount: number
+  status: WithdrawalStatus
+  bankAccountNo: string | null
+  bankName: string | null
+  /** ISO-8601 UTC. */
+  requestedAt: string
+  reviewedBy: number | null
+  reviewedAt: string | null
+  rejectReason: string | null
+  /** The WITHDRAWAL ledger entry, set once the request is paid. */
+  entryId: number | null
+}
