@@ -200,37 +200,12 @@ public class PasswordLoginService : IPasswordLoginService
 
     private async Task<PasswordLoginResult> IssueTokensAsync(int subjectId, UserRole role, DateTime now, CancellationToken ct)
     {
-        var (accessToken, accessExpiry) = _tokenService.GenerateAccessToken(subjectId, role.ToString());
-        var rawRefreshToken = _tokenService.GenerateRefreshToken();
-
-        _db.RefreshTokens.Add(new RefreshToken
-        {
-            TokenHash = _tokenService.HashRefreshToken(rawRefreshToken),
-            SubjectRole = role,
-            SubjectId = subjectId,
-            FamilyId = Guid.NewGuid(),
-            CreatedAt = now,
-            ExpiresAt = now.AddDays(_rules.Auth.RefreshTokenDays),
-            RevokedAt = null,
-            ReplacedById = null
-        });
+        var (authResult, _) = SessionTokenIssuer.IssueSession(_db, _tokenService, _rules, subjectId, role, now);
 
         // Saves the reset failure counter together with the new refresh token.
         await _db.SaveChangesAsync(ct);
 
-        return PasswordLoginResult.Ok(new AuthResultDto
-        {
-            TokenType = "Bearer",
-            AccessToken = accessToken,
-            AccessTokenExpiresInSeconds = accessExpiry,
-            RefreshToken = rawRefreshToken,
-            User = new AuthUserDto
-            {
-                Id = subjectId,
-                Role = role.ToString(),
-                IsNewUser = false
-            }
-        });
+        return PasswordLoginResult.Ok(authResult);
     }
 
     private static int SecondsUntil(DateTime lockedUntil, DateTime now) =>
