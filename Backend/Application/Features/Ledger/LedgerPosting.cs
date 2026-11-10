@@ -22,6 +22,7 @@ public static class LedgerKeys
     public static string Penalty(int disputeId, long assignmentId) => $"PENALTY:DISPUTE:{disputeId}:ASSIGNMENT:{assignmentId}";
     public static string Subscription(long paymentId) => $"SUBSCRIPTION:PAYMENT:{paymentId}";
     public static string Escrow(long escrowTxnId) => $"ESCROW:{escrowTxnId}";
+    public static string Withdrawal(int withdrawalId) => $"WITHDRAWAL:{withdrawalId}";
 }
 
 /// <summary>
@@ -167,6 +168,11 @@ public static class LedgerRules
 
         return result;
     }
+
+    /// <summary>The approved advance: the worker's virtual money leaves the platform (no real transfer, decision G-1).</summary>
+    public static NewLedgerEntry Withdrawal(int workerId, decimal amount, int withdrawalId, int adminId) =>
+        new(new LedgerParty(LedgerPartyType.Worker, workerId), new LedgerParty(LedgerPartyType.External, null), amount, LedgerEntryType.Withdrawal,
+            LedgerRefType.Withdrawal, withdrawalId, null, null, LedgerKeys.Withdrawal(withdrawalId), null, adminId);
 
     /// <summary>An agency's subscription payment is platform revenue.</summary>
     public static NewLedgerEntry? Subscription(int agencyId, decimal amount, long paymentId) =>

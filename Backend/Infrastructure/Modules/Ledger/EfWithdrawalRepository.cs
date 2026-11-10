@@ -100,4 +100,48 @@ public class EfWithdrawalRepository(AppDbContext db) : IWithdrawalRepository
         await db.WithdrawalRequests
             .Where(w => w.WithdrawalId == withdrawalId && w.WorkerId == workerId && w.RequestStatus == WithdrawalStatus.Pending)
             .ExecuteUpdateAsync(s => s.SetProperty(w => w.RequestStatus, WithdrawalStatus.Cancelled), cancellationToken) == 1;
+
+    public Task<WithdrawalRequest?> GetByIdAsync(int withdrawalId, CancellationToken cancellationToken = default) =>
+        db.WithdrawalRequests.AsNoTracking().FirstOrDefaultAsync(w => w.WithdrawalId == withdrawalId, cancellationToken);
+
+    public async Task<(IReadOnlyList<AdminWithdrawalRow> Items, int Total)> ListForAdminAsync(
+        WithdrawalStatus? status, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = db.WithdrawalRequests.AsNoTracking().AsQueryable();
+        if (status is not null) query = query.Where(w => w.RequestStatus == status);
+        var total = await query.CountAsync(cancellationToken);
+        var ordered = status == WithdrawalStatus.Pending
+            ? query.OrderBy(w => w.RequestedAt).ThenBy(w => w.WithdrawalId)
+            : query.OrderByDescending(w => w.RequestedAt).ThenByDescending(w => w.WithdrawalId);
+        var requests = await ordered.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+
+        var workerIds = requests.Select(r => r.WorkerId).Distinct().ToList();
+        var workers = await db.Workers.AsNoTracking().Where(w => workerIds.Contains(w.WorkerId))
+            .Select(w => new { w.WorkerId, w.FullName, w.PhoneNumber })
+            .ToDictionaryAsync(w => w.WorkerId, cancellationToken);
+        var rows = requests
+            .Select(r => new AdminWithdrawalRow(r, workers.GetValueOrDefault(r.WorkerId)?.FullName ?? string.Empty, workers.GetValueOrDefault(r.WorkerId)?.PhoneNumber ?? string.Empty))
+            .ToList();
+        return (rows, total);
+    }
+
+    public async Task<bool> TryApproveAsync(int withdrawalId, long entryId, int adminId, DateTime atUtc, CancellationToken cancellationToken = default) =>
+        await db.WithdrawalRequests
+            .Where(w => w.WithdrawalId == withdrawalId && w.RequestStatus == WithdrawalStatus.Pending)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(w => w.RequestStatus, WithdrawalStatus.Paid)
+                .SetProperty(w => w.EntryId, entryId)
+                .SetProperty(w => w.ReviewedBy, adminId)
+                .SetProperty(w => w.ReviewedAt, atUtc), cancellationToken) == 1;
+
+    public async Task<bool> TryRejectAsync(int withdrawalId, string reason, int adminId, DateTime atUtc, CancellationToken cancellationToken = default) =>
+        await db.WithdrawalRequests
+            .Where(w => w.WithdrawalId == withdrawalId && w.RequestStatus == WithdrawalStatus.Pending)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(w => w.RequestStatus, WithdrawalStatus.Rejected)
+                .SetProperty(w => w.RejectReason, reason)
+                .SetProperty(w => w.ReviewedBy, adminId)
+                .SetProperty(w => w.ReviewedAt, atUtc), cancellationToken) == 1;
+
+    public async Task SaveAsync(CancellationToken cancellationToken = default) => await db.SaveChangesAsync(cancellationToken);
 }
