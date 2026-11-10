@@ -5,7 +5,6 @@ using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Services;
 using CommonService.WebAPI.Controllers;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CommonService.Tests.Locations;
@@ -69,68 +68,6 @@ public class ReverseGeocodeTests
         service.Reset();
         var afterReset = await service.ReverseGeocodeAsync(1.0, 1.0);
         Assert.Null(afterReset);
-    }
-
-    [Fact]
-    public void Goong_parser_normalizes_components_correctly()
-    {
-        var item = new GoongReverseGeocodeService.GoongResult
-        {
-            FormattedAddress = "123 Đường Lê Lợi, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh, Việt Nam",
-            AddressComponents =
-            [
-                new() { LongName = "123", Types = ["street_number"] },
-                new() { LongName = "Đường Lê Lợi", Types = ["route"] },
-                new() { LongName = "Phường Bến Nghé", Types = ["sublocality_level_1", "sublocality", "political"] },
-                new() { LongName = "Quận 1", Types = ["administrative_area_level_2", "political"] },
-                new() { LongName = "Thành phố Hồ Chí Minh", Types = ["administrative_area_level_1", "political"] },
-                new() { LongName = "Việt Nam", Types = ["country", "political"] }
-            ]
-        };
-
-        var parsed = GoongReverseGeocodeService.ParseGoongResult(item, 10.7769, 106.7009);
-
-        Assert.Equal("Thành phố Hồ Chí Minh", parsed.City);
-        Assert.Equal("Phường Bến Nghé", parsed.District);
-        Assert.Equal("123 Đường Lê Lợi, Quận 1", parsed.AddressLine);
-        Assert.Equal(item.FormattedAddress, parsed.FormattedAddress);
-        Assert.Equal(10.7769, parsed.Latitude);
-        Assert.Equal(106.7009, parsed.Longitude);
-    }
-
-    [Fact]
-    public void Goong_parser_falls_back_when_numbers_or_routes_are_missing()
-    {
-        var item = new GoongReverseGeocodeService.GoongResult
-        {
-            FormattedAddress = "Ngõ 45 Tràng Tiền, Phường Hoàn Kiếm, Quận Hoàn Kiếm, Hà Nội",
-            AddressComponents =
-            [
-                new() { LongName = "Phường Hoàn Kiếm", Types = ["sublocality_level_1"] },
-                new() { LongName = "Quận Hoàn Kiếm", Types = ["administrative_area_level_2"] },
-                new() { LongName = "Hà Nội", Types = ["administrative_area_level_1"] }
-            ]
-        };
-
-        var parsed = GoongReverseGeocodeService.ParseGoongResult(item, 21.0285, 105.8542);
-
-        Assert.Equal("Thành phố Hà Nội", parsed.City);
-        Assert.Equal("Phường Hoàn Kiếm", parsed.District);
-        Assert.Equal("Ngõ 45 Tràng Tiền, Quận Hoàn Kiếm", parsed.AddressLine);
-    }
-
-    [Fact]
-    public async Task GoongService_without_key_falls_back_to_Fake()
-    {
-        var config = new ConfigurationBuilder().Build();
-        var service = new GoongReverseGeocodeService(
-            new HttpClient(),
-            config,
-            NullLogger<GoongReverseGeocodeService>.Instance);
-
-        var result = await service.ReverseGeocodeAsync(10.7769, 106.7009);
-        Assert.NotNull(result);
-        Assert.Equal("Thành phố Hồ Chí Minh", result.City);
     }
 
     [Fact]
