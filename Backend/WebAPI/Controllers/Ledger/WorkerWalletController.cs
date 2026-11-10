@@ -17,8 +17,25 @@ public record CreateWithdrawalRequestDto(decimal Amount);
 [ApiController]
 [Route("api/v1/workers/me")]
 [Authorize(Policy = "WorkerOnly")]
-public class WorkerWalletController(IWithdrawalService withdrawals, ICurrentUser currentUser) : ControllerBase
+public class WorkerWalletController(IWithdrawalService withdrawals, ILedgerHistoryService history, ICurrentUser currentUser) : ControllerBase
 {
+    /// <summary>
+    /// The worker's own history, newest first, with the balance before the first day and before the day after the last one. <c>from</c> and
+    /// <c>to</c> are Vietnam days (<c>yyyy-MM-dd</c>), <c>type</c> an entry type; <c>pageSize</c> is 1-100, default 20.
+    /// </summary>
+    [HttpGet("ledger")]
+    [ProducesResponseType(typeof(ApiResponse<PartyLedgerPageDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Ledger(
+        [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? type, [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct) =>
+        currentUser.UserId is not int workerId
+            ? Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null))
+            : Ok(ApiResponse<PartyLedgerPageDto>.Ok(
+                await history.GetWorkerHistoryAsync(workerId, new LedgerHistoryRequest(from, to, type, page, pageSize), ct), "Ledger retrieved."));
+
+
     /// <summary>Balance, what can be withdrawn now, the amount held by a pending request and when the next earnings mature.</summary>
     [HttpGet("wallet")]
     [ProducesResponseType(typeof(ApiResponse<WalletDto>), StatusCodes.Status200OK)]

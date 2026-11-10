@@ -225,7 +225,7 @@ public class WithdrawalServiceTests
         Assert.Equal("api/v1/workers/me", ((RouteAttribute)typeof(WorkerWalletController).GetCustomAttributes(typeof(RouteAttribute), true).Single()).Template);
 
         var setup = new Setup();
-        var controller = new WorkerWalletController(setup.Service, new StubUser(Worker));
+        var controller = new WorkerWalletController(setup.Service, null!, new StubUser(Worker));
         var created = Assert.IsType<ObjectResult>(await controller.Create(new CreateWithdrawalRequestDto(100_000m), default));
         Assert.Equal(201, created.StatusCode);
         Assert.Equal(Worker, setup.Repository.Rows.Single().WorkerId);
@@ -238,7 +238,7 @@ public class WithdrawalServiceTests
     [Fact]
     public async Task Controller_answers_401_without_a_user_id()
     {
-        var controller = new WorkerWalletController(new Setup().Service, new StubUser(null));
+        var controller = new WorkerWalletController(new Setup().Service, null!, new StubUser(null));
         Assert.IsType<UnauthorizedObjectResult>(await controller.Wallet(default));
         Assert.IsType<UnauthorizedObjectResult>(await controller.Create(new CreateWithdrawalRequestDto(1m), default));
         Assert.IsType<UnauthorizedObjectResult>(await controller.List(null, null, default));

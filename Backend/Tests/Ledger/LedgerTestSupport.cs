@@ -116,3 +116,34 @@ public class LedgerStoreQuery(MemoryLedger ledger) : ILedgerQuery
     public Task<DateTime?> GetFirstEntryAtAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<DateTime?>(ledger.Rows.Count == 0 ? null : ledger.Rows.Min(e => e.CreatedAt));
 }
+
+/// <summary>The history queries over a <see cref="MemoryLedger"/> with the semantics of the SQL implementation.</summary>
+public class MemoryHistoryQuery(MemoryLedger ledger) : ILedgerHistoryQuery
+{
+    public decimal Held { get; set; }
+
+    private static bool Touches(LedgerEntry e, LedgerPartyFilter p) =>
+        (e.ToPartyType == p.Type && (p.AnyId || e.ToPartyId == p.Id)) || (e.FromPartyType == p.Type && (p.AnyId || e.FromPartyId == p.Id));
+
+    public Task<(IReadOnlyList<LedgerEntry> Items, int Total)> SearchAsync(LedgerSearch search, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var rows = ledger.Rows.Where(e =>
+            (search.FromUtc is null || e.CreatedAt >= search.FromUtc) && (search.ToExclusiveUtc is null || e.CreatedAt < search.ToExclusiveUtc)
+            && (search.Type is null || e.EntryType == search.Type)
+            && (search.Parties.Count == 0 || search.Parties.Any(p => Touches(e, p)))).OrderByDescending(e => e.EntryId).ToList();
+        return Task.FromResult<(IReadOnlyList<LedgerEntry>, int)>((rows.Skip((page - 1) * pageSize).Take(pageSize).ToList(), rows.Count));
+    }
+
+    public Task<decimal> GetBalanceBeforeAsync(LedgerParty party, DateTime? beforeUtc, CancellationToken cancellationToken = default) =>
+        Task.FromResult(ledger.Rows.Where(e => beforeUtc is null || e.CreatedAt < beforeUtc)
+            .Sum(e => (e.ToPartyType == party.Type && e.ToPartyId == party.Id ? e.Amount : 0m) - (e.FromPartyType == party.Type && e.FromPartyId == party.Id ? e.Amount : 0m)));
+
+    public Task<LedgerTotals> GetTotalsAsync(CancellationToken cancellationToken = default)
+    {
+        decimal Net(LedgerPartyType type, bool platform) =>
+            ledger.Rows.Where(e => e.ToPartyType == type && (!platform || e.ToPartyId == null)).Sum(e => e.Amount)
+            - ledger.Rows.Where(e => e.FromPartyType == type && (!platform || e.FromPartyId == null)).Sum(e => e.Amount);
+        return Task.FromResult(new LedgerTotals(
+            Net(LedgerPartyType.PlatformRevenue, true), Net(LedgerPartyType.PlatformClearing, true), Net(LedgerPartyType.Worker, false), Net(LedgerPartyType.Agency, false), Held));
+    }
+}

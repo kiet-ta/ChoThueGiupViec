@@ -286,7 +286,7 @@ public class LedgerReconciliationTests
     public async Task Reconciliation_endpoint_returns_the_report_in_the_envelope()
     {
         var report = new LedgerReconciliationReport([new LedgerReconciliationItem("COMMISSION", 2, 72_000m, 0m)]);
-        var result = await new AdminLedgerController(new StubReconciliation(report)).Reconciliation(default);
+        var result = await new AdminLedgerController(new StubReconciliation(report), null!).Reconciliation(default);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var body = Assert.IsType<ApiResponse<LedgerReconciliationReport>>(ok.Value);
