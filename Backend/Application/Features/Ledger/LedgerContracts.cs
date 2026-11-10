@@ -14,12 +14,12 @@ public interface ILedgerLockedReader
 {
     Task<decimal> GetOrderRefundTotalAsync(long orderId, CancellationToken cancellationToken = default);
     Task<decimal> GetOrderClearingBalanceAsync(long orderId, CancellationToken cancellationToken = default);
+    Task<IReadOnlySet<string>> FindExistingKeysAsync(IReadOnlyCollection<string> keys, CancellationToken cancellationToken = default);
 }
 
 public interface ILedgerRepository : ILedgerLockedReader
 {
     Task<T> ExecuteLockedAsync<T>(Func<ILedgerLockedReader, Task<T>> action, CancellationToken cancellationToken = default);
-    Task<IReadOnlySet<string>> FindExistingKeysAsync(IReadOnlyCollection<string> keys, CancellationToken cancellationToken = default);
     Task<string?> GetLastHashAsync(CancellationToken cancellationToken = default);
     Task AppendAndSealAsync(LedgerEntry entry, Func<LedgerEntry, string> hash, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<LedgerEntry>> ReadChainAsync(CancellationToken cancellationToken = default);

@@ -17,5 +17,7 @@ public class LedgerModule : IModule
         services.AddScoped<ILedgerChainVerifier, LedgerChainVerifier>();
         services.AddScoped<ILedgerQuery, EfLedgerQuery>();
         services.AddScoped<ILedgerBalanceService, LedgerBalanceService>();
+        services.AddScoped<ILedgerSourceQuery, EfLedgerSourceQuery>();
+        services.AddScoped<ILedgerPostingService, LedgerPostingService>();
     }
 }
