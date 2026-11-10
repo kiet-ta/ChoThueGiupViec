@@ -6,7 +6,7 @@
 - [x] **LEDGER-03** Append-only writer, idempotency and hash chain — evidence: .harness/evidence/20261110-150102-L3.log
 - [x] **LEDGER-04** Ledger balances and read ports — evidence: .harness/evidence/20261110-152340-L3.log
 - [x] **LEDGER-05** Customer and job money flows — evidence: .harness/evidence/20261110-161742-L3.log
-- [ ] **LEDGER-06** Agency money and reconciliation
+- [x] **LEDGER-06** Agency money and reconciliation — evidence: .harness/evidence/20261110-164152-L3.log
 - [ ] **LEDGER-07** Worker wallet and withdrawal API
 - [ ] **LEDGER-08** Admin withdrawal approval and rejection
 - [ ] **LEDGER-09** Ledger-based monthly payout

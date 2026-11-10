@@ -16,6 +16,13 @@ public interface ILedgerPostingService
     Task PostAbsenceFeeAsync(CustomerAbsentApproved approved, CancellationToken cancellationToken = default);
     Task PostRefundAsync(OrderRefunded refunded, CancellationToken cancellationToken = default);
     Task PostPenaltyAsync(DisputeResolved resolved, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The sweep side of the refunds, for an order whose latest refund is quiet: under the ledger lock, books the part of the cumulative
+    /// refunded total that the ledger lacks. Returns the difference (target minus booked): positive was written, negative is only
+    /// reported (the ledger holds more than the source), 0 means they agree.
+    /// </summary>
+    Task<decimal> ReconcileRefundAsync(LedgerRefundedOrder order, CancellationToken cancellationToken = default);
 }
 
 public class LedgerPostingService(ILedgerWriter writer, ILedgerSourceQuery source) : ILedgerPostingService
@@ -25,46 +32,15 @@ public class LedgerPostingService(ILedgerWriter writer, ILedgerSourceQuery sourc
     public Task PostOrderPaidAsync(OrderPaid paid, CancellationToken cancellationToken = default) =>
         writer.AppendAsync([LedgerRules.CustomerPayment(paid.CustomerId, paid.Amount, paid.OrderId, null)], cancellationToken);
 
-    public async Task PostExtensionPaidAsync(ExtensionPaid paid, CancellationToken cancellationToken = default)
-    {
-        var extensionId = ToExtensionId(paid.ExtensionId);
-        var order = await source.GetOrderAsync(paid.OrderId, cancellationToken)
-            ?? throw new InvalidOperationException($"Order {paid.OrderId} of the paid extension {extensionId} was not found.");
-        var entries = new List<NewLedgerEntry> { LedgerRules.CustomerPayment(order.CustomerId, paid.ExtraAmount, paid.OrderId, extensionId) };
+    public async Task PostExtensionPaidAsync(ExtensionPaid paid, CancellationToken cancellationToken = default) =>
+        await writer.AppendAsync(
+            await LedgerSourceEntries.ExtensionPaidAsync(source, paid.OrderId, ToExtensionId(paid.ExtensionId), paid.WorkerId, paid.ExtraAmount, cancellationToken),
+            cancellationToken);
 
-        // Rare: the customer paid after the worker finished the job. Then the shares are due now; the job event has come and gone.
-        var finished = (await source.GetOrderAssignmentsAsync(paid.OrderId, cancellationToken))
-            .FirstOrDefault(a => a.WorkerId == paid.WorkerId && a.IsCompleted && a.CompletedAtUtc is not null);
-        if (finished is not null)
-        {
-            var extension = new LedgerExtensionSource(extensionId, paid.OrderId, paid.WorkerId, paid.ExtraAmount, true);
-            entries.AddRange(LedgerRules.ExtensionEntries(extension, finished, finished.CompletedAtUtc!.Value));
-        }
-
-        await writer.AppendAsync(entries, cancellationToken);
-    }
-
-    public async Task PostJobCompletedAsync(JobCompleted completed, CancellationToken cancellationToken = default)
-    {
-        var order = await source.GetOrderAsync(completed.OrderId, cancellationToken)
-            ?? throw new InvalidOperationException($"Order {completed.OrderId} of the completed assignment {completed.AssignmentId} was not found.");
-        var assignment = (await source.GetOrderAssignmentsAsync(completed.OrderId, cancellationToken))
-            .FirstOrDefault(a => a.AssignmentId == completed.AssignmentId)
-            ?? throw new InvalidOperationException($"Assignment {completed.AssignmentId} was not found.");
-
-        var entries = new List<NewLedgerEntry>(LedgerRules.JobEntries(order, assignment, completed.CompletedAtUtc));
-
-        // The extension earnings go only to the worker of the extension, and only when the customer paid it and it still stands.
-        foreach (var extension in await source.GetOrderExtensionsAsync(completed.OrderId, cancellationToken))
-        {
-            if (extension.IsPaid && extension.WorkerId == assignment.WorkerId)
-            {
-                entries.AddRange(LedgerRules.ExtensionEntries(extension, assignment, completed.CompletedAtUtc));
-            }
-        }
-
-        await writer.AppendAsync(entries, cancellationToken);
-    }
+    public async Task PostJobCompletedAsync(JobCompleted completed, CancellationToken cancellationToken = default) =>
+        await writer.AppendAsync(
+            await LedgerSourceEntries.JobCompletedAsync(source, completed.OrderId, completed.AssignmentId, completed.CompletedAtUtc, cancellationToken),
+            cancellationToken);
 
     public async Task PostAbsenceFeeAsync(CustomerAbsentApproved approved, CancellationToken cancellationToken = default)
     {
@@ -82,25 +58,61 @@ public class LedgerPostingService(ILedgerWriter writer, ILedgerSourceQuery sourc
         if (refunded.Amount <= 0) return Task.CompletedTask;
         var key = LedgerKeys.Refund(refunded.OrderId, refunded.RefundedAtUtc);
 
-        // Everything is decided under the ledger lock: what is booked already, which payments are still missing, and the order's
-        // clearing balance (rule 1 of the handoff: the event is the primary record of a refund).
+        // Everything is decided under the ledger lock (rule 1 of the handoff: the event is the primary record of a refund).
         return writer.AppendAsync(async reader =>
         {
-            var booked = await reader.FindExistingKeysAsync([key], cancellationToken);
-            if (booked.Contains(key)) return None;
+            var existing = await reader.FindExistingKeysAsync([key], cancellationToken);
+            if (existing.Contains(key)) return None;
 
-            // A payment refunded without a payment event (a late payment that arrives after the order stopped waiting) is booked now,
-            // so the refund has money to take from instead of draining the platform revenue.
-            var payments = (await source.GetOrderPaymentsAsync(refunded.OrderId, cancellationToken))
-                .Select(p => LedgerRules.CustomerPayment(refunded.CustomerId, p.Amount, p.OrderId, p.ExtensionId))
-                .DistinctBy(e => e.IdempotencyKey)
-                .ToList();
-            var have = await reader.FindExistingKeysAsync(payments.Select(e => e.IdempotencyKey).ToArray(), cancellationToken);
-            var missing = payments.Where(e => !have.Contains(e.IdempotencyKey)).ToList();
+            // The sweep may have booked this refund already (it recovered it from the cumulative total while the event was delayed):
+            // book only what the source still shows above the ledger, so the refund is never recorded twice.
+            var payments = await source.GetOrderPaymentsAsync(refunded.OrderId, cancellationToken);
+            var amount = refunded.Amount;
+            if (payments.Count > 0)
+            {
+                var target = payments.Sum(p => p.RefundedAmount);
+                var booked = await reader.GetOrderRefundTotalAsync(refunded.OrderId, cancellationToken);
+                amount = Math.Min(amount, Math.Max(0m, target - booked));
+                if (amount <= 0) return None;
+            }
 
-            var clearing = await reader.GetOrderClearingBalanceAsync(refunded.OrderId, cancellationToken) + missing.Sum(e => e.Amount);
-            return missing.Concat(LedgerRules.RefundEntries(refunded.OrderId, refunded.CustomerId, refunded.Amount, clearing, key)).ToList();
+            return await BuildRefundAsync(reader, refunded.OrderId, refunded.CustomerId, amount, key, payments, cancellationToken);
         }, cancellationToken);
+    }
+
+    public async Task<decimal> ReconcileRefundAsync(LedgerRefundedOrder order, CancellationToken cancellationToken = default)
+    {
+        var difference = 0m;
+        await writer.AppendAsync(async reader =>
+        {
+            var booked = await reader.GetOrderRefundTotalAsync(order.OrderId, cancellationToken);
+            difference = order.RefundedTotal - booked;
+            if (difference <= 0) return None;
+            var payments = await source.GetOrderPaymentsAsync(order.OrderId, cancellationToken);
+            return await BuildRefundAsync(
+                reader, order.OrderId, order.CustomerId, difference, LedgerKeys.RefundTarget(order.OrderId, order.RefundedTotal), payments, cancellationToken);
+        }, cancellationToken);
+        return difference;
+    }
+
+    /// <summary>
+    /// The refund entries plus the payments of the order that are not in the ledger yet. A payment refunded without a payment event (a
+    /// late payment that arrives after the order stopped waiting) is booked now, so the refund has money to take from instead of
+    /// draining the platform revenue.
+    /// </summary>
+    private static async Task<IReadOnlyList<NewLedgerEntry>> BuildRefundAsync(
+        ILedgerLockedReader reader, long orderId, int customerId, decimal amount, string key, IReadOnlyList<LedgerPaymentSource> payments,
+        CancellationToken cancellationToken)
+    {
+        var paid = payments
+            .Select(p => LedgerRules.CustomerPayment(customerId, p.Amount, p.OrderId, p.ExtensionId))
+            .DistinctBy(e => e.IdempotencyKey)
+            .ToList();
+        var have = await reader.FindExistingKeysAsync(paid.Select(e => e.IdempotencyKey).ToArray(), cancellationToken);
+        var missing = paid.Where(e => !have.Contains(e.IdempotencyKey)).ToList();
+
+        var clearing = await reader.GetOrderClearingBalanceAsync(orderId, cancellationToken) + missing.Sum(e => e.Amount);
+        return missing.Concat(LedgerRules.RefundEntries(orderId, customerId, amount, clearing, key)).ToList();
     }
 
     public async Task PostPenaltyAsync(DisputeResolved resolved, CancellationToken cancellationToken = default)
@@ -108,8 +120,7 @@ public class LedgerPostingService(ILedgerWriter writer, ILedgerSourceQuery sourc
         if (resolved.FaultParty is null) return;
         var dispute = await source.GetDisputeAsync(resolved.DisputeId, cancellationToken)
             ?? throw new InvalidOperationException($"Dispute {resolved.DisputeId} was not found.");
-        var assignments = await source.GetOrderAssignmentsAsync(dispute.OrderId, cancellationToken);
-        var mine = LedgerRules.PenaltyEntries(dispute, assignments)
+        var mine = (await LedgerSourceEntries.PenaltiesAsync(source, dispute, cancellationToken))
             .Where(p => p.AssignmentId == resolved.AssignmentId)
             .Select(p => p.Entry)
             .ToList();

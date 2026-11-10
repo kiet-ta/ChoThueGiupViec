@@ -272,7 +272,7 @@ public class LedgerPostingTests
     public async Task Refund_of_a_late_payment_books_the_payment_first_so_revenue_is_untouched()
     {
         var flow = new LedgerFlow();
-        flow.Source.Payments.Add(new LedgerPaymentSource(99, 1, null, 260_000m)); // paid after the order stopped waiting: no OrderPaid
+        flow.Source.Payments.Add(new LedgerPaymentSource(99, 1, null, 260_000m, 260_000m)); // paid after the order stopped waiting: no OrderPaid
         await flow.Posting.PostRefundAsync(Refunded(1, 260_000m, Done));
 
         Assert.Equal(260_000m, Assert.Single(flow.Of(LedgerEntryType.OrderPaid)).Amount);
@@ -289,7 +289,7 @@ public class LedgerPostingTests
     public async Task Payment_already_booked_is_not_booked_again_by_a_refund()
     {
         var flow = new LedgerFlow();
-        flow.Source.Payments.Add(new LedgerPaymentSource(99, 1, null, 260_000m));
+        flow.Source.Payments.Add(new LedgerPaymentSource(99, 1, null, 260_000m, 100_000m));
         await flow.Posting.PostOrderPaidAsync(Paid(1, 260_000m));
         await flow.Posting.PostRefundAsync(Refunded(1, 100_000m, Done));
 
@@ -416,6 +416,7 @@ public class LedgerPostingTests
         public Task PostAbsenceFeeAsync(CustomerAbsentApproved approved, CancellationToken cancellationToken = default) => throw new InvalidOperationException("boom");
         public Task PostRefundAsync(OrderRefunded refunded, CancellationToken cancellationToken = default) => throw new InvalidOperationException("boom");
         public Task PostPenaltyAsync(DisputeResolved resolved, CancellationToken cancellationToken = default) => throw new InvalidOperationException("boom");
+        public Task<decimal> ReconcileRefundAsync(LedgerRefundedOrder order, CancellationToken cancellationToken = default) => throw new InvalidOperationException("boom");
     }
 
     [Fact]

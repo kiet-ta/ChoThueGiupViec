@@ -20,6 +20,8 @@ public static class LedgerKeys
     public static string RefundTarget(long orderId, decimal target) => $"REFUND:ORDER:{orderId}:TO:{target:0}";
     public static string AbsenceFee(long assignmentId) => $"ABSENCE_FEE:ASSIGNMENT:{assignmentId}";
     public static string Penalty(int disputeId, long assignmentId) => $"PENALTY:DISPUTE:{disputeId}:ASSIGNMENT:{assignmentId}";
+    public static string Subscription(long paymentId) => $"SUBSCRIPTION:PAYMENT:{paymentId}";
+    public static string Escrow(long escrowTxnId) => $"ESCROW:{escrowTxnId}";
 }
 
 /// <summary>
@@ -164,6 +166,30 @@ public static class LedgerRules
         }
 
         return result;
+    }
+
+    /// <summary>An agency's subscription payment is platform revenue.</summary>
+    public static NewLedgerEntry? Subscription(int agencyId, decimal amount, long paymentId) =>
+        amount <= 0
+            ? null
+            : new NewLedgerEntry(new LedgerParty(LedgerPartyType.External, agencyId), Revenue, amount, LedgerEntryType.Subscription, LedgerRefType.Payment,
+                paymentId, null, null, LedgerKeys.Subscription(paymentId));
+
+    /// <summary>
+    /// Mirrors one ESCROW_TRANSACTION. A deposit comes from outside; a penalty is the agency's money passing to the platform revenue
+    /// (the customer's refund is booked on its own from the order, rule 6); a reversal gives it back from the revenue.
+    /// </summary>
+    public static NewLedgerEntry? Escrow(LedgerEscrowSource txn)
+    {
+        if (txn.Amount <= 0) return null;
+        var escrow = new LedgerParty(LedgerPartyType.AgencyEscrow, txn.AgencyId);
+        var (from, to, type) = txn.Type switch
+        {
+            EscrowTransactionType.Deposit => (new LedgerParty(LedgerPartyType.External, txn.AgencyId), escrow, LedgerEntryType.EscrowDeposit),
+            EscrowTransactionType.Penalty => (escrow, Revenue, LedgerEntryType.EscrowPenalty),
+            _ => (Revenue, escrow, LedgerEntryType.EscrowReversal),
+        };
+        return new NewLedgerEntry(from, to, txn.Amount, type, LedgerRefType.EscrowTxn, txn.EscrowTxnId, null, null, LedgerKeys.Escrow(txn.EscrowTxnId));
     }
 
     private static DateTime? AvailableAt(LedgerAssignmentSource assignment, DateTime completedAtUtc) =>
