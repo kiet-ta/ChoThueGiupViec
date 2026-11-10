@@ -32,6 +32,8 @@ public static class FakePortRegistration
         services.TryAddSingleton<ICustomerFavoriteQuery, FakeCustomerFavoriteQuery>();
         services.TryAddSingleton<IWorkerFreeShiftQuery, FakeWorkerFreeShiftQuery>();
         services.TryAddSingleton<IReverseGeocodeService, FakeReverseGeocodeService>();
+        services.TryAddSingleton<IOpenDisputeQuery, FakeOpenDisputeQuery>();
+        services.TryAddSingleton<ILedgerQuery, FakeLedgerQuery>();
 
         // Fail the startup (not the first login) when the registered IOtpSender is the Fake outside Development.
         services.AddHostedService<OtpSenderStartupGuard>();

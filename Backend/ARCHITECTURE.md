@@ -110,6 +110,8 @@ Modules never call each other: they use a **port** (interface + DTOs in `Applica
 | `ISlaPenaltyService` (SLA points + escrow, Q09) | M5 | M3, M6 | `FakeSlaPenaltyService` |
 | `IWorkerAvailabilityQuery` | M4 | M3 | `FakeWorkerAvailabilityQuery` |
 | `IWorkerReputation` | M6 | M3 | `FakeWorkerReputation` (replaced by the real `EfWorkerReputation`, section 7.2a) |
+| `IOpenDisputeQuery` | Disputes | Ledger | `FakeOpenDisputeQuery` |
+| `ILedgerQuery` | Ledger | Payouts, Ledger | `FakeLedgerQuery` |
 | `IWorkerProfileQuery` (Q21 C3) | M4 | M1 (favorite workers) | `FakeWorkerProfileQuery` |
 | `IWorkerFreeShiftQuery` (a worker's `AVAILABLE` slots, customers.md 2.3) | M4 | M1 (favorite worker availability) | `FakeWorkerFreeShiftQuery` |
 | `ICustomerFavoriteQuery` (is this worker a favorite, booking.md 3.3) | M1 | M2 (`preferredWorkerId`) | `FakeCustomerFavoriteQuery` |

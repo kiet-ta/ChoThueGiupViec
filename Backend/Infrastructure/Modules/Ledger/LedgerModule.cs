@@ -1,4 +1,5 @@
 using CommonService.Application.Features.Ledger;
+using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,5 +15,7 @@ public class LedgerModule : IModule
         services.AddScoped<ILedgerRepository, EfLedgerRepository>();
         services.AddScoped<ILedgerWriter, LedgerWriter>();
         services.AddScoped<ILedgerChainVerifier, LedgerChainVerifier>();
+        services.AddScoped<ILedgerQuery, EfLedgerQuery>();
+        services.AddScoped<ILedgerBalanceService, LedgerBalanceService>();
     }
 }
