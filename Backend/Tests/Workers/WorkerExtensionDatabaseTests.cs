@@ -219,4 +219,36 @@ public class WorkerExtensionDatabaseTests
             await CleanUpAsync(master, seeded);
         }
     }
+
+    [Fact]
+    public async Task AssignmentRepository_ReadsTheAddressAndThePaidExtension_WithoutTheFourTableJoin()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var master = CreateContext();
+        var seeded = await SeedAsync(master);
+        try
+        {
+            using var db = CreateContext();
+            var repo = new EfWorkerAssignmentRepository(db);
+
+            var detail = await repo.FindDetailForWorkerAsync(seeded.AssignmentId, seeded.WorkerId);
+            Assert.NotNull(detail);
+            Assert.Equal("1 Test St", detail!.AddressLine);
+            Assert.Equal("D1", detail.District);
+            Assert.Equal(seeded.ExtensionId, detail.PendingExtensionId);
+            Assert.Equal(1.5m, detail.PendingExtraHours);
+            Assert.Equal(97500m, detail.PendingExtraAmount);
+            Assert.Null(await repo.FindDetailForWorkerAsync(seeded.AssignmentId, seeded.OtherWorkerId));
+
+            var list = await repo.GetForWorkerAsync(seeded.WorkerId, DateOnly.MinValue, DateOnly.MaxValue);
+            var row = Assert.Single(list);
+            Assert.Equal(seeded.AssignmentId, row.AssignmentId);
+            Assert.Equal("D1", row.District);
+        }
+        finally
+        {
+            await CleanUpAsync(master, seeded);
+        }
+    }
 }
