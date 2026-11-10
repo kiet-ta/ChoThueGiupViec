@@ -18,7 +18,7 @@
 - [x] **LEDGER-15** Partner transaction history — evidence: .harness/evidence/20261110-201815-L3.log
 - [x] **LEDGER-16** Worker wallet and withdrawals — evidence: .harness/evidence/20261110-211323-L3.log
 - [x] **LEDGER-17** Worker history and statements — evidence: .harness/evidence/20261110-213228-L3.log
-- [ ] **LEDGER-18** End-to-end ledger acceptance
+- [x] **LEDGER-18** End-to-end ledger acceptance — evidence: .harness/evidence/20261110-215338-L3.log
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).
