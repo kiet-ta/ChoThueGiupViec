@@ -3,78 +3,48 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Tests.Payouts;
 
-/// <summary>BE-M6-04: the pure arithmetic of the monthly payout (decisions Q10, Q11, G-2; contract payouts.md 2.1).</summary>
+/// <summary>BE-M6-04: the pure arithmetic of one assignment's payout and the whole-VND split (decisions Q10, Q11, G-2). Grouping and deductions are tested in <c>PayoutSettlementCalculatorTests</c>.</summary>
 public class PayoutCalculatorTests
 {
-    private static readonly IReadOnlyDictionary<PayeeKey, decimal> None = new Dictionary<PayeeKey, decimal>();
-
     private static PayoutAssignmentRow Done(long id, int worker, decimal gross, decimal rate = 0.200m, int? agency = null) =>
         new(id, worker, agency, JobAssignmentStatus.Completed, gross, rate, null);
 
     private static PayoutAssignmentRow Absent(long id, int worker, decimal fee, int? agency = null) =>
         new(id, worker, agency, JobAssignmentStatus.Absent, 260000m, 0.200m, fee);
 
-    private static Dictionary<PayeeKey, decimal> Owed(PayeeType type, int id, decimal amount) => new() { [new PayeeKey(type, id)] = amount };
-
     [Fact]
-    public void Freelancers_are_one_item_each_and_agencies_one_item_for_all_their_workers_freelancers_first()
+    public void A_completed_assignment_pays_its_gross_less_the_commission_of_its_frozen_rate()
     {
-        var lines = PayoutCalculator.Build(
-            [
-                Done(1, 8, 260000m, 0.15m, agency: 3),
-                Done(2, 5, 260000m),
-                Done(3, 9, 200000m, 0.15m, agency: 3), // another worker of the same agency
-                Done(4, 5, 100000m),
-                Done(5, 4, 50000m),
-            ],
-            None, None);
+        var freelancer = PayoutCalculator.AmountsOf(Done(1, 5, 260000m));
+        var agency = PayoutCalculator.AmountsOf(Done(2, 8, 260000m, 0.15m, agency: 3));
 
-        Assert.Equal(
-            [new PayeeKey(PayeeType.Freelancer, 4), new PayeeKey(PayeeType.Freelancer, 5), new PayeeKey(PayeeType.Agency, 3)],
-            lines.Select(l => l.Payee).ToArray());
-
-        var worker5 = lines[1];
-        Assert.Equal(2, worker5.JobCount);
-        Assert.Equal(360000m, worker5.Gross);
-        Assert.Equal(72000m, worker5.Commission); // 20 %, decision Q11
-        Assert.Equal(288000m, worker5.Net);
-        Assert.Equal([2L, 4L], worker5.AssignmentIds.ToArray());
-
-        var agency = lines[2];
-        Assert.Equal(2, agency.JobCount); // the agency is paid as one payee, not per worker
-        Assert.Equal(460000m, agency.Gross);
-        Assert.Equal(69000m, agency.Commission); // the agency's own frozen rate, 15 %
-        Assert.Equal(391000m, agency.Net);
+        Assert.Equal((260000m, 52000m, 208000m), (freelancer.Gross, freelancer.Commission, freelancer.Payable)); // 20 %, decision Q11
+        Assert.Equal((260000m, 39000m, 221000m), (agency.Gross, agency.Commission, agency.Payable)); // the agency's own 15 %
     }
 
     [Fact]
     public void Commission_is_rounded_per_assignment_not_on_the_sum()
     {
         // 100003 x 0.2 = 20000.6 -> 20001 each, so 40002; rounding the sum 200006 x 0.2 = 40001.2 would give 40001.
-        var line = Assert.Single(PayoutCalculator.Build([Done(1, 5, 100003m), Done(2, 5, 100003m)], None, None));
+        var each = PayoutCalculator.AmountsOf(Done(1, 5, 100003m));
 
-        Assert.Equal(40002m, line.Commission);
-        Assert.Equal(160004m, line.Net);
+        Assert.Equal(20001m, each.Commission);
+        Assert.Equal(80002m, each.Payable);
     }
 
     [Fact]
-    public void The_rate_frozen_on_each_assignment_is_used_even_when_the_same_payee_has_different_rates()
+    public void The_rate_frozen_on_each_assignment_is_used()
     {
-        var line = Assert.Single(PayoutCalculator.Build(
-            [Done(1, 5, 100000m, 0.20m, agency: 3), Done(2, 6, 100000m, 0.10m, agency: 3)], None, None));
-
-        Assert.Equal(30000m, line.Commission);
+        Assert.Equal(20000m, PayoutCalculator.AmountsOf(Done(1, 5, 100000m, 0.20m, agency: 3)).Commission);
+        Assert.Equal(10000m, PayoutCalculator.AmountsOf(Done(2, 6, 100000m, 0.10m, agency: 3)).Commission);
     }
 
     [Fact]
     public void An_approved_absence_fee_is_paid_in_full_with_no_commission()
     {
-        var line = Assert.Single(PayoutCalculator.Build([Done(1, 5, 260000m), Absent(2, 5, 104000m)], None, None));
+        var fee = PayoutCalculator.AmountsOf(Absent(2, 5, 104000m));
 
-        Assert.Equal(2, line.JobCount);
-        Assert.Equal(364000m, line.Gross); // 260000 + the 104000 fee
-        Assert.Equal(52000m, line.Commission); // only the completed job pays commission
-        Assert.Equal(312000m, line.Net);
+        Assert.Equal((104000m, 0m, 104000m), (fee.Gross, fee.Commission, fee.Payable));
     }
 
     [Fact]
@@ -89,61 +59,7 @@ public class PayoutCalculatorTests
             new PayoutAssignmentRow(5, 5, null, JobAssignmentStatus.CancelledByWorker, 260000m, 0.2m, null),
         };
 
-        Assert.Empty(PayoutCalculator.Build(rows, None, None));
-    }
-
-    [Fact]
-    public void A_pending_penalty_is_taken_from_the_net()
-    {
-        var line = Assert.Single(PayoutCalculator.Build([Done(1, 5, 260000m)], Owed(PayeeType.Freelancer, 5, 50000m), None));
-
-        Assert.Equal(50000m, line.Penalty);
-        Assert.Equal(158000m, line.Net); // 260000 - 52000 - 50000
-    }
-
-    [Fact]
-    public void A_penalty_larger_than_the_payable_amount_is_capped_so_the_net_is_zero_and_the_rest_waits()
-    {
-        var decided = Owed(PayeeType.Freelancer, 5, 500000m);
-
-        var first = Assert.Single(PayoutCalculator.Build([Done(1, 5, 260000m)], decided, None));
-        Assert.Equal(208000m, first.Penalty); // everything the worker earns this month
-        Assert.Equal(0m, first.Net);
-
-        // next month: 208000 of the 500000 was applied, 292000 is still pending
-        var next = Assert.Single(PayoutCalculator.Build([Done(2, 5, 500000m)], decided, Owed(PayeeType.Freelancer, 5, 208000m)));
-        Assert.Equal(292000m, next.Penalty);
-        Assert.Equal(108000m, next.Net); // 500000 - 100000 - 292000
-    }
-
-    [Fact]
-    public void A_penalty_already_applied_in_full_is_not_taken_again_and_never_goes_negative()
-    {
-        var decided = Owed(PayeeType.Freelancer, 5, 100000m);
-
-        var done = Assert.Single(PayoutCalculator.Build([Done(1, 5, 260000m)], decided, Owed(PayeeType.Freelancer, 5, 100000m)));
-        Assert.Equal(0m, done.Penalty);
-
-        var odd = Assert.Single(PayoutCalculator.Build([Done(1, 5, 260000m)], decided, Owed(PayeeType.Freelancer, 5, 999999m)));
-        Assert.Equal(0m, odd.Penalty); // applied above decided: nothing pending, no negative penalty
-        Assert.Equal(208000m, odd.Net);
-    }
-
-    [Fact]
-    public void A_penalty_belongs_to_its_own_payee_and_a_freelancer_and_an_agency_with_the_same_id_are_different_payees()
-    {
-        var lines = PayoutCalculator.Build(
-            [Done(1, 5, 260000m), Done(2, 6, 260000m, 0.15m, agency: 5)],
-            Owed(PayeeType.Agency, 5, 40000m), None);
-
-        Assert.Equal(0m, lines[0].Penalty); // freelancer 5
-        Assert.Equal(40000m, lines[1].Penalty); // agency 5
-    }
-
-    [Fact]
-    public void A_payee_with_a_penalty_but_no_earnings_this_month_gets_no_item()
-    {
-        Assert.Empty(PayoutCalculator.Build([], Owed(PayeeType.Freelancer, 5, 50000m), None));
+        Assert.All(rows, row => Assert.Equal((0m, 0m), (PayoutCalculator.AmountsOf(row).Gross, PayoutCalculator.AmountsOf(row).Commission)));
     }
 
     [Theory]

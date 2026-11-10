@@ -29,13 +29,19 @@ public class PayoutExportTests
 
         public PayoutExportService Service() => new(Repo, Storage, new PayoutBatchServiceTests.TestClock(Now));
 
-        /// <summary>A batch of 2026-10 holding the lines computed for the given assignments, stored as the settlement stores its items.</summary>
+        /// <summary>A batch of 2026-10 holding one item per freelancer worker and one per agency, as the settlement stores them.</summary>
         public Task<Rig> BuildAsync(params PayoutAssignmentRow[] rows)
         {
-            var lines = PayoutCalculator.Build(rows, new Dictionary<PayeeKey, decimal>(), new Dictionary<PayeeKey, decimal>());
-            BatchId = Repo.SeedBatch("2026-10", lines.Select(l => new NewPayoutItem(
-                l.Payee.Type, l.Payee.Type == PayeeType.Freelancer ? l.Payee.Id : null, l.Payee.Type == PayeeType.Agency ? l.Payee.Id : null,
-                l.JobCount, l.Gross, l.Commission, l.Penalty, 0m, 0m, l.Net, Repo.Banks.GetValueOrDefault(l.Payee, string.Empty), l.AssignmentIds)));
+            var items = rows
+                .Select(r => (Row: r, Amounts: PayoutCalculator.AmountsOf(r)))
+                .Where(x => x.Amounts.Gross > 0)
+                .GroupBy(x => x.Row.AgencyId is { } agency ? new PayeeKey(PayeeType.Agency, agency) : new PayeeKey(PayeeType.Freelancer, x.Row.WorkerId))
+                .OrderBy(g => g.Key.Type).ThenBy(g => g.Key.Id)
+                .Select(g => new NewPayoutItem(
+                    g.Key.Type, g.Key.Type == PayeeType.Freelancer ? g.Key.Id : null, g.Key.Type == PayeeType.Agency ? g.Key.Id : null,
+                    g.Count(), g.Sum(x => x.Amounts.Gross), g.Sum(x => x.Amounts.Commission), 0m, 0m, 0m, g.Sum(x => x.Amounts.Payable),
+                    Repo.Banks.GetValueOrDefault(g.Key, string.Empty), g.Select(x => x.Row.AssignmentId).OrderBy(id => id).ToList()));
+            BatchId = Repo.SeedBatch("2026-10", items);
             return Task.FromResult(this);
         }
     }

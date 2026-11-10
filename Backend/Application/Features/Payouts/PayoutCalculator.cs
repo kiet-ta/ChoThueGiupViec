@@ -11,10 +11,6 @@ public readonly record struct PayeeKey(PayeeType Type, int Id);
 public record PayoutAssignmentRow(
     long AssignmentId, int WorkerId, int? AgencyId, JobAssignmentStatus Status, decimal GrossAmount, decimal CommissionRate, decimal? AbsenceFeeAmount);
 
-/// <summary>One payout item computed for a payee.</summary>
-public record PayoutLine(
-    PayeeKey Payee, int JobCount, decimal Gross, decimal Commission, decimal Penalty, decimal Net, IReadOnlyList<long> AssignmentIds);
-
 /// <summary>The money of one assignment: what is paid and what the platform keeps.</summary>
 public readonly record struct PayoutAmounts(decimal Gross, decimal Commission)
 {
@@ -22,8 +18,8 @@ public readonly record struct PayoutAmounts(decimal Gross, decimal Commission)
 }
 
 /// <summary>
-/// The pure arithmetic of the monthly payout (contract payouts.md 2.1; decisions Q10, Q11, G-2). Nothing here reads a database, so the
-/// same function serves the batch and the worker's income screen.
+/// The pure arithmetic of one assignment's payout and the whole-VND split (decisions Q10, Q11, G-2). Nothing here reads a database.
+/// Since decision D28 the monthly settlement and the income screen are computed from the ledger (<see cref="PayoutSettlementCalculator"/>).
 /// </summary>
 public static class PayoutCalculator
 {
@@ -37,40 +33,6 @@ public static class PayoutCalculator
         JobAssignmentStatus.Absent when row.AbsenceFeeAmount is > 0 => new PayoutAmounts(row.AbsenceFeeAmount.Value, 0m),
         _ => new PayoutAmounts(0m, 0m),
     };
-
-    public static PayeeKey PayeeOf(PayoutAssignmentRow row) =>
-        row.AgencyId is { } agency ? new PayeeKey(PayeeType.Agency, agency) : new PayeeKey(PayeeType.Freelancer, row.WorkerId);
-
-    /// <summary>
-    /// One line per payee. <paramref name="penaltiesDecided"/> is everything decided against each payee up to the end of the month and
-    /// <paramref name="penaltiesApplied"/> what earlier CLOSED batches already took; the difference is pending, capped by what the payee
-    /// earns this month so the net never goes below 0 (question P3), and the rest simply stays pending for the next batch.
-    /// </summary>
-    public static IReadOnlyList<PayoutLine> Build(
-        IEnumerable<PayoutAssignmentRow> rows,
-        IReadOnlyDictionary<PayeeKey, decimal> penaltiesDecided,
-        IReadOnlyDictionary<PayeeKey, decimal> penaltiesApplied)
-    {
-        var lines = new List<PayoutLine>();
-        var groups = rows
-            .Select(r => (Row: r, Amounts: AmountsOf(r)))
-            .Where(x => x.Amounts.Gross > 0)
-            .GroupBy(x => PayeeOf(x.Row))
-            .OrderBy(g => g.Key.Type).ThenBy(g => g.Key.Id);
-
-        foreach (var group in groups)
-        {
-            var gross = group.Sum(x => x.Amounts.Gross);
-            var commission = group.Sum(x => x.Amounts.Commission);
-            var pending = Math.Max(0m, penaltiesDecided.GetValueOrDefault(group.Key) - penaltiesApplied.GetValueOrDefault(group.Key));
-            var penalty = Math.Min(pending, gross - commission);
-            lines.Add(new PayoutLine(
-                group.Key, group.Count(), gross, commission, penalty, gross - commission - penalty,
-                group.Select(x => x.Row.AssignmentId).OrderBy(id => id).ToList()));
-        }
-
-        return lines;
-    }
 
     /// <summary>
     /// Splits <paramref name="amount"/> by <paramref name="weights"/> in whole VND, the remainder on the last part so the parts add up
