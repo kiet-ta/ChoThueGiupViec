@@ -43,11 +43,6 @@ public static class DependencyInjection
         services.AddScoped<IIdempotencyService, CacheIdempotencyService>();
         services.AddHttpClient<IReverseGeocodeService, OsmReverseGeocodeService>();
 
-        // Nếu muốn Redis
-        // var redisConnection = config.GetConnectionString("Redis");
-        // services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnection));
-        // services.AddScoped<ICacheService, RedisCacheService>();
-
         // Business rules options (BASE-05, decisions.md section 4)
         services.Configure<BusinessRules>(configuration.GetSection(BusinessRules.SectionName));
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<BusinessRules>>().Value);

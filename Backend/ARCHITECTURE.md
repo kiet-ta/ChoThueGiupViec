@@ -6,7 +6,7 @@
 - ASP.NET Core Web API, **.NET 10** (`net10.0`), Nullable + ImplicitUsings enabled.
 - Single project (`CommonService.csproj`), layered by **folders/namespaces** following **Clean Architecture**. Use cases are **application services** (`I<Name>Service` + `<Name>Service`) called from thin controllers; MediatR is kept for domain-event notifications.
 - Classes and records are not marked `sealed`; `partial` stays where a type is split over files or uses a source generator.
-- Purpose: a reusable "common service" template (users, orders, payment via Stripe, caching, email, standard response/error middleware).
+- Purpose: a reusable "common service" template (users, orders, payment via Stripe, email, standard response/error middleware).
 - Packages: `MediatR 13`, `Stripe.net 48`, `Swashbuckle.AspNetCore 9`, `Microsoft.AspNetCore.OpenApi`.
 - Root namespace: `CommonService`. Port (dev): http `5004`, https `7204`. Swagger is enabled in Development only.
 
@@ -29,7 +29,7 @@ Application/               Use cases. Depends on Domain only
   DependencyInjection.cs   AddApplication(): MediatR + ValidationBehavior
 Infrastructure/            Implements ports. Depends on Application (+Domain)
   Persistence/             AppDbContext, UnitOfWork, Repositories/EfRepository
-  Services/                InMemoryCacheService (default), RedisCacheService (optional)
+  Services/                InMemoryCacheService (default)
   DependencyInjection.cs   AddInfrastructure(config): db, cache, unit of work, modules, fakes
 Middleware/                ErrorHandling, RequestResponseLogging, ResponseWrapper
 WebAPI/Controllers/        Thin controllers: ValuesController, module controllers
@@ -190,7 +190,7 @@ HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → Respon
 - Don't reference Infrastructure from Application/Domain.
 - Use value objects (e.g. `Email`, `Vnd`) instead of primitives for domain concepts.
 - Throw Application exceptions (`NotFoundException`, ...) rather than returning status codes from services.
-- Cache via `ICacheService` (swap InMemory ↔ Redis in Infrastructure DI; Redis needs `ConnectionStrings:Redis`).
+- Cache via `ICacheService` (InMemoryCacheService is the active implementation).
 - Tests: follow `Tests/GoldenRule.md` — use cases are tested with mocks/stubs, never real DB/external APIs; don't test across domains.
 - Namespaces mirror folders (`CommonService.Application.Features...`). Keep new code consistent with existing style; preserve existing comments/docs.
 
