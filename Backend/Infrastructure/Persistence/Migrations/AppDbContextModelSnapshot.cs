@@ -1202,6 +1202,133 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.ToTable("JOB_PHOTO", (string)null);
                 });
 
+            modelBuilder.Entity("CommonService.Domain.Entities.LedgerEntry", b =>
+                {
+                    b.Property<long>("EntryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("entry_id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("EntryId"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("DECIMAL(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime?>("AvailableAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("available_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreatedByAdminId")
+                        .HasColumnType("int")
+                        .HasColumnName("created_by_admin_id");
+
+                    b.Property<string>("EntryCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("entry_code")
+                        .HasComputedColumnSql("('LG' + RIGHT('00000000' + CAST([entry_id] AS VARCHAR(20)), 8))", true);
+
+                    b.Property<string>("EntryHash")
+                        .IsRequired()
+                        .HasColumnType("CHAR(64)")
+                        .HasColumnName("entry_hash");
+
+                    b.Property<string>("EntryType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("entry_type");
+
+                    b.Property<int?>("FromPartyId")
+                        .HasColumnType("int")
+                        .HasColumnName("from_party_id");
+
+                    b.Property<string>("FromPartyType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("from_party_type");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(80)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("note");
+
+                    b.Property<long?>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("PrevHash")
+                        .IsRequired()
+                        .HasColumnType("CHAR(64)")
+                        .HasColumnName("prev_hash");
+
+                    b.Property<long>("RefId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ref_id");
+
+                    b.Property<string>("RefType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("ref_type");
+
+                    b.Property<int?>("ToPartyId")
+                        .HasColumnType("int")
+                        .HasColumnName("to_party_id");
+
+                    b.Property<string>("ToPartyType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("to_party_type");
+
+                    b.HasKey("EntryId");
+
+                    b.HasIndex("EntryCode")
+                        .IsUnique();
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("EntryType", "CreatedAt");
+
+                    b.HasIndex("FromPartyType", "FromPartyId", "CreatedAt");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("FromPartyType", "FromPartyId", "CreatedAt"), new[] { "Amount" });
+
+                    b.HasIndex("ToPartyType", "ToPartyId", "CreatedAt");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ToPartyType", "ToPartyId", "CreatedAt"), new[] { "Amount", "AvailableAt", "OrderId" });
+
+                    b.ToTable("LEDGER_ENTRY", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_LEDGER_ENTRY_amount", "[amount] > 0");
+
+                            t.HasCheckConstraint("CK_LEDGER_ENTRY_parties", "NOT ([from_party_type] = [to_party_type] AND ISNULL([from_party_id], -1) = ISNULL([to_party_id], -1))");
+                        });
+                });
+
             modelBuilder.Entity("CommonService.Domain.Entities.OtpCode", b =>
                 {
                     b.Property<long>("OtpId")
@@ -1617,6 +1744,13 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ItemId"));
 
+                    b.Property<decimal>("AdvanceAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("DECIMAL(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("advance_amount");
+
                     b.Property<int?>("AgencyId")
                         .HasColumnType("int")
                         .HasColumnName("agency_id");
@@ -1631,6 +1765,13 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.Property<int>("BatchId")
                         .HasColumnType("int")
                         .HasColumnName("batch_id");
+
+                    b.Property<decimal>("CarryInAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("DECIMAL(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("carry_in_amount");
 
                     b.Property<decimal>("CommissionAmount")
                         .HasPrecision(18, 2)
@@ -1925,6 +2066,76 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("TWO_WAY_RATING", (string)null);
+                });
+
+            modelBuilder.Entity("CommonService.Domain.Entities.WithdrawalRequest", b =>
+                {
+                    b.Property<int>("WithdrawalId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("withdrawal_id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WithdrawalId"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("DECIMAL(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("BankAccountNo")
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("bank_account_no");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("bank_name");
+
+                    b.Property<long?>("EntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entry_id");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("reject_reason");
+
+                    b.Property<string>("RequestStatus")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("request_status");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("requested_at");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<int?>("ReviewedBy")
+                        .HasColumnType("int")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<int>("WorkerId")
+                        .HasColumnType("int")
+                        .HasColumnName("worker_id");
+
+                    b.HasKey("WithdrawalId");
+
+                    b.HasIndex("WorkerId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_WITHDRAWAL_REQUEST_worker_pending")
+                        .HasFilter("[request_status] = 'PENDING'");
+
+                    b.ToTable("WITHDRAWAL_REQUEST", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WITHDRAWAL_REQUEST_amount", "[amount] > 0");
+                        });
                 });
 
             modelBuilder.Entity("CommonService.Domain.Entities.Worker", b =>

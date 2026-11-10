@@ -154,4 +154,25 @@ public class AppDbContextModelTests
         Assert.NotNull(statusProp.GetValueConverter());
         Assert.Equal(typeof(string), statusProp.GetValueConverter()!.ProviderClrType);
     }
+
+    [Fact]
+    public void Ledger_schema_has_constraints_computed_code_and_filtered_pending_index()
+    {
+        using var context = CreateContext();
+        var model = Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<Microsoft.EntityFrameworkCore.Metadata.IDesignTimeModel>(context).Model;
+        var entry = model.FindEntityType(typeof(LedgerEntry))!;
+        Assert.Equal("LEDGER_ENTRY", entry.GetTableName());
+        Assert.Contains(entry.GetCheckConstraints(), c => c.Name == "CK_LEDGER_ENTRY_amount");
+        Assert.Contains(entry.GetCheckConstraints(), c => c.Name == "CK_LEDGER_ENTRY_parties");
+        var code = entry.FindProperty(nameof(LedgerEntry.EntryCode))!;
+        Assert.Contains("RIGHT", code.GetComputedColumnSql()!);
+        Assert.True(code.GetIsStored());
+        Assert.Contains(entry.GetIndexes(), i => i.IsUnique && i.Properties.Single().Name == nameof(LedgerEntry.IdempotencyKey));
+
+        var withdrawal = model.FindEntityType(typeof(WithdrawalRequest))!;
+        Assert.Equal("WITHDRAWAL_REQUEST", withdrawal.GetTableName());
+        Assert.Contains(withdrawal.GetCheckConstraints(), c => c.Name == "CK_WITHDRAWAL_REQUEST_amount");
+        Assert.Contains(withdrawal.GetIndexes(), i => i.IsUnique && i.GetFilter() == "[request_status] = 'PENDING'");
+        Assert.Equal(typeof(string), withdrawal.FindProperty(nameof(WithdrawalRequest.RequestStatus))!.GetValueConverter()!.ProviderClrType);
+    }
 }
