@@ -61,6 +61,11 @@ Frontend/
 - **Logout:** the "Đăng xuất" button in the area layout calls `POST /api/v1/auth/logout` with the refresh token and clears memory and `sessionStorage` even when that call fails.
 - **Layout of the code:** pure logic with injected storage, clock, timers and HTTP calls in `src/auth/session.ts`, `auth-controller.ts`, `access.ts`, `login-errors.ts` (unit-tested in `tests/auth.test.ts`); React glue in `RequireRole.tsx`, `useAuth.ts`, `index.ts` (the single controller), `auth-api.ts` (the three endpoints).
 
+## Admin ledger page (LEDGER-13, contract `.spec/contracts/ledger.md`, decision D28)
+- Feature `src/features/ledger` (area `admin`, nav "Sổ cái" in TÀI CHÍNH, route `/admin/ledger`). `LedgerPage` shows five money cards (`GET /admin/ledger/summary`: platform revenue, money held for customers, owed to freelancers, owed to agencies, pending withdrawals), the filters (Vietnam days `from`/`to`, entry type, party type and id), the table of entries with paging (`GET /admin/ledger`: code, time, sender, receiver, type, amount, reference, short hash with the whole hash in the tooltip), the "Kiểm tra chuỗi" button (`GET /admin/ledger/verify`: "Sổ nguyên vẹn: đã kiểm N bút toán." or the first broken entry code), "Xuất sao kê" and the block "Đối soát nguồn ↔ sổ" (`GET /admin/ledger/reconciliation`: "Không có khoản lệch" or a table of type, missing rows, missing amount and the amount the ledger holds above its source).
+- The statement is the `.xlsx` itself, not the JSON envelope, so `download.ts` fetches it as a blob with the Admin's token (like the payout files) and saves it under the server's name; the error text of a 400 is the first field message of the envelope. The file has opening and closing balance rows only when one account is selected; the page says so next to the button.
+- Pure logic (labels of the 15 entry types and of the parties, references, short hash, summary cards, filter validation and query, messages) is in `view.ts`; types are hand-written from the contract in `types.ts`. Tests: `tests/ledger-view.test.ts`.
+
 ## Commands
 `npm install`, `npm run dev` (http://localhost:5173), `npm run build`, `npm run lint`, `npm test`.
 
