@@ -286,6 +286,12 @@ To eliminate dependency on paid map services and pending account approvals, the 
    - **Indexed foreign keys:** All join predicates must be backed by database indexes on Foreign Keys and Primary Keys.
 3. **Database Concurrency:** Production and LocalDB SQL Server must have `READ_COMMITTED_SNAPSHOT ON` enabled so that multi-table read joins read from row versions and never take or wait on shared locks, completely eliminating read-write deadlocks.
 
+### D28 System ledger, automatic monthly settlement and worker withdrawals (LEDGER-01; owner 2026-11-10)
+
+Every virtual money movement is recorded in an append-only ledger, with an idempotency key and a SHA-256 hash chain; corrections use reversal entries. Balances are computed from the ledger. Payouts P6 is replaced: freelancers may request a salary advance, with at most one pending request; Admin approval records the withdrawal atomically. Withdrawable earnings exclude jobs completed less than 24 hours ago and orders with an open dispute. P3 is replaced: qualifying penalties are recorded at the verdict and may make a balance negative, recoverable from later earnings. Monthly settlement runs automatically after the month ends in Asia/Ho_Chi_Minh; a null `confirmed_by` means the system, and the Admin payout page is read-only. Extension payments are split using the assignment's commission rate and `Vnd`. G-1 remains: no real money is transferred. The ledger starts at deployment with no historical backfill. As an exception to module isolation, the reconciliation sweep reads source tables in other modules read-only to restore missing entries.
+
+Refunds are recorded from successful `OrderRefunded` events. The sweep compares the order's cumulative refunded amount with its booked REFUND total only after all of the order's payments have been quiet for at least ten minutes. It reads booked and appends any positive difference in the ledger append transaction; negative differences are reported. Payments schema is unchanged.
+
 ### Deferred (do NOT implement; ask the leader first)
 - **Q04b** VietQR / real-money payment. **Q05b** real eKYC provider. **Q06b** real SMS provider. **Q07b** FCM push. 2FA for Partner. Masked calling. Bank-specific transfer file formats. Automatic SLA recovery. Escrow withdrawal by an agency (D16: an Admin settles outside the system).
 
