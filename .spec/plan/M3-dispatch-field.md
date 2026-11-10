@@ -11,7 +11,7 @@
 - [x] **LEDGER-08** Admin withdrawal approval and rejection — evidence: .harness/evidence/20261110-172143-L3.log
 - [x] **LEDGER-09** Ledger-based monthly payout — evidence: .harness/evidence/20261110-175241-L3.log
 - [x] **LEDGER-10** Settlement worker and earnings — evidence: .harness/evidence/20261110-183115-L3.log
-- [ ] **LEDGER-11** History, summary and chain verification API
+- [x] **LEDGER-11** History, summary and chain verification API — evidence: .harness/evidence/20261110-185056-L3.log
 - [ ] **LEDGER-12** Exports and monthly statements
 - [ ] **LEDGER-13** Admin ledger page
 - [ ] **LEDGER-14** Admin withdrawals and read-only payouts
