@@ -21,6 +21,8 @@ public class LedgerModule : IModule
         services.AddScoped<ILedgerPostingService, LedgerPostingService>();
         services.Configure<LedgerOptions>(configuration.GetSection("Ledger"));
         services.AddScoped<ILedgerReconciliationService, LedgerReconciliationService>();
+        services.AddScoped<IWithdrawalRepository, EfWithdrawalRepository>();
+        services.AddScoped<IWithdrawalService, WithdrawalService>();
         services.AddHostedService<LedgerReconciliationWorker>();
     }
 }
