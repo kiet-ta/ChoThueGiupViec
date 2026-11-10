@@ -138,6 +138,9 @@ public class MemoryHistoryQuery(MemoryLedger ledger) : ILedgerHistoryQuery
         Task.FromResult(ledger.Rows.Where(e => beforeUtc is null || e.CreatedAt < beforeUtc)
             .Sum(e => (e.ToPartyType == party.Type && e.ToPartyId == party.Id ? e.Amount : 0m) - (e.FromPartyType == party.Type && e.FromPartyId == party.Id ? e.Amount : 0m)));
 
+    public Task<LedgerEntry?> GetByKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
+        Task.FromResult(ledger.Rows.FirstOrDefault(e => e.IdempotencyKey == idempotencyKey));
+
     public Task<LedgerTotals> GetTotalsAsync(CancellationToken cancellationToken = default)
     {
         decimal Net(LedgerPartyType type, bool platform) =>

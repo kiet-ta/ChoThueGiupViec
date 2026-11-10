@@ -65,4 +65,7 @@ public class EfLedgerHistoryQuery(AppDbContext db) : ILedgerHistoryQuery
             await NetAsync(LedgerPartyType.PlatformRevenue, true), await NetAsync(LedgerPartyType.PlatformClearing, true),
             await NetAsync(LedgerPartyType.Worker, false), await NetAsync(LedgerPartyType.Agency, false), held);
     }
+
+    public Task<LedgerEntry?> GetByKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
+        db.LedgerEntries.AsNoTracking().FirstOrDefaultAsync(e => e.IdempotencyKey == idempotencyKey, cancellationToken);
 }

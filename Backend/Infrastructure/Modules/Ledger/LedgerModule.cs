@@ -26,6 +26,7 @@ public class LedgerModule : IModule
         services.AddScoped<IAdminWithdrawalService, AdminWithdrawalService>();
         services.AddScoped<ILedgerHistoryQuery, EfLedgerHistoryQuery>();
         services.AddScoped<ILedgerHistoryService, LedgerHistoryService>();
+        services.AddScoped<ILedgerExportService, LedgerExportService>();
         services.AddHostedService<LedgerReconciliationWorker>();
     }
 }
