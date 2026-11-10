@@ -28,6 +28,7 @@ public class AgencyReportTests
         {
             LastAgency = agencyId;
             var all = Jobs.Where(j => status == null || j.AssignmentStatus == status).OrderByDescending(j => j.CreatedAt).ToList();
+            // WorkerName is now part of AgencyJobRow, so just return the rows as-is
             return Task.FromResult<(IReadOnlyList<AgencyJobRow>, int)>((all.Skip(skip).Take(take).ToList(), all.Count));
         }
 
@@ -113,8 +114,8 @@ public class AgencyReportTests
     public async Task Jobs_are_the_callers_with_worker_names_and_the_status_filter()
     {
         var h = new Harness(pro: false);
-        h.Repo.Jobs.Add(new AgencyJobRow(1, 100, 11, ServiceTier.Premium, 1, JobAssignmentStatus.Completed, 400_000m, 0.2m, 320_000m, Now.AddDays(-2), Now));
-        h.Repo.Jobs.Add(new AgencyJobRow(2, 101, 12, ServiceTier.Premium, 1, JobAssignmentStatus.Assigned, 400_000m, 0.2m, 320_000m, Now.AddDays(-1), null));
+        h.Repo.Jobs.Add(new AgencyJobRow(1, 100, 11, "Worker 11", ServiceTier.Premium, 1, JobAssignmentStatus.Completed, 400_000m, 0.2m, 320_000m, Now.AddDays(-2), Now));
+        h.Repo.Jobs.Add(new AgencyJobRow(2, 101, 12, "Worker 12", ServiceTier.Premium, 1, JobAssignmentStatus.Assigned, 400_000m, 0.2m, 320_000m, Now.AddDays(-1), null));
 
         var all = await h.Service.ListJobsAsync(null, 1, 20);
         var completed = await h.Service.ListJobsAsync("COMPLETED", 1, 20);

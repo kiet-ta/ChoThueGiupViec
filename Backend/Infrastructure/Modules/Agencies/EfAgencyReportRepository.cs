@@ -12,14 +12,18 @@ public class EfAgencyReportRepository(AppDbContext db) : IAgencyReportRepository
         int agencyId, JobAssignmentStatus? status, int skip, int take, CancellationToken cancellationToken = default)
     {
         var query = db.JobAssignments.AsNoTracking()
-            .Where(a => a.AgencyId == agencyId && (status == null || a.AssignmentStatus == status));
+            .Where(a => a.AgencyId == agencyId && (status == null || a.AssignmentStatus == status))
+            .Join(db.Workers.AsNoTracking(),
+                a => a.WorkerId,
+                w => w.WorkerId,
+                (a, w) => new { Assignment = a, WorkerName = w.FullName });
         var total = await query.CountAsync(cancellationToken);
         var rows = await query
-            .OrderByDescending(a => a.CreatedAt).ThenByDescending(a => a.AssignmentId)
+            .OrderByDescending(x => x.Assignment.CreatedAt).ThenByDescending(x => x.Assignment.AssignmentId)
             .Skip(skip).Take(take)
-            .Select(a => new AgencyJobRow(
-                a.AssignmentId, a.OrderId, a.WorkerId, a.ServiceTier, a.AssignmentSeq, a.AssignmentStatus,
-                a.GrossAmount, a.CommissionRate, a.PayoutAmount, a.CreatedAt, a.CompletedAt))
+            .Select(x => new AgencyJobRow(
+                x.Assignment.AssignmentId, x.Assignment.OrderId, x.Assignment.WorkerId, x.WorkerName, x.Assignment.ServiceTier, x.Assignment.AssignmentSeq, x.Assignment.AssignmentStatus,
+                x.Assignment.GrossAmount, x.Assignment.CommissionRate, x.Assignment.PayoutAmount, x.Assignment.CreatedAt, x.Assignment.CompletedAt))
             .ToListAsync(cancellationToken);
         return (rows, total);
     }

@@ -39,9 +39,9 @@ public interface IAgencyReportRepository
     Task<IReadOnlyDictionary<int, string>> GetWorkerNamesAsync(IReadOnlyCollection<int> workerIds, CancellationToken cancellationToken = default);
 }
 
-/// <summary>A job row without the worker name.</summary>
+/// <summary>A job row with the worker name (joined from Workers table).</summary>
 public record AgencyJobRow(
-    long AssignmentId, long OrderId, int WorkerId, ServiceTier ServiceTier, byte AssignmentSeq, JobAssignmentStatus AssignmentStatus,
+    long AssignmentId, long OrderId, int WorkerId, string WorkerName, ServiceTier ServiceTier, byte AssignmentSeq, JobAssignmentStatus AssignmentStatus,
     decimal GrossAmount, decimal CommissionRate, decimal PayoutAmount, DateTime CreatedAt, DateTime? CompletedAt);
 
 /// <summary>
@@ -77,9 +77,8 @@ public class AgencyReportService(
         var size = Math.Clamp(pageSize <= 0 ? 20 : pageSize, 1, 100);
         var current = Math.Max(1, page);
         var (rows, total) = await repository.ListJobsAsync(agencyId, parsed, (current - 1) * size, size, cancellationToken);
-        var names = await repository.GetWorkerNamesAsync(rows.Select(r => r.WorkerId).Distinct().ToList(), cancellationToken);
         var items = rows.Select(r => new AgencyJobDto(
-            r.AssignmentId, r.OrderId, r.WorkerId, names.TryGetValue(r.WorkerId, out var name) ? name : string.Empty,
+            r.AssignmentId, r.OrderId, r.WorkerId, r.WorkerName,
             DbEnum.ToDb(r.ServiceTier), r.AssignmentSeq, DbEnum.ToDb(r.AssignmentStatus),
             r.GrossAmount, r.CommissionRate, r.PayoutAmount, r.CreatedAt, r.CompletedAt)).ToList();
         return new AgencyJobPageDto(items, current, size, total);
