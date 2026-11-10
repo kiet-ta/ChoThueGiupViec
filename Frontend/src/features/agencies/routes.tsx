@@ -3,6 +3,7 @@ import { BankPage } from './BankPage'
 import { EscrowPage } from './EscrowPage'
 import { ImportPage } from './ImportPage'
 import { JobsPage } from './JobsPage'
+import { LedgerHistoryPage } from './LedgerHistoryPage'
 import { RosterPage } from './RosterPage'
 import { SubscriptionPage } from './SubscriptionPage'
 import { SwapPage } from './SwapPage'
@@ -18,6 +19,7 @@ const feature: FeatureModule = {
     { path: 'roster', element: <RosterPage /> },
     { path: 'escrow', element: <EscrowPage /> },
     { path: 'bank', element: <BankPage /> },
+    { path: 'ledger', element: <LedgerHistoryPage /> },
     { path: 'jobs', element: <JobsPage /> },
     { path: 'swap', element: <SwapPage /> },
   ],
@@ -25,6 +27,7 @@ const feature: FeatureModule = {
     { label: 'Gói thuê bao', to: 'subscription', section: 'TÀI KHOẢN' },
     { label: 'Ký quỹ & SLA', to: 'escrow', section: 'TÀI KHOẢN' },
     { label: 'Tài khoản nhận tiền', to: 'bank', section: 'TÀI KHOẢN' },
+    { label: 'Lịch sử giao dịch', to: 'ledger', section: 'TÀI KHOẢN' },
     { label: 'Thêm thợ', to: 'workers', section: 'NHÂN SỰ' },
     { label: 'Danh sách thợ', to: 'worker-list', section: 'NHÂN SỰ' },
     { label: 'Lịch ca tuần', to: 'roster', section: 'NHÂN SỰ' },
