@@ -7,7 +7,7 @@
 - [x] **LEDGER-04** Ledger balances and read ports — evidence: .harness/evidence/20261110-152340-L3.log
 - [x] **LEDGER-05** Customer and job money flows — evidence: .harness/evidence/20261110-161742-L3.log
 - [x] **LEDGER-06** Agency money and reconciliation — evidence: .harness/evidence/20261110-164152-L3.log
-- [ ] **LEDGER-07** Worker wallet and withdrawal API
+- [x] **LEDGER-07** Worker wallet and withdrawal API — evidence: .harness/evidence/20261110-170028-L3.log
 - [ ] **LEDGER-08** Admin withdrawal approval and rejection
 - [ ] **LEDGER-09** Ledger-based monthly payout
 - [ ] **LEDGER-10** Settlement worker and earnings
