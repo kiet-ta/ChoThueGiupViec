@@ -32,7 +32,7 @@ public class LedgerHistoryTests
 
         public Rig() => Query = new MemoryHistoryQuery(Ledger);
 
-        public LedgerHistoryService Service() => new(Query, Workers, new LedgerChainVerifier(Ledger), Flow.Clock);
+        public LedgerHistoryService Service() => new(Query, Workers, new StubWorkerEarnings(), new LedgerChainVerifier(Ledger), Flow.Clock);
 
         public LedgerEntry Add(LedgerParty from, LedgerParty to, decimal amount, LedgerEntryType type, DateTime at, LedgerRefType refType = LedgerRefType.Assignment, long refId = 1)
         {
@@ -280,7 +280,7 @@ public class LedgerHistoryTests
             new NewLedgerEntry(LedgerRules.Clearing, Rig.W(Worker), 208_000m, LedgerEntryType.JobEarning, LedgerRefType.Assignment, 1, 1, null, "b"),
             new NewLedgerEntry(LedgerRules.Clearing, LedgerRules.Revenue, 52_000m, LedgerEntryType.Commission, LedgerRefType.Assignment, 1, 1, null, "c"),
         ]);
-        var service = new LedgerHistoryService(new MemoryHistoryQuery(flow.Ledger), new MemoryWithdrawals(), new LedgerChainVerifier(flow.Ledger), flow.Clock);
+        var service = new LedgerHistoryService(new MemoryHistoryQuery(flow.Ledger), new MemoryWithdrawals(), new StubWorkerEarnings(), new LedgerChainVerifier(flow.Ledger), flow.Clock);
 
         Assert.Equal((true, 3, (string?)null), ((await service.VerifyAsync()).Ok, (await service.VerifyAsync()).CheckedCount, (await service.VerifyAsync()).FirstBrokenEntryCode));
 
@@ -296,6 +296,7 @@ public class LedgerHistoryTests
         public LedgerHistoryRequest? LastRequest { get; private set; }
         public int? LastWorker { get; private set; }
         public int? LastAgency { get; private set; }
+        public string? LastMonth { get; private set; }
 
         private static readonly PartyLedgerPageDto Page = new([], 0m, 0m, 1, 20, 0);
 
@@ -320,6 +321,12 @@ public class LedgerHistoryTests
         public Task<LedgerSummaryDto> GetSummaryAsync(CancellationToken cancellationToken = default) => Task.FromResult(new LedgerSummaryDto(1m, 2m, 3m, 4m, 5m));
 
         public Task<LedgerChainResult> VerifyAsync(CancellationToken cancellationToken = default) => Task.FromResult(new LedgerChainResult(true, 9, null));
+
+        public Task<WorkerStatementDto> GetWorkerStatementAsync(int workerId, string? month, CancellationToken cancellationToken = default)
+        {
+            (LastWorker, LastMonth) = (workerId, month);
+            return Task.FromResult(new WorkerStatementDto(month ?? "", 0m, [], 0m, 0m, 0m, 0m, null));
+        }
     }
 
     private class StubUser(int? id) : ICurrentUser
@@ -339,7 +346,7 @@ public class LedgerHistoryTests
     public async Task The_admin_endpoints_pass_the_query_and_answer_the_envelope()
     {
         var history = new StubHistory();
-        var controller = new AdminLedgerController(new StubReconciliation(), history);
+        var controller = new AdminLedgerController(new StubReconciliation(), history, null!);
 
         Assert.IsType<OkObjectResult>(await controller.List("2026-11-01", "2026-11-30", "COMMISSION", "WORKER", 7, 2, 50, default));
         Assert.Equal(new LedgerHistoryRequest("2026-11-01", "2026-11-30", "COMMISSION", 2, 50, "WORKER", 7), history.LastRequest);
@@ -358,11 +365,11 @@ public class LedgerHistoryTests
         Assert.Equal(Worker, history.LastWorker);
         Assert.Equal("2026-11-01", history.LastRequest!.From);
 
-        Assert.IsType<OkObjectResult>(await new AgencyLedgerController(history, new StubUser(Agency)).Ledger(null, null, "SETTLEMENT", 1, 10, default));
+        Assert.IsType<OkObjectResult>(await new AgencyLedgerController(history, null!, new StubUser(Agency)).Ledger(null, null, "SETTLEMENT", 1, 10, default));
         Assert.Equal(Agency, history.LastAgency);
 
         Assert.IsType<UnauthorizedObjectResult>(await new WorkerWalletController(null!, history, new StubUser(null)).Ledger(null, null, null, null, null, default));
-        Assert.IsType<UnauthorizedObjectResult>(await new AgencyLedgerController(history, new StubUser(null)).Ledger(null, null, null, null, null, default));
+        Assert.IsType<UnauthorizedObjectResult>(await new AgencyLedgerController(history, null!, new StubUser(null)).Ledger(null, null, null, null, null, default));
     }
 
     [Theory]

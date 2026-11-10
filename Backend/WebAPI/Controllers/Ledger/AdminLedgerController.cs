@@ -10,8 +10,26 @@ namespace CommonService.WebAPI.Controllers.Ledger;
 [ApiController]
 [Route("api/v1/admin/ledger")]
 [Authorize(Policy = "AdminOnly")]
-public class AdminLedgerController(ILedgerReconciliationService reconciliation, ILedgerHistoryService history) : ControllerBase
+public class AdminLedgerController(ILedgerReconciliationService reconciliation, ILedgerHistoryService history, ILedgerExportService export) : ControllerBase
 {
+    /// <summary>
+    /// The statement as an <c>.xlsx</c> file (the only response of this controller that is not the JSON envelope; errors keep the envelope):
+    /// the same filters as the list, no paging. With one account selected (<c>partyType</c> and <c>partyId</c>, or a platform account) the
+    /// file starts with its opening balance and ends with its closing balance. More than 50,000 entries is a 400: choose a shorter period.
+    /// </summary>
+    [HttpGet("export")]
+    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/json")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Export(
+        [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? type, [FromQuery] string? partyType, [FromQuery] int? partyId, CancellationToken ct)
+    {
+        var file = await export.ExportAdminAsync(new LedgerHistoryRequest(from, to, type, null, null, partyType, partyId), ct);
+        return File(file.Content, file.ContentType, file.FileName); // sets Content-Disposition: attachment
+    }
+
     /// <summary>
     /// The ledger, newest entry first. <c>from</c> and <c>to</c> are Vietnam days (<c>yyyy-MM-dd</c>, both included), <c>type</c> an entry type,
     /// <c>partyType</c> (with an optional <c>partyId</c>) the accounts that sent or received; <c>pageSize</c> is 1-100, default 20.

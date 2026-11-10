@@ -36,6 +36,20 @@ public class WorkerWalletController(IWithdrawalService withdrawals, ILedgerHisto
                 await history.GetWorkerHistoryAsync(workerId, new LedgerHistoryRequest(from, to, type, page, pageSize), ct), "Ledger retrieved."));
 
 
+    /// <summary>
+    /// The statement of a month (<c>yyyy-MM</c>) to read in the app: the opening balance, every entry of the month and its settlement, the
+    /// advance, the deduction, the settlement and the closing balance, which match the payout item of that month. 400 for a bad or future month.
+    /// </summary>
+    [HttpGet("statements/{month}")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerStatementDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Statement(string month, CancellationToken ct) =>
+        currentUser.UserId is not int workerId
+            ? Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null))
+            : Ok(ApiResponse<WorkerStatementDto>.Ok(await history.GetWorkerStatementAsync(workerId, month, ct), "Statement retrieved."));
+
     /// <summary>Balance, what can be withdrawn now, the amount held by a pending request and when the next earnings mature.</summary>
     [HttpGet("wallet")]
     [ProducesResponseType(typeof(ApiResponse<WalletDto>), StatusCodes.Status200OK)]

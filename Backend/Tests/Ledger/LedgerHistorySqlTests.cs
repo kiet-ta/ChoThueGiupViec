@@ -4,6 +4,7 @@ using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Ledger;
 using CommonService.Infrastructure.Persistence;
+using CommonService.Tests.Payouts;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -85,10 +86,19 @@ public class LedgerHistorySqlTests
         Assert.Equal((1_200m, -7_500m, 2_700m, 4_000m, 150m), (totals.Revenue, totals.Clearing, totals.WorkerDebt, totals.AgencyDebt, totals.Held)); // the clearing account only paid out here
 
         // The service over the real query: Vietnam days, balances and the chain.
-        var service = new LedgerHistoryService(query, new MemoryWithdrawals(), new LedgerChainVerifier(new EfLedgerRepository(db)), clock);
+        var service = new LedgerHistoryService(query, new MemoryWithdrawals(), new StubWorkerEarnings(), new LedgerChainVerifier(new EfLedgerRepository(db)), clock);
         var page = await service.GetAdminHistoryAsync(new LedgerHistoryRequest("2026-11-01", "2026-11-30", null, null, null, "WORKER", Worker));
         Assert.Equal([300m, 2_000m], page.Items.Select(i => i.Amount).ToArray());
         Assert.True((await service.VerifyAsync()).Ok);
+        // The entry by its key, and the xlsx statement over the real query (one worker, November, with its two balance rows).
+        var someKey = (await db.LedgerEntries.AsNoTracking().OrderBy(e => e.EntryId).FirstAsync()).IdempotencyKey;
+        Assert.Equal(someKey, (await query.GetByKeyAsync(someKey))!.IdempotencyKey);
+        Assert.Null(await query.GetByKeyAsync("no-such-key"));
+        var file = await new LedgerExportService(query, clock).ExportAdminAsync(new LedgerHistoryRequest("2026-11-01", "2026-11-30", null, null, null, "WORKER", Worker));
+        var table = XlsxTestReader.Table(file.Content, 8);
+        Assert.Equal(["OPENING_BALANCE", "CLOSING_BALANCE"], new[] { table[1][0]!, table[^1][0]! });
+        Assert.Equal(["1000", "2700"], new[] { table[1][5]!, table[^1][5]! });
+        Assert.Equal(5, table.Count); // header, the opening balance, two entries of November, the closing balance
         await transaction.RollbackAsync();
     }
 }

@@ -1,5 +1,5 @@
-using System.Globalization;
 using CommonService.Application.Exceptions;
+using CommonService.Application.Features.Payouts;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -24,6 +24,15 @@ public record PartyLedgerPageDto(
     IReadOnlyList<LedgerEntryDto> Items, decimal OpeningBalance, decimal ClosingBalance, int Page, int PageSize, int Total,
     decimal? EscrowOpeningBalance = null, decimal? EscrowClosingBalance = null);
 
+/// <summary>
+/// A worker's month as it is settled. <c>AdvanceAmount</c>, <c>PenaltyAmount</c> and <c>SettlementAmount</c> equal the figures of the payout item of
+/// the month; <c>Items</c> are the entries of the month, oldest first, plus the settlement entry (written at the start of the next month);
+/// <c>ClosingBalance</c> is the balance after that settlement; <c>LastHash</c> is the hash of the last item (a way to check the page against the ledger).
+/// </summary>
+public record WorkerStatementDto(
+    string PeriodMonth, decimal OpeningBalance, IReadOnlyList<LedgerEntryDto> Items,
+    decimal AdvanceAmount, decimal PenaltyAmount, decimal SettlementAmount, decimal ClosingBalance, string? LastHash);
+
 public record LedgerSummaryDto(decimal Revenue, decimal Clearing, decimal WorkerDebt, decimal AgencyDebt, decimal Held);
 
 /// <summary>Raw query values of a history call; the service validates them (400 with field errors).</summary>
@@ -47,6 +56,9 @@ public interface ILedgerHistoryQuery
     Task<decimal> GetBalanceBeforeAsync(LedgerParty party, DateTime? beforeUtc, CancellationToken cancellationToken = default);
 
     Task<LedgerTotals> GetTotalsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>The entry with the idempotency key (e.g. a month's SETTLEMENT), or null.</summary>
+    Task<LedgerEntry?> GetByKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default);
 }
 
 public interface ILedgerHistoryService
@@ -56,6 +68,9 @@ public interface ILedgerHistoryService
     Task<PartyLedgerPageDto> GetAgencyHistoryAsync(int agencyId, LedgerHistoryRequest request, CancellationToken cancellationToken = default);
     Task<LedgerSummaryDto> GetSummaryAsync(CancellationToken cancellationToken = default);
     Task<LedgerChainResult> VerifyAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>The worker's statement of a month (<c>yyyy-MM</c>): every entry of the month and the month's settlement, with the advance, the deduction and the balances.</summary>
+    Task<WorkerStatementDto> GetWorkerStatementAsync(int workerId, string? month, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -64,26 +79,15 @@ public interface ILedgerHistoryService
 /// the party comes from the caller and never from the query.
 /// </summary>
 public class LedgerHistoryService(
-    ILedgerHistoryQuery query, IWithdrawalRepository workers, ILedgerChainVerifier verifier, IClock clock) : ILedgerHistoryService
+    ILedgerHistoryQuery query, IWithdrawalRepository workers, IWorkerEarningsRepository earnings, ILedgerChainVerifier verifier, IClock clock) : ILedgerHistoryService
 {
-    private const int DefaultPageSize = 20;
-    private const int MaxPageSize = 100;
+    private readonly LedgerFilterParser _parser = new(clock);
 
     public async Task<AdminLedgerPageDto> GetAdminHistoryAsync(LedgerHistoryRequest request, CancellationToken cancellationToken = default)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        var filter = ParseFilter(request, errors);
-        LedgerPartyFilter? party = null;
-        if (!string.IsNullOrWhiteSpace(request.PartyType))
-        {
-            if (ParseEnum<LedgerPartyType>(request.PartyType) is { } type) party = new LedgerPartyFilter(type, request.PartyId, request.PartyId is null);
-            else errors["partyType"] = [$"partyType must be one of: {string.Join(", ", Names<LedgerPartyType>())}."];
-        }
-        else if (request.PartyId is not null)
-        {
-            errors["partyId"] = ["partyId needs a partyType."];
-        }
-
+        var filter = _parser.Parse(request, errors);
+        var party = LedgerFilterParser.ParseParty(request, errors);
         if (errors.Count > 0) throw new ValidationException(errors);
 
         var (items, total) = await query.SearchAsync(
@@ -113,7 +117,7 @@ public class LedgerHistoryService(
     private async Task<PartyLedgerPageDto> GetPartyHistoryAsync(IReadOnlyList<LedgerParty> accounts, LedgerHistoryRequest request, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        var filter = ParseFilter(request, errors);
+        var filter = _parser.Parse(request, errors);
         if (errors.Count > 0) throw new ValidationException(errors);
 
         var search = new LedgerSearch(accounts.Select(a => new LedgerPartyFilter(a.Type, a.Id, false)).ToList(), filter.FromUtc, filter.ToExclusiveUtc, filter.Type);
@@ -132,45 +136,48 @@ public class LedgerHistoryService(
         return new PartyLedgerPageDto(items.Select(e => ToDto(e, accounts)).ToList(), opening, closing, filter.Page, filter.PageSize, total, escrowOpening, escrowClosing);
     }
 
-    private record ParsedFilter(DateTime? FromUtc, DateTime? ToExclusiveUtc, LedgerEntryType? Type, int Page, int PageSize);
-
-    private ParsedFilter ParseFilter(LedgerHistoryRequest request, Dictionary<string, string[]> errors)
+    public async Task<WorkerStatementDto> GetWorkerStatementAsync(int workerId, string? month, CancellationToken cancellationToken = default)
     {
-        var from = ParseDay(request.From, "from", errors);
-        var to = ParseDay(request.To, "to", errors);
-        if (from is not null && to is not null && from > to) errors["from"] = ["from must not be after to."];
+        var worker = await workers.GetWorkerAsync(workerId, cancellationToken) ?? throw new NotFoundException("Worker", workerId);
+        if (worker.Type != WorkerType.Freelancer) throw new ForbiddenAccessException("Thợ thuộc Agency được trả lương qua Agency, không có sao kê riêng.");
 
-        LedgerEntryType? type = null;
-        if (!string.IsNullOrWhiteSpace(request.Type))
+        if (!PayoutConstants.TryParsePeriod(month?.Trim(), out var year, out var monthNumber))
         {
-            type = ParseEnum<LedgerEntryType>(request.Type);
-            if (type is null) errors["type"] = [$"type must be one of: {string.Join(", ", Names<LedgerEntryType>())}."];
+            throw new ValidationException("month", "month must be a month in the form YYYY-MM.");
         }
 
-        if (request.Page is < 1) errors["page"] = ["page must be at least 1."];
-        if (request.PageSize is < 1 or > MaxPageSize) errors["pageSize"] = [$"pageSize must be between 1 and {MaxPageSize}."];
+        var today = clock.LocalToday;
+        if ((year, monthNumber).CompareTo((today.Year, today.Month)) > 0) throw new ValidationException("month", "A future month has no statement yet.");
 
-        return new ParsedFilter(
-            from is { } f ? LocalDayStartUtc(f) : null,
-            to is { } t ? LocalDayStartUtc(t.AddDays(1)) : null, // the whole last day is included
-            type, request.Page ?? 1, request.PageSize ?? DefaultPageSize);
+        var period = PayoutConstants.FormatPeriod(year, monthNumber);
+        var fromUtc = _parser.LocalDayStartUtc(new DateOnly(year, monthNumber, 1));
+        var toUtc = _parser.LocalDayStartUtc(new DateOnly(year, monthNumber, 1).AddMonths(1));
+        var account = new LedgerParty(LedgerPartyType.Worker, workerId);
+
+        // The month's entries, oldest first (a month of one worker is small enough to list whole).
+        var monthSearch = new LedgerSearch([new LedgerPartyFilter(account.Type, account.Id, false)], fromUtc, toUtc, null);
+        var (entries, _) = await query.SearchAsync(monthSearch, 1, 5000, cancellationToken);
+        var rows = entries.OrderBy(e => e.EntryId).ToList();
+
+        // The settlement of the month is written when the month is over (at the start of the next one); it belongs to this statement.
+        var settlement = await query.GetByKeyAsync(LedgerKeys.Settlement(period, LedgerPartyType.Worker, workerId), cancellationToken);
+        if (settlement is not null && rows.All(r => r.EntryId != settlement.EntryId)) rows.Add(settlement);
+
+        var state = await earnings.GetBatchStateAsync(workerId, period, cancellationToken);
+        var settled = state is { BatchStatus: PayoutConstants.BatchClosed, Item: not null };
+        var opening = await query.GetBalanceBeforeAsync(account, fromUtc, cancellationToken);
+        var atCutoff = await query.GetBalanceBeforeAsync(account, toUtc, cancellationToken);
+        var settlementAmount = settled ? state!.Item!.NetAmount : 0m;
+
+        decimal Sent(LedgerEntryType type) => rows.Where(e => e.EntryType == type && e.FromPartyType == LedgerPartyType.Worker && e.FromPartyId == workerId && e.CreatedAt < toUtc).Sum(e => e.Amount);
+
+        // For a settled month the figures are the payout item's, which the settlement computed from these same entries.
+        var advance = settled ? state!.Item!.AdvanceAmount : Sent(LedgerEntryType.Withdrawal);
+        var penalty = settled ? state!.Item!.PenaltyAmount : Sent(LedgerEntryType.Penalty);
+        var closing = atCutoff - (settlement is null ? 0m : settlement.Amount);
+        return new WorkerStatementDto(
+            period, opening, rows.Select(e => ToDto(e, [account])).ToList(), advance, penalty, settlementAmount, closing, rows.Count == 0 ? null : rows[^1].EntryHash);
     }
-
-    private DateTime LocalDayStartUtc(DateOnly day) =>
-        DateTime.SpecifyKind(clock.ToUtc(new DateTime(day.Year, day.Month, day.Day, 0, 0, 0, DateTimeKind.Unspecified)), DateTimeKind.Utc);
-
-    private static DateOnly? ParseDay(string? text, string field, Dictionary<string, string[]> errors)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        if (DateOnly.TryParseExact(text.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)) return day;
-        errors[field] = [$"{field} must be a date in the form yyyy-MM-dd."];
-        return null;
-    }
-
-    private static TEnum? ParseEnum<TEnum>(string text) where TEnum : struct, Enum =>
-        Enum.GetValues<TEnum>().Cast<TEnum?>().FirstOrDefault(v => string.Equals(DbEnum.ToDb(v!.Value), text.Trim(), StringComparison.OrdinalIgnoreCase));
-
-    private static IEnumerable<string> Names<TEnum>() where TEnum : struct, Enum => Enum.GetValues<TEnum>().Select(v => DbEnum.ToDb(v));
 
     private static LedgerEntryDto ToDto(LedgerEntry e, IReadOnlyList<LedgerParty>? accounts = null)
     {
