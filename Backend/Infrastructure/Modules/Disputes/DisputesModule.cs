@@ -1,5 +1,6 @@
 using CommonService.Application.Features.Disputes;
 using CommonService.Application.Features.Disputes.Services;
+using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Modularity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,7 @@ public class DisputesModule : IModule
         services.Configure<DisputeOptions>(configuration.GetSection("Disputes"));
 
         services.AddScoped<IDisputeRepository, EfDisputeRepository>();
+        services.AddScoped<IOpenDisputeQuery, EfOpenDisputeQuery>();
         services.AddScoped<IDisputeFilingService, DisputeFilingService>();
         services.AddScoped<IAdminDisputeService, AdminDisputeService>();
         services.AddScoped<IDisputeVerdictService, DisputeVerdictService>();
