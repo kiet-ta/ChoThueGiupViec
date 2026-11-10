@@ -116,6 +116,10 @@ public class DomainModelTests
     [InlineData(typeof(JobAssignmentStatus), 20)]
     [InlineData(typeof(WorkStatus), 10)]
     [InlineData(typeof(FaultParty), 12)]
+    [InlineData(typeof(LedgerPartyType), 20)]
+    [InlineData(typeof(LedgerEntryType), 20)]
+    [InlineData(typeof(LedgerRefType), 20)]
+    [InlineData(typeof(WithdrawalStatus), 10)]
     public void Every_enum_value_fits_its_varchar_column(Type enumType, int columnLength)
     {
         foreach (var value in Enum.GetValues(enumType))

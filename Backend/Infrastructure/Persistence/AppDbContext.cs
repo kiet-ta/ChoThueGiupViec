@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<JobOrder> JobOrders => Set<JobOrder>();
     public DbSet<JobOrderExtension> JobOrderExtensions => Set<JobOrderExtension>();
     public DbSet<JobPhoto> JobPhotos => Set<JobPhoto>();
+    public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
     public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
     public DbSet<PartnerAgency> PartnerAgencies => Set<PartnerAgency>();
     public DbSet<PartnerSubscription> PartnerSubscriptions => Set<PartnerSubscription>();
@@ -44,6 +45,7 @@ public class AppDbContext : DbContext
     public DbSet<SubscriptionPackage> SubscriptionPackages => Set<SubscriptionPackage>();
     public DbSet<TwoWayRating> TwoWayRatings => Set<TwoWayRating>();
     public DbSet<Worker> Workers => Set<Worker>();
+    public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -107,6 +109,15 @@ public class AppDbContext : DbContext
 
         configurationBuilder.Properties<WorkStatus>()
             .HaveConversion<DbEnumValueConverter<WorkStatus>>();
+
+        configurationBuilder.Properties<LedgerPartyType>()
+            .HaveConversion<DbEnumValueConverter<LedgerPartyType>>();
+        configurationBuilder.Properties<LedgerEntryType>()
+            .HaveConversion<DbEnumValueConverter<LedgerEntryType>>();
+        configurationBuilder.Properties<LedgerRefType>()
+            .HaveConversion<DbEnumValueConverter<LedgerRefType>>();
+        configurationBuilder.Properties<WithdrawalStatus>()
+            .HaveConversion<DbEnumValueConverter<WithdrawalStatus>>();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

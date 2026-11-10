@@ -2,7 +2,7 @@
 
 ## Ledger (decision D28, contract ledger.md)
 - [x] **LEDGER-01** Ledger and payouts contracts, decision and checklist — evidence: .harness/evidence/20261110-141139-L3.log
-- [ ] **LEDGER-02** Ledger and withdrawal tables, payout advance and carry
+- [x] **LEDGER-02** Ledger and withdrawal tables, payout advance and carry — evidence: .harness/evidence/20261110-143716-L3.log
 - [ ] **LEDGER-03** Append-only writer, idempotency and hash chain
 - [ ] **LEDGER-04** Ledger balances and read ports
 - [ ] **LEDGER-05** Customer and job money flows

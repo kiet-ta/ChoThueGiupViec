@@ -67,6 +67,11 @@ public class PayoutItemConfiguration : IEntityTypeConfiguration<PayoutItem>
             .HasColumnType("DECIMAL(18,2)")
             .IsRequired();
 
+        builder.Property(x => x.AdvanceAmount).HasColumnName("advance_amount")
+            .HasColumnType("DECIMAL(18,2)").HasDefaultValue(0m).IsRequired();
+        builder.Property(x => x.CarryInAmount).HasColumnName("carry_in_amount")
+            .HasColumnType("DECIMAL(18,2)").HasDefaultValue(0m).IsRequired();
+
         builder.Property(x => x.BankAccountNo)
             .HasColumnName("bank_account_no")
             .HasMaxLength(30)

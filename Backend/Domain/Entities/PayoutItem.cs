@@ -32,6 +32,10 @@ public partial class PayoutItem
     /// <summary>payout_item.penalty_amount DECIMAL(18,2)</summary>
     public decimal PenaltyAmount { get; set; }
 
+    public decimal AdvanceAmount { get; set; }
+
+    public decimal CarryInAmount { get; set; }
+
     /// <summary>payout_item.net_amount DECIMAL(18,2)</summary>
     public decimal NetAmount { get; set; }
 
