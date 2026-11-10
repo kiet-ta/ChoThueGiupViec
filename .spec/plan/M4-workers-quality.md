@@ -22,6 +22,7 @@
 - [x] **BE-M4-07** `IWorkerAvailabilityQuery`: thợ Freelancer rảnh theo slot + vị trí + rating, dùng chỉ mục (không quét chuỗi/UNION) · *needs:* BE-M4-05, G1. — evidence: .harness/evidence/20261008-204729-L3.log
 - [x] **BE-M4-08** Nghiệm thu (BR-07): thợ gửi After → khách "Xác nhận nghiệm thu" hoặc yêu cầu dọn lại 15–30 phút (kèm ảnh sửa lỗi); xác nhận → `COMPLETED`, tính `payout_amount` (Freelancer nhận **80 %**, Agency theo hoa hồng gói, *decisions:* Q11; làm tròn VND theo G-2), phát `JobCompleted` · *needs:* BE-M4-06. — evidence: .harness/evidence/20261009-142712-L3.log
 - [x] **BE-M4-09** Làm lần 2 phía thợ (BR-08): nghe `ExtensionPaid`; thợ đồng ý → mở ca nối ngay; từ chối → đóng ca + phát `ExtensionDeclined` · *needs:* BE-M4-08, BE-M2-08. — evidence: ticket #437 (supersedes the stale #367); `POST /api/workers/assignments/{id}/extension/respond`; Payments already writes `PAID`, so no `ExtensionPaid` listener is needed in Workers.
+- [x] **BE-M4-11** Read side of `EfWorkerAssignmentRepository` follows D26: at most 3 joined tables (assignment + slot + order), address and paid extension read by key, `AsNoTracking` + projection — evidence: .harness/evidence/20261110-121326-L3.log
 - [ ] **BE-M4-10** Test: ngưỡng 85 %, UNIQUE Block Slot, ảnh mờ bị chặn, After sai góc bị chặn, payout 80 % · *needs:* BE-M4-01..09.
 
 ## Wave 3 — Mobile (Worker + khách nghiệm thu) & Web (Admin) · *needs:* MOB-BASE-01..04 (M3) + G4
