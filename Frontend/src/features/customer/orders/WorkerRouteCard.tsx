@@ -60,7 +60,7 @@ export function WorkerRouteCard({ assignmentId, workerName }: { assignmentId: nu
       {route && <>
         <p className="mt-2 text-sm text-stone-700">Khoảng cách: <strong>{formatDistance(route.distanceMeters)}</strong> · Dự kiến: <strong>{formatDuration(route.durationSeconds)}</strong></p>
         <div className="mt-4 h-72 overflow-hidden rounded-lg border border-stone-200">
-          <MapContainer center={[route.destination.latitude, route.destination.longitude]} zoom={14} scrollWheelZoom={false} className="h-full w-full">
+          <MapContainer center={[route.destination.latitude, route.destination.longitude]} zoom={14} scrollWheelZoom className="h-full w-full">
             <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
             {line.length > 1 && <Polyline positions={line} pathOptions={{ color: '#1a2f25', weight: 5 }} />}
             <CircleMarker center={[route.workerPosition.latitude, route.workerPosition.longitude]} radius={9} pathOptions={{ color: '#1a2f25', fillColor: '#f59e0b', fillOpacity: 1 }} />
