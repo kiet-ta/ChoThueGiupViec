@@ -1,6 +1,6 @@
 // Pure logic of the ledger page (no React, so `node --test` covers it). Rules: .spec/contracts/ledger.md sections 3 and 9.
 import { formatDateTime, formatVnd } from '../../lib/format.ts'
-import type { ChainResult, LedgerEntry, LedgerFilters, LedgerSummary, ReconciliationReport } from './types'
+import type { ChainResult, LedgerEntry, LedgerFilters, LedgerSummary, ReconciliationReport, Withdrawal, WithdrawalStatus } from './types'
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent'
 
@@ -253,4 +253,118 @@ export function exportErrorMessage(status: number, bodyText: string): string {
     default:
       return `Không tải được sao kê (lỗi ${status}).`
   }
+}
+
+// ---- withdrawal requests --------------------------------------------------------------------
+
+/** The tabs of the page, in the order the Admin works through them. */
+export const WITHDRAWAL_TABS: { value: WithdrawalStatus; label: string }[] = [
+  { value: 'PENDING', label: 'Chờ duyệt' },
+  { value: 'PAID', label: 'Đã chi' },
+  { value: 'REJECTED', label: 'Bị từ chối' },
+  { value: 'CANCELLED', label: 'Đã huỷ' },
+]
+
+export function withdrawalStatusInfo(status: string): { label: string; tone: Tone } {
+  switch (status) {
+    case 'PENDING':
+      return { label: 'Chờ duyệt', tone: 'warning' }
+    case 'PAID':
+      return { label: 'Đã chi', tone: 'success' }
+    case 'REJECTED':
+      return { label: 'Bị từ chối', tone: 'danger' }
+    case 'CANCELLED':
+      return { label: 'Đã huỷ', tone: 'neutral' }
+    default:
+      return { label: status, tone: 'neutral' }
+  }
+}
+
+export interface WithdrawalRow {
+  withdrawalId: number
+  worker: string
+  phone: string
+  amount: string
+  bank: string
+  requestedAt: string
+  status: { label: string; tone: Tone }
+  /** Why it was rejected, or the code of the ledger entry that paid it; empty otherwise. */
+  detail: string
+  pending: boolean
+}
+
+export function withdrawalRow(w: Withdrawal): WithdrawalRow {
+  const bank = [w.bankName?.trim(), w.bankAccountNo?.trim()].filter((x) => x).join(' · ')
+  return {
+    withdrawalId: w.withdrawalId,
+    worker: w.workerName?.trim() ? w.workerName : `Thợ #${w.workerId}`,
+    phone: w.workerPhone || '—',
+    amount: formatVnd(w.amount),
+    bank: bank || 'Chưa có tài khoản (sandbox)',
+    requestedAt: formatDateTime(w.requestedAt),
+    status: withdrawalStatusInfo(w.status),
+    detail: w.status === 'REJECTED' ? (w.rejectReason ?? '') : w.status === 'PAID' && w.entryId !== null ? `Bút toán #${w.entryId}` : '',
+    pending: w.status === 'PENDING',
+  }
+}
+
+/** The line of the approval step (handoff appendix D): the ledger writes an entry that cannot be edited. */
+export function approveConfirmText(row: Pick<WithdrawalRow, 'amount' | 'worker'>): string {
+  return `Duyệt chi ${row.amount} cho ${row.worker}? Sổ cái sẽ ghi bút toán rút tiền và không thể sửa.`
+}
+
+export const REASON_MAX = 255
+
+/** The rejection reason is required, 1-255 characters after trimming; null when it can be sent. */
+export function reasonError(reason: string): string | null {
+  const text = reason.trim()
+  if (text === '') return 'Hãy nhập lý do từ chối.'
+  if (text.length > REASON_MAX) return `Lý do tối đa ${REASON_MAX} ký tự.`
+  return null
+}
+
+/** The part of an `ApiError` this file needs, so it does not import the client (which reads `import.meta`). */
+export interface FailedCall {
+  status: number
+  message: string
+  data: unknown
+  fieldErrors?: Record<string, string[]>
+}
+
+/** The 409 code of a business conflict (`data: { code }`), or null. */
+export function conflictCode(e: FailedCall): string | null {
+  const data = e.data
+  return typeof data === 'object' && data !== null && typeof (data as { code?: unknown }).code === 'string' ? (data as { code: string }).code : null
+}
+
+/** What the Admin reads when approving or rejecting fails; the codes of contract ledger.md section 6 are translated. */
+export function withdrawalActionError(e: FailedCall): string {
+  if (e.status === 409) {
+    switch (conflictCode(e)) {
+      case 'WITHDRAWAL_INSUFFICIENT':
+        return 'Số dư có thể rút không còn đủ cho yêu cầu này (có thể do khoản khấu trừ mới). Hãy từ chối yêu cầu.'
+      case 'WITHDRAWAL_NOT_PENDING':
+        return 'Yêu cầu đã được xử lý hoặc thợ đã huỷ. Danh sách đã được tải lại.'
+      case 'LEDGER_BUSY':
+        return 'Sổ cái đang bận, hãy thử lại sau ít giây.'
+      default:
+        return e.message || 'Yêu cầu không còn ở trạng thái chờ duyệt.'
+    }
+  }
+
+  switch (e.status) {
+    case 400:
+      return e.fieldErrors?.reason?.[0] ?? 'Dữ liệu không hợp lệ.'
+    case 404:
+      return 'Không tìm thấy yêu cầu này.'
+    case 0:
+      return 'Không kết nối được máy chủ.'
+    default:
+      return e.message || `Lỗi ${e.status}`
+  }
+}
+
+/** After these the pending list is stale (somebody else decided the request), so the page loads it again. */
+export function shouldReloadAfter(e: FailedCall): boolean {
+  return e.status === 409 || e.status === 404
 }

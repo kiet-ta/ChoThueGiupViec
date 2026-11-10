@@ -3,15 +3,11 @@ import { describe, it } from 'node:test'
 import {
   batchRow,
   batchStatusInfo,
-  buildError,
-  confirmError,
-  confirmLines,
+  closedByText,
   exportFallbackName,
   fileErrorMessage,
-  finishedMonths,
   itemRow,
   itemStatusInfo,
-  localYearMonth,
   parseFileName,
   payeeTypeLabel,
   warningText,
@@ -42,6 +38,8 @@ const item = (over: Partial<PayoutItem> = {}): PayoutItem => ({
   grossAmount: 624000,
   commissionAmount: 104000,
   penaltyAmount: 50000,
+  advanceAmount: 100000,
+  carryInAmount: -20000,
   netAmount: 470000,
   bankName: 'ACB',
   bankAccountNo: '0012345678',
@@ -50,35 +48,6 @@ const item = (over: Partial<PayoutItem> = {}): PayoutItem => ({
 })
 
 describe('months', () => {
-  it('reads the month on the Asia/Ho_Chi_Minh calendar, not the UTC one', () => {
-    assert.deepEqual(localYearMonth(new Date('2026-10-31T16:59:59Z')), { year: 2026, month: 10 })
-    assert.deepEqual(localYearMonth(new Date('2026-10-31T17:00:00Z')), { year: 2026, month: 11 })
-    assert.deepEqual(localYearMonth(new Date('2026-12-31T17:00:00Z')), { year: 2027, month: 1 })
-  })
-
-  it('offers only finished months, newest first', () => {
-    const months = finishedMonths(new Date('2026-11-10T04:00:00Z'), 3)
-
-    assert.deepEqual(months.map((m) => m.value), ['2026-10', '2026-09', '2026-08'])
-    assert.equal(months[0].label, 'Tháng 10/2026')
-  })
-
-  it('never offers the running month, also just after local midnight when UTC is still the last day', () => {
-    assert.equal(finishedMonths(new Date('2026-10-15T04:00:00Z'), 1)[0].value, '2026-09')
-    // 2026-10-31 17:30 UTC is already 1 November in Ho Chi Minh: October is over there, so it is offered.
-    assert.equal(finishedMonths(new Date('2026-10-31T17:30:00Z'), 1)[0].value, '2026-10')
-    // one minute earlier it is still 31 October locally: October is still running.
-    assert.equal(finishedMonths(new Date('2026-10-31T16:59:00Z'), 1)[0].value, '2026-09')
-  })
-
-  it('crosses the year end and gives twelve months by default', () => {
-    const months = finishedMonths(new Date('2027-01-05T04:00:00Z'))
-
-    assert.equal(months.length, 12)
-    assert.deepEqual(months.slice(0, 3).map((m) => m.value), ['2026-12', '2026-11', '2026-10'])
-    assert.equal(months[11].value, '2026-01')
-  })
-
   it('labels a period and passes a malformed one through', () => {
     assert.equal(periodLabel('2026-01'), 'Tháng 1/2026')
     assert.equal(periodLabel('2026-12'), 'Tháng 12/2026')
@@ -88,11 +57,11 @@ describe('months', () => {
 
 describe('labels', () => {
   it('labels batch and item statuses and payee types', () => {
-    assert.deepEqual(batchStatusInfo('DRAFT'), { label: 'Nháp (chưa giải ngân)', tone: 'warning' })
-    assert.deepEqual(batchStatusInfo('CLOSED'), { label: 'Đã giải ngân', tone: 'success' })
+    assert.deepEqual(batchStatusInfo('DRAFT'), { label: 'Đang tất toán', tone: 'warning' })
+    assert.deepEqual(batchStatusInfo('CLOSED'), { label: 'Đã tất toán', tone: 'success' })
     assert.deepEqual(batchStatusInfo('X'), { label: 'X', tone: 'neutral' })
-    assert.equal(itemStatusInfo('PENDING').label, 'Chờ chuyển')
-    assert.equal(itemStatusInfo('TRANSFERRED').label, 'Đã chuyển')
+    assert.equal(itemStatusInfo('PENDING').label, 'Chờ tất toán')
+    assert.equal(itemStatusInfo('TRANSFERRED').label, 'Đã tất toán')
     assert.equal(payeeTypeLabel('FREELANCER'), 'Freelancer')
     assert.equal(payeeTypeLabel('AGENCY'), 'Agency')
   })
@@ -104,33 +73,44 @@ describe('labels', () => {
 })
 
 describe('rows', () => {
-  it('maps a batch with money and the local confirmation time', () => {
-    const row = batchRow(batch({ batchStatus: 'CLOSED', confirmedBy: 3, confirmedAt: '2026-11-06T03:30:00Z' }))
+  it('maps a batch with money and who closed it', () => {
+    const row = batchRow(batch({ batchStatus: 'CLOSED', confirmedBy: null, confirmedAt: '2026-11-01T17:05:00Z' }))
 
     assert.equal(row.month, 'Tháng 10/2026')
     assert.equal(row.total, '1.110.001 đ')
     assert.equal(row.items, 3)
-    assert.equal(row.confirmedAt, '06/11/2026 10:30')
-    assert.equal(row.status.label, 'Đã giải ngân')
+    assert.equal(row.closedBy, 'Hệ thống tự chốt lúc 02/11/2026 00:05')
+    assert.equal(row.status.label, 'Đã tất toán')
     assert.equal(row.detailPath, '/admin/payout-batches/12')
   })
 
-  it('shows a dash for a batch that is not confirmed yet', () => {
-    assert.equal(batchRow(batch()).confirmedAt, '—')
+  it('says the system settled a month without a confirmer, names the Admin of an old confirmation and shows a dash while open', () => {
+    assert.equal(closedByText({ confirmedBy: null, confirmedAt: '2026-11-01T17:05:00Z' }), 'Hệ thống tự chốt lúc 02/11/2026 00:05')
+    assert.equal(closedByText({ confirmedBy: 3, confirmedAt: '2026-11-06T03:30:00Z' }), 'Admin #3 lúc 06/11/2026 10:30')
+    assert.equal(closedByText({ confirmedBy: null, confirmedAt: null }), '—')
+    assert.equal(batchRow(batch()).closedBy, '—')
   })
 
-  it('maps an item with money, the penalty as a deduction and the bank', () => {
+  it('maps an item with money, the penalty and the advance as deductions, the carry-in and the bank', () => {
     const row = itemRow(item())
 
     assert.equal(row.type, 'Freelancer')
     assert.equal(row.gross, '624.000 đ')
     assert.equal(row.commission, '104.000 đ')
     assert.equal(row.penalty, '-50.000 đ')
+    assert.equal(row.advance, '-100.000 đ')
+    assert.equal(row.carryIn, '-20.000 đ')
     assert.equal(row.net, '470.000 đ')
     assert.equal(row.bank, 'ACB')
     assert.equal(row.account, '0012345678')
     assert.equal(row.missingAccount, false)
-    assert.equal(row.status.label, 'Chờ chuyển')
+    assert.equal(row.status.label, 'Chờ tất toán')
+  })
+
+  it('shows a positive carry-in as it is and dashes when there is no advance or carry-in', () => {
+    assert.equal(itemRow(item({ carryInAmount: 100000 })).carryIn, '100.000 đ')
+    const none = itemRow(item({ advanceAmount: 0, carryInAmount: 0 }))
+    assert.deepEqual([none.advance, none.carryIn], ['—', '—'])
   })
 
   it('keeps the leading zeros of an account number as text', () => {
@@ -144,33 +124,6 @@ describe('rows', () => {
     assert.equal(row.account, 'Chưa có')
     assert.equal(row.bank, '—')
     assert.equal(row.penalty, '—')
-  })
-})
-
-describe('confirmLines', () => {
-  it('states the month, the number of payees, the total and that no bank is called', () => {
-    const lines = confirmLines(batch())
-
-    assert.equal(lines[0], 'Tháng 10/2026: 3 người nhận, tổng 1.110.001 đ.')
-    assert.match(lines[1], /không chuyển tiền/)
-    assert.match(lines[2], /không thể dựng lại/)
-  })
-})
-
-describe('errors', () => {
-  it('explains a build refused for an unfinished month and for a closed batch', () => {
-    assert.match(buildError({ status: 400, message: 'Validation failed', data: null, fieldErrors: { periodMonth: ['Only a finished month can be built.'] } }), /đã kết thúc/)
-    assert.match(buildError({ status: 400, message: 'x', data: null, fieldErrors: { periodMonth: ['periodMonth must be a month in the form YYYY-MM.'] } }), /không hợp lệ/)
-    assert.match(buildError({ status: 409, message: 'x', data: null }), /đã đóng/)
-    assert.match(buildError({ status: 0, message: 'x', data: null }), /kết nối/)
-    assert.equal(buildError({ status: 500, message: '', data: null }), 'Lỗi 500')
-  })
-
-  it('explains the refusals of a confirmation', () => {
-    assert.match(confirmError({ status: 404, message: 'x', data: null }), /Không tìm thấy/)
-    assert.match(confirmError({ status: 409, message: 'x', data: null }), /đã đóng/)
-    assert.match(confirmError({ status: 409, message: 'x', data: null }), /tháng chưa kết thúc/)
-    assert.equal(confirmError({ status: 500, message: 'Boom', data: null }), 'Boom')
   })
 })
 

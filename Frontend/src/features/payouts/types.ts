@@ -9,6 +9,7 @@ export interface PayoutBatch {
   batchStatus: BatchStatus
   totalAmount: number
   itemCount: number
+  /** Null when the system settled the month (every batch from decision D28 on). */
   confirmedBy: number | null
   confirmedAt: string | null
   createdAt: string
@@ -25,6 +26,10 @@ export interface PayoutItem {
   grossAmount: number
   commissionAmount: number
   penaltyAmount: number
+  /** What the worker withdrew during the month (the advance); 0 for an agency. */
+  advanceAmount: number
+  /** The balance carried in from the earlier months (negative: a deduction larger than a month). */
+  carryInAmount: number
   netAmount: number
   bankName: string | null
   /** Empty when the payee has no bank account (question P4). */
