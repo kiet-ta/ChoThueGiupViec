@@ -12,7 +12,7 @@ const workerIcon = divIcon({
   className: '',
   iconSize: [44, 44],
   iconAnchor: [22, 22],
-  html: '<div style="width:44px;height:44px;border-radius:9999px;background:#16a34a;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3"/><circle cx="18.5" cy="17.5" r="3"/><path d="M8.5 17.5H14l3-8h-4.5"/><path d="M15 6h3l1.5 3.5"/><path d="M5.5 17.5 9 10h3"/></svg></div>',
+  html: '<div style="width:44px;height:44px;border-radius:9999px;background:#16a34a;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><svg width=\"28\" height=\"28\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"5\" cy=\"17\" r=\"3\"/><circle cx=\"19\" cy=\"17\" r=\"3\"/><path d=\"M8 17h6.5l1.2-5H9.5z\" fill=\"#fff\"/><path d=\"M7 10.5h6\" stroke-width=\"2.6\"/><path d=\"M15.7 12l3.3 5\"/><path d=\"M14.6 8.5h3.2\"/></svg></div>',
 })
 
 function FitRoute({ points }: { points: [number, number][] }) {
