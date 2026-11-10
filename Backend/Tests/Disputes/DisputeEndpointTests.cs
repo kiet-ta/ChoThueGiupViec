@@ -1,5 +1,6 @@
 using System.Reflection;
 using CommonService.Application.Common.Models;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Disputes;
 using CommonService.Application.Features.Disputes.Dtos;
 using CommonService.Application.Features.Disputes.Services;
@@ -70,40 +71,58 @@ public class DisputeEndpointTests
             Routes(typeof(AdminDisputesController)));
     }
 
+    /// <summary>What the service throws for a failure status; ErrorHandlingMiddleware turns it into that status (Tests/Infrastructure/MiddlewareTests.cs).</summary>
+    private static Exception Failure(int status) => status switch
+    {
+        400 => new ValidationException("Validation failed", new Dictionary<string, string[]> { ["field"] = ["bad"] }),
+        404 => new NotFoundException("Not found."),
+        409 => new BusinessRuleViolationException("decided"),
+        _ => new BadGatewayException("refund refused"),
+    };
+
+    private static readonly Dictionary<int, Type> FailureType = new()
+    {
+        [400] = typeof(ValidationException),
+        [404] = typeof(NotFoundException),
+        [409] = typeof(BusinessRuleViolationException),
+        [502] = typeof(BadGatewayException),
+    };
+
     private class StubVerdicts(int status) : IDisputeVerdictService
     {
         public (int Admin, int Dispute)? LastCall { get; private set; }
 
-        public Task<DisputeResult<AdminDisputeDto>> ResolveAsync(int adminId, int disputeId, ResolveDisputeRequestDto request, CancellationToken cancellationToken = default)
+        public Task<AdminDisputeDto> ResolveAsync(int adminId, int disputeId, ResolveDisputeRequestDto request, CancellationToken cancellationToken = default)
         {
             LastCall = (adminId, disputeId);
-            return Task.FromResult(status switch
-            {
-                200 => DisputeResult<AdminDisputeDto>.Ok(new AdminDisputeDto { DisputeId = disputeId }),
-                400 => DisputeResult<AdminDisputeDto>.ValidationError(new Dictionary<string, string[]> { ["note"] = ["bad"] }),
-                404 => DisputeResult<AdminDisputeDto>.NotFound(),
-                409 => DisputeResult<AdminDisputeDto>.Conflict("decided"),
-                _ => DisputeResult<AdminDisputeDto>.BadGateway("refund refused"),
-            });
+            return status == 200 ? Task.FromResult(new AdminDisputeDto { DisputeId = disputeId }) : throw Failure(status);
         }
     }
 
+    [Fact]
+    public async Task Resolve_answers_200_and_takes_the_admin_id_from_the_token()
+    {
+        var verdicts = new StubVerdicts(200);
+        var controller = new AdminDisputesController(null!, verdicts, new FakeUser(7));
+
+        var result = Assert.IsType<OkObjectResult>(await controller.Resolve(5, new ResolveDisputeRequestDto(), default));
+
+        Assert.True(SuccessOf(result.Value));
+        Assert.Equal((7, 5), verdicts.LastCall);
+    }
+
     [Theory]
-    [InlineData(200)]
     [InlineData(400)]
     [InlineData(404)]
     [InlineData(409)]
     [InlineData(502)]
-    public async Task Resolve_maps_the_result_and_takes_the_admin_id_from_the_token(int status)
+    public async Task Resolve_lets_a_service_failure_reach_the_error_middleware(int status)
     {
-        var verdicts = new StubVerdicts(status);
-        var controller = new AdminDisputesController(null!, verdicts, new FakeUser(7));
+        var controller = new AdminDisputesController(null!, new StubVerdicts(status), new FakeUser(7));
 
-        var result = Assert.IsType<ObjectResult>(await controller.Resolve(5, new ResolveDisputeRequestDto(), default));
+        var thrown = await Record.ExceptionAsync(() => controller.Resolve(5, new ResolveDisputeRequestDto(), default));
 
-        Assert.Equal(status, result.StatusCode);
-        Assert.Equal(status == 200, SuccessOf(result.Value));
-        Assert.Equal((7, 5), verdicts.LastCall);
+        Assert.IsType(FailureType[status], thrown);
     }
 
     [Fact]
@@ -130,61 +149,60 @@ public class DisputeEndpointTests
     {
         public (DisputeSide Side, int Caller)? LastCall { get; private set; }
 
-        public Task<DisputeResult<DisputeDto>> FileAsync(DisputeSide side, int callerId, FileDisputeRequestDto request, CancellationToken cancellationToken = default)
+        public Task<DisputeDto> FileAsync(DisputeSide side, int callerId, FileDisputeRequestDto request, CancellationToken cancellationToken = default)
         {
             LastCall = (side, callerId);
-            return Task.FromResult(status switch
-            {
-                201 => DisputeResult<DisputeDto>.Created(new DisputeDto { DisputeId = 1 }),
-                400 => DisputeResult<DisputeDto>.ValidationError(new Dictionary<string, string[]> { ["category"] = ["bad"] }),
-                404 => DisputeResult<DisputeDto>.NotFound(),
-                _ => DisputeResult<DisputeDto>.Conflict("already"),
-            });
+            return status == 201 ? Task.FromResult(new DisputeDto { DisputeId = 1 }) : throw Failure(status);
         }
 
-        public Task<DisputeResult<IReadOnlyList<DisputeDto>>> ListAsync(DisputeSide side, int callerId, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<DisputeDto>> ListAsync(DisputeSide side, int callerId, CancellationToken cancellationToken = default)
         {
             LastCall = (side, callerId);
-            return Task.FromResult(DisputeResult<IReadOnlyList<DisputeDto>>.Ok([]));
+            return Task.FromResult<IReadOnlyList<DisputeDto>>([]);
         }
 
-        public Task<DisputeResult<DisputeDto>> GetAsync(DisputeSide side, int callerId, int disputeId, CancellationToken cancellationToken = default)
+        public Task<DisputeDto> GetAsync(DisputeSide side, int callerId, int disputeId, CancellationToken cancellationToken = default)
         {
             LastCall = (side, callerId);
-            return Task.FromResult(DisputeResult<DisputeDto>.NotFound());
+            throw new NotFoundException("Not found.");
         }
     }
 
+    [Fact]
+    public async Task Filing_answers_201_with_the_envelope_for_both_roles()
+    {
+        var customerService = new StubFiling(201);
+        var customer = Assert.IsType<ObjectResult>(
+            await new CustomerDisputesController(customerService, Evidence, new FakeUser(11)).File(new FileDisputeRequestDto(), default));
+        Assert.Equal(201, customer.StatusCode);
+        Assert.True(SuccessOf(customer.Value));
+        Assert.Equal((DisputeSide.Customer, 11), customerService.LastCall);
+
+        var workerService = new StubFiling(201);
+        var worker = Assert.IsType<ObjectResult>(
+            await new WorkerDisputesController(workerService, Evidence, new FakeUser(22)).File(new FileDisputeRequestDto(), default));
+        Assert.Equal(201, worker.StatusCode);
+        Assert.Equal((DisputeSide.Worker, 22), workerService.LastCall);
+    }
+
     [Theory]
-    [InlineData(201)]
     [InlineData(400)]
     [InlineData(404)]
     [InlineData(409)]
-    public async Task Filing_maps_the_result_to_the_status_and_the_envelope_for_both_roles(int status)
+    public async Task Filing_lets_a_service_failure_reach_the_error_middleware_for_both_roles(int status)
     {
-        var customerService = new StubFiling(status);
-        var customer = Assert.IsType<ObjectResult>(
-            await new CustomerDisputesController(customerService, Evidence, new FakeUser(11)).File(new FileDisputeRequestDto(), default));
-        Assert.Equal(status, customer.StatusCode);
-        Assert.Equal(status == 201, SuccessOf(customer.Value));
-        Assert.Equal((DisputeSide.Customer, 11), customerService.LastCall);
+        var customer = new CustomerDisputesController(new StubFiling(status), Evidence, new FakeUser(11));
+        Assert.IsType(FailureType[status], await Record.ExceptionAsync(() => customer.File(new FileDisputeRequestDto(), default)));
 
-        var workerService = new StubFiling(status);
-        var worker = Assert.IsType<ObjectResult>(
-            await new WorkerDisputesController(workerService, Evidence, new FakeUser(22)).File(new FileDisputeRequestDto(), default));
-        Assert.Equal(status, worker.StatusCode);
-        Assert.Equal((DisputeSide.Worker, 22), workerService.LastCall);
+        var worker = new WorkerDisputesController(new StubFiling(status), Evidence, new FakeUser(22));
+        Assert.IsType(FailureType[status], await Record.ExceptionAsync(() => worker.File(new FileDisputeRequestDto(), default)));
     }
 
     private static bool SuccessOf(object? value) => (bool)value!.GetType().GetProperty(nameof(ApiResponse<object>.Success))!.GetValue(value)!;
 
     [Fact]
-    public async Task A_400_carries_the_errors_map_and_without_a_user_id_every_action_answers_401()
+    public async Task Without_a_user_id_every_action_answers_401()
     {
-        var bad = Assert.IsType<ObjectResult>(
-            await new CustomerDisputesController(new StubFiling(400), Evidence, new FakeUser(11)).File(new FileDisputeRequestDto(), default));
-        Assert.Contains("errors", Assert.IsType<ApiResponse<object>>(bad.Value).Data!.GetType().GetProperties().Select(p => p.Name));
-
         foreach (var user in new[] { new FakeUser(null) })
         {
             var customer = new CustomerDisputesController(new StubFiling(201), Evidence, user);
@@ -409,11 +427,11 @@ public class DisputeEndpointTests
             await using var db = new AppDbContext(Options());
 
             // another customer or worker is not on the order: 404
-            Assert.Equal(404, (await Filing(db, now).FileAsync(DisputeSide.Customer, s.CustomerId + 100000, Body(s.OrderIds[0]))).StatusCode);
-            Assert.Equal(404, (await Filing(db, now).FileAsync(DisputeSide.Worker, s.WorkerId + 100000, Body(s.OrderIds[0]))).StatusCode);
+            Assert.Equal(404, (await Filing(db, now).FileAsync(DisputeSide.Customer, s.CustomerId + 100000, Body(s.OrderIds[0])).Outcome()).StatusCode);
+            Assert.Equal(404, (await Filing(db, now).FileAsync(DisputeSide.Worker, s.WorkerId + 100000, Body(s.OrderIds[0])).Outcome()).StatusCode);
 
-            var filed = await Filing(db, now).FileAsync(DisputeSide.Customer, s.CustomerId, Body(s.OrderIds[0]));
-            Assert.Equal(201, filed.StatusCode);
+            var filed = await Filing(db, now).FileAsync(DisputeSide.Customer, s.CustomerId, Body(s.OrderIds[0])).Outcome();
+            Assert.True(filed.Success);
             var id = filed.Data!.DisputeId;
             Assert.True(id > 0);
 
@@ -429,15 +447,15 @@ public class DisputeEndpointTests
             }
 
             // one ticket per order: the worker's filing for the same order is 409
-            Assert.Equal(409, (await Filing(db, now).FileAsync(DisputeSide.Worker, s.WorkerId, Body(s.OrderIds[0]))).StatusCode);
+            Assert.Equal(409, (await Filing(db, now).FileAsync(DisputeSide.Worker, s.WorkerId, Body(s.OrderIds[0])).Outcome()).StatusCode);
 
-            Assert.Equal(id, Assert.Single((await Filing(db, now).ListAsync(DisputeSide.Customer, s.CustomerId)).Data!).DisputeId);
-            Assert.Equal(id, Assert.Single((await Filing(db, now).ListAsync(DisputeSide.Worker, s.WorkerId)).Data!).DisputeId);
-            Assert.Equal(id, (await Filing(db, now).GetAsync(DisputeSide.Worker, s.WorkerId, id)).Data!.DisputeId);
-            Assert.Equal(404, (await Filing(db, now).GetAsync(DisputeSide.Customer, s.CustomerId + 100000, id)).StatusCode);
+            Assert.Equal(id, Assert.Single((await Filing(db, now).ListAsync(DisputeSide.Customer, s.CustomerId).Outcome()).Data!).DisputeId);
+            Assert.Equal(id, Assert.Single((await Filing(db, now).ListAsync(DisputeSide.Worker, s.WorkerId).Outcome()).Data!).DisputeId);
+            Assert.Equal(id, (await Filing(db, now).GetAsync(DisputeSide.Worker, s.WorkerId, id).Outcome()).Data!.DisputeId);
+            Assert.Equal(404, (await Filing(db, now).GetAsync(DisputeSide.Customer, s.CustomerId + 100000, id).Outcome()).StatusCode);
 
             // admin queue with names, priority and the SLA
-            var queue = await Admin(db, now).SearchAsync("OPEN", null, null, null, null);
+            var queue = await Admin(db, now).SearchAsync("OPEN", null, null, null, null).Outcome();
             var item = Assert.Single(queue.Data!.Items, i => i.DisputeId == id);
             Assert.Equal("Dispute Customer", item.CustomerName);
             Assert.Equal("Dispute Worker", Assert.Single(item.Workers).FullName);
@@ -446,16 +464,16 @@ public class DisputeEndpointTests
             Assert.InRange(item.SlaSecondsRemaining, 48 * 3600 - 5, 48 * 3600);
 
             // case file: the ticket, the check-in, both photos and the timeline
-            var file = (await Admin(db, now).GetAsync(id)).Data!;
+            var file = (await Admin(db, now).GetAsync(id).Outcome()).Data!;
             Assert.Equal(["CHECK_IN", "PHOTO_AFTER", "CHECK_OUT", "CUSTOMER_DISPUTED"], file.ShiftTimeline.Select(e => e.Type).ToArray());
             Assert.Equal(42.5m, file.ShiftTimeline[0].DistanceM);
             Assert.Equal(["AFTER/1", "BEFORE/1"], file.Photos.Select(p => $"{p.Phase}/{p.AngleNo}").ToArray());
 
             // take: OPEN -> IN_REVIEW with the admin as handler (FK to ADMIN), a second take is 409
-            var taken = await Admin(db, now).TakeAsync(s.AdminId, id);
+            var taken = await Admin(db, now).TakeAsync(s.AdminId, id).Outcome();
             Assert.Equal("IN_REVIEW", taken.Data!.DisputeStatus);
             Assert.Equal(s.AdminId, taken.Data.ResolvedBy);
-            Assert.Equal(409, (await Admin(db, now).TakeAsync(s.AdminId, id)).StatusCode);
+            Assert.Equal(409, (await Admin(db, now).TakeAsync(s.AdminId, id).Outcome()).StatusCode);
 
             await using var after = new AppDbContext(Options());
             var saved = await after.DisputeTickets.AsNoTracking().SingleAsync(d => d.DisputeId == id);
@@ -484,7 +502,7 @@ public class DisputeEndpointTests
                 await using var db = new AppDbContext(Options());
                 var service = Filing(db, now);
                 gate.Wait();
-                return (await service.FileAsync(side, caller, Body(s.OrderIds[0]))).StatusCode;
+                return (await service.FileAsync(side, caller, Body(s.OrderIds[0])).Outcome()).StatusCode;
             }
 
             var tasks = Enumerable.Range(0, 6)
@@ -494,7 +512,7 @@ public class DisputeEndpointTests
             gate.Set();
             var codes = await Task.WhenAll(tasks);
 
-            Assert.Equal(1, codes.Count(c => c == 201));
+            Assert.Equal(1, codes.Count(c => c == 200));
             Assert.Equal(5, codes.Count(c => c == 409));
             await using var verify = new AppDbContext(Options());
             Assert.Equal(1, await verify.DisputeTickets.CountAsync(d => d.OrderId == s.OrderIds[0]));
@@ -517,14 +535,14 @@ public class DisputeEndpointTests
             await using var db = new AppDbContext(Options());
 
             // two days later both the completion (1 h before now) and today's shift end are far outside 24 h
-            var late = await Filing(db, now.AddDays(2)).FileAsync(DisputeSide.Customer, s.CustomerId, Body(s.OrderIds[0]));
+            var late = await Filing(db, now.AddDays(2)).FileAsync(DisputeSide.Customer, s.CustomerId, Body(s.OrderIds[0])).Outcome();
             Assert.Equal(409, late.StatusCode);
             Assert.Contains("passed", late.ErrorMessage);
             Assert.False(await db.DisputeTickets.AnyAsync(d => d.OrderId == s.OrderIds[0]));
 
             // an assignment still IN_PROGRESS has nothing to dispute yet
             await db.Database.ExecuteSqlRawAsync("UPDATE JOB_ASSIGNMENT SET assignment_status = 'IN_PROGRESS' WHERE assignment_id = {0}", s.AssignmentIds[0]);
-            var early = await Filing(db, now).FileAsync(DisputeSide.Customer, s.CustomerId, Body(s.OrderIds[0]));
+            var early = await Filing(db, now).FileAsync(DisputeSide.Customer, s.CustomerId, Body(s.OrderIds[0])).Outcome();
             Assert.Equal(409, early.StatusCode);
             Assert.Contains("nothing to dispute", early.ErrorMessage);
         }

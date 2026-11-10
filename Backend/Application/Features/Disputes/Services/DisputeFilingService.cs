@@ -1,4 +1,5 @@
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Disputes.Dtos;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -16,12 +17,12 @@ public enum DisputeSide
 
 public interface IDisputeFilingService
 {
-    Task<DisputeResult<DisputeDto>> FileAsync(
+    Task<DisputeDto> FileAsync(
         DisputeSide side, int callerId, FileDisputeRequestDto request, CancellationToken cancellationToken = default);
 
-    Task<DisputeResult<IReadOnlyList<DisputeDto>>> ListAsync(DisputeSide side, int callerId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DisputeDto>> ListAsync(DisputeSide side, int callerId, CancellationToken cancellationToken = default);
 
-    Task<DisputeResult<DisputeDto>> GetAsync(DisputeSide side, int callerId, int disputeId, CancellationToken cancellationToken = default);
+    Task<DisputeDto> GetAsync(DisputeSide side, int callerId, int disputeId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Filing and own lists of disputes (contract disputes.md 2.1, PRD 4.3 step 1, BE-M6-02a).</summary>
@@ -33,24 +34,24 @@ public class DisputeFilingService(
         JobAssignmentStatus.AwaitingAcceptance, JobAssignmentStatus.Completed, JobAssignmentStatus.Absent,
     ];
 
-    public async Task<DisputeResult<DisputeDto>> FileAsync(
+    public async Task<DisputeDto> FileAsync(
         DisputeSide side, int callerId, FileDisputeRequestDto request, CancellationToken cancellationToken = default)
     {
         var errors = Validate(request, out var orderId, out var category, out var description, out var evidence);
-        if (errors.Count > 0) return DisputeResult<DisputeDto>.ValidationError(errors);
+        if (errors.Count > 0) throw new ValidationException("Validation failed", errors);
 
         var order = await disputes.GetOrderAsync(orderId, cancellationToken);
-        if (order is null || !IsOnOrder(side, callerId, order)) return DisputeResult<DisputeDto>.NotFound();
+        if (order is null || !IsOnOrder(side, callerId, order)) throw new NotFoundException("Not found.");
 
         var eligible = order.Assignments.Where(a => DisputableStatuses.Contains(a.Status)).ToList();
-        if (eligible.Count == 0) return DisputeResult<DisputeDto>.Conflict("There is nothing to dispute on this order yet.");
+        if (eligible.Count == 0) throw new BusinessRuleViolationException("There is nothing to dispute on this order yet.");
 
         var now = clock.UtcNow;
         // Q10: the customer of an absence fee has Absence.CustomerDisputeHours to dispute it; every other dispute has FileWindowHours (PRD 4.3).
         var absenceFeeOnly = eligible.All(a => a.Status == JobAssignmentStatus.Absent);
         var windowHours = absenceFeeOnly ? (rules?.Value ?? new BusinessRules()).Absence.CustomerDisputeHours : options.Value.FileWindowHours;
         var windowEnd = eligible.Max(a => Later(a.CompletedAtUtc, clock.ToUtc(a.ShiftEndLocal))).AddHours(windowHours);
-        if (now > windowEnd) return DisputeResult<DisputeDto>.Conflict("The time to file a dispute for this order has passed.");
+        if (now > windowEnd) throw new BusinessRuleViolationException("The time to file a dispute for this order has passed.");
 
         var ticket = new DisputeTicket
         {
@@ -67,28 +68,28 @@ public class DisputeFilingService(
         // DISPUTE_TICKET has one row per order (unique index), so this also settles two simultaneous filings.
         if (!await disputes.TryAddAsync(ticket, cancellationToken))
         {
-            return DisputeResult<DisputeDto>.Conflict("A dispute already exists for this order.");
+            throw new BusinessRuleViolationException("A dispute already exists for this order.");
         }
 
-        return DisputeResult<DisputeDto>.Created(DisputeMapper.ToDto(ticket));
+        return DisputeMapper.ToDto(ticket);
     }
 
-    public async Task<DisputeResult<IReadOnlyList<DisputeDto>>> ListAsync(
+    public async Task<IReadOnlyList<DisputeDto>> ListAsync(
         DisputeSide side, int callerId, CancellationToken cancellationToken = default)
     {
         var tickets = side == DisputeSide.Customer
             ? await disputes.ListForCustomerAsync(callerId, cancellationToken)
             : await disputes.ListForWorkerAsync(callerId, cancellationToken);
-        return DisputeResult<IReadOnlyList<DisputeDto>>.Ok(tickets.Select(DisputeMapper.ToDto).ToList());
+        return tickets.Select(DisputeMapper.ToDto).ToList();
     }
 
-    public async Task<DisputeResult<DisputeDto>> GetAsync(
+    public async Task<DisputeDto> GetAsync(
         DisputeSide side, int callerId, int disputeId, CancellationToken cancellationToken = default)
     {
         var ticket = side == DisputeSide.Customer
             ? await disputes.GetForCustomerAsync(disputeId, callerId, cancellationToken)
             : await disputes.GetForWorkerAsync(disputeId, callerId, cancellationToken);
-        return ticket is null ? DisputeResult<DisputeDto>.NotFound() : DisputeResult<DisputeDto>.Ok(DisputeMapper.ToDto(ticket));
+        return ticket is null ? throw new NotFoundException("Not found.") : DisputeMapper.ToDto(ticket);
     }
 
     private static bool IsOnOrder(DisputeSide side, int callerId, DisputeOrderInfo order) =>

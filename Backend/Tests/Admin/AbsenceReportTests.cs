@@ -1,6 +1,7 @@
 using System.Reflection;
 using CommonService.Application.Common.Models;
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Admin;
 using CommonService.Application.Features.Admin.Dtos;
 using CommonService.Application.Features.Admin.Services;
@@ -423,10 +424,9 @@ public class AbsenceReportTests
         var refusing = new RefusingRefunds();
         h.RefundPort = refusing;
 
-        var result = await h.Service().ApproveAsync(AdminId, AssignmentId);
+        var thrown = await Assert.ThrowsAsync<BadGatewayException>(() => h.Service().ApproveAsync(AdminId, AssignmentId));
 
-        Assert.Equal(502, result.StatusCode);
-        Assert.Equal("The wallet is closed.", result.ErrorMessage);
+        Assert.Equal("The wallet is closed.", thrown.Message);
         Assert.Equal(1, refusing.Calls);
         Assert.Equal(1, h.Uow.RolledBack);
         Assert.Equal(0, h.Uow.Committed);
@@ -516,7 +516,7 @@ public class AbsenceReportTests
             400 => AbsenceResult<AbsenceReportDto>.ValidationError(new Dictionary<string, string[]> { ["reason"] = ["bad"] }),
             404 => AbsenceResult<AbsenceReportDto>.NotFound(),
             409 => AbsenceResult<AbsenceReportDto>.Blocked(["GPS_NOT_VERIFIED"]),
-            _ => AbsenceResult<AbsenceReportDto>.BadGateway("refund refused"),
+            _ => throw new BadGatewayException("refund refused"),
         };
 
         public Task<AbsenceResult<AbsenceReportPageDto>> SearchAsync(string? status2, string? page, string? pageSize, CancellationToken cancellationToken = default) =>
@@ -558,7 +558,6 @@ public class AbsenceReportTests
     [InlineData(400)]
     [InlineData(404)]
     [InlineData(409)]
-    [InlineData(502)]
     public async Task Approve_and_reject_map_the_result_and_take_the_admin_id_from_the_token(int status)
     {
         var service = new StubService(status);
@@ -571,6 +570,13 @@ public class AbsenceReportTests
         var reject = Assert.IsType<ObjectResult>(await controller.Reject(6, new RejectAbsenceRequestDto { Reason = "x" }, default));
         Assert.Equal(status, reject.StatusCode);
         Assert.Equal((7, 6L), service.LastCall);
+    }
+
+    [Fact]
+    public async Task A_refused_refund_reaches_the_error_middleware_as_a_502()
+    {
+        var controller = new AdminAbsenceReportsController(new StubService(502), new FakeUser(7));
+        await Assert.ThrowsAsync<BadGatewayException>(() => controller.Approve(5, default));
     }
 
     [Fact]
@@ -872,8 +878,7 @@ public class AbsenceReportTests
             var publisher = new RecordingPublisher();
             await using (var db = new AppDbContext(Options()))
             {
-                var result = await Real(db, now, new RefusingRefunds(), publisher).ApproveAsync(s.AdminId, s.AssignmentId);
-                Assert.Equal(502, result.StatusCode);
+                await Assert.ThrowsAsync<BadGatewayException>(() => Real(db, now, new RefusingRefunds(), publisher).ApproveAsync(s.AdminId, s.AssignmentId));
             }
 
             await using var verify = new AppDbContext(Options());

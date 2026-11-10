@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Ratings.Dtos;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -22,6 +23,9 @@ public class RatingService : IRatingService
     private const int MinScore = 1;
     private const int MaxScore = 5;
 
+    /// <summary>The assignment does not exist or is not the caller's: one answer, so nothing leaks.</summary>
+    private const string AssignmentNotFound = "Assignment not found.";
+
     private readonly IRatingRepository _ratings;
     private readonly IClock _clock;
     private readonly IOptions<BusinessRules> _rules;
@@ -42,30 +46,30 @@ public class RatingService : IRatingService
         _logger = logger ?? NullLogger<RatingService>.Instance;
     }
 
-    public async Task<RatingResult<RatingWindowDto>> GetWindowAsync(
+    public async Task<RatingWindowDto> GetWindowAsync(
         RaterSide side, int callerId, long assignmentId, CancellationToken cancellationToken = default)
     {
         var assignment = await _ratings.GetAssignmentAsync(assignmentId, cancellationToken);
-        if (assignment is null || !Owns(side, callerId, assignment)) return RatingResult<RatingWindowDto>.NotFound();
+        if (assignment is null || !Owns(side, callerId, assignment)) throw new NotFoundException(AssignmentNotFound);
 
         var alreadyRated = await _ratings.ExistsAsync(assignmentId, RatingCriteria.RaterRole(side), cancellationToken);
-        return RatingResult<RatingWindowDto>.Ok(BuildWindow(assignment, alreadyRated));
+        return BuildWindow(assignment, alreadyRated);
     }
 
-    public async Task<RatingResult<RatingDto>> SubmitAsync(
+    public async Task<RatingDto> SubmitAsync(
         RaterSide side, int callerId, long assignmentId, SubmitRatingRequestDto request,
         CancellationToken cancellationToken = default)
     {
         var errors = Validate(side, request, out var stars, out var scores, out var comment);
-        if (errors.Count > 0) return RatingResult<RatingDto>.ValidationError(errors);
+        if (errors.Count > 0) throw new ValidationException("Validation failed", errors);
 
         var assignment = await _ratings.GetAssignmentAsync(assignmentId, cancellationToken);
-        if (assignment is null || !Owns(side, callerId, assignment)) return RatingResult<RatingDto>.NotFound();
+        if (assignment is null || !Owns(side, callerId, assignment)) throw new NotFoundException(AssignmentNotFound);
 
         var role = RatingCriteria.RaterRole(side);
         var alreadyRated = await _ratings.ExistsAsync(assignmentId, role, cancellationToken);
         var window = BuildWindow(assignment, alreadyRated);
-        if (!window.CanRate) return RatingResult<RatingDto>.Conflict(window.Reason);
+        if (!window.CanRate) throw Conflict(window.Reason);
 
         var createdAt = _clock.UtcNow;
         var rating = new TwoWayRating
@@ -81,11 +85,11 @@ public class RatingService : IRatingService
         };
 
         // A concurrent request may have written the same (assignment, rater role) since the check above.
-        if (!await _ratings.TryAddAsync(rating, cancellationToken)) return RatingResult<RatingDto>.Conflict("ALREADY_RATED");
+        if (!await _ratings.TryAddAsync(rating, cancellationToken)) throw Conflict("ALREADY_RATED");
 
         await PublishAsync(rating, cancellationToken);
 
-        return RatingResult<RatingDto>.Created(new RatingDto
+        return new RatingDto
         {
             RatingId = rating.RatingId,
             AssignmentId = assignmentId,
@@ -94,8 +98,17 @@ public class RatingService : IRatingService
             Criteria = RatingCriteria.For(side).ToDictionary(c => c.Api, c => scores[c.Api]),
             Comment = comment,
             CreatedAt = createdAt,
-        });
+        };
     }
+
+    /// <summary><paramref name="reason"/> is the RatingWindow reason (NOT_COMPLETED, WINDOW_CLOSED, ALREADY_RATED); no code, so the 409 keeps data null.</summary>
+    private static BusinessRuleViolationException Conflict(string reason) => new(reason switch
+    {
+        "NOT_COMPLETED" => "The assignment is not completed yet.",
+        "WINDOW_CLOSED" => "The rating window has closed.",
+        "ALREADY_RATED" => "This assignment has already been rated.",
+        _ => "Rating is not possible.",
+    });
 
     private static bool Owns(RaterSide side, int callerId, RatingAssignmentInfo assignment) =>
         side == RaterSide.Customer ? assignment.CustomerId == callerId : assignment.WorkerId == callerId;

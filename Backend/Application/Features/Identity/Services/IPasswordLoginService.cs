@@ -1,3 +1,5 @@
+using CommonService.Application.Features.Identity.Dtos;
+
 namespace CommonService.Application.Features.Identity.Services;
 
 /// <summary>
@@ -9,6 +11,8 @@ public interface IPasswordLoginService
     /// <summary>
     /// Verifies the credentials, enforces the lockout policy (Auth.LockoutFailures / Auth.LockoutMinutes),
     /// and on success issues an access token plus a new refresh token family.
+    /// Throws ValidationException (400), UnauthorizedAccessException (401), ForbiddenAccessException (403) or
+    /// AccountLockedException (423, Retry-After); ErrorHandlingMiddleware maps them.
     /// </summary>
-    Task<PasswordLoginResult> LoginAsync(string email, string password, string roleString, CancellationToken ct = default);
+    Task<AuthResultDto> LoginAsync(string email, string password, string roleString, CancellationToken ct = default);
 }

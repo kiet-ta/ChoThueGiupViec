@@ -1,5 +1,6 @@
 using System.Globalization;
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Admin.Dtos;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
@@ -43,9 +44,6 @@ public class AbsenceResult<T>
         ErrorMessage = "The absence cannot be approved yet.",
         BlockReasons = reasons,
     };
-
-    /// <summary>The refund port refused or failed; nothing was saved.</summary>
-    public static AbsenceResult<T> BadGateway(string message) => new() { StatusCode = 502, ErrorMessage = message };
 }
 
 public interface IAbsenceReportService
@@ -158,7 +156,8 @@ public class AbsenceReportService(
         }
         catch (ApprovalAbortedException ex)
         {
-            return AbsenceResult<AbsenceReportDto>.BadGateway(ex.Message);
+            // The refund port refused or failed; nothing was saved.
+            throw new BadGatewayException(ex.Message, ex);
         }
 
         await publisher.Publish(new CustomerAbsentApproved(assignmentId, row.OrderId, row.WorkerId, fee, refund, now), cancellationToken);

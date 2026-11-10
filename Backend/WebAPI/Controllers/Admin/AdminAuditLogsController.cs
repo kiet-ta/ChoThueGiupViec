@@ -36,13 +36,6 @@ public class AdminAuditLogsController(IAuditLogQueryService queries) : Controlle
         CancellationToken ct)
     {
         var result = await queries.SearchAsync(entityType, entityId, actorType, from, to, page, pageSize, ct);
-        if (result.Success && result.Data is not null)
-        {
-            return Ok(ApiResponse<AuditLogPageDto>.Ok(result.Data, "Audit log retrieved."));
-        }
-
-        return StatusCode(result.StatusCode, ApiResponse<object>.Fail(
-            result.ErrorMessage ?? "Request failed.",
-            result.ValidationErrors is not null ? new { errors = result.ValidationErrors } : null));
+        return Ok(ApiResponse<AuditLogPageDto>.Ok(result, "Audit log retrieved."));
     }
 }

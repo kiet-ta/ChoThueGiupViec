@@ -188,7 +188,7 @@ public class M6AcceptanceTests
                     new EfDisputeRepository(db), refunds, new FakeSlaPenaltyService(), new EfAuditLog(db, disputeClock), new UnitOfWork(db), disputeClock, publisher);
 
                 var resolved = await verdict.ResolveAsync(seed.AdminId, disputeId.Value,
-                    new ResolveDisputeRequestDto { FaultParty = "FREELANCER", CompensationAmount = 50000m, Note = "Photos show the kitchen was not cleaned" });
+                    new ResolveDisputeRequestDto { FaultParty = "FREELANCER", CompensationAmount = 50000m, Note = "Photos show the kitchen was not cleaned" }).Outcome();
 
                 Assert.True(resolved.Success);
                 Assert.Equal("RESOLVED", resolved.Data!.DisputeStatus);

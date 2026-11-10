@@ -67,6 +67,13 @@ public static class ProblemDetailsHelper
                 instance,
                 brEx.Code != null ? new Dictionary<string, object?> { ["code"] = brEx.Code } : null),
             ArgumentException argEx => CreateProblemDetails(400, "Bad Request", argEx.Message, instance),
+            AccountLockedException alEx => CreateProblemDetails(
+                423,
+                "Locked",
+                alEx.Message,
+                instance,
+                new Dictionary<string, object?> { ["retryAfterSeconds"] = alEx.RetryAfterSeconds }),
+            BadGatewayException bgEx => CreateProblemDetails(502, "Bad Gateway", bgEx.Message, instance),
             _ => CreateProblemDetails(500, "Internal Server Error", "An unexpected error occurred. Please try again later.", instance)
         };
     }
@@ -89,7 +96,9 @@ public static class ProblemDetailsHelper
         404 => "https://tools.ietf.org/html/rfc7231#section-6.5.4",
         409 => "https://tools.ietf.org/html/rfc7231#section-6.5.8",
         422 => "https://tools.ietf.org/html/rfc4918#section-11.2",
+        423 => "https://tools.ietf.org/html/rfc4918#section-11.3",
         429 => "https://tools.ietf.org/html/rfc6585#section-4",
+        502 => "https://tools.ietf.org/html/rfc7231#section-6.6.3",
         _ => "https://tools.ietf.org/html/rfc7231#section-6.6.1"
     };
 }

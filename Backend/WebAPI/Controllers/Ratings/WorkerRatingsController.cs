@@ -27,7 +27,7 @@ public class WorkerRatingsController(IRatingService ratings, ICurrentUser curren
     public async Task<IActionResult> GetWindow(long assignmentId, CancellationToken ct)
     {
         if (currentUser.UserId is not int workerId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
-        return this.ToActionResult(await ratings.GetWindowAsync(RaterSide.Worker, workerId, assignmentId, ct), "Rating window retrieved.");
+        return Ok(ApiResponse<RatingWindowDto>.Ok(await ratings.GetWindowAsync(RaterSide.Worker, workerId, assignmentId, ct), "Rating window retrieved."));
     }
 
     /// <summary>Rates the customer: stars 1-5 and the criteria cooperation, workingConditions (each 1-5).</summary>
@@ -42,6 +42,7 @@ public class WorkerRatingsController(IRatingService ratings, ICurrentUser curren
     {
         if (currentUser.UserId is not int workerId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
         if (request is null) return BadRequest(ApiResponse<object>.Fail("Request body is required.", null));
-        return this.ToActionResult(await ratings.SubmitAsync(RaterSide.Worker, workerId, assignmentId, request, ct), "Rating saved.");
+        return StatusCode(StatusCodes.Status201Created,
+            ApiResponse<RatingDto>.Ok(await ratings.SubmitAsync(RaterSide.Worker, workerId, assignmentId, request, ct), "Rating saved."));
     }
 }

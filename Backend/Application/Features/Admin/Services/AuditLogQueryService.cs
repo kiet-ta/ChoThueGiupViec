@@ -1,4 +1,5 @@
 using System.Globalization;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Admin.Dtos;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -11,7 +12,7 @@ public class AuditLogQueryService(IAuditLogReadRepository repository) : IAuditLo
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
 
-    public async Task<AuditLogQueryResult> SearchAsync(
+    public async Task<AuditLogPageDto> SearchAsync(
         string? entityType, string? entityId, string? actorType, string? from, string? to,
         string? page, string? pageSize, CancellationToken cancellationToken = default)
     {
@@ -35,18 +36,18 @@ public class AuditLogQueryService(IAuditLogReadRepository repository) : IAuditLo
             errors["to"] = ["The 'to' instant must be later than 'from'."];
         }
 
-        if (errors.Count > 0) return AuditLogQueryResult.ValidationError(errors);
+        if (errors.Count > 0) throw new ValidationException("Validation failed", errors);
 
         var filter = new AuditLogFilter(Blank(entityType), Blank(entityId), actor, fromUtc, toUtc);
         var (rows, total) = await repository.SearchAsync(filter, pageNumber, size, cancellationToken);
 
-        return AuditLogQueryResult.Ok(new AuditLogPageDto
+        return new AuditLogPageDto
         {
             Items = rows.Select(ToDto).ToList(),
             Page = pageNumber,
             PageSize = size,
             Total = total,
-        });
+        };
     }
 
     private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

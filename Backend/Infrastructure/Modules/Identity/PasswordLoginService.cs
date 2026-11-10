@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Identity.Dtos;
 using CommonService.Application.Features.Identity.Services;
 using CommonService.Application.Interfaces.Ports;
@@ -19,6 +20,9 @@ namespace CommonService.Infrastructure.Modules.Identity;
 public class PasswordLoginService : IPasswordLoginService
 {
     private const int MaxEmailLength = 255;
+
+    /// <summary>Unknown email and wrong password share one response (contract §2.3).</summary>
+    private const string InvalidCredentials = "Invalid email or password.";
 
     private readonly AppDbContext _db;
     private readonly IPasswordHasher _hasher;
@@ -43,7 +47,7 @@ public class PasswordLoginService : IPasswordLoginService
         _logger = logger;
     }
 
-    public async Task<PasswordLoginResult> LoginAsync(
+    public async Task<AuthResultDto> LoginAsync(
         string email,
         string password,
         string roleString,
@@ -70,7 +74,7 @@ public class PasswordLoginService : IPasswordLoginService
 
         if (errors.Count > 0)
         {
-            return PasswordLoginResult.ValidationError(errors);
+            throw new ValidationException("Validation failed", errors);
         }
 
         return role == UserRole.Admin
@@ -78,16 +82,16 @@ public class PasswordLoginService : IPasswordLoginService
             : await LoginPartnerAsync(normalizedEmail, password!, ct);
     }
 
-    private async Task<PasswordLoginResult> LoginAdminAsync(string email, string password, CancellationToken ct)
+    private async Task<AuthResultDto> LoginAdminAsync(string email, string password, CancellationToken ct)
     {
         var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Email == email, ct);
         if (admin == null)
         {
-            return PasswordLoginResult.Unauthorized();
+            throw new UnauthorizedAccessException(InvalidCredentials);
         }
 
         var now = _clock.UtcNow;
-        var gate = await CheckCredentialsAsync(
+        await CheckCredentialsAsync(
             now,
             admin.PasswordHash,
             password,
@@ -99,32 +103,27 @@ public class PasswordLoginService : IPasswordLoginService
             },
             ct);
 
-        if (gate != null)
-        {
-            return gate;
-        }
-
         // Only a correct password reveals that the account is disabled (no state enumeration).
         if (!admin.IsActive)
         {
-            return PasswordLoginResult.Forbidden("Account is disabled.");
+            throw new ForbiddenAccessException("Account is disabled.");
         }
 
         return await IssueTokensAsync(admin.AdminId, UserRole.Admin, now, ct);
     }
 
-    private async Task<PasswordLoginResult> LoginPartnerAsync(string email, string password, CancellationToken ct)
+    private async Task<AuthResultDto> LoginPartnerAsync(string email, string password, CancellationToken ct)
     {
         var agency = await _db.PartnerAgencies.FirstOrDefaultAsync(a => a.ContactEmail == email, ct);
 
         // A partner without a password yet (created by M5 later) cannot log in; same answer as unknown email.
         if (agency == null || string.IsNullOrEmpty(agency.PasswordHash))
         {
-            return PasswordLoginResult.Unauthorized();
+            throw new UnauthorizedAccessException(InvalidCredentials);
         }
 
         var now = _clock.UtcNow;
-        var gate = await CheckCredentialsAsync(
+        await CheckCredentialsAsync(
             now,
             agency.PasswordHash,
             password,
@@ -136,21 +135,16 @@ public class PasswordLoginService : IPasswordLoginService
             },
             ct);
 
-        if (gate != null)
-        {
-            return gate;
-        }
-
         // A SUSPENDED partner may still log in (decisions Q09, O6): no agency_status check here.
         return await IssueTokensAsync(agency.AgencyId, UserRole.Partner, now, ct);
     }
 
     /// <summary>
-    /// Shared lockout + hash check. Returns a failure result, or null when the password is correct and the
-    /// failure counter has been reset (saved). Order: lock first (a correct password during a lock is still 423),
+    /// Shared lockout + hash check. Throws on failure (after saving the failure counter); returns when the password is
+    /// correct and the failure counter has been reset (saved with the tokens). Order: lock first (a correct password during a lock is still 423),
     /// then hash verification, then failure counting.
     /// </summary>
-    private async Task<PasswordLoginResult?> CheckCredentialsAsync(
+    private async Task CheckCredentialsAsync(
         DateTime now,
         string passwordHash,
         string password,
@@ -164,7 +158,7 @@ public class PasswordLoginService : IPasswordLoginService
         {
             if (lockedUntil.Value > now)
             {
-                return PasswordLoginResult.Locked(SecondsUntil(lockedUntil.Value, now));
+                throw new AccountLockedException(SecondsUntil(lockedUntil.Value, now));
             }
 
             // Lock expired: start counting from zero again.
@@ -182,30 +176,28 @@ public class PasswordLoginService : IPasswordLoginService
                 write(failedCount, lockedUntil);
                 await _db.SaveChangesAsync(ct);
                 _logger.LogWarning("Account locked until {LockedUntil:O} after {Failures} failed password logins.", lockedUntil, failedCount);
-                return PasswordLoginResult.Locked(SecondsUntil(lockedUntil.Value, now));
+                throw new AccountLockedException(SecondsUntil(lockedUntil.Value, now));
             }
 
             write(failedCount, lockedUntil);
             await _db.SaveChangesAsync(ct);
-            return PasswordLoginResult.Unauthorized();
+            throw new UnauthorizedAccessException(InvalidCredentials);
         }
 
         if (failedCount != 0 || lockedUntil.HasValue)
         {
             write(0, null);
         }
-
-        return null;
     }
 
-    private async Task<PasswordLoginResult> IssueTokensAsync(int subjectId, UserRole role, DateTime now, CancellationToken ct)
+    private async Task<AuthResultDto> IssueTokensAsync(int subjectId, UserRole role, DateTime now, CancellationToken ct)
     {
         var (authResult, _) = SessionTokenIssuer.IssueSession(_db, _tokenService, _rules, subjectId, role, now);
 
         // Saves the reset failure counter together with the new refresh token.
         await _db.SaveChangesAsync(ct);
 
-        return PasswordLoginResult.Ok(authResult);
+        return authResult;
     }
 
     private static int SecondsUntil(DateTime lockedUntil, DateTime now) =>

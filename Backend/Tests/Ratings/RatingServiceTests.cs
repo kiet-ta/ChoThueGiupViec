@@ -107,7 +107,7 @@ public class RatingServiceTests
     public async Task Window_is_NOT_COMPLETED_until_the_assignment_is_COMPLETED()
     {
         var h = new Harness(JobAssignmentStatus.InProgress);
-        var result = await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId);
+        var result = await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId).Outcome();
 
         var window = result.Data!;
         Assert.False(window.CanRate);
@@ -121,7 +121,7 @@ public class RatingServiceTests
     public async Task Window_is_OPEN_for_48_hours_after_completed_at_and_counts_the_seconds_left()
     {
         var h = new Harness();
-        var window = (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId)).Data!;
+        var window = (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId).Outcome()).Data!;
 
         Assert.True(window.CanRate);
         Assert.Equal("OPEN", window.Reason);
@@ -135,10 +135,10 @@ public class RatingServiceTests
     {
         var h = new Harness();
         h.Clock.UtcNow = CompletedAt.AddHours(48);
-        Assert.Equal("OPEN", (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId)).Data!.Reason);
+        Assert.Equal("OPEN", (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId).Outcome()).Data!.Reason);
 
         h.Clock.UtcNow = CompletedAt.AddHours(48).AddTicks(1);
-        var closed = (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId)).Data!;
+        var closed = (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId).Outcome()).Data!;
         Assert.Equal("WINDOW_CLOSED", closed.Reason);
         Assert.False(closed.CanRate);
         Assert.Equal(0, closed.SecondsRemaining);
@@ -149,21 +149,21 @@ public class RatingServiceTests
     public async Task Window_reports_ALREADY_RATED_per_side()
     {
         var h = new Harness();
-        Assert.Equal(201, (await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest())).StatusCode);
+        Assert.True((await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest()).Outcome()).Success); // the controller answers 201
 
-        Assert.Equal("ALREADY_RATED", (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId)).Data!.Reason);
+        Assert.Equal("ALREADY_RATED", (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId).Outcome()).Data!.Reason);
         // the worker has not rated yet: the two directions are independent (one rating per assignment AND rater role)
-        Assert.Equal("OPEN", (await h.Service.GetWindowAsync(RaterSide.Worker, WorkerId, AssignmentId)).Data!.Reason);
+        Assert.Equal("OPEN", (await h.Service.GetWindowAsync(RaterSide.Worker, WorkerId, AssignmentId).Outcome()).Data!.Reason);
     }
 
     [Fact]
     public async Task Window_of_another_callers_or_a_missing_assignment_is_404_never_a_reason()
     {
         var h = new Harness();
-        Assert.Equal(404, (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId + 1, AssignmentId)).StatusCode);
-        Assert.Equal(404, (await h.Service.GetWindowAsync(RaterSide.Worker, CustomerId, AssignmentId)).StatusCode); // a customer id is not the worker id
-        Assert.Equal(404, (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId + 1)).StatusCode);
-        Assert.Null((await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId + 1, AssignmentId)).Data);
+        Assert.Equal(404, (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId + 1, AssignmentId).Outcome()).StatusCode);
+        Assert.Equal(404, (await h.Service.GetWindowAsync(RaterSide.Worker, CustomerId, AssignmentId).Outcome()).StatusCode); // a customer id is not the worker id
+        Assert.Equal(404, (await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId + 1).Outcome()).StatusCode);
+        Assert.Null((await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId + 1, AssignmentId).Outcome()).Data);
     }
 
     // ---- submit: success ------------------------------------------------------------------------
@@ -172,10 +172,10 @@ public class RatingServiceTests
     public async Task Customer_rating_is_saved_with_the_workers_id_snake_case_criteria_and_returned_in_camelCase()
     {
         var h = new Harness();
-        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(5, "  Rất tốt  "));
+        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(5, "  Rất tốt  ")).Outcome();
 
         Assert.True(result.Success);
-        Assert.Equal(201, result.StatusCode);
+        Assert.True(result.Success); // the controller answers 201
         var saved = Assert.Single(h.Repo.Saved);
         Assert.Equal(AssignmentId, saved.AssignmentId);
         Assert.Equal(WorkerId, saved.WorkerId); // copied from the assignment
@@ -197,9 +197,9 @@ public class RatingServiceTests
     public async Task Worker_rating_stores_the_two_worker_criteria_and_the_worker_id_of_the_assignment()
     {
         var h = new Harness();
-        var result = await h.Service.SubmitAsync(RaterSide.Worker, WorkerId, AssignmentId, WorkerRequest());
+        var result = await h.Service.SubmitAsync(RaterSide.Worker, WorkerId, AssignmentId, WorkerRequest()).Outcome();
 
-        Assert.Equal(201, result.StatusCode);
+        Assert.True(result.Success); // the controller answers 201
         var saved = Assert.Single(h.Repo.Saved);
         Assert.Equal("WORKER", saved.RaterRole);
         Assert.Equal(WorkerId, saved.WorkerId);
@@ -212,7 +212,7 @@ public class RatingServiceTests
     public async Task Success_publishes_RatingSubmitted_once_after_saving()
     {
         var h = new Harness();
-        await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(4));
+        await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(4)).Outcome();
 
         var published = Assert.IsType<RatingSubmitted>(Assert.Single(h.Publisher.Published));
         Assert.Equal(h.Repo.Saved[0].RatingId, published.RatingId);
@@ -227,8 +227,8 @@ public class RatingServiceTests
     {
         var h = new Harness();
         h.Publisher.Throw = true;
-        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest());
-        Assert.Equal(201, result.StatusCode);
+        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest()).Outcome();
+        Assert.True(result.Success); // the controller answers 201
         Assert.Single(h.Repo.Saved);
     }
 
@@ -236,12 +236,12 @@ public class RatingServiceTests
     public async Task A_comment_of_exactly_500_characters_and_a_blank_comment_are_accepted()
     {
         var h = new Harness();
-        Assert.Equal(201, (await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(5, new string('a', 500)))).StatusCode);
+        Assert.True((await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(5, new string('a', 500))).Outcome()).Success); // the controller answers 201
         Assert.Equal(500, h.Repo.Saved[0].Comment!.Length);
 
         var worker = await h.Service.SubmitAsync(RaterSide.Worker, WorkerId, AssignmentId,
-            new SubmitRatingRequestDto { Stars = 3, Criteria = WorkerRequest().Criteria, Comment = "   " });
-        Assert.Equal(201, worker.StatusCode);
+            new SubmitRatingRequestDto { Stars = 3, Criteria = WorkerRequest().Criteria, Comment = "   " }).Outcome();
+        Assert.True(worker.Success); // the controller answers 201
         Assert.Null(h.Repo.Saved[1].Comment);
     }
 
@@ -250,7 +250,7 @@ public class RatingServiceTests
     {
         var h = new Harness();
         h.Clock.UtcNow = CompletedAt.AddHours(48);
-        Assert.Equal(201, (await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest())).StatusCode);
+        Assert.True((await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest()).Outcome()).Success); // the controller answers 201
     }
 
     // ---- submit: validation ---------------------------------------------------------------------
@@ -264,7 +264,7 @@ public class RatingServiceTests
     {
         var h = new Harness();
         var request = new SubmitRatingRequestDto { Stars = stars, Criteria = CustomerRequest().Criteria };
-        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, request);
+        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, request).Outcome();
 
         Assert.Equal(400, result.StatusCode);
         Assert.Contains("stars", result.ValidationErrors!.Keys);
@@ -276,14 +276,14 @@ public class RatingServiceTests
     {
         var h = new Harness();
 
-        var none = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, new SubmitRatingRequestDto { Stars = 5 });
+        var none = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, new SubmitRatingRequestDto { Stars = 5 }).Outcome();
         Assert.Contains("criteria", none.ValidationErrors!.Keys);
 
         var partial = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, new SubmitRatingRequestDto
         {
             Stars = 5,
             Criteria = new Dictionary<string, int> { ["punctuality"] = 0, ["attitude"] = 6, ["mood"] = 3 },
-        });
+        }).Outcome();
         var keys = partial.ValidationErrors!.Keys.Order().ToArray();
         Assert.Equal(["criteria.attitude", "criteria.cleaningQuality", "criteria.mood", "criteria.punctuality"], keys);
         Assert.Empty(h.Repo.Saved);
@@ -293,11 +293,11 @@ public class RatingServiceTests
     public async Task Each_side_accepts_only_its_own_criteria()
     {
         var h = new Harness();
-        var customerWithWorkerKeys = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, WorkerRequest());
+        var customerWithWorkerKeys = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, WorkerRequest()).Outcome();
         Assert.Equal(400, customerWithWorkerKeys.StatusCode);
         Assert.Contains("criteria.cooperation", customerWithWorkerKeys.ValidationErrors!.Keys);
 
-        var workerWithCustomerKeys = await h.Service.SubmitAsync(RaterSide.Worker, WorkerId, AssignmentId, CustomerRequest());
+        var workerWithCustomerKeys = await h.Service.SubmitAsync(RaterSide.Worker, WorkerId, AssignmentId, CustomerRequest()).Outcome();
         Assert.Equal(400, workerWithCustomerKeys.StatusCode);
         Assert.Contains("criteria.punctuality", workerWithCustomerKeys.ValidationErrors!.Keys);
     }
@@ -311,7 +311,7 @@ public class RatingServiceTests
             Stars = 5,
             Criteria = new Dictionary<string, int> { ["punctuality"] = 5, ["cleaning_quality"] = 4, ["attitude"] = 3 },
         };
-        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, request);
+        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, request).Outcome();
         Assert.Equal(400, result.StatusCode);
         Assert.Contains("criteria.cleaningQuality", result.ValidationErrors!.Keys);
         Assert.Contains("criteria.cleaning_quality", result.ValidationErrors.Keys);
@@ -321,7 +321,7 @@ public class RatingServiceTests
     public async Task A_501_character_comment_is_rejected()
     {
         var h = new Harness();
-        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(5, new string('a', 501)));
+        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(5, new string('a', 501))).Outcome();
         Assert.Equal(400, result.StatusCode);
         Assert.Contains("comment", result.ValidationErrors!.Keys);
     }
@@ -332,7 +332,7 @@ public class RatingServiceTests
     public async Task Another_callers_assignment_is_404_even_with_a_valid_body_and_nothing_is_saved()
     {
         var h = new Harness();
-        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId + 1, AssignmentId, CustomerRequest());
+        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId + 1, AssignmentId, CustomerRequest()).Outcome();
         Assert.Equal(404, result.StatusCode);
         Assert.Empty(h.Repo.Saved);
         Assert.Empty(h.Publisher.Published);
@@ -342,13 +342,13 @@ public class RatingServiceTests
     public async Task Not_completed_and_window_closed_are_409()
     {
         var notCompleted = new Harness(JobAssignmentStatus.AwaitingAcceptance);
-        var a = await notCompleted.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest());
+        var a = await notCompleted.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest()).Outcome();
         Assert.Equal(409, a.StatusCode);
         Assert.Contains("not completed", a.ErrorMessage);
 
         var closed = new Harness();
         closed.Clock.UtcNow = CompletedAt.AddHours(48).AddSeconds(1);
-        var b = await closed.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest());
+        var b = await closed.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest()).Outcome();
         Assert.Equal(409, b.StatusCode);
         Assert.Contains("closed", b.ErrorMessage);
         Assert.Empty(closed.Repo.Saved);
@@ -358,8 +358,8 @@ public class RatingServiceTests
     public async Task A_second_rating_of_the_same_role_is_409_and_publishes_nothing_more()
     {
         var h = new Harness();
-        await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest());
-        var again = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(1));
+        await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest()).Outcome();
+        var again = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest(1)).Outcome();
 
         Assert.Equal(409, again.StatusCode);
         Assert.Contains("already", again.ErrorMessage);
@@ -372,7 +372,7 @@ public class RatingServiceTests
     {
         var h = new Harness();
         h.Repo.LoseTheRace = true; // the existence check says "free", the insert finds a duplicate
-        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest());
+        var result = await h.Service.SubmitAsync(RaterSide.Customer, CustomerId, AssignmentId, CustomerRequest()).Outcome();
         Assert.Equal(409, result.StatusCode);
         Assert.Contains("already", result.ErrorMessage);
         Assert.Empty(h.Publisher.Published);
@@ -391,10 +391,10 @@ public class RatingServiceTests
     public async Task The_response_to_a_worker_rating_goes_to_the_worker_who_wrote_it()
     {
         var h = new Harness();
-        var result = await h.Service.SubmitAsync(RaterSide.Worker, WorkerId, AssignmentId, WorkerRequest());
+        var result = await h.Service.SubmitAsync(RaterSide.Worker, WorkerId, AssignmentId, WorkerRequest()).Outcome();
         Assert.Equal("WORKER", result.Data!.RaterRole);
         // a customer cannot ask for it: the customer-side call for the same assignment still shows its own state
-        var customerView = await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId);
+        var customerView = await h.Service.GetWindowAsync(RaterSide.Customer, CustomerId, AssignmentId).Outcome();
         Assert.Equal("OPEN", customerView.Data!.Reason);
     }
 }
