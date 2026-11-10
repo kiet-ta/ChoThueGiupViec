@@ -16,7 +16,7 @@
 - [x] **LEDGER-13** Admin ledger page — evidence: .harness/evidence/20261110-194139-L3.log
 - [x] **LEDGER-14** Admin withdrawals and read-only payouts — evidence: .harness/evidence/20261110-195954-L3.log
 - [x] **LEDGER-15** Partner transaction history — evidence: .harness/evidence/20261110-201815-L3.log
-- [ ] **LEDGER-16** Worker wallet and withdrawals
+- [x] **LEDGER-16** Worker wallet and withdrawals — evidence: .harness/evidence/20261110-211323-L3.log
 - [ ] **LEDGER-17** Worker history and statements
 - [ ] **LEDGER-18** End-to-end ledger acceptance
 

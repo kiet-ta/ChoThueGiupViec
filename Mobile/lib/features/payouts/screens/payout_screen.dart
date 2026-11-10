@@ -20,6 +20,7 @@ import '../logic/payout_logic.dart';
 import '../models/payout_models.dart';
 import '../services/payouts_service.dart';
 import 'payout_history_screen.dart';
+import 'wallet_screen.dart';
 
 /// Worker income of one month (MOB-M6-04); contract payouts.md 2.5.
 /// There is no wallet (open question P6): the figure is "Thu nhập tháng này", paid once a month in a batch (Q04).
@@ -211,6 +212,14 @@ class _PayoutScreenState extends State<PayoutScreen> {
       else
         for (final job in e.jobs) _jobTile(job),
       const SizedBox(height: NordicSpace.md),
+      NordicButton(
+        key: const Key('earnings-wallet'),
+        label: 'Ví và rút tiền',
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const WalletScreen())),
+      ),
+      const SizedBox(height: NordicSpace.xs),
       NordicButton(
         key: const Key('earnings-history'),
         label: 'Lịch sử giải ngân',
