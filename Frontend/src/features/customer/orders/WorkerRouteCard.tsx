@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleMarker, MapContainer, Polyline, TileLayer, useMap } from 'react-leaflet'
+import { divIcon } from 'leaflet'
+import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Navigation } from 'lucide-react'
 import type { ApiError } from '@/services/api'
 import { ordersApi } from './api'
 import { decodePolyline6, formatDistance, formatDuration, ROUTE_REFRESH_MS, routeProblem, type WorkerRoute } from './view'
+
+// Green rider marker (a motorbike on a green disc), drawn as inline SVG so no image file is bundled.
+const workerIcon = divIcon({
+  className: '',
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+  html: '<div style="width:44px;height:44px;border-radius:9999px;background:#16a34a;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3"/><circle cx="18.5" cy="17.5" r="3"/><path d="M8.5 17.5H14l3-8h-4.5"/><path d="M15 6h3l1.5 3.5"/><path d="M5.5 17.5 9 10h3"/></svg></div>',
+})
 
 function FitRoute({ points }: { points: [number, number][] }) {
   const map = useMap()
@@ -63,7 +72,7 @@ export function WorkerRouteCard({ assignmentId, workerName }: { assignmentId: nu
           <MapContainer center={[route.destination.latitude, route.destination.longitude]} zoom={14} scrollWheelZoom className="h-full w-full">
             <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
             {line.length > 1 && <Polyline positions={line} pathOptions={{ color: '#1a2f25', weight: 5 }} />}
-            <CircleMarker center={[route.workerPosition.latitude, route.workerPosition.longitude]} radius={9} pathOptions={{ color: '#1a2f25', fillColor: '#f59e0b', fillOpacity: 1 }} />
+            <Marker position={[route.workerPosition.latitude, route.workerPosition.longitude]} icon={workerIcon} title={who} />
             <CircleMarker center={[route.destination.latitude, route.destination.longitude]} radius={9} pathOptions={{ color: '#7f1d1d', fillColor: '#ef4444', fillOpacity: 1 }} />
             <FitRoute points={line.length > 1 ? line : [[route.workerPosition.latitude, route.workerPosition.longitude], [route.destination.latitude, route.destination.longitude]]} />
           </MapContainer>
