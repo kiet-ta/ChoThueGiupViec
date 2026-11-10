@@ -177,34 +177,65 @@ public class OtpService : IOtpService
         string code,
         CancellationToken ct = default)
     {
+        var (validationError, normalizedPhone, role) = ValidateInputs(phoneNumber, roleString, code);
+        if (validationError != null)
+        {
+            return validationError;
+        }
+
+        var now = _clock.UtcNow;
+        var otpError = await VerifyAndConsumeOtpAsync(normalizedPhone, role, code, now, ct);
+        if (otpError != null)
+        {
+            return otpError;
+        }
+
+        return role == UserRole.Customer
+            ? await HandleCustomerLoginAsync(normalizedPhone, now, ct)
+            : await HandleWorkerLoginAsync(normalizedPhone, now, ct);
+    }
+
+    private (OtpVerifyResult? Error, string NormalizedPhone, UserRole Role) ValidateInputs(
+        string phoneNumber,
+        string roleString,
+        string code)
+    {
         var (isValidPhone, normalizedPhone) = PhoneValidator.TryNormalize(phoneNumber);
         if (!isValidPhone)
         {
-            return OtpVerifyResult.ValidationError(new Dictionary<string, string[]>
+            return (OtpVerifyResult.ValidationError(new Dictionary<string, string[]>
             {
                 ["phoneNumber"] = ["Invalid Vietnamese mobile phone number format."]
-            });
+            }), string.Empty, default);
         }
 
         if (!Enum.TryParse<UserRole>(roleString, ignoreCase: true, out var role) ||
             (role != UserRole.Customer && role != UserRole.Worker))
         {
-            return OtpVerifyResult.ValidationError(new Dictionary<string, string[]>
+            return (OtpVerifyResult.ValidationError(new Dictionary<string, string[]>
             {
                 ["role"] = ["Role must be either 'Customer' or 'Worker'."]
-            });
+            }), string.Empty, default);
         }
 
         if (string.IsNullOrWhiteSpace(code) || code.Length != _rules.Otp.Length || !code.All(char.IsDigit))
         {
-            return OtpVerifyResult.ValidationError(new Dictionary<string, string[]>
+            return (OtpVerifyResult.ValidationError(new Dictionary<string, string[]>
             {
                 ["code"] = [$"Code must be a {_rules.Otp.Length}-digit numeric string."]
-            });
+            }), string.Empty, default);
         }
 
-        var now = _clock.UtcNow;
+        return (null, normalizedPhone, role);
+    }
 
+    private async Task<OtpVerifyResult?> VerifyAndConsumeOtpAsync(
+        string normalizedPhone,
+        UserRole role,
+        string code,
+        DateTime now,
+        CancellationToken ct)
+    {
         var otp = await _db.OtpCodes
             .Where(x => x.PhoneNumber == normalizedPhone && x.Role == role && x.ConsumedAt == null)
             .OrderByDescending(x => x.CreatedAt)
@@ -250,78 +281,61 @@ public class OtpService : IOtpService
 
         // Code matched: mark consumed
         otp.ConsumedAt = now;
+        return null;
+    }
 
-        if (role == UserRole.Customer)
+    private async Task<OtpVerifyResult> HandleCustomerLoginAsync(
+        string normalizedPhone,
+        DateTime now,
+        CancellationToken ct)
+    {
+        var customer = await _db.Customers
+            .FirstOrDefaultAsync(c => c.PhoneNumber == normalizedPhone, ct);
+
+        bool isNewUser;
+        if (customer == null)
         {
-            var customer = await _db.Customers
-                .FirstOrDefaultAsync(c => c.PhoneNumber == normalizedPhone, ct);
-
-            bool isNewUser;
-            if (customer == null)
+            customer = new Customer
             {
-                customer = new Customer
-                {
-                    PhoneNumber = normalizedPhone,
-                    FullName = string.Empty,
-                    Email = null,
-                    OtpVerifiedAt = now,
-                    TrustScore = _rules.Customer.InitialTrustScore,
-                    AccountStatus = CustomerAccountStatus.Active,
-                    CreatedAt = now,
-                    UpdatedAt = now
-                };
-                _db.Customers.Add(customer);
-                await _db.SaveChangesAsync(ct);
-                isNewUser = true;
-            }
-            else
-            {
-                if (customer.AccountStatus == CustomerAccountStatus.Locked)
-                {
-                    await _db.SaveChangesAsync(ct);
-                    return OtpVerifyResult.Forbidden("Account is locked.");
-                }
-
-                customer.OtpVerifiedAt = now;
-                customer.UpdatedAt = now;
-                await _db.SaveChangesAsync(ct);
-                isNewUser = false;
-            }
-
-            var (accessToken, accessExpiry) = _tokenService.GenerateAccessToken(customer.CustomerId, "Customer");
-            var rawRefreshToken = _tokenService.GenerateRefreshToken();
-            var tokenHash = _tokenService.HashRefreshToken(rawRefreshToken);
-
-            var refreshTokenRecord = new RefreshToken
-            {
-                TokenHash = tokenHash,
-                SubjectRole = UserRole.Customer,
-                SubjectId = customer.CustomerId,
-                FamilyId = Guid.NewGuid(),
+                PhoneNumber = normalizedPhone,
+                FullName = string.Empty,
+                Email = null,
+                OtpVerifiedAt = now,
+                TrustScore = _rules.Customer.InitialTrustScore,
+                AccountStatus = CustomerAccountStatus.Active,
                 CreatedAt = now,
-                ExpiresAt = now.AddDays(_rules.Auth.RefreshTokenDays),
-                RevokedAt = null,
-                ReplacedById = null
+                UpdatedAt = now
             };
-            _db.RefreshTokens.Add(refreshTokenRecord);
+            _db.Customers.Add(customer);
             await _db.SaveChangesAsync(ct);
-
-            return OtpVerifyResult.Ok(new AuthResultDto
+            isNewUser = true;
+        }
+        else
+        {
+            if (customer.AccountStatus == CustomerAccountStatus.Locked)
             {
-                TokenType = "Bearer",
-                AccessToken = accessToken,
-                AccessTokenExpiresInSeconds = accessExpiry,
-                RefreshToken = rawRefreshToken,
-                User = new AuthUserDto
-                {
-                    Id = customer.CustomerId,
-                    Role = "Customer",
-                    IsNewUser = isNewUser
-                }
-            });
+                await _db.SaveChangesAsync(ct);
+                return OtpVerifyResult.Forbidden("Account is locked.");
+            }
+
+            customer.OtpVerifiedAt = now;
+            customer.UpdatedAt = now;
+            await _db.SaveChangesAsync(ct);
+            isNewUser = false;
         }
 
-        // Worker role
+        var (authResult, _) = SessionTokenIssuer.IssueSession(
+            _db, _tokenService, _rules, customer.CustomerId, UserRole.Customer, now, isNewUser: isNewUser);
+        await _db.SaveChangesAsync(ct);
+
+        return OtpVerifyResult.Ok(authResult);
+    }
+
+    private async Task<OtpVerifyResult> HandleWorkerLoginAsync(
+        string normalizedPhone,
+        DateTime now,
+        CancellationToken ct)
+    {
         var worker = await _db.Workers
             .FirstOrDefaultAsync(w => w.PhoneNumber == normalizedPhone, ct);
 
@@ -338,37 +352,11 @@ public class OtpService : IOtpService
         }
 
         await _db.SaveChangesAsync(ct);
-        var (workerAccessToken, workerAccessExpiry) = _tokenService.GenerateAccessToken(worker.WorkerId, "Worker");
-        var rawWorkerRefreshToken = _tokenService.GenerateRefreshToken();
-        var workerTokenHash = _tokenService.HashRefreshToken(rawWorkerRefreshToken);
-
-        var workerRefreshTokenRecord = new RefreshToken
-        {
-            TokenHash = workerTokenHash,
-            SubjectRole = UserRole.Worker,
-            SubjectId = worker.WorkerId,
-            FamilyId = Guid.NewGuid(),
-            CreatedAt = now,
-            ExpiresAt = now.AddDays(_rules.Auth.RefreshTokenDays),
-            RevokedAt = null,
-            ReplacedById = null
-        };
-        _db.RefreshTokens.Add(workerRefreshTokenRecord);
+        var (authResult, _) = SessionTokenIssuer.IssueSession(
+            _db, _tokenService, _rules, worker.WorkerId, UserRole.Worker, now, isNewUser: false);
         await _db.SaveChangesAsync(ct);
 
-        return OtpVerifyResult.Ok(new AuthResultDto
-        {
-            TokenType = "Bearer",
-            AccessToken = workerAccessToken,
-            AccessTokenExpiresInSeconds = workerAccessExpiry,
-            RefreshToken = rawWorkerRefreshToken,
-            User = new AuthUserDto
-            {
-                Id = worker.WorkerId,
-                Role = "Worker",
-                IsNewUser = false
-            }
-        });
+        return OtpVerifyResult.Ok(authResult);
     }
 
     public async Task<RefreshResult> RefreshTokenAsync(string refreshToken, CancellationToken ct = default)
@@ -415,24 +403,8 @@ public class OtpService : IOtpService
         }
 
         // Valid rotation: issue new access token and new refresh token with same family_id
-        var (newAccessToken, accessExpiry) = _tokenService.GenerateAccessToken(
-            tokenRecord.SubjectId, tokenRecord.SubjectRole.ToString());
-
-        var newRawRefreshToken = _tokenService.GenerateRefreshToken();
-        var newTokenHash = _tokenService.HashRefreshToken(newRawRefreshToken);
-
-        var newTokenRecord = new RefreshToken
-        {
-            TokenHash = newTokenHash,
-            SubjectRole = tokenRecord.SubjectRole,
-            SubjectId = tokenRecord.SubjectId,
-            FamilyId = tokenRecord.FamilyId,
-            CreatedAt = now,
-            ExpiresAt = now.AddDays(_rules.Auth.RefreshTokenDays),
-            RevokedAt = null,
-            ReplacedById = null
-        };
-        _db.RefreshTokens.Add(newTokenRecord);
+        var (authResult, newTokenRecord) = SessionTokenIssuer.IssueSession(
+            _db, _tokenService, _rules, tokenRecord.SubjectId, tokenRecord.SubjectRole, now, familyId: tokenRecord.FamilyId);
         await _db.SaveChangesAsync(ct);
 
         // Mark current token replaced and revoked
@@ -440,19 +412,7 @@ public class OtpService : IOtpService
         tokenRecord.ReplacedById = newTokenRecord.RefreshTokenId;
         await _db.SaveChangesAsync(ct);
 
-        return RefreshResult.Ok(new AuthResultDto
-        {
-            TokenType = "Bearer",
-            AccessToken = newAccessToken,
-            AccessTokenExpiresInSeconds = accessExpiry,
-            RefreshToken = newRawRefreshToken,
-            User = new AuthUserDto
-            {
-                Id = tokenRecord.SubjectId,
-                Role = tokenRecord.SubjectRole.ToString(),
-                IsNewUser = false
-            }
-        });
+        return RefreshResult.Ok(authResult);
     }
 
     public async Task LogoutAsync(string refreshToken, CancellationToken ct = default)
