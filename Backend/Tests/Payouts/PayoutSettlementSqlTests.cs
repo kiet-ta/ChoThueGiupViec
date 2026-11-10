@@ -1,6 +1,7 @@
 using CommonService.Application.Features.Ledger;
 using CommonService.Application.Features.Payouts;
 using CommonService.Application.Features.Payouts.Services;
+using CommonService.Application.Interfaces.Ports;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -42,6 +43,18 @@ public class PayoutSettlementSqlTests
             await db.SaveChangesAsync(cancellationToken);
             return result;
         }
+    }
+
+    /// <summary>The scratch database has no WORKER rows: the repository is the real one except that every worker is a freelancer.</summary>
+    private class FreelancerEarnings(IWorkerEarningsRepository inner) : IWorkerEarningsRepository
+    {
+        public Task<WorkerType?> GetWorkerTypeAsync(int workerId, CancellationToken cancellationToken = default) => Task.FromResult<WorkerType?>(WorkerType.Freelancer);
+
+        public Task<WorkerBatchState?> GetBatchStateAsync(int workerId, string periodMonth, CancellationToken cancellationToken = default) =>
+            inner.GetBatchStateAsync(workerId, periodMonth, cancellationToken);
+
+        public Task<(IReadOnlyList<WorkerPayoutHistoryRow> Items, int Total)> GetClosedItemsAsync(int workerId, int page, int pageSize, CancellationToken cancellationToken = default) =>
+            inner.GetClosedItemsAsync(workerId, page, pageSize, cancellationToken);
     }
 
     private class RecordingPublisher : IPublisher
@@ -150,6 +163,17 @@ public class PayoutSettlementSqlTests
         Assert.Equal((200, settled.Data.BatchId), (again.StatusCode, again.Data!.BatchId));
         Assert.Equal(2, await db.LedgerEntries.CountAsync(e => e.EntryType == LedgerEntryType.Settlement));
         Assert.Single(publisher.Events);
+
+        // The worker's income screen reads the same month: the closed item is the answer, with the advance and the carry-in.
+        var earningsRepository = new EfWorkerEarningsRepository(db);
+        var state = (await earningsRepository.GetBatchStateAsync(Worker, "2026-10"))!;
+        Assert.Equal(("CLOSED", 1, 360_000m, 72_000m, 50_000m, 100_000m, 0m, 138_000m),
+            (state.BatchStatus, state.Item!.JobCount, state.Item.GrossAmount, state.Item.CommissionAmount, state.Item.PenaltyAmount, state.Item.AdvanceAmount, state.Item.CarryInAmount, state.Item.NetAmount));
+        var (history, total) = await earningsRepository.GetClosedItemsAsync(Worker, 1, 10);
+        Assert.Equal((1, "2026-10", 100_000m, 0m, 138_000m), (total, history.Single().PeriodMonth, history.Single().AdvanceAmount, history.Single().CarryInAmount, history.Single().NetAmount));
+        var screen = (await new WorkerEarningsService(new FreelancerEarnings(earningsRepository), new EfLedgerQuery(db), clock).GetEarningsAsync(Worker, "2026-10")).Data!;
+        Assert.Equal(("TRANSFERRED", 100_000m, 138_000m), (screen.PayoutStatus, screen.AdvanceAmount, screen.NetAmount));
+        Assert.Equal([jobs[0].AssignmentId], screen.Jobs.Select(j => j.AssignmentId).ToArray());
 
         // The transfer file of the freelancers carries the advance and the carry-in columns.
         var export = new PayoutExportService(repository, new FakeFileStorage(), clock);

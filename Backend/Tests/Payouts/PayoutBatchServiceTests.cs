@@ -362,6 +362,23 @@ public class PayoutBatchServiceTests
     }
 
     [Fact]
+    public async Task The_demo_switch_settles_a_month_that_is_not_over_as_if_it_ended_now()
+    {
+        var h = new Harness(); // 2026-11-10: November is running
+        h.Earn(Harness.Worker(7), 260_000m, LedgerRefType.Assignment, 1, at: new DateTime(2026, 11, 3, 3, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal(400, (await h.Service().SettleAsync("2026-11")).StatusCode);
+        Assert.Empty(h.Repo.Batches);
+
+        var demo = await h.Service().SettleAsync("2026-11", allowUnfinishedMonth: true);
+
+        Assert.Equal(201, demo.StatusCode);
+        Assert.Equal(("CLOSED", 208_000m), (demo.Data!.BatchStatus, demo.Data.TotalAmount));
+        Assert.Equal(0m, h.Balance(Harness.Worker(7)));
+        Assert.Equal(200, (await h.Service().SettleAsync("2026-11", allowUnfinishedMonth: true)).StatusCode); // and a re-run does nothing
+    }
+
+    [Fact]
     public async Task The_month_is_decided_by_the_Asia_Ho_Chi_Minh_calendar_not_UTC()
     {
         // 2026-10-31 18:00 UTC is already 1 November 01:00 in Ho Chi Minh: October is over there, though not yet in UTC.
@@ -707,7 +724,7 @@ public class PayoutBatchServiceTests
             _ => PayoutResult<T>.Conflict("closed"),
         };
 
-        public Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, CancellationToken cancellationToken = default) =>
+        public Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, bool allowUnfinishedMonth = false, CancellationToken cancellationToken = default) =>
             Task.FromResult(Answer(new PayoutBatchDto()));
 
         public Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, CancellationToken cancellationToken = default) =>

@@ -3,20 +3,6 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Payouts;
 
-/// <summary>
-/// The deductions decided against payees by the Disputes module (contract question P1). Owned by Payouts and implemented in the
-/// Disputes folder, so the batch never reads dispute tables itself.
-/// </summary>
-public interface IPayoutPenaltySource
-{
-    /// <summary>
-    /// For each payee, the sum (whole VND) of every deduction decided before <paramref name="throughUtc"/>: a resolved dispute with
-    /// <c>fault_party = FREELANCER</c> against each freelancer of the order, and the reversal of an absence fee against the agency
-    /// (decision D9). Payees with nothing decided are absent.
-    /// </summary>
-    Task<IReadOnlyDictionary<PayeeKey, decimal>> GetDecidedAsync(DateTime throughUtc, CancellationToken cancellationToken = default);
-}
-
 /// <summary>A payout item to be stored; <c>AssignmentIds</c> are the assignments it pays.</summary>
 public record NewPayoutItem(
     PayeeType PayeeType,

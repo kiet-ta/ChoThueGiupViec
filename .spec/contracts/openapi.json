@@ -19712,6 +19712,14 @@
             "type": "number",
             "format": "double"
           },
+          "advanceAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "carryInAmount": {
+            "type": "number",
+            "format": "double"
+          },
           "netAmount": {
             "type": "number",
             "format": "double"
@@ -19820,6 +19828,14 @@
           "periodMonth": {
             "type": "string",
             "nullable": true
+          },
+          "advanceAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "carryInAmount": {
+            "type": "number",
+            "format": "double"
           },
           "netAmount": {
             "type": "number",

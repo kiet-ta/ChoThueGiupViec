@@ -1,6 +1,7 @@
 using System.Globalization;
 using CommonService.Application.Features.Payouts.Dtos;
 using CommonService.Application.Interfaces.Ports;
+using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Payouts.Services;
@@ -15,11 +16,12 @@ public interface IWorkerEarningsService
 }
 
 /// <summary>
-/// The income screens of the freelancer (BE-M6-07, decision Q11: 80 % net). The month is computed with the same <see cref="PayoutCalculator"/>
-/// as the payout batch, so the screen is available before the batch exists; once the month's batch is CLOSED the stored item is the
-/// answer, so the screen equals the money that was transferred.
+/// The income screens of the freelancer (BE-M6-07, decision Q11: 80 % net), read from the ledger since decision D28. The month is computed
+/// with the same <see cref="PayoutSettlementCalculator"/> as the monthly settlement, so the screen is right before the month is settled
+/// (it shows what would be paid if the month ended now) and, once the month's batch is CLOSED, the stored item is the answer: the screen
+/// equals the money that was settled, including the advance (withdrawals) and the carry-in from earlier months.
 /// </summary>
-public class WorkerEarningsService(IWorkerEarningsRepository earnings, IPayoutPenaltySource penalties, IClock clock) : IWorkerEarningsService
+public class WorkerEarningsService(IWorkerEarningsRepository earnings, ILedgerQuery ledger, IClock clock) : IWorkerEarningsService
 {
     public const string NotBuilt = "NOT_BUILT";
     public const string Pending = "PENDING";
@@ -54,42 +56,26 @@ public class WorkerEarningsService(IWorkerEarningsRepository earnings, IPayoutPe
         var fromUtc = DateTime.SpecifyKind(clock.ToUtc(monthStart), DateTimeKind.Utc); // queried in UTC, read in Asia/Ho_Chi_Minh (G-3)
         var toUtc = DateTime.SpecifyKind(clock.ToUtc(monthStart.AddMonths(1)), DateTimeKind.Utc);
 
-        var rows = await earnings.GetEarningsAsync(workerId, fromUtc, toUtc, cancellationToken);
+        var entries = await ledger.GetPartyEntriesAsync(LedgerPartyType.Worker, workerId, toUtc, cancellationToken);
+        var commissions = await CommissionsOfAsync(entries, fromUtc, cancellationToken);
+        var held = await ledger.GetHeldAsync(workerId, cancellationToken);
+        var figures = PayoutSettlementCalculator.Compute(LedgerPartyType.Worker, workerId, entries, commissions, fromUtc, toUtc, held);
         var state = await earnings.GetBatchStateAsync(workerId, period, cancellationToken);
 
-        var assignments = rows.Select(r => new PayoutAssignmentRow(r.AssignmentId, workerId, null, r.Status, r.GrossAmount, r.CommissionRate, r.AbsenceFeeAmount)).ToList();
-        var jobs = rows.Zip(assignments, (row, a) =>
-        {
-            var amounts = PayoutCalculator.AmountsOf(a);
-            return new WorkerEarningJobDto
-            {
-                AssignmentId = row.AssignmentId,
-                OrderId = row.OrderId,
-                CompletedAt = DateTime.SpecifyKind(row.DateUtc, DateTimeKind.Utc),
-                GrossAmount = amounts.Gross,
-                CommissionAmount = amounts.Commission,
-                NetAmount = amounts.Payable,
-                AbsenceFee = row.Status == JobAssignmentStatus.Absent,
-            };
-        }).Where(j => j.GrossAmount > 0).ToList();
+        var jobs = JobsOf(entries, commissions, workerId, fromUtc);
 
         int jobCount;
-        decimal gross, commission, penalty, net;
+        decimal gross, commission, penalty, advance, carryIn, net;
         if (state is { BatchStatus: PayoutConstants.BatchClosed, Item: { } item })
         {
-            // A closed batch is immutable: what was paid is the answer, whatever the data says now.
-            (jobCount, gross, commission, penalty, net) = (item.JobCount, item.GrossAmount, item.CommissionAmount, item.PenaltyAmount, item.NetAmount);
+            // A closed batch is immutable: what was settled is the answer, whatever the ledger says now.
+            (jobCount, gross, commission, penalty, advance, carryIn, net) =
+                (item.JobCount, item.GrossAmount, item.CommissionAmount, item.PenaltyAmount, item.AdvanceAmount, item.CarryInAmount, item.NetAmount);
         }
         else
         {
-            var key = new PayeeKey(PayeeType.Freelancer, workerId);
-            var decided = await penalties.GetDecidedAsync(toUtc, cancellationToken);
-            var applied = await earnings.GetAppliedPenaltyBeforeAsync(workerId, period, cancellationToken);
-            var line = PayoutCalculator.Build(
-                assignments,
-                new Dictionary<PayeeKey, decimal> { [key] = decided.GetValueOrDefault(key) },
-                new Dictionary<PayeeKey, decimal> { [key] = applied }).SingleOrDefault();
-            (jobCount, gross, commission, penalty, net) = line is null ? (0, 0m, 0m, 0m, 0m) : (line.JobCount, line.Gross, line.Commission, line.Penalty, line.Net);
+            (jobCount, gross, commission, penalty, advance, carryIn, net) =
+                (figures.JobCount, figures.Gross, figures.Commission, figures.Penalty, figures.Advance, figures.CarryIn, figures.Net);
         }
 
         return PayoutResult<WorkerEarningsDto>.Ok(new WorkerEarningsDto
@@ -99,6 +85,8 @@ public class WorkerEarningsService(IWorkerEarningsRepository earnings, IPayoutPe
             GrossAmount = gross,
             CommissionAmount = commission,
             PenaltyAmount = penalty,
+            AdvanceAmount = advance,
+            CarryInAmount = carryIn,
             NetAmount = net,
             PayoutStatus = state is null ? NotBuilt : state.BatchStatus == PayoutConstants.BatchClosed ? Transferred : Pending,
             Jobs = jobs,
@@ -121,6 +109,8 @@ public class WorkerEarningsService(IWorkerEarningsRepository earnings, IPayoutPe
             {
                 BatchId = r.BatchId,
                 PeriodMonth = r.PeriodMonth,
+                AdvanceAmount = r.AdvanceAmount,
+                CarryInAmount = r.CarryInAmount,
                 NetAmount = r.NetAmount,
                 ItemStatus = r.ItemStatus,
                 TransferredAt = r.TransferredAt is { } at ? DateTime.SpecifyKind(at, DateTimeKind.Utc) : null,
@@ -130,6 +120,45 @@ public class WorkerEarningsService(IWorkerEarningsRepository earnings, IPayoutPe
             Total = total,
         });
     }
+
+    /// <summary>The platform's commission entries of the earnings the worker got in the month.</summary>
+    private async Task<IReadOnlyList<LedgerEntry>> CommissionsOfAsync(IReadOnlyList<LedgerEntry> entries, DateTime fromUtc, CancellationToken cancellationToken)
+    {
+        var commissions = new List<LedgerEntry>();
+        var earned = entries.Where(e => e.CreatedAt >= fromUtc && e.ToPartyType == LedgerPartyType.Worker
+            && e.EntryType is LedgerEntryType.JobEarning or LedgerEntryType.ExtensionEarning);
+        foreach (var group in earned.GroupBy(e => e.RefType))
+        {
+            commissions.AddRange(await ledger.GetCommissionsAsync(group.Key, group.Select(e => e.RefId).Distinct().ToList(), cancellationToken));
+        }
+
+        return commissions;
+    }
+
+    /// <summary>
+    /// One line per job (or approved absence fee) of the month, oldest first: the earning of the worker and the commission of the same
+    /// assignment. Extensions are inside the month's totals but are not jobs of their own.
+    /// </summary>
+    private static List<WorkerEarningJobDto> JobsOf(IReadOnlyList<LedgerEntry> entries, IReadOnlyList<LedgerEntry> commissions, int workerId, DateTime fromUtc) =>
+        entries
+            .Where(e => e.CreatedAt >= fromUtc && e.ToPartyType == LedgerPartyType.Worker && e.ToPartyId == workerId && e.RefType == LedgerRefType.Assignment
+                && e.EntryType is LedgerEntryType.JobEarning or LedgerEntryType.AbsenceFee)
+            .OrderBy(e => e.CreatedAt).ThenBy(e => e.RefId)
+            .Select(e =>
+            {
+                var absence = e.EntryType == LedgerEntryType.AbsenceFee;
+                var commission = absence ? 0m : commissions.Where(c => c.RefType == e.RefType && c.RefId == e.RefId).Sum(c => c.Amount);
+                return new WorkerEarningJobDto
+                {
+                    AssignmentId = e.RefId,
+                    OrderId = e.OrderId ?? 0,
+                    CompletedAt = DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc),
+                    GrossAmount = e.Amount + commission,
+                    CommissionAmount = commission,
+                    NetAmount = e.Amount,
+                    AbsenceFee = absence,
+                };
+            }).ToList();
 
     private static PayoutResult<WorkerEarningsDto> Invalid(string message) =>
         PayoutResult<WorkerEarningsDto>.ValidationError(new Dictionary<string, string[]> { ["month"] = [message] });

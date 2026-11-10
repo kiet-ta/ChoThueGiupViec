@@ -1,7 +1,6 @@
 using CommonService.Application.Features.Payouts;
 using CommonService.Application.Features.Payouts.Services;
 using CommonService.Infrastructure.Modularity;
-using CommonService.Infrastructure.Modules.Disputes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,8 +18,6 @@ public class PayoutsModule : IModule
         services.AddScoped<IWorkerEarningsRepository, EfWorkerEarningsRepository>();
         services.AddScoped<IWorkerEarningsService, WorkerEarningsService>();
         services.AddScoped<IPayoutExportService, PayoutExportService>();
-
-        // The Disputes side of the penalty port (question P1); registered here until the Disputes module registers its own services.
-        services.AddScoped<IPayoutPenaltySource, EfPayoutPenaltySource>();
+        services.AddHostedService<PayoutSettlementWorker>();
     }
 }

@@ -24,6 +24,13 @@ public class WorkerEarningsDto
     public decimal GrossAmount { get; init; }
     public decimal CommissionAmount { get; init; }
     public decimal PenaltyAmount { get; init; }
+
+    /// <summary>What the worker withdrew during the month (the advance, decision F).</summary>
+    public decimal AdvanceAmount { get; init; }
+
+    /// <summary>The wallet balance carried in from the earlier months (negative when a deduction was larger than the month).</summary>
+    public decimal CarryInAmount { get; init; }
+
     public decimal NetAmount { get; init; }
 
     /// <summary>NOT_BUILT (no batch yet), PENDING (a DRAFT batch) or TRANSFERRED (a CLOSED batch).</summary>
@@ -36,6 +43,8 @@ public class WorkerPayoutHistoryItemDto
 {
     public int BatchId { get; init; }
     public string PeriodMonth { get; init; } = string.Empty;
+    public decimal AdvanceAmount { get; init; }
+    public decimal CarryInAmount { get; init; }
     public decimal NetAmount { get; init; }
     public string ItemStatus { get; init; } = string.Empty;
     public DateTime? TransferredAt { get; init; }

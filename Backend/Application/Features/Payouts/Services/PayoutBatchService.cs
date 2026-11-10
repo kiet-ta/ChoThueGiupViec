@@ -41,8 +41,9 @@ public interface IPayoutBatchService
     /// Settles a finished month from the ledger (decision D28, contract ledger.md section 7): one item per payee, a SETTLEMENT entry for
     /// each positive net, and the batch CLOSED by the system. 201 when this call closed the month, 200 when it was closed before (a
     /// closed month never changes and a re-run does nothing); 409 when a payee could not be settled (the next run continues).
+    /// <paramref name="allowUnfinishedMonth"/> is for the Development demo only: it settles a month that is not over yet, as if it ended now.
     /// </summary>
-    Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, CancellationToken cancellationToken = default);
+    Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, bool allowUnfinishedMonth = false, CancellationToken cancellationToken = default);
 
     Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, CancellationToken cancellationToken = default);
 
@@ -69,7 +70,7 @@ public class PayoutBatchService(
     /// <summary>Thrown inside the unit of work to undo it; never leaves this class.</summary>
     private class SettleAbortedException(string message) : Exception(message);
 
-    public async Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, CancellationToken cancellationToken = default)
+    public async Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, bool allowUnfinishedMonth = false, CancellationToken cancellationToken = default)
     {
         var period = periodMonth?.Trim();
         if (!PayoutConstants.TryParsePeriod(period, out var year, out var month))
@@ -80,7 +81,7 @@ public class PayoutBatchService(
             });
         }
 
-        if (!IsFinished(year, month))
+        if (!allowUnfinishedMonth && !IsFinished(year, month))
         {
             return PayoutResult<PayoutBatchDto>.ValidationError(new Dictionary<string, string[]>
             {
