@@ -31,8 +31,8 @@ D28 defines an append-only ledger of virtual money movements from deployment onw
 | PENALTY | WORKER or AGENCY | PLATFORM_REVENUE | qualifying verdict, allocated per responsible assignment |
 | SUBSCRIPTION | EXTERNAL agency | PLATFORM_REVENUE | subscription payment |
 | ESCROW_DEPOSIT | EXTERNAL agency | AGENCY_ESCROW | deposit |
-| ESCROW_PENALTY | AGENCY_ESCROW | PLATFORM_CLEARING | penalty |
-| ESCROW_REVERSAL | PLATFORM_CLEARING | AGENCY_ESCROW | reversal |
+| ESCROW_PENALTY | AGENCY_ESCROW | PLATFORM_REVENUE | penalty (the customer's refund is booked separately from the order) |
+| ESCROW_REVERSAL | PLATFORM_REVENUE | AGENCY_ESCROW | reversal |
 | WITHDRAWAL | WORKER | EXTERNAL | approved advance |
 | SETTLEMENT | WORKER or AGENCY | EXTERNAL | monthly net |
 | REVERSAL | original recipient | original sender | original amount |
@@ -142,10 +142,12 @@ Representative `data` values (omitting optional fields) for the remaining JSON r
 | Worker monthly statement | `{ "periodMonth": "2026-11", "openingBalance": 0, "items": [], "advanceAmount": 100000, "penaltyAmount": 50000, "settlementAmount": 138000, "closingBalance": 0, "lastHash": "..." }` |
 | Admin summary | `{ "revenue": 72000, "clearing": 0, "workerDebt": 0, "agencyDebt": 0, "held": 0 }` |
 | Chain verify | `{ "ok": true, "checkedCount": 9, "firstBrokenEntryCode": null }` |
-| Reconciliation | `{ "items": [] }` when no entries are missing |
+| Reconciliation | `{ "items": [] }` when no entries are missing; otherwise one item per entry type, `{ "entryType": "COMMISSION", "missingCount": 1, "missingAmount": 52000, "excessAmount": 0 }` (`excessAmount` is what refunds hold above the source and is never written) |
 | Development settlement | `{ "periodMonth": "2026-11", "batchStatus": "CLOSED" }` |
 
 An XLSX response is a file rather than an envelope; errors retain the envelope. All requests and responses are restricted to the authenticated party unless the Admin policy applies. A missing or foreign owned withdrawal returns 404; invalid periods, filters, request bodies and page sizes return 400. The development route returns 404 outside Development.
+
+Reconciliation settings come from the `Ledger` section, with defaults in code: `StartUtc` (default: the time of the first ledger entry), `RefundQuietMinutes` 10, `SweepIntervalMinutes` 5 and `LookbackDays` 60. A subscription payment (SUBSCRIPTION) and the escrow movements (ESCROW_*) have no event, so only the sweep records them. If an event arrives after the sweep recovered the same refund, the event books only the part of the source's cumulative refunded total that the ledger still lacks, so the refund is never recorded twice.
 
 ## 10. Known gaps
 

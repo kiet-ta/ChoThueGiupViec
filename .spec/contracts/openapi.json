@@ -1470,6 +1470,76 @@
         }
       }
     },
+    "/api/v1/admin/ledger/reconciliation": {
+      "get": {
+        "tags": [
+          "AdminLedger"
+        ],
+        "operationId": "AdminLedger_Reconciliation",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerReconciliationReportApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerReconciliationReportApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerReconciliationReportApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/payout-batches": {
       "post": {
         "tags": [
@@ -16247,6 +16317,57 @@
               "$ref": "#/components/schemas/JobPhotoResponse"
             },
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerReconciliationItem": {
+        "type": "object",
+        "properties": {
+          "entryType": {
+            "type": "string",
+            "nullable": true
+          },
+          "missingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missingAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "excessAmount": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerReconciliationReport": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerReconciliationItem"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LedgerReconciliationReportApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/LedgerReconciliationReport"
           }
         },
         "additionalProperties": false

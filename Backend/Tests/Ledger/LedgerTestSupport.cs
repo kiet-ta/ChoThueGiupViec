@@ -52,14 +52,23 @@ public class LedgerFlow
 
     public MemoryLedger Ledger { get; } = new();
     public FakeLedgerSourceQuery Source { get; } = new();
+    public FakeLedgerQuery LedgerQuery { get; } = new();
+    public FakeClock Clock { get; } = new();
+    public LedgerWriter Writer { get; }
     public LedgerPostingService Posting { get; }
 
     public LedgerFlow()
     {
-        var clock = new FakeClock();
-        clock.Set(Now);
-        Posting = new LedgerPostingService(new LedgerWriter(Ledger, clock), Source);
+        Clock.Set(Now);
+        Writer = new LedgerWriter(Ledger, Clock);
+        Posting = new LedgerPostingService(Writer, Source);
     }
+
+    /// <summary>The reconciliation service on this flow; the ledger start defaults to a day before <see cref="Now"/>.</summary>
+    public LedgerReconciliationService Reconciliation(LedgerOptions? options = null) =>
+        new(Source, LedgerQuery, Ledger, Writer, Posting, Clock,
+            Microsoft.Extensions.Options.Options.Create(options ?? new LedgerOptions { StartUtc = Now.AddDays(-1) }),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<LedgerReconciliationService>.Instance);
 
     public IReadOnlyList<LedgerEntry> Of(LedgerEntryType type) => Ledger.Rows.Where(e => e.EntryType == type).ToArray();
 

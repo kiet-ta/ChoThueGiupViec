@@ -19,5 +19,8 @@ public class LedgerModule : IModule
         services.AddScoped<ILedgerBalanceService, LedgerBalanceService>();
         services.AddScoped<ILedgerSourceQuery, EfLedgerSourceQuery>();
         services.AddScoped<ILedgerPostingService, LedgerPostingService>();
+        services.Configure<LedgerOptions>(configuration.GetSection("Ledger"));
+        services.AddScoped<ILedgerReconciliationService, LedgerReconciliationService>();
+        services.AddHostedService<LedgerReconciliationWorker>();
     }
 }

@@ -16,4 +16,7 @@ public class FakeLedgerQuery : ILedgerQuery
 
     public Task<decimal> GetHeldAsync(int workerId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Held.GetValueOrDefault(workerId));
+
+    public Task<DateTime?> GetFirstEntryAtAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(Entries.Count == 0 ? (DateTime?)null : Entries.Min(e => e.CreatedAt));
 }

@@ -19,4 +19,7 @@ public class EfLedgerQuery(AppDbContext db) : ILedgerQuery
     public async Task<decimal> GetHeldAsync(int workerId, CancellationToken cancellationToken = default) =>
         await db.WithdrawalRequests.AsNoTracking().Where(w => w.WorkerId == workerId && w.RequestStatus == WithdrawalStatus.Pending)
             .SumAsync(w => (decimal?)w.Amount, cancellationToken) ?? 0m;
+
+    public async Task<DateTime?> GetFirstEntryAtAsync(CancellationToken cancellationToken = default) =>
+        await db.LedgerEntries.AsNoTracking().OrderBy(e => e.EntryId).Select(e => (DateTime?)e.CreatedAt).FirstOrDefaultAsync(cancellationToken);
 }
