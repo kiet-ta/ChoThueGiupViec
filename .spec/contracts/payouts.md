@@ -1,11 +1,13 @@
 # Contract: Payouts (module `Payouts`, owner M6)
 
+> **D28 transition:** The ledger contract supersedes the manual payout behavior and P3/P6 below. Automatic monthly settlement derives balances, advances, carry-in, penalties, earnings and extension splits from the ledger; it closes the batch with `confirmedBy = null`. The Admin payout page retains reads and export only; the build and confirm POST endpoints are removed. Exports include advance and carry-in. The existing descriptions below document the pre-ledger implementation until replaced. The ledger contract remains in progress until verified.
+
 > Status: **DRAFT, awaiting leader approval** (ticket BE-M6-00, issue #62). Nobody codes an endpoint that is not in an approved contract.
 > Sources: `.spec/spec.md` §4.4 step 3, §5.2 (0-JOIN payout query), BR-05 · `.spec/decisions.md` G-1, G-2, G-3, Q04, Q10, Q11, Q15, Q18 · `.spec/plan/00-overview.md` §5 (`PayoutBatchClosed`) · `Backend/GiupViec_Physical_DB_MVP5.drawio` tables `PAYOUT_BATCH`, `PAYOUT_ITEM`, `JOB_ASSIGNMENT` · entities `PayoutBatch.cs`, `PayoutItem.cs`, `JobAssignment.cs`, `Worker.cs`, value object `Vnd`.
 > Implements tickets: BE-M6-04 (monthly batch), BE-M6-05 (bank export), BE-M6-07 (worker income). UI: WEB-M6-03 (payout batch), MOB-M6-04 (worker income).
 > Conventions (envelope, camelCase, UTC, status codes, roles, policies, 404-for-not-owned) are defined in `identity.md` §1 and apply here unchanged. Items marked **Px** are not decided by the PRD or `decisions.md`; they are listed in section 4 with a recommended default.
 
-**No real money (G-1).** The system never calls a bank. "Disbursement" means the Admin records that the transfers were made outside the system from the exported file.
+**No real money (G-1).** The system never calls a bank. A settlement is a virtual ledger entry; exporting a file does not transfer money.
 
 ## 1. Data shapes
 
@@ -36,6 +38,8 @@
   "grossAmount": 0,
   "commissionAmount": 0,
   "penaltyAmount": 0,
+  "advanceAmount": 0,
+  "carryInAmount": 0,
   "netAmount": 0,
   "bankName": "string | null",
   "bankAccountNo": "string",
@@ -44,7 +48,9 @@
 ```
 (`PAYOUT_ITEM`; `FREELANCER` has `workerId` and null `agencyId`, `AGENCY` the reverse, enforced by a DB CHECK.) Amounts are whole VND (G-2).
 
-## 2. Endpoints (policy `AdminOnly` unless stated)
+## 2. Historical endpoint and implementation descriptions
+
+Sections 2.1–2.5 below describe behavior before D28. For the approved target, Admin retains the GET list/detail and file routes, but the two POST routes in 2.1 and 2.4 are removed. The worker earnings and payouts routes remain and read ledger-backed totals, including `advanceAmount` and `carryInAmount`. A month is automatically settled after it ends in Vietnam time: carry-in is the prior balance, advances are WITHDRAWAL entries in the month, penalties are recorded when decided, and settlement is the positive cutoff balance less pending held funds. Extension earnings and commission use the assignment's frozen rate and `Vnd`; absence fees have no commission. Exports add advance and carry-in. A null `confirmedBy` denotes automatic system settlement.
 
 ### 2.1 Build the monthly batch (BE-M6-04)
 

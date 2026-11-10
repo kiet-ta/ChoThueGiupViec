@@ -1,5 +1,25 @@
 # M3 — Điều phối & Hiện trường (+ nền Mobile)
 
+## Ledger (decision D28, contract ledger.md)
+- [x] **LEDGER-01** Ledger and payouts contracts, decision and checklist — evidence: .harness/evidence/20261110-141139-L3.log
+- [ ] **LEDGER-02** Ledger and withdrawal tables, payout advance and carry
+- [ ] **LEDGER-03** Append-only writer, idempotency and hash chain
+- [ ] **LEDGER-04** Ledger balances and read ports
+- [ ] **LEDGER-05** Customer and job money flows
+- [ ] **LEDGER-06** Agency money and reconciliation
+- [ ] **LEDGER-07** Worker wallet and withdrawal API
+- [ ] **LEDGER-08** Admin withdrawal approval and rejection
+- [ ] **LEDGER-09** Ledger-based monthly payout
+- [ ] **LEDGER-10** Settlement worker and earnings
+- [ ] **LEDGER-11** History, summary and chain verification API
+- [ ] **LEDGER-12** Exports and monthly statements
+- [ ] **LEDGER-13** Admin ledger page
+- [ ] **LEDGER-14** Admin withdrawals and read-only payouts
+- [ ] **LEDGER-15** Partner transaction history
+- [ ] **LEDGER-16** Worker wallet and withdrawals
+- [ ] **LEDGER-17** Worker history and statements
+- [ ] **LEDGER-18** End-to-end ledger acceptance
+
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).
 > Tổng quan/gate/port/event: [00-overview.md](00-overview.md) · Spec: [../spec.md](../spec.md) §2.1, §2.5, BR-02/03/04/05/10.
