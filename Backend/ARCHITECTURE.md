@@ -22,8 +22,8 @@ Domain/                    Pure business model. NO dependency on other layers
 Application/               Use cases. Depends on Domain only
   Features/<Feature>/      Services/ (I<Name>Service + implementation), Dtos/, <Entity>Repository interface, e.g. Features/<Module>/
   Behaviors/               MediatR pipeline: Validation, Logging, Performance (only the Validation behavior is registered)
-  Interfaces/              IRepositories/ (IRepository, IUnitOfWork), IServices/ (ICacheService, IEmailService), Ports/
-  Services/                Application services (EmailService)
+  Interfaces/              IRepositories/ (IRepository, IUnitOfWork), IServices/ (ICacheService), Ports/
+  Services/                Application services
   Common/                  Models (ApiResponse<T>), Helpers (PaginatedList), Constants
   Exceptions/              NotFound, Validation, ForbiddenAccess, BusinessRuleViolation
   DependencyInjection.cs   AddApplication(): MediatR + ValidationBehavior
