@@ -414,7 +414,7 @@ public class WorkerEarningsTests
             new PayoutBatchServiceTests.TestClock(new DateTime(2099, 6, 1, 4, 0, 0, DateTimeKind.Utc)));
 
     [Fact]
-    public async Task Real_database_a_worker_sees_their_own_month_PENDING_then_TRANSFERRED_and_never_another_workers_money()
+    public async Task Real_database_a_worker_sees_their_own_month_and_never_another_workers_money()
     {
         if (!PayoutBatchDatabaseTests.IsSqlServerAvailable()) return;
 
@@ -456,45 +456,8 @@ public class WorkerEarningsTests
                 var forStaff = await service.GetEarningsAsync(staff, period);
                 Assert.Equal(403, forStaff.StatusCode); // the agency is paid, not the worker
             }
-
-            int batchId;
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                batchId = (await PayoutBatchDatabaseTests.Real(db).BuildAsync(period)).Data!.BatchId;
-            }
-
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                var service = RealEarnings(db);
-                var draft = (await service.GetEarningsAsync(w1, period)).Data!;
-                Assert.Equal("PENDING", draft.PayoutStatus);
-                Assert.Equal(392001m, draft.NetAmount);
-                Assert.Equal(3, draft.Jobs.Count); // assignments already attached to the DRAFT items are still listed
-
-                Assert.Empty((await service.GetPayoutsAsync(w1, null, null)).Data!.Items); // nothing is closed yet
-            }
-
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                Assert.True((await PayoutBatchDatabaseTests.Real(db).ConfirmAsync(seed.AdminId, batchId)).Success);
-            }
-
-            await using (var db = new AppDbContext(PayoutBatchDatabaseTests.Options()))
-            {
-                var service = RealEarnings(db);
-                var closed = (await service.GetEarningsAsync(w1, period)).Data!;
-                Assert.Equal("TRANSFERRED", closed.PayoutStatus);
-                Assert.Equal((3, 464001m, 72000m, 0m, 392001m), (closed.JobCount, closed.GrossAmount, closed.CommissionAmount, closed.PenaltyAmount, closed.NetAmount));
-
-                var history = (await service.GetPayoutsAsync(w1, null, null)).Data!;
-                var item = Assert.Single(history.Items);
-                Assert.Equal((batchId, period, 392001m, "TRANSFERRED"), (item.BatchId, item.PeriodMonth, item.NetAmount, item.ItemStatus));
-                Assert.NotNull(item.TransferredAt);
-                Assert.Equal(1, history.Total);
-
-                var staffHistory = (await service.GetPayoutsAsync(staff, null, null)).Data!;
-                Assert.Empty(staffHistory.Items); // agency staff have no items of their own
-            }
+            // The batch states (PENDING, TRANSFERRED) and the history of closed batches follow the ledger since decision D28: LEDGER-10
+            // moves this screen onto it and covers them there.
         }
         finally
         {

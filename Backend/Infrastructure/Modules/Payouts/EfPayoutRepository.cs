@@ -43,33 +43,23 @@ public class EfPayoutRepository(AppDbContext db) : IPayoutRepository
         return batch;
     }
 
-    public async Task<IReadOnlyList<PayoutAssignmentRow>> GetPayableAsync(
-        DateTime fromUtc, DateTime toUtc, int batchId, CancellationToken cancellationToken = default)
+    public async Task LockPayeeAsync(PayeeKey payee, CancellationToken cancellationToken = default)
     {
-        var ownItems = db.PayoutItems.Where(i => i.BatchId == batchId).Select(i => (int?)i.ItemId);
-
-        return await db.JobAssignments.AsNoTracking()
-            .Where(a => a.PayoutItemId == null || ownItems.Contains(a.PayoutItemId))
-            .Where(a =>
-                (a.AssignmentStatus == JobAssignmentStatus.Completed && a.CompletedAt >= fromUtc && a.CompletedAt < toUtc)
-                || (a.AssignmentStatus == JobAssignmentStatus.Absent && a.AbsenceFeeAmount > 0 && a.UpdatedAt >= fromUtc && a.UpdatedAt < toUtc))
-            .OrderBy(a => a.AssignmentId)
-            .Select(a => new PayoutAssignmentRow(a.AssignmentId, a.WorkerId, a.AgencyId, a.AssignmentStatus, a.GrossAmount, a.CommissionRate, a.AbsenceFeeAmount))
-            .ToListAsync(cancellationToken);
+        // The same resource as EfWithdrawalRepository, so a withdrawal approval and a settlement of one payee queue up.
+        var result = new SqlParameter("@result", SqlDbType.Int) { Direction = ParameterDirection.Output };
+        var kind = payee.Type == PayeeType.Freelancer ? "WORKER" : "AGENCY";
+        var resource = new SqlParameter("@resource", SqlDbType.NVarChar, 255) { Value = $"ledger-party:{kind}:{payee.Id}" };
+        await db.Database.ExecuteSqlRawAsync(
+            "EXEC @result = sp_getapplock @Resource = @resource, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 15000",
+            [result, resource], cancellationToken);
+        if ((int)result.Value < 0) throw new TimeoutException($"The wallet lock of {kind} {payee.Id} could not be taken in time.");
     }
 
-    public async Task<IReadOnlyDictionary<PayeeKey, decimal>> GetAppliedPenaltiesBeforeAsync(string periodMonth, CancellationToken cancellationToken = default)
+    public async Task<int?> FindItemIdAsync(int batchId, PayeeKey payee, CancellationToken cancellationToken = default)
     {
-        var rows = await (
-            from i in db.PayoutItems.AsNoTracking()
-            join b in db.PayoutBatches.AsNoTracking() on i.BatchId equals b.BatchId
-            where b.BatchStatus == PayoutConstants.BatchClosed && b.PeriodMonth.CompareTo(periodMonth) < 0 && i.PenaltyAmount > 0
-            select new { i.PayeeType, i.WorkerId, i.AgencyId, i.PenaltyAmount })
-            .ToListAsync(cancellationToken);
-
-        return rows
-            .GroupBy(r => KeyOf(r.PayeeType, r.WorkerId, r.AgencyId))
-            .ToDictionary(g => g.Key, g => g.Sum(r => r.PenaltyAmount));
+        var query = db.PayoutItems.AsNoTracking().Where(i => i.BatchId == batchId && i.PayeeType == payee.Type);
+        query = payee.Type == PayeeType.Freelancer ? query.Where(i => i.WorkerId == payee.Id) : query.Where(i => i.AgencyId == payee.Id);
+        return await query.Select(i => (int?)i.ItemId).FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyDictionary<PayeeKey, string>> GetBankAccountsAsync(
@@ -96,44 +86,45 @@ public class EfPayoutRepository(AppDbContext db) : IPayoutRepository
         return result;
     }
 
-    public async Task ReplaceItemsAsync(int batchId, IReadOnlyList<NewPayoutItem> items, decimal totalAmount, CancellationToken cancellationToken = default)
+    public async Task<int> AddItemAsync(int batchId, PayeeKey payee, string bankAccountNo, DateTime transferredAtUtc, CancellationToken cancellationToken = default)
     {
-        var oldItems = db.PayoutItems.Where(i => i.BatchId == batchId).Select(i => (int?)i.ItemId);
-        await db.JobAssignments.Where(a => oldItems.Contains(a.PayoutItemId))
-            .ExecuteUpdateAsync(s => s.SetProperty(a => a.PayoutItemId, (int?)null), cancellationToken);
-        await db.PayoutItems.Where(i => i.BatchId == batchId).ExecuteDeleteAsync(cancellationToken);
-
-        var entities = items.Select(n => new PayoutItem
+        var item = new PayoutItem
         {
             BatchId = batchId,
-            WorkerId = n.WorkerId,
-            AgencyId = n.AgencyId,
-            PayeeType = n.PayeeType,
-            JobCount = n.JobCount,
-            GrossAmount = n.GrossAmount,
-            CommissionAmount = n.CommissionAmount,
-            PenaltyAmount = n.PenaltyAmount,
-            NetAmount = n.NetAmount,
-            BankAccountNo = n.BankAccountNo,
-            ItemStatus = PayoutConstants.ItemPending,
-        }).ToList();
-        db.PayoutItems.AddRange(entities);
+            PayeeType = payee.Type,
+            WorkerId = payee.Type == PayeeType.Freelancer ? payee.Id : null,
+            AgencyId = payee.Type == PayeeType.Agency ? payee.Id : null,
+            BankAccountNo = bankAccountNo,
+            ItemStatus = PayoutConstants.ItemTransferred,
+            TransferredAt = transferredAtUtc,
+        };
+        db.PayoutItems.Add(item);
         await db.SaveChangesAsync(cancellationToken);
-
-        for (var i = 0; i < entities.Count; i++)
-        {
-            var ids = items[i].AssignmentIds.ToList();
-            var itemId = entities[i].ItemId;
-            var attached = await db.JobAssignments
-                .Where(a => ids.Contains(a.AssignmentId) && a.PayoutItemId == null)
-                .ExecuteUpdateAsync(s => s.SetProperty(a => a.PayoutItemId, (int?)itemId), cancellationToken);
-            if (attached != ids.Count) throw new PayoutClaimLostException(ids[0]);
-        }
-
-        await db.PayoutBatches.Where(b => b.BatchId == batchId)
-            .ExecuteUpdateAsync(s => s.SetProperty(b => b.TotalAmount, totalAmount), cancellationToken);
-        db.ChangeTracker.Clear(); // the items were stored through the tracker; later reads must see the database
+        db.Entry(item).State = EntityState.Detached;
+        return item.ItemId;
     }
+
+    public async Task CompleteItemAsync(int itemId, NewPayoutItem figures, CancellationToken cancellationToken = default)
+    {
+        await db.PayoutItems.Where(i => i.ItemId == itemId).ExecuteUpdateAsync(s => s
+            .SetProperty(i => i.JobCount, figures.JobCount)
+            .SetProperty(i => i.GrossAmount, figures.GrossAmount)
+            .SetProperty(i => i.CommissionAmount, figures.CommissionAmount)
+            .SetProperty(i => i.PenaltyAmount, figures.PenaltyAmount)
+            .SetProperty(i => i.AdvanceAmount, figures.AdvanceAmount)
+            .SetProperty(i => i.CarryInAmount, figures.CarryInAmount)
+            .SetProperty(i => i.NetAmount, figures.NetAmount), cancellationToken);
+
+        var ids = figures.AssignmentIds.ToList();
+        if (ids.Count > 0)
+        {
+            await db.JobAssignments.Where(a => ids.Contains(a.AssignmentId) && a.PayoutItemId == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(a => a.PayoutItemId, (int?)itemId), cancellationToken);
+        }
+    }
+
+    public async Task<decimal> SumNetAsync(int batchId, CancellationToken cancellationToken = default) =>
+        await db.PayoutItems.AsNoTracking().Where(i => i.BatchId == batchId).SumAsync(i => (decimal?)i.NetAmount, cancellationToken) ?? 0m;
 
     public async Task<(IReadOnlyList<PayoutBatch> Items, int Total)> ListBatchesAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -241,21 +232,16 @@ public class EfPayoutRepository(AppDbContext db) : IPayoutRepository
         return items.Select(i => names.TryGetValue(KeyOf(i.PayeeType, i.WorkerId, i.AgencyId), out var n) ? n.Name : $"Payee {i.ItemId}").ToList();
     }
 
-    public async Task<bool> TryCloseAsync(int batchId, int adminId, DateTime nowUtc, CancellationToken cancellationToken = default)
+    public async Task<bool> TryCloseAsync(int batchId, decimal totalAmount, DateTime nowUtc, CancellationToken cancellationToken = default)
     {
         var changed = await db.PayoutBatches
             .Where(b => b.BatchId == batchId && b.BatchStatus == PayoutConstants.BatchDraft)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(b => b.BatchStatus, PayoutConstants.BatchClosed)
-                .SetProperty(b => b.ConfirmedBy, (int?)adminId)
-                .SetProperty(b => b.ConfirmedAt, (DateTime?)nowUtc), cancellationToken);
-        if (changed == 0) return false;
-
-        await db.PayoutItems.Where(i => i.BatchId == batchId)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(i => i.ItemStatus, PayoutConstants.ItemTransferred)
-                .SetProperty(i => i.TransferredAt, (DateTime?)nowUtc), cancellationToken);
-        return true;
+                .SetProperty(b => b.ConfirmedBy, (int?)null) // closed by the system: nobody confirms a settlement
+                .SetProperty(b => b.ConfirmedAt, (DateTime?)nowUtc)
+                .SetProperty(b => b.TotalAmount, totalAmount), cancellationToken);
+        return changed == 1;
     }
 
     private static PayeeKey KeyOf(PayeeType type, int? workerId, int? agencyId) =>

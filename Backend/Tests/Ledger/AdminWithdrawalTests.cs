@@ -29,6 +29,12 @@ public class AdminWithdrawalTests
         public Task<decimal> GetHeldAsync(int workerId, CancellationToken cancellationToken = default) =>
             Task.FromResult(withdrawals.Rows.Where(r => r.WorkerId == workerId && r.RequestStatus == WithdrawalStatus.Pending).Sum(r => r.Amount));
 
+        public Task<IReadOnlyList<(LedgerPartyType Type, int Id)>> GetSettlementPartiesAsync(DateTime beforeUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<(LedgerPartyType, int)>>([]);
+
+        public Task<IReadOnlyList<LedgerEntry>> GetCommissionsAsync(LedgerRefType refType, IReadOnlyCollection<long> refIds, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<LedgerEntry>>([]);
+
         public Task<DateTime?> GetFirstEntryAtAsync(CancellationToken cancellationToken = default) => Task.FromResult<DateTime?>(null);
     }
 

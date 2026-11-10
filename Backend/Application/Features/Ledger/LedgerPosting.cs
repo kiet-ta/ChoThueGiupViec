@@ -23,6 +23,7 @@ public static class LedgerKeys
     public static string Subscription(long paymentId) => $"SUBSCRIPTION:PAYMENT:{paymentId}";
     public static string Escrow(long escrowTxnId) => $"ESCROW:{escrowTxnId}";
     public static string Withdrawal(int withdrawalId) => $"WITHDRAWAL:{withdrawalId}";
+    public static string Settlement(string periodMonth, LedgerPartyType type, int partyId) => $"SETTLEMENT:{periodMonth}:{DbEnum.ToDb(type)}:{partyId}";
 }
 
 /// <summary>
@@ -173,6 +174,11 @@ public static class LedgerRules
     public static NewLedgerEntry Withdrawal(int workerId, decimal amount, int withdrawalId, int adminId) =>
         new(new LedgerParty(LedgerPartyType.Worker, workerId), new LedgerParty(LedgerPartyType.External, null), amount, LedgerEntryType.Withdrawal,
             LedgerRefType.Withdrawal, withdrawalId, null, null, LedgerKeys.Withdrawal(withdrawalId), null, adminId);
+
+    /// <summary>The monthly settlement of a worker or agency: the net leaves the wallet for the outside (virtual money, decision G-1), referring to its payout item.</summary>
+    public static NewLedgerEntry Settlement(LedgerPartyType type, int partyId, decimal net, int payoutItemId, string periodMonth) =>
+        new(new LedgerParty(type, partyId), new LedgerParty(LedgerPartyType.External, null), net, LedgerEntryType.Settlement, LedgerRefType.PayoutItem,
+            payoutItemId, null, null, LedgerKeys.Settlement(periodMonth, type, partyId));
 
     /// <summary>An agency's subscription payment is platform revenue.</summary>
     public static NewLedgerEntry? Subscription(int agencyId, decimal amount, long paymentId) =>
