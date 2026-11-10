@@ -25,6 +25,9 @@ public record WalletDto(decimal Balance, decimal Available, decimal Held, Pendin
 
 public record WithdrawalWorker(WorkerType Type, string? BankAccountNo, string? BankName);
 
+/// <summary>A request as the Admin sees it, with the worker's name and phone number (read-only join).</summary>
+public record AdminWithdrawalRow(WithdrawalRequest Request, string WorkerName, string WorkerPhone);
+
 public interface IWithdrawalRepository
 {
     Task<WithdrawalWorker?> GetWorkerAsync(int workerId, CancellationToken cancellationToken = default);
@@ -44,6 +47,22 @@ public interface IWithdrawalRepository
 
     /// <summary>One conditional update PENDING to CANCELLED; false when the request is no longer pending.</summary>
     Task<bool> TryCancelAsync(int workerId, int withdrawalId, CancellationToken cancellationToken = default);
+
+    /// <summary>Any worker's request by id (the Admin's view); null when it does not exist.</summary>
+    Task<WithdrawalRequest?> GetByIdAsync(int withdrawalId, CancellationToken cancellationToken = default);
+
+    /// <summary>The requests of every worker, optionally of one status; the pending queue oldest first, the others newest first.</summary>
+    Task<(IReadOnlyList<AdminWithdrawalRow> Items, int Total)> ListForAdminAsync(
+        WithdrawalStatus? status, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>One conditional update PENDING to PAID with the ledger entry and the reviewer; false when no longer pending.</summary>
+    Task<bool> TryApproveAsync(int withdrawalId, long entryId, int adminId, DateTime atUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>One conditional update PENDING to REJECTED with the reason and the reviewer; false when no longer pending.</summary>
+    Task<bool> TryRejectAsync(int withdrawalId, string reason, int adminId, DateTime atUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Flushes what is tracked (the audit row) inside the current transaction.</summary>
+    Task SaveAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IWithdrawalService
@@ -78,8 +97,8 @@ public class WithdrawalService(IWithdrawalRepository repository, ILedgerBalanceS
     public async Task<WithdrawalDto> CreateAsync(int workerId, decimal amount, CancellationToken cancellationToken = default)
     {
         var worker = await RequireFreelancerAsync(workerId, cancellationToken);
-        if (amount <= 0) throw new ValidationException("amount", "The amount must be greater than 0.");
-        if (amount != Vnd.Round(amount)) throw new ValidationException("amount", "The amount must be a whole number of VND.");
+        if (amount <= 0) throw new ValidationException("amount", "Số tiền phải là số nguyên lớn hơn 0 và không vượt quá số có thể rút.");
+        if (amount != Vnd.Round(amount)) throw new ValidationException("amount", "Số tiền phải là số nguyên lớn hơn 0 và không vượt quá số có thể rút.");
 
         return await repository.ExecuteLockedAsync(workerId, async () =>
         {
@@ -88,7 +107,7 @@ public class WithdrawalService(IWithdrawalRepository repository, ILedgerBalanceS
             var balance = await balances.GetAsync(new LedgerParty(LedgerPartyType.Worker, workerId), cancellationToken);
             if (amount > (balance.Available ?? 0m))
             {
-                throw new ValidationException("amount", $"The amount exceeds what can be withdrawn now ({balance.Available ?? 0m:0} VND).");
+                throw new ValidationException("amount", $"Số tiền phải là số nguyên lớn hơn 0 và không vượt quá số có thể rút ({balance.Available ?? 0m:0} đồng).");
             }
 
             var request = new WithdrawalRequest
@@ -126,7 +145,7 @@ public class WithdrawalService(IWithdrawalRepository repository, ILedgerBalanceS
                 ?? throw new NotFoundException("Withdrawal request", withdrawalId);
             if (!await repository.TryCancelAsync(workerId, withdrawalId, cancellationToken))
             {
-                throw new BusinessRuleViolationException("The request is no longer pending.", WithdrawalErrorCodes.NotPending);
+                throw new BusinessRuleViolationException("Yêu cầu không còn ở trạng thái chờ duyệt.", WithdrawalErrorCodes.NotPending);
             }
 
             request.RequestStatus = WithdrawalStatus.Cancelled;
@@ -138,12 +157,12 @@ public class WithdrawalService(IWithdrawalRepository repository, ILedgerBalanceS
     private async Task<WithdrawalWorker> RequireFreelancerAsync(int workerId, CancellationToken cancellationToken)
     {
         var worker = await repository.GetWorkerAsync(workerId, cancellationToken) ?? throw new NotFoundException("Worker", workerId);
-        if (worker.Type != WorkerType.Freelancer) throw new ForbiddenAccessException("Only freelancers can withdraw; the agency is paid for its staff.");
+        if (worker.Type != WorkerType.Freelancer) throw new ForbiddenAccessException("Thợ thuộc Agency được trả lương qua Agency, không rút tiền trên app.");
         return worker;
     }
 
     private static BusinessRuleViolationException PendingConflict() =>
-        new("You already have a withdrawal request waiting for approval.", WithdrawalErrorCodes.Pending);
+        new("Bạn đang có một yêu cầu rút tiền chờ duyệt. Mỗi lần chỉ được một yêu cầu.", WithdrawalErrorCodes.Pending);
 
     private static WithdrawalDto ToDto(WithdrawalRequest r) =>
         new(r.WithdrawalId, r.Amount, DbEnum.ToDb(r.RequestStatus), r.RequestedAt, r.ReviewedAt, r.RejectReason);

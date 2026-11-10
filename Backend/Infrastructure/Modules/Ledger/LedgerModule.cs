@@ -23,6 +23,7 @@ public class LedgerModule : IModule
         services.AddScoped<ILedgerReconciliationService, LedgerReconciliationService>();
         services.AddScoped<IWithdrawalRepository, EfWithdrawalRepository>();
         services.AddScoped<IWithdrawalService, WithdrawalService>();
+        services.AddScoped<IAdminWithdrawalService, AdminWithdrawalService>();
         services.AddHostedService<LedgerReconciliationWorker>();
     }
 }

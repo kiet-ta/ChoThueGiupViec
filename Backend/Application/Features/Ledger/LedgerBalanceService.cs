@@ -4,7 +4,8 @@ using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Ledger;
 
-public record LedgerBalance(decimal Balance, decimal? Available, decimal Held, DateTime? NextAvailableAt);
+/// <summary><c>WithdrawableBeforeHold</c> is the withdrawable amount before the pending request is subtracted (what an approval is checked against); null for a party that cannot withdraw.</summary>
+public record LedgerBalance(decimal Balance, decimal? Available, decimal Held, DateTime? NextAvailableAt, decimal? WithdrawableBeforeHold = null);
 
 public interface ILedgerBalanceService
 {
@@ -36,7 +37,7 @@ public class LedgerBalanceService(ILedgerQuery ledger, IOpenDisputeQuery dispute
         var mature = eligible.Where(e => e.AvailableAt is null || e.AvailableAt <= now).Sum(e => e.Amount);
         var debits = entries.Where(e => e.FromPartyType == party.Type && e.FromPartyId == party.Id).Sum(e => e.Amount);
         var next = eligible.Where(e => e.AvailableAt > now).Select(e => e.AvailableAt).Min();
-        return new LedgerBalance(balance, Math.Max(0m, mature - debits - held), held, next);
+        return new LedgerBalance(balance, Math.Max(0m, mature - debits - held), held, next, Math.Max(0m, mature - debits));
     }
 
     private static decimal Net(IEnumerable<LedgerEntry> entries, LedgerParty party) =>
