@@ -287,3 +287,76 @@ export function toggleSaved(ids: ReadonlySet<number>, workerId: number, adding: 
 
 /** Number of pages for `total` items. */
 export const pageCount = (total: number, pageSize: number) => Math.max(1, Math.ceil(total / pageSize))
+
+// ---- ROUTE-WEB-01 (#765): the worker's route to the house, from Valhalla (motor_scooter) ----
+
+/** The route card reloads every 30 s: the worker's position changes slowly and a route is heavier than the 5 s progress poll. */
+export const ROUTE_REFRESH_MS = 30000
+
+export interface RoutePoint { latitude: number; longitude: number }
+
+/** `GET /dispatch/assignments/{id}/route` (contract dispatch.md 3.2). The worker position is rounded to about 100 m by the server. */
+export interface WorkerRoute {
+  assignmentId: number
+  distanceMeters: number
+  durationSeconds: number
+  polyline: string
+  destination: RoutePoint
+  workerPosition: RoutePoint
+}
+
+/** Assignments that are on their way (ASSIGNED) while the order is ASSIGNED: the same ones that can wait for an arrival. */
+export function routeCandidates(orderStatus: string, assignments: ProgressAssignment[]): number[] {
+  return arrivalCandidates(orderStatus, assignments)
+}
+
+/** Decodes an encoded polyline with 6 decimals (the Valhalla format) into [latitude, longitude] pairs. */
+export function decodePolyline6(encoded: string): [number, number][] {
+  const points: [number, number][] = []
+  let index = 0
+  let lat = 0
+  let lng = 0
+  const next = (): number => {
+    let result = 0
+    let shift = 0
+    let byte: number
+    do {
+      byte = encoded.charCodeAt(index++) - 63
+      result |= (byte & 0x1f) << shift
+      shift += 5
+    } while (byte >= 0x20 && index < encoded.length)
+    return result & 1 ? ~(result >> 1) : result >> 1
+  }
+  while (index < encoded.length) {
+    lat += next()
+    lng += next()
+    points.push([lat / 1e6, lng / 1e6])
+  }
+  return points
+}
+
+/** `850 m` below 1 km, otherwise kilometres with one decimal and a comma (`3,2 km`). */
+export function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)} m`
+  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`
+}
+
+/** `~12 phút`, `~1 giờ 5 phút`, `~1 giờ`; under a minute is `~1 phút`. */
+export function formatDuration(seconds: number): string {
+  const minutes = Math.max(1, Math.round(seconds / 60))
+  if (minutes < 60) return `~${minutes} phút`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m === 0 ? `~${h} giờ` : `~${h} giờ ${m} phút`
+}
+
+/**
+ * What the route card says when the route call fails: null hides the card (the job is no longer on its way), otherwise a message.
+ * 409 WORKER_LOCATION_UNKNOWN = the worker shared no position yet; 502 = Valhalla did not answer.
+ */
+export function routeProblem(error: { status?: number; data?: unknown }): string | null {
+  const code = error.data && typeof error.data === 'object' ? (error.data as { code?: unknown }).code : undefined
+  if (error.status === 409 && code === 'WORKER_LOCATION_UNKNOWN') return 'Chưa có vị trí của thợ.'
+  if (error.status === 409 || error.status === 404) return null
+  return 'Chưa tính được lộ trình.'
+}

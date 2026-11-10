@@ -277,6 +277,14 @@ To eliminate dependency on paid map services and pending account approvals, the 
 2. **Offline & Test Fallback:** When unreachable or offline, gracefully delegates to `FakeReverseGeocodeService` for fast, deterministic CI test runs.
 3. **Compatibility:** Implements `IReverseGeocodeService` and serves `POST /api/v1/locations/reverse-geocode` cleanly conforming to `.spec/contracts/customers.md` §2.4.
 
+### D29 Worker route on a map with Valhalla (ROUTE-WEB-01, #765; owner decision 2026-11-10)
+The customer sees the route, distance and travel time from the worker to the house on the order page.
+1. **Engine:** self-hosted Valhalla on OpenStreetMap data, costing `motor_scooter` (workers ride motorbikes). Configured with `Valhalla:BaseUrl` (Development: `http://localhost:8002`; empty in `appsettings.json`). No custom A* and no paid map service.
+2. **Fallback:** with an empty `Valhalla:BaseUrl` (CI, a laptop without Valhalla) `ValhallaRoutingService` answers with `FakeRoutingService` (straight line, 25 km/h). When Valhalla is configured but down, the endpoint answers 502 and the page keeps working.
+3. **Privacy:** only the customer of the assignment, only while it is `ASSIGNED`; the worker position is rounded to 3 decimals (about 100 m) and the line starts at the rounded point.
+4. **Web:** Leaflet with OpenStreetMap tiles (`tile.openstreetmap.org`, fine for development and demos; a busy production site needs its own tile source). The attribution "© OpenStreetMap contributors" stays visible. The Web has no Worker area; the worker side is on Mobile (ticket #760).
+5. **Run Valhalla locally:** download a Vietnam extract from https://download.geofabrik.de/asia/vietnam.html (`vietnam-latest.osm.pbf`), put it in a Docker volume (not in the repo; `*.osm.pbf` is gitignored) and run `docker run -dt --name valhalla -p 8002:8002 -v valhalla_data:/custom_files -e server_threads=4 ghcr.io/valhalla/valhalla-scripted:latest`. The first start builds the tiles (minutes). Check `curl http://localhost:8002/status`. Building tiles on a Windows bind mount corrupted a tile file once; a Docker volume works.
+
 ### D26 CQRS Read-Join Convention (Architecture Refinement, 2026-11-09)
 1. **Write Side (Commands, State Transitions, Dispatch Matching):** Strictly 0-JOIN. All entity mutations, dispatch slot holds, and state machine transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned).
 2. **Read Side (Queries & Projections):** Explicit LINQ `join` is permitted under 4 mandatory constraints:

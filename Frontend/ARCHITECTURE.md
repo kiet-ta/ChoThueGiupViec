@@ -164,3 +164,7 @@ Live in `src/components/` (outside `features/`, so no module owns them). No extr
 - Delete asks for confirmation; an address that has orders answers 409 and the page says so.
 - Favorites: `GET /customers/me/favorite-workers` with rating, completed jobs and work status (`IDLE`, `BUSY`, `LOCKED`, `RETIRING`, `RETIRED`, `PENDING`); "Đặt thợ này" opens `/app/booking?worker=<id>`, where the booking page shows the worker and sends `preferredWorkerId` for Economy (booking.md 3.3: a wish, not a guarantee). Booking reads `GET /customers/me/favorite-workers/{workerId}/availability` for the seven displayed dates and greys unavailable Economy shifts; a failed or empty list leaves booking available, and Premium ignores the preference.
 - Profile: `GET/PUT /customers/me`; the phone number is read-only.
+
+## Worker route on the order page (ROUTE-WEB-01, #765)
+- `orders/WorkerRouteCard.tsx`: for each ASSIGNED job of an ASSIGNED order (`routeCandidates`) it calls `GET /dispatch/assignments/{id}/route` every 30 s (`ROUTE_REFRESH_MS`) and draws the line on a Leaflet map with OpenStreetMap tiles (`leaflet@1.9.4`, `react-leaflet@5.0.0`, circle markers so no icon images are bundled). The worker marker is approximate (server rounds to about 100 m). 409/404 hide the card, 409 `WORKER_LOCATION_UNKNOWN` and 502 show a message and leave the rest of the page working.
+- Pure helpers in `orders/view.ts`: `decodePolyline6`, `formatDistance` (`3,2 km`), `formatDuration` (`~12 phút`), `routeProblem`. Tests: `tests/customer-orders.test.ts`.

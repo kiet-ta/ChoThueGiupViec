@@ -308,6 +308,25 @@ Khách trả lời câu hỏi "Chỉ có 1 thợ: thợ làm 2 ca liên tiếp?"
 - `404` đơn không tồn tại / không phải của khách. `409` `data.code` = `FALLBACK_NOT_WAITING` (đơn không ở trạng thái chờ) hoặc `FALLBACK_ALREADY_ANSWERED` (khách đã đồng ý, đang chờ thợ).
 - Thợ từ chối hoặc không xác nhận trong 120 giây -> đơn bị hủy và hoàn 100 % như trên (khách thấy `state` = `NOT_WAITING` và đơn `CANCELLED`).
 
+
+#### `GET /api/v1/dispatch/assignments/{assignmentId}/route`
+Khách xem lộ trình từ thợ tới nhà (ROUTE-WEB-01, #765, quyết định D29). Lộ trình do Valhalla tính (costing `motor_scooter`, dữ liệu OpenStreetMap).
+
+- Chỉ trả khi ca còn `ASSIGNED` (thợ đang trên đường). Điểm đi = vị trí thợ đã lưu qua `PUT /workers/me/location`, **làm tròn 3 chữ số thập phân** (khoảng 100 m) và đường đi cũng bắt đầu từ điểm đã làm tròn; điểm đến = toạ độ địa chỉ của đơn.
+- Response 200 `data`:
+```json
+{
+  "assignmentId": 500,
+  "distanceMeters": 3200.0,
+  "durationSeconds": 780.4,
+  "polyline": "_p~iF~ps|U",
+  "destination": { "latitude": 10.8031, "longitude": 106.7147 },
+  "workerPosition": { "latitude": 10.777, "longitude": 106.701 }
+}
+```
+`polyline` là polyline mã hoá 6 chữ số thập phân (định dạng Valhalla).
+- `404`: ca không tồn tại hoặc không phải của khách. `409` `data.code` = `ROUTE_NOT_AVAILABLE` (ca không còn `ASSIGNED`) hoặc `WORKER_LOCATION_UNKNOWN` (thợ chưa có vị trí). `502`: Valhalla không trả lời; trang đơn vẫn dùng được.
+- Khi `Valhalla:BaseUrl` để trống (Development, CI), backend trả đường thẳng giả `FakeRoutingService` (25 km/h).
 ---
 
 ### 3.3 Dành cho Quản Trị Viên (`AdminOnly`)
