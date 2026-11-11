@@ -535,5 +535,29 @@ void main() {
         expect(service.created, isEmpty);
       },
     );
+
+    testWidgets(
+      'an added evidence photo is shown as an image of the address the upload returned (MOB-DISPUTE-01)',
+      (tester) async {
+        final uploader = FakeUploader()
+          ..urls.addAll(['/files/dispute-evidence/a.jpg', null]);
+        await pumpForm(tester, FakeDisputesService(), uploader);
+        await tester.ensureVisible(find.byKey(const Key('dispute-add-photo')));
+        await tester.tap(find.byKey(const Key('dispute-add-photo')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('dispute-pick-gallery')));
+        await tester.pumpAndSettle();
+
+        final image = tester.widget<Image>(
+          find.byKey(const Key('dispute-evidence-image-0')),
+        );
+        expect(image.image, isA<NetworkImage>());
+        expect(
+          (image.image as NetworkImage).url,
+          endsWith('/files/dispute-evidence/a.jpg'),
+        );
+        expect(find.byKey(const Key('dispute-remove-0')), findsOneWidget);
+      },
+    );
   });
 }
