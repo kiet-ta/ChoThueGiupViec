@@ -26,6 +26,7 @@
 - [x] **LEDGER-23** Worker app history filter as a dropdown — evidence: .harness/evidence/20261111-220201-L3.log
 - [x] **LEDGER-24** Worker app says "số dư" instead of "ví" — evidence: .harness/evidence/20261111-222045-L3.log
 - [x] **LEDGER-25** Worker earnings: rate and dispute actions look like buttons — evidence: .harness/evidence/20261111-223746-L3.log
+- [x] **LEDGER-26** Admin sidebar as a collapsible tree — evidence: .harness/evidence/20261111-232225-L3.log
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).
