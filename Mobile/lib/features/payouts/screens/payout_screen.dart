@@ -336,57 +336,68 @@ class _PayoutScreenState extends State<PayoutScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: NordicSpace.xs),
       child: NordicCard(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Đơn #${job.orderId}',
-                    style: NordicTypography.titleSmall,
-                  ),
-                  const SizedBox(height: NordicSpace.xxs),
-                  Text(
-                    formatVietnamDateTime(job.completedAt),
-                    style: NordicTypography.bodySmall,
-                  ),
-                  const SizedBox(height: NordicSpace.xxs),
-                  Text(
-                    'Tiền công ${formatVnd(job.grossAmount)} · Hoa hồng ${formatVnd(job.commissionAmount)}',
-                    style: NordicTypography.bodySmall,
-                  ),
-                  if (!job.absenceFee)
-                    Wrap(
-                      spacing: NordicSpace.xs,
-                      children: [
-                        TextButton(
-                          key: Key('job-rate-${job.assignmentId}'),
-                          onPressed: () => _rate(job),
-                          child: const Text('Đánh giá gia chủ'),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Đơn #${job.orderId}',
+                        style: NordicTypography.titleSmall,
+                      ),
+                      const SizedBox(height: NordicSpace.xxs),
+                      Text(
+                        formatVietnamDateTime(job.completedAt),
+                        style: NordicTypography.bodySmall,
+                      ),
+                      const SizedBox(height: NordicSpace.xxs),
+                      Text(
+                        'Tiền công ${formatVnd(job.grossAmount)} · Hoa hồng ${formatVnd(job.commissionAmount)}',
+                        style: NordicTypography.bodySmall,
+                      ),
+                      if (job.absenceFee)
+                        const Padding(
+                          padding: EdgeInsets.only(top: NordicSpace.xs),
+                          child: StatusPill(
+                            'Phí vắng mặt',
+                            tone: PillTone.warn,
+                          ),
                         ),
-                        TextButton(
-                          key: Key('job-dispute-${job.assignmentId}'),
-                          onPressed: () => _dispute(job),
-                          child: const Text('Khiếu nại'),
-                        ),
-                      ],
-                    ),
-                  if (job.absenceFee)
-                    const Padding(
-                      padding: EdgeInsets.only(top: NordicSpace.xs),
-                      child: StatusPill('Phí vắng mặt', tone: PillTone.warn),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: NordicSpace.xs),
+                Text(
+                  formatVnd(job.netAmount),
+                  key: Key('job-net-${job.assignmentId}'),
+                  style: NordicTypography.titleSmall,
+                ),
+              ],
+            ),
+            if (!job.absenceFee) ...[
+              const SizedBox(height: NordicSpace.sm),
+              // Two real buttons one above the other, full width (LEDGER-25): side by side the longer label wrapped on a phone.
+              NordicButton(
+                key: Key('job-rate-${job.assignmentId}'),
+                label: 'Đánh giá gia chủ',
+                variant: NordicButtonVariant.secondary,
+                width: double.infinity,
+                onPressed: () => _rate(job),
               ),
-            ),
-            const SizedBox(width: NordicSpace.xs),
-            Text(
-              formatVnd(job.netAmount),
-              key: Key('job-net-${job.assignmentId}'),
-              style: NordicTypography.titleSmall,
-            ),
+              const SizedBox(height: NordicSpace.xs),
+              NordicButton(
+                key: Key('job-dispute-${job.assignmentId}'),
+                label: 'Khiếu nại',
+                variant: NordicButtonVariant.secondary,
+                width: double.infinity,
+                onPressed: () => _dispute(job),
+              ),
+            ],
           ],
         ),
       ),

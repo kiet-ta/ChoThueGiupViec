@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/core/widgets/nordic_button.dart';
 import 'package:mobile/features/disputes/models/dispute_models.dart';
 import 'package:mobile/features/disputes/routes.dart';
 import 'package:mobile/features/disputes/screens/dispute_screen.dart';
@@ -491,6 +492,28 @@ void main() {
           findsNothing,
         ); // job 2 is an absence fee
         expect(find.byKey(const Key('job-dispute-2')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the two actions are real buttons, one above the other, at least 44 px high, without overflow (LEDGER-25)',
+      (tester) async {
+        await pump(tester);
+
+        for (final key in ['job-rate-1', 'job-dispute-1']) {
+          final button = tester.widget<NordicButton>(find.byKey(Key(key)));
+          expect(button.variant, NordicButtonVariant.secondary);
+          expect(
+            tester.getSize(find.byKey(Key(key))).height,
+            greaterThanOrEqualTo(44.0),
+          );
+        }
+        final rate = tester.getRect(find.byKey(const Key('job-rate-1')));
+        final dispute = tester.getRect(find.byKey(const Key('job-dispute-1')));
+        expect(rate.left, dispute.left);
+        expect(rate.width, dispute.width);
+        expect(rate.bottom, lessThan(dispute.top));
+        expect(tester.takeException(), isNull);
       },
     );
 
