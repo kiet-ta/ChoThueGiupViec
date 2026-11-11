@@ -7,6 +7,7 @@ import 'package:mobile/features/workers/models/worker_assignment_models.dart';
 import 'package:mobile/features/workers/models/worker_location_models.dart';
 import 'package:mobile/features/workers/routes.dart';
 import 'package:mobile/features/workers/screens/worker_slots_screen.dart';
+import 'package:mobile/features/workers/services/map_launcher.dart';
 import 'package:mobile/features/workers/services/workers_assignments_service.dart';
 import 'package:mobile/features/workers/services/workers_location_service.dart';
 import 'package:mobile/features/workers/services/workers_slots_service.dart';
@@ -50,10 +51,53 @@ class MockWorkersSlotsService extends WorkersSlotsService {
   }
 }
 
+class FakeMapLauncher implements IMapLauncher {
+  final bool result;
+  final List<Uri> opened = [];
+  FakeMapLauncher({this.result = true});
+
+  @override
+  Future<bool> open(Uri uri) async {
+    opened.add(uri);
+    return result;
+  }
+}
+
 class FakeAssignmentsService extends WorkersAssignmentsService {
   List<WorkerAssignmentDto> jobs = [];
   bool failing = false;
+  bool detailFailing = false;
+  double latitude = 10.8031;
+  double longitude = 106.7147;
   int calls = 0;
+
+  @override
+  Future<ApiResponse<WorkerAssignmentDetailDto>> getAssignment(
+    int assignmentId,
+  ) async {
+    if (detailFailing) throw Exception('offline');
+    return ApiResponse<WorkerAssignmentDetailDto>(
+      success: true,
+      message: 'OK',
+      data: WorkerAssignmentDetailDto(
+        assignmentId: assignmentId,
+        orderId: assignmentId,
+        orderCode: 'GV-$assignmentId',
+        slotDate: '2026-10-12',
+        shiftCode: 'SHIFT_MORNING',
+        startTime: '08:00',
+        endTime: '12:00',
+        status: 'ASSIGNED',
+        serviceTier: 'ECONOMY',
+        addressLine: '208 Nguyễn Hữu Cảnh',
+        district: 'Bình Thạnh',
+        city: 'TP. Hồ Chí Minh',
+        latitude: latitude,
+        longitude: longitude,
+        payoutAmount: 221000,
+      ),
+    );
+  }
 
   @override
   Future<ApiResponse<List<WorkerAssignmentDto>>> getAssignments({
@@ -293,8 +337,10 @@ void main() {
 
     group('booked orders in the schedule', () {
       late FakeAssignmentsService assignments;
+      late FakeMapLauncher launcher;
 
       setUp(() {
+        launcher = FakeMapLauncher();
         assignments = FakeAssignmentsService()
           ..jobs = [
             job(10002, '2026-10-12', 'SHIFT_MORNING', 'ASSIGNED'),
@@ -325,6 +371,7 @@ void main() {
               slotsService: mockService,
               locationService: mockLocation,
               assignmentsService: assignments,
+              mapLauncher: launcher,
               initialDate: fixedDate,
             ),
           ),
@@ -390,6 +437,72 @@ void main() {
           expect(find.text('checkin:10002'), findsOneWidget);
         },
       );
+
+      Future<void> tapDirections(WidgetTester tester) async {
+        await pumpScreen(tester);
+        await tapVisible(tester, find.byKey(const Key('order-10002')));
+        await tester.tap(find.byKey(const Key('order-sheet-route')));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('Chỉ đường opens the phone map app at the house', (
+        tester,
+      ) async {
+        await tapDirections(tester);
+
+        expect(launcher.opened, hasLength(1));
+        final uri = launcher.opened.single;
+        expect(uri.host, 'www.google.com');
+        expect(uri.queryParameters['destination'], '10.8031,106.7147');
+        expect(uri.queryParameters['travelmode'], 'two-wheeler');
+      });
+
+      testWidgets('Chỉ đường without coordinates uses the written address', (
+        tester,
+      ) async {
+        assignments
+          ..latitude = 0
+          ..longitude = 0;
+        await tapDirections(tester);
+
+        expect(
+          launcher.opened.single.queryParameters['destination'],
+          '208 Nguyễn Hữu Cảnh, Bình Thạnh, TP. Hồ Chí Minh',
+        );
+      });
+
+      testWidgets('Chỉ đường says so when the job cannot be read', (
+        tester,
+      ) async {
+        assignments.detailFailing = true;
+        await tapDirections(tester);
+
+        expect(launcher.opened, isEmpty);
+        expect(
+          find.text('Chưa tải được địa chỉ của ca. Vui lòng thử lại.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('Chỉ đường says so when no map app is installed', (
+        tester,
+      ) async {
+        launcher = FakeMapLauncher(result: false);
+        await tapDirections(tester);
+
+        expect(
+          find.textContaining('Không mở được ứng dụng bản đồ'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('an order under way has no route button', (tester) async {
+        await pumpScreen(tester);
+
+        await tapVisible(tester, find.byKey(const Key('order-10003')));
+
+        expect(find.byKey(const Key('order-sheet-route')), findsNothing);
+      });
 
       testWidgets('an order under way leads to the work screen', (
         tester,

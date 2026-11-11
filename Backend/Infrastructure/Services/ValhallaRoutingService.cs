@@ -32,11 +32,18 @@ public class ValhallaRoutingService : IRoutingService
         _baseUrl = string.IsNullOrWhiteSpace(raw) ? null : raw.Trim().TrimEnd('/');
     }
 
-    public async Task<RouteResult?> GetRouteAsync(double fromLat, double fromLng, double toLat, double toLng, CancellationToken ct = default)
+    public async Task<RouteResult?> GetRouteAsync(double fromLat, double fromLng, double toLat, double toLng, CancellationToken ct = default) =>
+        (await GetRoutesAsync(fromLat, fromLng, toLat, toLng, 1, ct)).FirstOrDefault();
+
+    /// <summary>Up to <paramref name="maxRoutes"/> routes (Valhalla <c>alternates</c>), sorted by duration; empty when Valhalla does not answer.</summary>
+    public async Task<IReadOnlyList<RouteResult>> GetRoutesAsync(
+        double fromLat, double fromLng, double toLat, double toLng, int maxRoutes, CancellationToken ct = default)
     {
+        maxRoutes = Math.Clamp(maxRoutes, 1, 3);
         if (_baseUrl is null)
         {
-            return await _fake.GetRouteAsync(fromLat, fromLng, toLat, toLng, ct);
+            var fake = await _fake.GetRouteAsync(fromLat, fromLng, toLat, toLng, ct);
+            return fake is null ? [] : [fake];
         }
 
         try
@@ -50,6 +57,7 @@ public class ValhallaRoutingService : IRoutingService
                 },
                 costing = Costing,
                 directions_options = new { units = "kilometers" },
+                alternates = maxRoutes - 1,
             };
 
             using var response = await _http.PostAsJsonAsync($"{_baseUrl}/route", body, ct);
@@ -57,16 +65,16 @@ public class ValhallaRoutingService : IRoutingService
             {
                 _logger.LogWarning("Valhalla returned HTTP {StatusCode} for ({FromLat}, {FromLng}) -> ({ToLat}, {ToLng}).",
                     (int)response.StatusCode, fromLat, fromLng, toLat, toLng);
-                return null;
+                return [];
             }
 
             var root = await response.Content.ReadFromJsonAsync<ValhallaRouteResponse>(cancellationToken: ct);
-            return ParseRoute(root);
+            return ParseRoutes(root, maxRoutes);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.LogWarning(ex, "Valhalla route request failed; no route returned.");
-            return null;
+            return [];
         }
     }
 
@@ -86,10 +94,29 @@ public class ValhallaRoutingService : IRoutingService
             shape);
     }
 
+    /// <summary>The main route and its alternatives, sorted by duration (the fastest first), at most <paramref name="maxRoutes"/>.</summary>
+    public static IReadOnlyList<RouteResult> ParseRoutes(ValhallaRouteResponse? root, int maxRoutes)
+    {
+        var all = new List<RouteResult>();
+        var main = ParseRoute(root);
+        if (main is not null) all.Add(main);
+        foreach (var alt in root?.Alternates ?? [])
+        {
+            var parsed = ParseRoute(alt);
+            if (parsed is not null) all.Add(parsed);
+        }
+
+        return all.OrderBy(r => r.DurationSeconds).Take(Math.Max(1, maxRoutes)).ToList();
+    }
+
     public class ValhallaRouteResponse
     {
         [JsonPropertyName("trip")]
         public ValhallaTrip? Trip { get; set; }
+
+        /// <summary>Other routes between the same points; each has its own <c>trip</c>.</summary>
+        [JsonPropertyName("alternates")]
+        public List<ValhallaRouteResponse>? Alternates { get; set; }
     }
 
     public class ValhallaTrip

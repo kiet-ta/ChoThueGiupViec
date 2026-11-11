@@ -14,4 +14,15 @@ public record RouteResult(double DistanceMeters, double DurationSeconds, string 
 public interface IRoutingService
 {
     Task<RouteResult?> GetRouteAsync(double fromLat, double fromLng, double toLat, double toLng, CancellationToken ct = default);
+
+    /// <summary>
+    /// Up to <paramref name="maxRoutes"/> routes, the fastest first, the others sorted by duration (ROUTE-MOB-01, #760). Empty when the
+    /// engine cannot answer. The default is the single route of <see cref="GetRouteAsync"/>, so an adapter without alternatives needs nothing.
+    /// </summary>
+    async Task<IReadOnlyList<RouteResult>> GetRoutesAsync(
+        double fromLat, double fromLng, double toLat, double toLng, int maxRoutes, CancellationToken ct = default)
+    {
+        var one = await GetRouteAsync(fromLat, fromLng, toLat, toLng, ct);
+        return one is null ? [] : [one];
+    }
 }

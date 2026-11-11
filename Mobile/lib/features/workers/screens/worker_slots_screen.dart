@@ -16,6 +16,7 @@ import '../../payouts/logic/payout_logic.dart';
 import '../models/booking_slot_models.dart';
 import '../models/worker_assignment_models.dart';
 import '../routes.dart';
+import '../services/map_launcher.dart';
 import '../services/workers_assignments_service.dart';
 import '../services/workers_location_service.dart';
 import '../services/workers_slots_service.dart';
@@ -31,6 +32,9 @@ class WorkerSlotsScreen extends StatefulWidget {
   final WorkersSlotsService? slotsService;
   final WorkersLocationService? locationService;
   final WorkersAssignmentsService? assignmentsService;
+
+  /// Opens the phone's map app for `Chỉ đường`.
+  final IMapLauncher? mapLauncher;
   final DateTime? initialDate;
 
   const WorkerSlotsScreen({
@@ -38,6 +42,7 @@ class WorkerSlotsScreen extends StatefulWidget {
     this.slotsService,
     this.locationService,
     this.assignmentsService,
+    this.mapLauncher,
     this.initialDate,
   });
 
@@ -49,6 +54,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   late final WorkersSlotsService _service;
   late final WorkersLocationService _locationService;
   late final WorkersAssignmentsService _assignmentsService;
+  late final IMapLauncher _mapLauncher;
   late DateTime _weekStartDate;
 
   bool _isLoading = false;
@@ -86,6 +92,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     _locationService = widget.locationService ?? WorkersLocationService();
     _assignmentsService =
         widget.assignmentsService ?? WorkersAssignmentsService();
+    _mapLauncher = widget.mapLauncher ?? const UrlMapLauncher();
 
     final now = widget.initialDate ?? DateTime.now();
     // Align to Monday of current week
@@ -645,6 +652,46 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     );
   }
 
+  /// `Chỉ đường`: reads the full address of the accepted job (the list has only the district) and hands it to the phone's
+  /// map app, which draws the road (ROUTE-MOB-01, #760). A job that cannot be read or a phone without a map app says so.
+  Future<void> _openDirections(int assignmentId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    Uri? uri;
+    try {
+      final job = (await _assignmentsService.getAssignment(assignmentId)).data;
+      if (job != null) {
+        uri = mapDirectionsUri(
+          latitude: job.latitude,
+          longitude: job.longitude,
+          address: job.fullAddress,
+        );
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Chưa tải được địa chỉ của ca. Vui lòng thử lại.'),
+        ),
+      );
+      return;
+    }
+    if (uri == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Ca này chưa có địa chỉ để chỉ đường.')),
+      );
+      return;
+    }
+    final opened = await _mapLauncher.open(uri);
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Không mở được ứng dụng bản đồ. Hãy cài một ứng dụng bản đồ rồi thử lại.',
+          ),
+        ),
+      );
+    }
+  }
+
   /// The details of a job and, by status, the next step: check in, or continue the work. A finished job has no button.
   void _openOrder(WorkerAssignmentDto a) {
     final date = DateTime.tryParse(a.slotDate);
@@ -703,6 +750,19 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                   ],
                 ),
               ),
+              if (a.isNotStarted) ...[
+                const SizedBox(height: NordicSpace.md),
+                NordicButton(
+                  key: const Key('order-sheet-route'),
+                  label: 'Chỉ đường',
+                  variant: NordicButtonVariant.secondary,
+                  icon: const Icon(Icons.navigation_outlined, size: 18.0),
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    _openDirections(a.assignmentId);
+                  },
+                ),
+              ],
               if (route != null) ...[
                 const SizedBox(height: NordicSpace.md),
                 NordicButton(

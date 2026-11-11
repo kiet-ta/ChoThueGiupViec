@@ -321,6 +321,31 @@ public class WorkersController(
         return Ok(result);
     }
 
+    /// <summary>
+    /// Up to 3 ways from the worker's position (fromLat, fromLng) to the house of one of the worker's own accepted jobs, the fastest first
+    /// (contract workers.md 2.3.5, ROUTE-MOB-01 #760). The destination is the order's address. 409 ROUTE_NOT_AVAILABLE once the work started;
+    /// 502 when the routing engine does not answer.
+    /// </summary>
+    [HttpGet("assignments/{assignmentId:long}/route")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerRouteResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> GetAssignmentRoute(
+        long assignmentId,
+        [FromQuery] double fromLat,
+        [FromQuery] double fromLng,
+        [FromServices] WorkerRouteService routes,
+        CancellationToken ct)
+    {
+        var result = await routes.GetAsync(assignmentId, fromLat, fromLng, ct);
+        return result is null
+            ? StatusCode(StatusCodes.Status502BadGateway, ApiResponse.Fail("The route could not be calculated right now."))
+            : Ok(ApiResponse<WorkerRouteResponse>.Ok(result));
+    }
+
     /// <summary>The worker accepts or declines an extension the customer paid for ("Làm lần 2", contract workers.md 2.6.1).</summary>
     [HttpPost("assignments/{assignmentId:long}/extension/respond")]
     [Authorize(Policy = "WorkerOnly")]
