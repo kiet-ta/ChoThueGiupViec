@@ -703,6 +703,21 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                   ],
                 ),
               ),
+              if (a.isNotStarted) ...[
+                const SizedBox(height: NordicSpace.md),
+                NordicButton(
+                  key: const Key('order-sheet-route'),
+                  label: 'Xem đường đi',
+                  variant: NordicButtonVariant.secondary,
+                  icon: const Icon(Icons.navigation_outlined, size: 18.0),
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    Navigator.of(
+                      context,
+                    ).pushNamed(WorkerRoutes.route, arguments: a.assignmentId);
+                  },
+                ),
+              ],
               if (route != null) ...[
                 const SizedBox(height: NordicSpace.md),
                 NordicButton(

@@ -363,6 +363,25 @@ The detail of one job of the signed-in worker: the full address and coordinates 
 - The customer's name and phone are **not** returned.
 - Not authenticated: **401**; not a Worker: **403**.
 
+#### 2.3.5 `GET /api/v1/workers/assignments/{assignmentId}/route?fromLat=&fromLng=` (WorkerOnly) (ROUTE-MOB-01, #760, decisions D29)
+Up to 3 ways from the worker's position to the house of one of the worker's own accepted jobs. Valhalla (motorbike costing `motor_scooter`, OpenStreetMap data) calculates them; the first is the fastest, the others are sorted by duration.
+
+- Query: `fromLat` -90..90 and `fromLng` -180..180 (the phone's position). The destination is always the order's address; it is never taken from the request.
+- Response 200 `data`:
+```json
+{
+  "assignmentId": 55,
+  "destinationLatitude": 10.8031,
+  "destinationLongitude": 106.7147,
+  "routes": [
+    { "distanceMeters": 5255.0, "durationSeconds": 805.8, "polyline": "awwpS}moojE..." },
+    { "distanceMeters": 5882.0, "durationSeconds": 845.8, "polyline": "..." }
+  ]
+}
+```
+`polyline` is an encoded polyline with 6 decimals. `routes` has 1 to 3 items (1 when Valhalla has no alternative or `Valhalla:BaseUrl` is empty: the Fake gives a straight line).
+- `400` position out of range. `404` an unknown job, another worker's job, an offer or a job that ended without being done (the same rule as 2.3.4, so the address is not revealed earlier). `409` `data.code` = `ROUTE_NOT_AVAILABLE` once the work started (`IN_PROGRESS`, `AWAITING_ACCEPTANCE`, `COMPLETED`). `502` when Valhalla does not answer; the app keeps working and still offers the map link.
+- The Customer's own route (single route) is `GET /api/v1/dispatch/assignments/{id}/route` in `dispatch.md`.
 ---
 
 ### 2.3B Work area (WORKERS-AREA-01, #555, decisions D24)

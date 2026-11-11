@@ -8,6 +8,7 @@ import 'models/worker_extension_models.dart';
 import 'screens/worker_extension_loader.dart';
 import 'screens/worker_extension_screen.dart';
 import 'screens/worker_photos_screen.dart';
+import 'screens/worker_route_screen.dart';
 import 'screens/worker_screen.dart';
 import 'screens/worker_slots_screen.dart';
 import 'screens/worker_work_area_screen.dart';
@@ -22,6 +23,7 @@ class WorkerRoutes {
   static const String workArea = '/workers/work-area';
   static const String execution = '/workers/execution';
   static const String photos = '/workers/photos';
+  static const String route = '/workers/route';
   static const String extension = '/workers/extension';
   static const String customerAcceptance = '/customers/assignments/acceptance';
 }
@@ -40,6 +42,10 @@ class WorkersFeatureModule extends FeatureModule {
     WorkerRoutes.execution: (context) => withAssignmentArgument(
       context,
       (id) => WorkerExecutionScreen(assignmentId: id),
+    ),
+    WorkerRoutes.route: (context) => withAssignmentArgument(
+      context,
+      (id) => WorkerRouteScreen(assignmentId: id),
     ),
     WorkerRoutes.photos: (context) => withAssignmentArgument(
       context,

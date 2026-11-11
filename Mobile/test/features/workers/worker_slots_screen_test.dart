@@ -317,6 +317,9 @@ void main() {
               DispatchRoutes.checkIn: (c) => Scaffold(
                 body: Text('checkin:${ModalRoute.of(c)!.settings.arguments}'),
               ),
+              WorkerRoutes.route: (c) => Scaffold(
+                body: Text('route:${ModalRoute.of(c)!.settings.arguments}'),
+              ),
               WorkerRoutes.execution: (c) => Scaffold(
                 body: Text('execution:${ModalRoute.of(c)!.settings.arguments}'),
               ),
@@ -390,6 +393,26 @@ void main() {
           expect(find.text('checkin:10002'), findsOneWidget);
         },
       );
+
+      testWidgets('an order not started also offers the way to the house', (
+        tester,
+      ) async {
+        await pumpScreen(tester);
+
+        await tapVisible(tester, find.byKey(const Key('order-10002')));
+        await tester.tap(find.byKey(const Key('order-sheet-route')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('route:10002'), findsOneWidget);
+      });
+
+      testWidgets('an order under way has no route button', (tester) async {
+        await pumpScreen(tester);
+
+        await tapVisible(tester, find.byKey(const Key('order-10003')));
+
+        expect(find.byKey(const Key('order-sheet-route')), findsNothing);
+      });
 
       testWidgets('an order under way leads to the work screen', (
         tester,
