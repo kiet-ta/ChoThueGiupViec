@@ -335,6 +335,34 @@ export function decodePolyline6(encoded: string): [number, number][] {
   return points
 }
 
+/** The point at half of the line's length (so a bend is respected); null for an empty line. Lengths use a flat approximation (longitude scaled by cos latitude), fine at city scale. */
+export function routeMidpoint(points: [number, number][]): [number, number] | null {
+  if (points.length === 0) return null
+  if (points.length === 1) return points[0]
+  const lengths: number[] = []
+  let total = 0
+  for (let i = 1; i < points.length; i++) {
+    const [lat1, lng1] = points[i - 1]
+    const [lat2, lng2] = points[i]
+    const scale = Math.cos((((lat1 + lat2) / 2) * Math.PI) / 180)
+    const length = Math.hypot(lat2 - lat1, (lng2 - lng1) * scale)
+    lengths.push(length)
+    total += length
+  }
+  if (total === 0) return points[0]
+  let remaining = total / 2
+  for (let i = 0; i < lengths.length; i++) {
+    if (remaining <= lengths[i] || i === lengths.length - 1) {
+      const t = lengths[i] === 0 ? 0 : remaining / lengths[i]
+      const [lat1, lng1] = points[i]
+      const [lat2, lng2] = points[i + 1]
+      return [lat1 + (lat2 - lat1) * t, lng1 + (lng2 - lng1) * t]
+    }
+    remaining -= lengths[i]
+  }
+  return points[points.length - 1]
+}
+
 /** `850 m` below 1 km, otherwise kilometres with one decimal and a comma (`3,2 km`). */
 export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`
