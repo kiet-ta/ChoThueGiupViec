@@ -89,3 +89,35 @@ Uri? mapDirectionsUri({
     'travelmode': 'two-wheeler',
   });
 }
+
+/// Decodes an encoded polyline with 6 decimals (the Valhalla format) into (latitude, longitude) pairs.
+List<(double, double)> decodePolyline6(String encoded) {
+  final points = <(double, double)>[];
+  var index = 0;
+  var lat = 0;
+  var lng = 0;
+  // A truncated value ends the line instead of throwing.
+  int? next() {
+    var result = 0;
+    var shift = 0;
+    while (index < encoded.length) {
+      final byte = encoded.codeUnitAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+      if (byte < 0x20) {
+        return (result & 1) != 0 ? ~(result >> 1) : result >> 1;
+      }
+    }
+    return null;
+  }
+
+  while (index < encoded.length) {
+    final dLat = next();
+    final dLng = next();
+    if (dLat == null || dLng == null) break;
+    lat += dLat;
+    lng += dLng;
+    points.add((lat / 1e6, lng / 1e6));
+  }
+  return points;
+}

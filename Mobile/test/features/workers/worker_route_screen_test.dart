@@ -109,20 +109,22 @@ class _Launcher implements IMapLauncher {
   }
 }
 
+const _line = '_izlhA~rlgdF_{geC~ywl@';
+
 const _fast = WorkerRouteOptionDto(
   distanceMeters: 5255,
   durationSeconds: 805.8,
-  polyline: 'a',
+  polyline: _line,
 );
 const _mid = WorkerRouteOptionDto(
   distanceMeters: 5882,
   durationSeconds: 845.8,
-  polyline: 'b',
+  polyline: _line,
 );
 const _slow = WorkerRouteOptionDto(
   distanceMeters: 6442,
   durationSeconds: 991.8,
-  polyline: 'c',
+  polyline: _line,
 );
 
 Future<_Launcher> _pump(
@@ -142,6 +144,7 @@ Future<_Launcher> _pump(
         routeService: routes ?? _Routes(options: [_fast]),
         locationProvider: where ?? _Where(),
         mapLauncher: l,
+        loadTiles: false,
       ),
     ),
   );
@@ -150,50 +153,48 @@ Future<_Launcher> _pump(
 }
 
 void main() {
-  testWidgets('one route: shows distance, time and the fastest tag', (
-    tester,
-  ) async {
-    final routes = _Routes(options: [_fast]);
-    await _pump(tester, routes: routes);
+  bool selected(WidgetTester tester, int i) =>
+      tester.widget<ChoiceChip>(find.byKey(Key('route-chip-$i'))).selected;
 
-    expect(
-      find.text('208 Nguyễn Hữu Cảnh, Bình Thạnh, TP. Hồ Chí Minh'),
-      findsOneWidget,
-    );
-    expect(find.text('Đường 1 · 5,3 km · ~13 phút'), findsOneWidget);
-    expect(find.text('Nhanh nhất'), findsOneWidget);
-    expect(find.byKey(const Key('route-option-1')), findsNothing);
-    expect(routes.fromLat, 10.7769);
-    expect(routes.fromLng, 106.7009);
-  });
+  testWidgets(
+    'one route: the map, its distance and time, and the fastest tag',
+    (tester) async {
+      final routes = _Routes(options: [_fast]);
+      await _pump(tester, routes: routes);
 
-  testWidgets('three routes: all listed, the worker can pick another', (
-    tester,
-  ) async {
-    await _pump(tester, routes: _Routes(options: [_fast, _mid, _slow]));
+      expect(find.byKey(const Key('route-map')), findsOneWidget);
+      expect(find.text('Nhanh nhất · 5,3 km · ~13 phút'), findsOneWidget);
+      expect(find.byKey(const Key('route-chip-1')), findsNothing);
+      expect(find.byKey(const Key('route-disclaimer')), findsNothing);
+      expect(routes.fromLat, 10.7769);
+      expect(routes.fromLng, 106.7009);
+    },
+  );
 
-    expect(find.text('Đường 1 · 5,3 km · ~13 phút'), findsOneWidget);
-    expect(find.text('Đường 2 · 5,9 km · ~14 phút'), findsOneWidget);
-    expect(find.text('Đường 3 · 6,4 km · ~17 phút'), findsOneWidget);
-    expect(find.text('Nhanh nhất'), findsOneWidget);
-    expect(find.text('Đang chọn'), findsNothing);
+  testWidgets(
+    'three routes: all offered, the fastest chosen, the worker can pick another',
+    (tester) async {
+      await _pump(tester, routes: _Routes(options: [_fast, _mid, _slow]));
 
-    await tester.tap(find.byKey(const Key('route-option-2')));
-    await tester.pumpAndSettle();
-    expect(find.text('Đang chọn'), findsOneWidget);
-    expect(
-      find.text(
-        'Ứng dụng bản đồ sẽ tự chọn đường đi. Thời gian ở đây là ước tính, chưa tính tắc đường.',
-      ),
-      findsOneWidget,
-    );
-  });
+      expect(find.text('Nhanh nhất · 5,3 km · ~13 phút'), findsOneWidget);
+      expect(find.text('5,9 km · ~14 phút'), findsOneWidget);
+      expect(find.text('6,4 km · ~17 phút'), findsOneWidget);
+      expect(selected(tester, 0), isTrue);
+      expect(selected(tester, 2), isFalse);
 
-  testWidgets('two routes are listed', (tester) async {
+      await tester.tap(find.byKey(const Key('route-chip-2')));
+      await tester.pumpAndSettle();
+      expect(selected(tester, 0), isFalse);
+      expect(selected(tester, 2), isTrue);
+      expect(find.text('Ứng dụng bản đồ sẽ tự chọn đường đi.'), findsOneWidget);
+    },
+  );
+
+  testWidgets('two routes are offered', (tester) async {
     await _pump(tester, routes: _Routes(options: [_fast, _mid]));
-    expect(find.byKey(const Key('route-option-0')), findsOneWidget);
-    expect(find.byKey(const Key('route-option-1')), findsOneWidget);
-    expect(find.byKey(const Key('route-option-2')), findsNothing);
+    expect(find.byKey(const Key('route-chip-0')), findsOneWidget);
+    expect(find.byKey(const Key('route-chip-1')), findsOneWidget);
+    expect(find.byKey(const Key('route-chip-2')), findsNothing);
   });
 
   testWidgets('Chỉ đường opens the map app at the house', (tester) async {
@@ -232,7 +233,7 @@ void main() {
       find.text('Chưa tính được lộ trình. Bạn vẫn có thể bấm Chỉ đường.'),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('route-option-0')), findsNothing);
+    expect(find.byKey(const Key('route-chip-0')), findsNothing);
 
     await tester.tap(find.byKey(const Key('route-navigate-button')));
     await tester.pumpAndSettle();
@@ -341,6 +342,12 @@ void main() {
         'Nhà A',
       );
       expect(mapDirectionsUri(latitude: 0, longitude: 0, address: ' '), isNull);
+    });
+
+    test('polyline with 6 decimals', () {
+      expect(decodePolyline6(_line), [(38.5, -120.2), (40.7, -120.95)]);
+      expect(decodePolyline6(''), isEmpty);
+      expect(decodePolyline6('_'), isEmpty); // truncated: no throw
     });
 
     test('route json', () {
