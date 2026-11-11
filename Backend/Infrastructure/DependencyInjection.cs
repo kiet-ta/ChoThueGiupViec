@@ -42,6 +42,8 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddScoped<IIdempotencyService, CacheIdempotencyService>();
         services.AddHttpClient<IReverseGeocodeService, OsmReverseGeocodeService>();
+        services.AddHttpClient<CommonService.Application.Features.Dispatch.IRoutingService, ValhallaRoutingService>(); // worker route on the order page (ROUTE-WEB-01, #765)
+        services.AddScoped<CommonService.Application.Features.Dispatch.CustomerRouteService>(); // needs IWorkerDispatchQuery from the Dispatch module
 
         // Business rules options (BASE-05, decisions.md section 4)
         services.Configure<BusinessRules>(configuration.GetSection(BusinessRules.SectionName));

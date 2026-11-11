@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  ARRIVED_HINT, arrivalCandidates, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, toggleSaved, vnDateTime, vnTime,
+  ARRIVED_HINT, arrivalCandidates, decodePolyline6, formatDistance, formatDuration, routeCandidates, routeProblem, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, toggleSaved, vnDateTime, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -200,5 +200,36 @@ describe('favorite toggle on the worker card', () => {
     assert.deepEqual([...toggleSaved(ids, 3, false)], [])
     assert.deepEqual([...toggleSaved(ids, 3, true)], [3])
     assert.deepEqual([...ids], [3])
+  })
+})
+
+describe('worker route (ROUTE-WEB-01)', () => {
+  it('decodes a 6-decimal polyline', () => {
+    // same string the backend FakeRoutingService test pins for (38.5, -120.2) -> (40.7, -120.95)
+    assert.deepEqual(decodePolyline6('_izlhA~rlgdF_{geC~ywl@'), [[38.5, -120.2], [40.7, -120.95]])
+    assert.deepEqual(decodePolyline6(''), [])
+  })
+  it('formats distance', () => {
+    assert.equal(formatDistance(850.4), '850 m')
+    assert.equal(formatDistance(3200), '3,2 km')
+    assert.equal(formatDistance(1000), '1,0 km')
+  })
+  it('formats travel time', () => {
+    assert.equal(formatDuration(10), '~1 phút')
+    assert.equal(formatDuration(720), '~12 phút')
+    assert.equal(formatDuration(3900), '~1 giờ 5 phút')
+    assert.equal(formatDuration(3600), '~1 giờ')
+  })
+  it('shows the card only for ASSIGNED jobs of an ASSIGNED order', () => {
+    assert.deepEqual(routeCandidates('ASSIGNED', [worker('ASSIGNED'), worker('CHECKED_IN')]), [1])
+    assert.deepEqual(routeCandidates('PAID', [worker('ASSIGNED')]), [])
+    assert.deepEqual(routeCandidates('ASSIGNED', [worker('IN_PROGRESS')]), [])
+  })
+  it('maps route errors to a message or hides the card', () => {
+    assert.equal(routeProblem({ status: 409, data: { code: 'WORKER_LOCATION_UNKNOWN' } }), 'Chưa có vị trí của thợ.')
+    assert.equal(routeProblem({ status: 409, data: { code: 'ROUTE_NOT_AVAILABLE' } }), null)
+    assert.equal(routeProblem({ status: 404 }), null)
+    assert.equal(routeProblem({ status: 502 }), 'Chưa tính được lộ trình.')
+    assert.equal(routeProblem({ status: 0 }), 'Chưa tính được lộ trình.')
   })
 })

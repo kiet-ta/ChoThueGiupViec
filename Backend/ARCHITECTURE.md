@@ -401,3 +401,7 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - No authentication (`UseAuthorization` only, until Identity module BE-M1-02).
 
 
+
+## Worker route (ROUTE-WEB-01, #765, decision D29)
+- Port `IRoutingService` (`Application/Features/Dispatch`, not the shared port catalogue, so no Fake registration is needed), adapter `ValhallaRoutingService` (`Infrastructure/Services`, `Valhalla:BaseUrl`, costing `motor_scooter`). With an empty BaseUrl it answers with `FakeRoutingService`; with a BaseUrl that does not answer it returns null and the endpoint says 502.
+- `GET /api/v1/dispatch/assignments/{id}/route` (`CustomerRouteController`, `CustomerRouteService`): customer only, ASSIGNED only, worker position rounded to 3 decimals. It reads the assignment through `IWorkerDispatchQuery.GetOfferViewAsync`, no new query. `CustomerRouteService` is registered in `DependencyInjection.cs`. Tests: `Tests/Dispatch/CustomerRouteTests.cs`.

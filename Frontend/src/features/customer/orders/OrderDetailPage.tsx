@@ -9,7 +9,8 @@ import { accountApi } from '../account/api'
 import { favoriteToggleError, favoriteToggleLabel } from '../account/view'
 import { ordersApi } from './api'
 import type { AddressDetail, OrderProgress } from './types'
-import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, timeline, toggleSaved, vnTime, type ArrivalStatus, type FallbackStatus } from './view'
+import { WorkerRouteCard } from './WorkerRouteCard'
+import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, routeCandidates, timeline, toggleSaved, vnTime, type ArrivalStatus, type FallbackStatus } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const dot = { done: <Check size={14} />, current: <Loader size={14} className="animate-spin" />, todo: <Circle size={14} />, cancelled: <X size={14} /> }
@@ -197,6 +198,7 @@ export function OrderDetailPage() {
             ? <div className="mt-4 flex flex-wrap gap-3"><span className="w-full text-sm font-semibold">Hủy đơn và hoàn tiền 100 %?</span><button type="button" disabled={fallbackBusy} onClick={() => void answerFallback(false)} className="inline-flex h-10 items-center rounded-lg bg-red-700 px-4 font-semibold text-white disabled:opacity-60">{fallbackBusy ? 'Đang gửi…' : 'Hủy đơn'}</button><button type="button" disabled={fallbackBusy} onClick={() => setAskDecline(false)} className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 font-semibold">Quay lại</button></div>
             : <div className="mt-4 flex flex-wrap gap-3"><button type="button" disabled={fallbackBusy} onClick={() => void answerFallback(true)} className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white disabled:opacity-60">{fallbackBusy ? 'Đang gửi…' : 'Đồng ý 1 thợ làm 2 ca'}</button><button type="button" disabled={fallbackBusy} onClick={() => { setFallbackError(null); setAskDecline(true) }} className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 font-semibold">Hủy đơn, hoàn 100 %</button></div>)}
         </section>}
+        {routeCandidates(order.orderStatus, progress.assignments).map((id) => <WorkerRouteCard key={id} assignmentId={id} workerName={progress.assignments.find((a) => a.assignmentId === id)?.workerName ?? null} />)}
         {arrivals.map((arrival) => {
           const worker = progress.assignments.find((a) => a.assignmentId === arrival.assignmentId)
           return <section key={arrival.assignmentId} className="rounded-xl border border-amber-300 bg-amber-50 p-6" aria-label="Xác nhận thợ đã đến">
