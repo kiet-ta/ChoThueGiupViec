@@ -137,7 +137,7 @@ void main() {
         expect(_text(tester, 'wallet-available'), '188.000 đ');
         expect(_text(tester, 'wallet-balance'), '288.000 đ');
         expect(_text(tester, 'wallet-held'), '100.000 đ');
-        expect(find.text('Ví của bạn'), findsOneWidget);
+        expect(find.text('Số dư của bạn'), findsOneWidget);
       },
     );
 
@@ -338,7 +338,7 @@ void main() {
           ..loadError = const ApiException(403, 'Forbidden');
         await pumpWallet(tester, service);
 
-        expect(find.textContaining('không có ví riêng'), findsOneWidget);
+        expect(find.textContaining('không có số dư riêng'), findsOneWidget);
         expect(find.text('Thử lại'), findsNothing);
         expect(find.byKey(const Key('wallet-submit')), findsNothing);
       },

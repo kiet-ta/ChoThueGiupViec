@@ -252,7 +252,7 @@ void main() {
         ..error = const ApiException(403, 'Forbidden');
       await _pumpHistory(tester, forbidden);
 
-      expect(find.textContaining('không có ví riêng'), findsOneWidget);
+      expect(find.textContaining('không có số dư riêng'), findsOneWidget);
       expect(find.text('Thử lại'), findsNothing);
     });
 

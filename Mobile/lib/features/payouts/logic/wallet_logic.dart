@@ -64,9 +64,9 @@ String? nextAvailableText(DateTime? nextAvailableAt) {
 /// What a failed load of the wallet is told to the worker. 403: an agency worker is paid through the agency.
 String walletFailureMessage(ApiException e) {
   if (e.isForbidden) {
-    return 'Bạn làm việc cho một đại lý nên tiền công được trả cho đại lý, bạn không có ví riêng.';
+    return 'Bạn làm việc cho một đại lý nên tiền công được trả cho đại lý, bạn không có số dư riêng.';
   }
-  if (e.isNotFound) return 'Không tìm thấy ví của bạn.';
+  if (e.isNotFound) return 'Không tìm thấy số dư của bạn.';
   return e.message;
 }
 

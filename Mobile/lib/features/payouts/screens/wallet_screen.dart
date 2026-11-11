@@ -161,7 +161,7 @@ class _WalletScreenState extends State<WalletScreen> {
     final wallet = _wallet;
     final canSubmit = wallet != null && canRequestWithdrawal(wallet);
     return NordicPage.pushed(
-      title: 'Ví của bạn',
+      title: 'Số dư của bạn',
       onRefresh: () => _load(),
       actions: wallet == null
           ? null
@@ -182,7 +182,7 @@ class _WalletScreenState extends State<WalletScreen> {
       return const [
         SizedBox(
           height: 240.0,
-          child: LoadingStateWidget(message: 'Đang tải ví…'),
+          child: LoadingStateWidget(message: 'Đang tải số dư…'),
         ),
       ];
     }
@@ -190,7 +190,7 @@ class _WalletScreenState extends State<WalletScreen> {
     if (wallet == null) {
       return [
         ErrorStateWidget(
-          message: _loadError ?? 'Không tải được ví.',
+          message: _loadError ?? 'Không tải được số dư.',
           // Retrying does not help an agency worker; the explanation is the whole answer.
           onRetry: _forbidden ? null : () => _load(),
         ),
@@ -266,7 +266,7 @@ class _WalletScreenState extends State<WalletScreen> {
           child: Column(
             children: [
               _figure(
-                'Số dư trong ví',
+                'Số dư thu nhập',
                 formatVnd(wallet.balance),
                 const Key('wallet-balance'),
               ),

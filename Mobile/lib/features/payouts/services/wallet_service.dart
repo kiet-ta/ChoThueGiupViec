@@ -24,7 +24,7 @@ class WalletService implements IWalletService {
     );
     final data = response.data;
     if (data == null) {
-      throw const ApiException(0, 'Máy chủ không trả dữ liệu ví.');
+      throw const ApiException(0, 'Máy chủ không trả dữ liệu số dư.');
     }
     return data;
   }

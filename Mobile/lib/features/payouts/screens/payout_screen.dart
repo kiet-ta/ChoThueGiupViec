@@ -214,7 +214,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
       const SizedBox(height: NordicSpace.md),
       NordicButton(
         key: const Key('earnings-wallet'),
-        label: 'Ví và rút tiền',
+        label: 'Số dư và rút tiền',
         onPressed: () => Navigator.of(
           context,
         ).push(MaterialPageRoute<void>(builder: (_) => const WalletScreen())),
