@@ -34,7 +34,7 @@ public class AdminDisputesController(IAdminDisputeService disputes, IDisputeVerd
         [FromQuery] string? page,
         [FromQuery] string? pageSize,
         CancellationToken ct) =>
-        this.ToActionResult(await disputes.SearchAsync(status, priority, nearSla, page, pageSize, ct), "Disputes retrieved.");
+        Ok(ApiResponse.Ok(await disputes.SearchAsync(status, priority, nearSla, page, pageSize, ct), "Disputes retrieved."));
 
     /// <summary>The case file: the ticket, its summary, the shift timeline and the photos of the order.</summary>
     [HttpGet("{disputeId:int}")]
@@ -43,7 +43,7 @@ public class AdminDisputesController(IAdminDisputeService disputes, IDisputeVerd
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(int disputeId, CancellationToken ct) =>
-        this.ToActionResult(await disputes.GetAsync(disputeId, ct), "Dispute retrieved.");
+        Ok(ApiResponse.Ok(await disputes.GetAsync(disputeId, ct), "Dispute retrieved."));
 
     /// <summary>Takes an OPEN ticket (OPEN to IN_REVIEW); 409 when it is not open.</summary>
     [HttpPost("{disputeId:int}/take")]
@@ -55,7 +55,7 @@ public class AdminDisputesController(IAdminDisputeService disputes, IDisputeVerd
     public async Task<IActionResult> Take(int disputeId, CancellationToken ct)
     {
         if (currentUser.UserId is not int adminId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
-        return this.ToActionResult(await disputes.TakeAsync(adminId, disputeId, ct), "Dispute taken.");
+        return Ok(ApiResponse.Ok(await disputes.TakeAsync(adminId, disputeId, ct), "Dispute taken."));
     }
 
     /// <summary>
@@ -75,6 +75,6 @@ public class AdminDisputesController(IAdminDisputeService disputes, IDisputeVerd
     {
         if (currentUser.UserId is not int adminId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
         if (request is null) return BadRequest(ApiResponse<object>.Fail("Request body is required.", null));
-        return this.ToActionResult(await verdicts.ResolveAsync(adminId, disputeId, request, ct), "Dispute resolved.");
+        return Ok(ApiResponse.Ok(await verdicts.ResolveAsync(adminId, disputeId, request, ct), "Dispute resolved."));
     }
 }

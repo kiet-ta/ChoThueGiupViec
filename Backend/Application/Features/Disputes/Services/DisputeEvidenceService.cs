@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Disputes.Dtos;
 using CommonService.Application.Interfaces.Ports;
 
@@ -7,7 +8,7 @@ namespace CommonService.Application.Features.Disputes.Services;
 /// <summary>Stores one evidence photo of a dispute and returns the address to put into <c>evidenceUrls</c> (contract disputes.md 2.1a).</summary>
 public interface IDisputeEvidenceService
 {
-    Task<DisputeResult<EvidenceFileDto>> UploadAsync(
+    Task<EvidenceFileDto> UploadAsync(
         DisputeSide side, int userId, UploadEvidenceRequestDto request, CancellationToken cancellationToken = default);
 }
 
@@ -50,7 +51,7 @@ public partial class DisputeEvidenceService(IFileStorage storage) : IDisputeEvid
     [GeneratedRegex("[^A-Za-z0-9_-]")]
     private static partial Regex UnsafeChars();
 
-    public async Task<DisputeResult<EvidenceFileDto>> UploadAsync(
+    public async Task<EvidenceFileDto> UploadAsync(
         DisputeSide side, int userId, UploadEvidenceRequestDto request, CancellationToken cancellationToken = default)
     {
         var errors = new Dictionary<string, string[]>();
@@ -96,7 +97,7 @@ public partial class DisputeEvidenceService(IFileStorage storage) : IDisputeEvid
             }
         }
 
-        if (errors.Count > 0) return DisputeResult<EvidenceFileDto>.ValidationError(errors);
+        if (errors.Count > 0) throw new ValidationException("Validation failed", errors);
 
         var stem = UnsafeChars().Replace(Path.GetFileNameWithoutExtension(rawName.Replace('\\', '/').Split('/')[^1]), "_");
         if (!stem.Any(char.IsLetterOrDigit)) stem = "photo";
@@ -106,12 +107,12 @@ public partial class DisputeEvidenceService(IFileStorage storage) : IDisputeEvid
 
         await using var content = new MemoryStream(bytes, writable: false);
         var stored = await storage.SaveAsync(Folder, storedName, content, contentType, cancellationToken);
-        return DisputeResult<EvidenceFileDto>.Created(new EvidenceFileDto
+        return new EvidenceFileDto
         {
             Path = stored.Path,
             Url = stored.Url,
             SizeBytes = stored.SizeBytes,
-        });
+        };
     }
 
     private static bool MatchesType(string contentType, byte[] b) => contentType switch

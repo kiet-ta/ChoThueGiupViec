@@ -175,7 +175,7 @@ HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → Respon
      → Domain entities/value objects → result → ApiResponse<T> → JSON
 ```
 - Responses are wrapped as `ApiResponse<T> { Success, Message, Data }`.
-- Application exceptions are mapped to HTTP status codes in `ErrorHandlingMiddleware`.
+- Application exceptions are mapped to HTTP status codes in `ErrorHandlingMiddleware`. Services return their DTO and throw on failure; they do not return result objects carrying HTTP status codes, so controllers stay thin (REFACTOR-06).
 - Middleware order in `Program.cs` matters; keep error handling first.
 
 ## 5. Conventions for adding code
@@ -259,7 +259,7 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - `ProblemDetailsHelper` (`Application/Common/Helpers/ProblemDetailsHelper.cs`): RFC 7807 problem details generator and bidirectional conversion to/from `ApiResponse`.
 - `CacheIdempotencyService` (`Infrastructure/Services/CacheIdempotencyService.cs`) and `IdempotencyHelper` (`Application/Common/Helpers/IdempotencyHelper.cs`): implements `IIdempotencyService` backed by `ICacheService` to prevent double-click and webhook replay attacks.
 - Middleware:
-  - `ErrorHandlingMiddleware`: maps exceptions (`ValidationException` -> 400 with field errors, `NotFoundException` -> 404, `ForbiddenAccessException` -> 403, `BusinessRuleViolationException` -> 409, unhandled -> 500 with sanitized message) to camelCase `ApiResponse<object>` or RFC 7807 `application/problem+json` when requested.
+  - `ErrorHandlingMiddleware`: maps exceptions (`ValidationException` -> 400 with field errors, `NotFoundException` -> 404, `ForbiddenAccessException` -> 403, `BusinessRuleViolationException` -> 409, `UnauthorizedAccessException` -> 401 with its message, `AccountLockedException` -> 423 with a `Retry-After` header, `BadGatewayException` -> 502 when a port outside the module refused, unhandled -> 500 with sanitized message) to camelCase `ApiResponse<object>` or RFC 7807 `application/problem+json` when requested.
   - `ResponseWrapperMiddleware`: wraps 2xx responses into `ApiResponse<T>.Ok`, non-2xx responses into `ApiResponse<T>.Fail`, normalizes to camelCase, skips Swagger/health/hubs, and prevents double-wrapping.
 - Tests: `Tests/Infrastructure/*Tests.cs` (567 total tests passing).
 

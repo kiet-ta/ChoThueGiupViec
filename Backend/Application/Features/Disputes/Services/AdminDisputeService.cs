@@ -1,4 +1,5 @@
 using System.Globalization;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Disputes.Dtos;
 using CommonService.Application.Features.Workers.Services;
 using CommonService.Application.Interfaces.Ports;
@@ -11,13 +12,13 @@ namespace CommonService.Application.Features.Disputes.Services;
 public interface IAdminDisputeService
 {
     /// <summary>Every argument is the raw query-string text so that a bad value becomes a 400 with field messages (decision O5).</summary>
-    Task<DisputeResult<DisputePageDto>> SearchAsync(
+    Task<DisputePageDto> SearchAsync(
         string? status, string? priority, string? nearSla, string? page, string? pageSize, CancellationToken cancellationToken = default);
 
-    Task<DisputeResult<DisputeCaseFileDto>> GetAsync(int disputeId, CancellationToken cancellationToken = default);
+    Task<DisputeCaseFileDto> GetAsync(int disputeId, CancellationToken cancellationToken = default);
 
     /// <summary>OPEN to IN_REVIEW; the admin is recorded as the handler in <c>resolved_by</c> (contract disputes.md 2.3).</summary>
-    Task<DisputeResult<AdminDisputeDto>> TakeAsync(int adminId, int disputeId, CancellationToken cancellationToken = default);
+    Task<AdminDisputeDto> TakeAsync(int adminId, int disputeId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Admin queue, case file and take of disputes (contract disputes.md 2.2-2.3, BE-M6-02a).</summary>
@@ -26,7 +27,7 @@ public class AdminDisputeService(IDisputeRepository disputes, IClock clock, IOpt
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
 
-    public async Task<DisputeResult<DisputePageDto>> SearchAsync(
+    public async Task<DisputePageDto> SearchAsync(
         string? status, string? priority, string? nearSla, string? page, string? pageSize, CancellationToken cancellationToken = default)
     {
         var errors = new Dictionary<string, string[]>();
@@ -66,7 +67,7 @@ public class AdminDisputeService(IDisputeRepository disputes, IClock clock, IOpt
                 break;
         }
 
-        if (errors.Count > 0) return DisputeResult<DisputePageDto>.ValidationError(errors);
+        if (errors.Count > 0) throw new ValidationException("Validation failed", errors);
 
         // A priority or the nearSla flag only makes sense for tickets nobody has decided yet.
         if (normalizedPriority is not null || near)
@@ -83,19 +84,19 @@ public class AdminDisputeService(IDisputeRepository disputes, IClock clock, IOpt
         var (tickets, total) = await disputes.SearchAsync(new DisputeQueueFilter(statuses, dueFrom, dueBefore), pageNumber, size, cancellationToken);
         var summaries = await BuildSummariesAsync(tickets, now, cancellationToken);
 
-        return DisputeResult<DisputePageDto>.Ok(new DisputePageDto { Items = summaries, Page = pageNumber, PageSize = size, Total = total });
+        return new DisputePageDto { Items = summaries, Page = pageNumber, PageSize = size, Total = total };
     }
 
-    public async Task<DisputeResult<DisputeCaseFileDto>> GetAsync(int disputeId, CancellationToken cancellationToken = default)
+    public async Task<DisputeCaseFileDto> GetAsync(int disputeId, CancellationToken cancellationToken = default)
     {
         var ticket = await disputes.FindTrackedAsync(disputeId, cancellationToken);
-        if (ticket is null) return DisputeResult<DisputeCaseFileDto>.NotFound();
+        if (ticket is null) throw new NotFoundException("Not found.");
 
         var now = clock.UtcNow;
         var summary = (await BuildSummariesAsync([ticket], now, cancellationToken)).Single();
         var data = await disputes.GetCaseDataAsync(ticket.OrderId, cancellationToken);
 
-        return DisputeResult<DisputeCaseFileDto>.Ok(new DisputeCaseFileDto
+        return new DisputeCaseFileDto
         {
             Dispute = DisputeMapper.ToAdminDto(ticket),
             Summary = summary,
@@ -113,19 +114,19 @@ public class AdminDisputeService(IDisputeRepository disputes, IClock clock, IOpt
                     IsAccepted = p.IsAccepted,
                 })
                 .ToList(),
-        });
+        };
     }
 
-    public async Task<DisputeResult<AdminDisputeDto>> TakeAsync(int adminId, int disputeId, CancellationToken cancellationToken = default)
+    public async Task<AdminDisputeDto> TakeAsync(int adminId, int disputeId, CancellationToken cancellationToken = default)
     {
         var ticket = await disputes.FindTrackedAsync(disputeId, cancellationToken);
-        if (ticket is null) return DisputeResult<AdminDisputeDto>.NotFound();
-        if (ticket.DisputeStatus != DisputeConstants.Open) return DisputeResult<AdminDisputeDto>.Conflict("The dispute is not open.");
+        if (ticket is null) throw new NotFoundException("Not found.");
+        if (ticket.DisputeStatus != DisputeConstants.Open) throw new BusinessRuleViolationException("The dispute is not open.");
 
         ticket.DisputeStatus = DisputeConstants.InReview;
         ticket.ResolvedBy = adminId; // the handler; the contract uses this column for it until the verdict
         await disputes.SaveAsync(cancellationToken);
-        return DisputeResult<AdminDisputeDto>.Ok(DisputeMapper.ToAdminDto(ticket));
+        return DisputeMapper.ToAdminDto(ticket);
     }
 
     private async Task<List<DisputeSummaryDto>> BuildSummariesAsync(

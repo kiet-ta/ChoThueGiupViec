@@ -1,5 +1,6 @@
 using System.Reflection;
 using CommonService.Application.Common.Models;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Admin;
 using CommonService.Application.Features.Admin.Dtos;
 using CommonService.Application.Features.Admin.Services;
@@ -64,7 +65,7 @@ public class AuditLogReadTests
     public async Task Defaults_are_page_1_size_20_and_no_filter()
     {
         var repo = new RecordingRepository();
-        var result = await Service(repo).SearchAsync(null, null, null, null, null, null, null);
+        var result = await Service(repo).SearchAsync(null, null, null, null, null, null, null).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(1, repo.Page);
@@ -78,7 +79,7 @@ public class AuditLogReadTests
     public async Task Blank_text_filters_count_as_not_given_and_are_trimmed()
     {
         var repo = new RecordingRepository();
-        await Service(repo).SearchAsync("  PRICE_RULE ", "   ", "", " ", "", "", "");
+        await Service(repo).SearchAsync("  PRICE_RULE ", "   ", "", " ", "", "", "").Outcome();
         Assert.Equal("PRICE_RULE", repo.Filter!.EntityType);
         Assert.Null(repo.Filter.EntityId);
         Assert.Equal(20, repo.PageSize);
@@ -92,7 +93,7 @@ public class AuditLogReadTests
     public async Task ActorType_is_read_case_insensitively(string text, AuditActorType expected)
     {
         var repo = new RecordingRepository();
-        await Service(repo).SearchAsync(null, null, text, null, null, null, null);
+        await Service(repo).SearchAsync(null, null, text, null, null, null, null).Outcome();
         Assert.Equal(expected, repo.Filter!.ActorType);
     }
 
@@ -100,7 +101,7 @@ public class AuditLogReadTests
     public async Task From_and_to_are_read_as_UTC_instants_and_date_only_is_midnight_UTC()
     {
         var repo = new RecordingRepository();
-        await Service(repo).SearchAsync(null, null, null, "2026-10-06", "2026-10-07T03:00:00+07:00", null, null);
+        await Service(repo).SearchAsync(null, null, null, "2026-10-06", "2026-10-07T03:00:00+07:00", null, null).Outcome();
         Assert.Equal(new DateTime(2026, 10, 6, 0, 0, 0, DateTimeKind.Utc), repo.Filter!.FromUtc);
         Assert.Equal(new DateTime(2026, 10, 6, 20, 0, 0, DateTimeKind.Utc), repo.Filter.ToUtc);
         Assert.Equal(DateTimeKind.Utc, repo.Filter.FromUtc!.Value.Kind);
@@ -110,7 +111,7 @@ public class AuditLogReadTests
     public async Task Page_and_size_are_passed_through_when_valid_and_100_is_the_largest_size()
     {
         var repo = new RecordingRepository();
-        var result = await Service(repo).SearchAsync(null, null, null, null, null, "3", "100");
+        var result = await Service(repo).SearchAsync(null, null, null, null, null, "3", "100").Outcome();
         Assert.True(result.Success);
         Assert.Equal(3, repo.Page);
         Assert.Equal(100, repo.PageSize);
@@ -129,7 +130,7 @@ public class AuditLogReadTests
         string? page, string? size, string field)
     {
         var repo = new RecordingRepository();
-        var result = await Service(repo).SearchAsync(null, null, null, null, null, page, size);
+        var result = await Service(repo).SearchAsync(null, null, null, null, null, page, size).Outcome();
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -141,15 +142,15 @@ public class AuditLogReadTests
     public async Task Bad_actor_bad_instants_and_an_inverted_range_are_all_reported_together()
     {
         var repo = new RecordingRepository();
-        var result = await Service(repo).SearchAsync(null, null, "ROOT", "not-a-date", "2026-13-45", null, null);
+        var result = await Service(repo).SearchAsync(null, null, "ROOT", "not-a-date", "2026-13-45", null, null).Outcome();
         Assert.Equal(400, result.StatusCode);
         Assert.Equal(["actorType", "from", "to"], result.ValidationErrors!.Keys.Order().ToArray());
 
-        var inverted = await Service(repo).SearchAsync(null, null, null, "2026-10-07", "2026-10-06", null, null);
+        var inverted = await Service(repo).SearchAsync(null, null, null, "2026-10-07", "2026-10-06", null, null).Outcome();
         Assert.Equal(400, inverted.StatusCode);
         Assert.Contains("to", inverted.ValidationErrors!.Keys);
 
-        var equal = await Service(repo).SearchAsync(null, null, null, "2026-10-06", "2026-10-06", null, null);
+        var equal = await Service(repo).SearchAsync(null, null, null, "2026-10-06", "2026-10-06", null, null).Outcome();
         Assert.Equal(400, equal.StatusCode); // from is inclusive and to exclusive: an empty range is rejected
         Assert.Equal(0, repo.Calls);
     }
@@ -172,7 +173,7 @@ public class AuditLogReadTests
             ChangedAt = new DateTime(2026, 10, 6, 8, 0, 0, DateTimeKind.Unspecified),
         });
 
-        var result = await Service(repo).SearchAsync(null, null, null, null, null, "2", "20");
+        var result = await Service(repo).SearchAsync(null, null, null, null, null, "2", "20").Outcome();
 
         Assert.Equal(41, result.Data!.Total);
         Assert.Equal(2, result.Data.Page);
@@ -185,11 +186,11 @@ public class AuditLogReadTests
 
     // ---- controller -----------------------------------------------------------------------------
 
-    private class StubQueries(AuditLogQueryResult result) : IAuditLogQueryService
+    private class StubQueries(Func<AuditLogPageDto> search) : IAuditLogQueryService
     {
-        public Task<AuditLogQueryResult> SearchAsync(string? entityType, string? entityId, string? actorType,
+        public Task<AuditLogPageDto> SearchAsync(string? entityType, string? entityId, string? actorType,
             string? from, string? to, string? page, string? pageSize, CancellationToken cancellationToken = default) =>
-            Task.FromResult(result);
+            Task.FromResult(search());
     }
 
     [Fact]
@@ -217,22 +218,19 @@ public class AuditLogReadTests
     }
 
     [Fact]
-    public async Task Controller_returns_200_with_the_envelope_and_400_with_the_errors_map()
+    public async Task Controller_returns_200_with_the_envelope_and_lets_a_400_reach_the_error_middleware()
     {
         var page = new AuditLogPageDto { Page = 1, PageSize = 20, Total = 0 };
-        var ok = await new AdminAuditLogsController(new StubQueries(AuditLogQueryResult.Ok(page)))
+        var ok = await new AdminAuditLogsController(new StubQueries(() => page))
             .Search(null, null, null, null, null, null, null, default);
         var okBody = Assert.IsType<ApiResponse<AuditLogPageDto>>(Assert.IsType<OkObjectResult>(ok).Value);
         Assert.True(okBody.Success);
 
         var errors = new Dictionary<string, string[]> { ["page"] = ["bad"] };
-        var bad = await new AdminAuditLogsController(new StubQueries(AuditLogQueryResult.ValidationError(errors)))
-            .Search(null, null, null, null, null, "x", null, default);
-        var badResult = Assert.IsType<ObjectResult>(bad);
-        Assert.Equal(400, badResult.StatusCode);
-        var badBody = Assert.IsType<ApiResponse<object>>(badResult.Value);
-        Assert.False(badBody.Success);
-        Assert.NotNull(badBody.Data);
+        var thrown = await Assert.ThrowsAsync<ValidationException>(() => new AdminAuditLogsController(
+                new StubQueries(() => throw new ValidationException("Validation failed", errors)))
+            .Search(null, null, null, null, null, "x", null, default));
+        Assert.Same(errors, thrown.Errors);
     }
 
     // ---- repository on the local SQL Server (skipped when the database is missing) --------------
@@ -341,7 +339,7 @@ public class AuditLogReadTests
         {
             await using var db = new AppDbContext(Options());
             var result = await new AuditLogQueryService(new EfAuditLogReadRepository(db))
-                .SearchAsync(marker, null, null, "2026-10-02T09:30:00Z", "2026-10-02T09:32:00Z", null, null);
+                .SearchAsync(marker, null, null, "2026-10-02T09:30:00Z", "2026-10-02T09:32:00Z", null, null).Outcome();
 
             Assert.True(result.Success);
             Assert.Equal(["SYSTEM", "ADMIN"], result.Data!.Items.Select(i => i.ActorType).ToArray());

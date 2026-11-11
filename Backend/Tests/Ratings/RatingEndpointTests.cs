@@ -1,6 +1,7 @@
 using System.Reflection;
 using CommonService.Application.Common.Models;
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Ratings;
 using CommonService.Application.Features.Ratings.Dtos;
 using CommonService.Application.Features.Ratings.Services;
@@ -76,47 +77,57 @@ public class RatingEndpointTests
         public UserRole? Role => null;
     }
 
-    private class StubService(int status, string? message = null) : IRatingService
+    private class StubService(int status) : IRatingService
     {
         public (RaterSide Side, int Caller, long Assignment)? LastCall { get; private set; }
 
-        public Task<RatingResult<RatingWindowDto>> GetWindowAsync(RaterSide side, int callerId, long assignmentId, CancellationToken cancellationToken = default)
+        public Task<RatingWindowDto> GetWindowAsync(RaterSide side, int callerId, long assignmentId, CancellationToken cancellationToken = default)
         {
             LastCall = (side, callerId, assignmentId);
-            return Task.FromResult(status == 200
-                ? RatingResult<RatingWindowDto>.Ok(new RatingWindowDto { AssignmentId = assignmentId, Reason = "OPEN", CanRate = true })
-                : RatingResult<RatingWindowDto>.NotFound());
+            return status == 200
+                ? Task.FromResult(new RatingWindowDto { AssignmentId = assignmentId, Reason = "OPEN", CanRate = true })
+                : throw new NotFoundException("Assignment not found.");
         }
 
-        public Task<RatingResult<RatingDto>> SubmitAsync(RaterSide side, int callerId, long assignmentId, SubmitRatingRequestDto request, CancellationToken cancellationToken = default)
+        public Task<RatingDto> SubmitAsync(RaterSide side, int callerId, long assignmentId, SubmitRatingRequestDto request, CancellationToken cancellationToken = default)
         {
             LastCall = (side, callerId, assignmentId);
-            return Task.FromResult(status switch
+            return status switch
             {
-                201 => RatingResult<RatingDto>.Created(new RatingDto { AssignmentId = assignmentId, RaterRole = "CUSTOMER", Stars = 5 }),
-                400 => RatingResult<RatingDto>.ValidationError(new Dictionary<string, string[]> { ["stars"] = ["bad"] }),
-                404 => RatingResult<RatingDto>.NotFound(),
-                _ => RatingResult<RatingDto>.Conflict(message ?? "ALREADY_RATED"),
-            });
+                201 => Task.FromResult(new RatingDto { AssignmentId = assignmentId, RaterRole = "CUSTOMER", Stars = 5 }),
+                400 => throw new ValidationException("Validation failed", new Dictionary<string, string[]> { ["stars"] = ["bad"] }),
+                404 => throw new NotFoundException("Assignment not found."),
+                _ => throw new BusinessRuleViolationException("This assignment has already been rated."),
+            };
         }
     }
 
-    [Theory]
-    [InlineData(201, 201)]
-    [InlineData(400, 400)]
-    [InlineData(404, 404)]
-    [InlineData(409, 409)]
-    public async Task Submit_maps_the_result_to_the_status_and_the_envelope(int status, int expected)
+    [Fact]
+    public async Task Submit_answers_201_with_the_envelope_and_passes_the_token_id()
     {
-        var service = new StubService(status);
+        var service = new StubService(201);
         var controller = new CustomerRatingsController(service, new FakeUser(11));
 
         var response = await controller.Submit(77, new SubmitRatingRequestDto { Stars = 5 }, default);
 
         var objectResult = Assert.IsType<ObjectResult>(response);
-        Assert.Equal(expected, objectResult.StatusCode);
-        Assert.Equal(expected is 201, Assert.IsAssignableFrom<IApiResponseMarker>(AsMarker(objectResult.Value)).Success);
+        Assert.Equal(201, objectResult.StatusCode);
+        Assert.True(Assert.IsAssignableFrom<IApiResponseMarker>(AsMarker(objectResult.Value)).Success);
         Assert.Equal((RaterSide.Customer, 11, 77L), service.LastCall);
+    }
+
+    // 400 / 404 / 409 are ErrorHandlingMiddleware's answers (Tests/Infrastructure/MiddlewareTests.cs): the controller only lets them through.
+    [Theory]
+    [InlineData(400, typeof(ValidationException))]
+    [InlineData(404, typeof(NotFoundException))]
+    [InlineData(409, typeof(BusinessRuleViolationException))]
+    public async Task Submit_lets_a_service_failure_reach_the_error_middleware(int status, Type expected)
+    {
+        var controller = new CustomerRatingsController(new StubService(status), new FakeUser(11));
+
+        var thrown = await Record.ExceptionAsync(() => controller.Submit(77, new SubmitRatingRequestDto { Stars = 5 }, default));
+
+        Assert.IsType(expected, thrown);
     }
 
     // A small adapter so one assertion covers ApiResponse<T> for any T.
@@ -133,7 +144,7 @@ public class RatingEndpointTests
 
         var response = await controller.GetWindow(88, default);
 
-        Assert.Equal(200, Assert.IsType<ObjectResult>(response).StatusCode);
+        Assert.Equal(200, Assert.IsType<OkObjectResult>(response).StatusCode);
         Assert.Equal((RaterSide.Worker, 22, 88L), service.LastCall);
     }
 
@@ -160,13 +171,11 @@ public class RatingEndpointTests
     }
 
     [Fact]
-    public async Task A_400_carries_the_errors_map_in_data()
+    public async Task A_rating_conflict_has_no_code_so_the_409_keeps_data_null()
     {
-        var controller = new CustomerRatingsController(new StubService(400), new FakeUser(11));
-        var result = Assert.IsType<ObjectResult>(await controller.Submit(1, new SubmitRatingRequestDto(), default));
-        var body = Assert.IsType<ApiResponse<object>>(result.Value);
-        Assert.NotNull(body.Data);
-        Assert.Contains("errors", body.Data!.GetType().GetProperties().Select(p => p.Name));
+        var controller = new CustomerRatingsController(new StubService(409), new FakeUser(11));
+        var thrown = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => controller.Submit(1, new SubmitRatingRequestDto(), default));
+        Assert.Null(thrown.Code);
     }
 
     // ---- SQL Server: the real repository, the unique index and a real race ----------------------
@@ -342,11 +351,11 @@ public class RatingEndpointTests
             await using var db = new AppDbContext(Options());
             var service = NewService(db, now, publisher);
 
-            var window = await service.GetWindowAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId);
+            var window = await service.GetWindowAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId).Outcome();
             Assert.Equal("OPEN", window.Data!.Reason);
 
-            var first = await service.SubmitAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId, CustomerBody());
-            Assert.Equal(201, first.StatusCode);
+            var first = await service.SubmitAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId, CustomerBody()).Outcome();
+            Assert.True(first.Success); // the controller answers 201
             Assert.True(first.Data!.RatingId > 0);
 
             await using var verify = new AppDbContext(Options());
@@ -358,19 +367,19 @@ public class RatingEndpointTests
             Assert.Equal(1, publisher.Count);
 
             // same context and a fresh one both see "already rated"
-            var second = await service.SubmitAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId, CustomerBody());
+            var second = await service.SubmitAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId, CustomerBody()).Outcome();
             Assert.Equal(409, second.StatusCode);
             await using var other = new AppDbContext(Options());
-            var window2 = await NewService(other, now, publisher).GetWindowAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId);
+            var window2 = await NewService(other, now, publisher).GetWindowAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId).Outcome();
             Assert.Equal("ALREADY_RATED", window2.Data!.Reason);
 
             // the worker side of the same assignment is a separate rating
             var worker = await NewService(other, now, publisher).SubmitAsync(RaterSide.Worker, seeded.WorkerId, seeded.AssignmentId,
-                new SubmitRatingRequestDto { Stars = 3, Criteria = new Dictionary<string, int> { ["cooperation"] = 3, ["workingConditions"] = 4 } });
-            Assert.Equal(201, worker.StatusCode);
+                new SubmitRatingRequestDto { Stars = 3, Criteria = new Dictionary<string, int> { ["cooperation"] = 3, ["workingConditions"] = 4 } }).Outcome();
+            Assert.True(worker.Success); // the controller answers 201
 
             // another customer cannot see the assignment
-            Assert.Equal(404, (await NewService(other, now, publisher).GetWindowAsync(RaterSide.Customer, seeded.CustomerId + 100000, seeded.AssignmentId)).StatusCode);
+            Assert.Equal(404, (await NewService(other, now, publisher).GetWindowAsync(RaterSide.Customer, seeded.CustomerId + 100000, seeded.AssignmentId).Outcome()).StatusCode);
         }
         finally
         {
@@ -395,7 +404,7 @@ public class RatingEndpointTests
                 await using var db = new AppDbContext(Options());
                 var service = NewService(db, now, publisher);
                 gate.Wait();
-                return (await service.SubmitAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId, CustomerBody())).StatusCode;
+                return (await service.SubmitAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId, CustomerBody()).Outcome()).StatusCode;
             }
 
             var tasks = Enumerable.Range(0, 6).Select(_ => Task.Run(Submit)).ToArray();
@@ -403,7 +412,7 @@ public class RatingEndpointTests
             gate.Set();
             var codes = await Task.WhenAll(tasks);
 
-            Assert.Equal(1, codes.Count(c => c == 201));
+            Assert.Equal(1, codes.Count(c => c == 200));
             Assert.Equal(5, codes.Count(c => c == 409));
             Assert.Equal(1, publisher.Count);
             await using var verify = new AppDbContext(Options());
@@ -427,7 +436,7 @@ public class RatingEndpointTests
             await using var db = new AppDbContext(Options());
             var later = now.AddHours(48); // 49 h after completion
             var service = NewService(db, later, new NullPublisher());
-            var result = await service.SubmitAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId, CustomerBody());
+            var result = await service.SubmitAsync(RaterSide.Customer, seeded.CustomerId, seeded.AssignmentId, CustomerBody()).Outcome();
             Assert.Equal(409, result.StatusCode);
             Assert.Contains("closed", result.ErrorMessage);
             Assert.False(await db.TwoWayRatings.AnyAsync(r => r.AssignmentId == seeded.AssignmentId));

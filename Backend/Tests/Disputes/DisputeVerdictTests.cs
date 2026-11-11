@@ -142,7 +142,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, 99, Body("FREELANCER", 1000m));
+        var result = await h.Service().ResolveAsync(AdminId, 99, Body("FREELANCER", 1000m)).Outcome();
 
         Assert.Equal(404, result.StatusCode);
         Assert.Empty(h.Refunds.Requests);
@@ -156,7 +156,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness(status).Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 1000m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 1000m)).Outcome();
 
         Assert.Equal(409, result.StatusCode);
         Assert.Equal(status, h.Ticket.DisputeStatus);
@@ -171,7 +171,7 @@ public class DisputeVerdictTests
         var h = new Harness().Freelancers((1, 260000m));
         h.Repo.BeforeResolve = () => h.Ticket.DisputeStatus = DisputeConstants.Resolved; // the other admin got there between our read and the claim
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 1000m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 1000m)).Outcome();
 
         Assert.Equal(409, result.StatusCode);
         Assert.Empty(h.Refunds.Requests);
@@ -200,7 +200,7 @@ public class DisputeVerdictTests
         var h = new Harness().Freelancers((1, 260000m));
         if (note == "TOOLONG") note = new string('x', 256);
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body(fault, amount is null ? null : (decimal)amount, lockWorker, note));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body(fault, amount is null ? null : (decimal)amount, lockWorker, note)).Outcome();
 
         Assert.Equal(400, result.StatusCode);
         Assert.Contains(field, result.ValidationErrors!.Keys);
@@ -215,7 +215,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("CUSTOMER", note: new string('x', 255)));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("CUSTOMER", note: new string('x', 255))).Outcome();
 
         Assert.True(result.Success);
     }
@@ -225,7 +225,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 260000m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 260000m)).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(260000m, Assert.Single(h.Refunds.Requests).Amount);
@@ -235,12 +235,12 @@ public class DisputeVerdictTests
     public async Task A_freelancer_verdict_on_an_order_with_only_agency_workers_is_a_400_and_the_other_way_round()
     {
         var onlyAgency = new Harness().Agencies((1, 5, 260000m));
-        var a = await onlyAgency.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER"));
+        var a = await onlyAgency.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER")).Outcome();
         Assert.Equal(400, a.StatusCode);
         Assert.Contains("faultParty", a.ValidationErrors!.Keys);
 
         var onlyFreelancer = new Harness().Freelancers((1, 260000m));
-        var b = await onlyFreelancer.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY"));
+        var b = await onlyFreelancer.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY")).Outcome();
         Assert.Equal(400, b.StatusCode);
         Assert.Contains("faultParty", b.ValidationErrors!.Keys);
     }
@@ -252,7 +252,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("freelancer", 100000m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("freelancer", 100000m)).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(200, result.StatusCode);
@@ -292,7 +292,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness(DisputeConstants.Open).Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER"));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER")).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(0m, result.Data!.CompensationAmount);
@@ -306,7 +306,7 @@ public class DisputeVerdictTests
         var h = new Harness().Freelancers((1, 260000m));
         h.Repo.PreviousStatus = WorkStatus.Busy;
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 50000m, lockWorker: true));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 50000m, lockWorker: true)).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal([41], Assert.Single(h.Repo.LockRequests));
@@ -324,7 +324,7 @@ public class DisputeVerdictTests
         var h = new Harness().Freelancers((1, 100000m), (2, 100000m));
         h.Repo.AlreadyLocked.Add(42);
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", null, lockWorker: true));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", null, lockWorker: true)).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal([41, 42], Assert.Single(h.Repo.LockRequests));
@@ -339,7 +339,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 50000m, lockWorker: lockWorker));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 50000m, lockWorker: lockWorker)).Outcome();
 
         Assert.True(result.Success);
         Assert.Empty(h.Repo.LockRequests);
@@ -351,7 +351,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Agencies((1, 5, 300000m), (2, 6, 100000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY", 200000m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY", 200000m)).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(200000m, Assert.Single(h.Refunds.Requests).Amount); // one refund for the order
@@ -374,7 +374,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Agencies((1, 5, 100000m), (2, 5, 100000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY"));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY")).Outcome();
 
         Assert.True(result.Success);
         Assert.Empty(h.Refunds.Requests);
@@ -387,7 +387,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness(category: "ABSENT_FEE").Agencies((1, 5, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY", 104000m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY", 104000m)).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(104000m, Assert.Single(h.Refunds.Requests).Amount);
@@ -399,7 +399,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("CUSTOMER"));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("CUSTOMER")).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal("RESOLVED", result.Data!.DisputeStatus);
@@ -415,7 +415,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Freelancers((1, 260000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body(null));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body(null)).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal("DISMISSED", result.Data!.DisputeStatus);
@@ -436,7 +436,7 @@ public class DisputeVerdictTests
         var refusing = new RefusingRefunds();
         h.RefundPort = refusing;
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY", 100000m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("AGENCY", 100000m)).Outcome();
 
         Assert.Equal(502, result.StatusCode);
         Assert.Equal("The wallet is closed.", result.ErrorMessage);
@@ -456,7 +456,7 @@ public class DisputeVerdictTests
             .Freelancers((1, 300000m), (2, 100000m), (3, 100000m))
             .Agencies((4, 9, 50000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 100001m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 100001m)).Outcome();
 
         Assert.True(result.Success);
         var shares = h.Publisher.Events.ToDictionary(e => e.AssignmentId, e => e.CustomerRefundAmount);
@@ -473,7 +473,7 @@ public class DisputeVerdictTests
     {
         var h = new Harness().Freelancers((1, 100000m), (2, 100000m), (3, 100000m), (4, 100000m), (5, 100000m));
 
-        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 3m));
+        var result = await h.Service().ResolveAsync(AdminId, DisputeId, Body("FREELANCER", 3m)).Outcome();
 
         Assert.True(result.Success);
         var shares = h.Publisher.Events.Select(e => e.CustomerRefundAmount).ToArray();
@@ -522,7 +522,7 @@ public class DisputeVerdictTests
             await using (var db = new AppDbContext(DisputeEndpointTests.Options()))
             {
                 var result = await Real(db, now, refunds, new FakeSlaPenaltyService(), publisher)
-                    .ResolveAsync(s.AdminId, disputeId, Body("FREELANCER", 100000m, lockWorker: true, note: "Photos show dirt"));
+                    .ResolveAsync(s.AdminId, disputeId, Body("FREELANCER", 100000m, lockWorker: true, note: "Photos show dirt")).Outcome();
 
                 Assert.True(result.Success);
                 Assert.Equal("RESOLVED", result.Data!.DisputeStatus);
@@ -632,7 +632,7 @@ public class DisputeVerdictTests
                     new EfAuditLog(db, new DisputeEndpointTests.FixedClock(now)), new UnitOfWork(db),
                     new DisputeEndpointTests.FixedClock(now), publisher);
 
-                var result = await service.ResolveAsync(s.AdminId, disputeId, Body("FREELANCER", 100000m));
+                var result = await service.ResolveAsync(s.AdminId, disputeId, Body("FREELANCER", 100000m)).Outcome();
 
                 Assert.Equal(502, result.StatusCode);
             }
@@ -669,7 +669,7 @@ public class DisputeVerdictTests
                 await using var db = new AppDbContext(DisputeEndpointTests.Options());
                 var service = Real(db, now, refunds, new FakeSlaPenaltyService(), new RecordingPublisher());
                 gate.Wait();
-                return (await service.ResolveAsync(s.AdminId, disputeId, Body("FREELANCER", 100000m))).StatusCode;
+                return (await service.ResolveAsync(s.AdminId, disputeId, Body("FREELANCER", 100000m)).Outcome()).StatusCode;
             }
 
             var tasks = Enumerable.Range(0, 6).Select(_ => Task.Run(Decide)).ToArray();
@@ -704,10 +704,10 @@ public class DisputeVerdictTests
             await using var db = new AppDbContext(DisputeEndpointTests.Options());
             var service = Real(db, now, new FakeRefundService(), new FakeSlaPenaltyService(), new RecordingPublisher());
 
-            var over = await service.ResolveAsync(s.AdminId, tooMuch, Body("FREELANCER", 260001m)); // the seeded gross is 260000
+            var over = await service.ResolveAsync(s.AdminId, tooMuch, Body("FREELANCER", 260001m)).Outcome(); // the seeded gross is 260000
             Assert.Equal(400, over.StatusCode);
 
-            var ok = await service.ResolveAsync(s.AdminId, dismissed, Body(null));
+            var ok = await service.ResolveAsync(s.AdminId, dismissed, Body(null)).Outcome();
             Assert.True(ok.Success);
             Assert.Equal("DISMISSED", ok.Data!.DisputeStatus);
 

@@ -29,7 +29,7 @@ public class WorkerDisputesController(IDisputeFilingService disputes, IDisputeEv
     {
         if (currentUser.UserId is not int workerId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
         if (request is null) return BadRequest(ApiResponse<object>.Fail("Request body is required.", null));
-        return this.ToActionResult(await disputes.FileAsync(DisputeSide.Worker, workerId, request, ct), "Dispute filed.");
+        return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(await disputes.FileAsync(DisputeSide.Worker, workerId, request, ct), "Dispute filed."));
     }
 
     /// <summary>Uploads one evidence photo (JSON with base64) and returns the address to put into <c>evidenceUrls</c>.</summary>
@@ -42,7 +42,7 @@ public class WorkerDisputesController(IDisputeFilingService disputes, IDisputeEv
     {
         if (currentUser.UserId is not int workerId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
         if (request is null) return BadRequest(ApiResponse<object>.Fail("Request body is required.", null));
-        return this.ToActionResult(await evidence.UploadAsync(DisputeSide.Worker, workerId, request, ct), "Evidence uploaded.");
+        return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(await evidence.UploadAsync(DisputeSide.Worker, workerId, request, ct), "Evidence uploaded."));
     }
 
     /// <summary>The caller's disputes, newest first.</summary>
@@ -53,7 +53,7 @@ public class WorkerDisputesController(IDisputeFilingService disputes, IDisputeEv
     public async Task<IActionResult> List(CancellationToken ct)
     {
         if (currentUser.UserId is not int workerId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
-        return this.ToActionResult(await disputes.ListAsync(DisputeSide.Worker, workerId, ct), "Disputes retrieved.");
+        return Ok(ApiResponse.Ok(await disputes.ListAsync(DisputeSide.Worker, workerId, ct), "Disputes retrieved."));
     }
 
     /// <summary>One of the caller's disputes, with the verdict once it is decided.</summary>
@@ -65,6 +65,6 @@ public class WorkerDisputesController(IDisputeFilingService disputes, IDisputeEv
     public async Task<IActionResult> Get(int disputeId, CancellationToken ct)
     {
         if (currentUser.UserId is not int workerId) return Unauthorized(ApiResponse<object>.Fail("Unauthorized.", null));
-        return this.ToActionResult(await disputes.GetAsync(DisputeSide.Worker, workerId, disputeId, ct), "Dispute retrieved.");
+        return Ok(ApiResponse.Ok(await disputes.GetAsync(DisputeSide.Worker, workerId, disputeId, ct), "Dispute retrieved."));
     }
 }

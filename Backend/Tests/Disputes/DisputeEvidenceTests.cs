@@ -50,10 +50,10 @@ public class DisputeEvidenceTests
         var storage = new FakeFileStorage();
         var png = Png(100);
 
-        var result = await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Customer, 5, Body(png));
+        var result = await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Customer, 5, Body(png)).Outcome();
 
         Assert.True(result.Success);
-        Assert.Equal(201, result.StatusCode);
+        Assert.True(result.Success);
         Assert.StartsWith("dispute-evidence/", result.Data!.Path);
         Assert.StartsWith("/files/dispute-evidence/", result.Data.Url);
         Assert.EndsWith("c5-photo.png", result.Data.Url);
@@ -67,8 +67,8 @@ public class DisputeEvidenceTests
         var storage = new FakeFileStorage();
         var service = new DisputeEvidenceService(storage);
 
-        var jpeg = await service.UploadAsync(DisputeSide.Worker, 9, Body(Jpeg(), "image/jpeg", "IMG_1.JPEG"));
-        var webp = await service.UploadAsync(DisputeSide.Worker, 9, Body(Webp(), "IMAGE/WEBP", "x.webp"));
+        var jpeg = await service.UploadAsync(DisputeSide.Worker, 9, Body(Jpeg(), "image/jpeg", "IMG_1.JPEG")).Outcome();
+        var webp = await service.UploadAsync(DisputeSide.Worker, 9, Body(Webp(), "IMAGE/WEBP", "x.webp")).Outcome();
 
         Assert.EndsWith("w9-IMG_1.jpg", jpeg.Data!.Url); // the extension follows the content type, not the name
         Assert.EndsWith("w9-x.webp", webp.Data!.Url);
@@ -82,7 +82,7 @@ public class DisputeEvidenceTests
     {
         var storage = new FakeFileStorage();
 
-        var result = await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Customer, 5, Body(Png(), name: given));
+        var result = await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Customer, 5, Body(Png(), name: given)).Outcome();
 
         Assert.True(result.Success);
         Assert.EndsWith(expectedEnd, result.Data!.Url);
@@ -96,10 +96,10 @@ public class DisputeEvidenceTests
         var storage = new FakeFileStorage();
         var service = new DisputeEvidenceService(storage);
 
-        var html = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(), "text/html"));
-        var empty = await service.UploadAsync(DisputeSide.Customer, 5, new UploadEvidenceRequestDto { FileName = "a.png", ContentType = "image/png", ContentBase64 = "" });
-        var notBase64 = await service.UploadAsync(DisputeSide.Customer, 5, new UploadEvidenceRequestDto { FileName = "a.png", ContentType = "image/png", ContentBase64 = "not base64!!" });
-        var nothing = await service.UploadAsync(DisputeSide.Customer, 5, new UploadEvidenceRequestDto());
+        var html = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(), "text/html")).Outcome();
+        var empty = await service.UploadAsync(DisputeSide.Customer, 5, new UploadEvidenceRequestDto { FileName = "a.png", ContentType = "image/png", ContentBase64 = "" }).Outcome();
+        var notBase64 = await service.UploadAsync(DisputeSide.Customer, 5, new UploadEvidenceRequestDto { FileName = "a.png", ContentType = "image/png", ContentBase64 = "not base64!!" }).Outcome();
+        var nothing = await service.UploadAsync(DisputeSide.Customer, 5, new UploadEvidenceRequestDto()).Outcome();
 
         Assert.Equal(400, html.StatusCode);
         Assert.Contains("contentType", html.ValidationErrors!.Keys);
@@ -115,8 +115,8 @@ public class DisputeEvidenceTests
         var storage = new FakeFileStorage();
         var service = new DisputeEvidenceService(storage);
 
-        var pngAsJpeg = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(), "image/jpeg", "a.jpg"));
-        var script = await service.UploadAsync(DisputeSide.Customer, 5, Body("<script>alert(1)</script>"u8.ToArray(), "image/png"));
+        var pngAsJpeg = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(), "image/jpeg", "a.jpg")).Outcome();
+        var script = await service.UploadAsync(DisputeSide.Customer, 5, Body("<script>alert(1)</script>"u8.ToArray(), "image/png")).Outcome();
 
         Assert.Contains("not a image/jpeg", pngAsJpeg.ValidationErrors!["contentBase64"][0]);
         Assert.Contains("contentBase64", script.ValidationErrors!.Keys);
@@ -129,8 +129,8 @@ public class DisputeEvidenceTests
         var storage = new FakeFileStorage();
         var service = new DisputeEvidenceService(storage);
 
-        var ok = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(DisputeEvidenceService.MaxBytes)));
-        var tooBig = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(DisputeEvidenceService.MaxBytes + 1)));
+        var ok = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(DisputeEvidenceService.MaxBytes))).Outcome();
+        var tooBig = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(DisputeEvidenceService.MaxBytes + 1))).Outcome();
 
         Assert.True(ok.Success);
         Assert.Equal("The photo must be at most 5 MB.", tooBig.ValidationErrors!["contentBase64"][0]);
@@ -142,8 +142,8 @@ public class DisputeEvidenceTests
     {
         var service = new DisputeEvidenceService(new FakeFileStorage());
 
-        var blank = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(), name: "  "));
-        var tooLong = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(), name: new string('a', 101) + ".png"));
+        var blank = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(), name: "  ")).Outcome();
+        var tooLong = await service.UploadAsync(DisputeSide.Customer, 5, Body(Png(), name: new string('a', 101) + ".png")).Outcome();
 
         Assert.Contains("fileName", blank.ValidationErrors!.Keys);
         Assert.Contains("fileName", tooLong.ValidationErrors!.Keys);
@@ -175,7 +175,7 @@ public class DisputeEvidenceTests
     public async Task A_stored_photo_is_served_back_with_its_image_type_and_nosniff()
     {
         var storage = new FakeFileStorage();
-        var stored = await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Customer, 5, Body(Png(40)));
+        var stored = await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Customer, 5, Body(Png(40))).Outcome();
         var name = stored.Data!.Path["dispute-evidence/".Length..];
         var controller = Files(storage);
 
@@ -199,7 +199,7 @@ public class DisputeEvidenceTests
     public async Task Anything_that_is_not_a_stored_evidence_image_is_a_404(string name)
     {
         var storage = new FakeFileStorage();
-        await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Customer, 5, Body(Png()));
+        await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Customer, 5, Body(Png())).Outcome();
 
         Assert.IsType<NotFoundResult>(await Files(storage).Get(name, default));
     }
@@ -214,7 +214,7 @@ public class DisputeEvidenceTests
             var storage = new LocalFileStorage(config);
             var png = Png(64);
 
-            var stored = await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Worker, 9, Body(png));
+            var stored = await new DisputeEvidenceService(storage).UploadAsync(DisputeSide.Worker, 9, Body(png)).Outcome();
 
             Assert.Matches(@"^/files/dispute-evidence/[0-9a-f]{32}_w9-photo\.png$", stored.Data!.Url);
             var name = stored.Data.Url["/files/dispute-evidence/".Length..];

@@ -63,6 +63,10 @@ public class ErrorHandlingMiddleware
 
         context.Response.Clear();
         context.Response.StatusCode = statusCode;
+        if (ex is AccountLockedException locked)
+        {
+            context.Response.Headers.RetryAfter = locked.RetryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
 
         var acceptHeader = context.Request.Headers.Accept.ToString();
         var wantsProblemJson = acceptHeader.Contains("application/problem+json", StringComparison.OrdinalIgnoreCase);
@@ -96,9 +100,9 @@ public class ErrorHandlingMiddleware
                 ApiResponse<object>.Fail(argEx.Message),
                 problem
             ),
-            UnauthorizedAccessException => (
+            UnauthorizedAccessException uaEx => (
                 StatusCodes.Status401Unauthorized,
-                ApiResponse<object>.Fail("Unauthorized"),
+                ApiResponse<object>.Fail(string.IsNullOrWhiteSpace(uaEx.Message) ? "Unauthorized" : uaEx.Message),
                 problem
             ),
             ForbiddenAccessException faEx => (
@@ -123,6 +127,16 @@ public class ErrorHandlingMiddleware
                 ApiResponse<object>.Fail(
                     string.IsNullOrWhiteSpace(brEx.Message) ? "Business rule violation" : brEx.Message,
                     brEx.Code is null ? null : new { code = brEx.Code }),
+                problem
+            ),
+            AccountLockedException alEx => (
+                StatusCodes.Status423Locked,
+                ApiResponse<object>.Fail(alEx.Message),
+                problem
+            ),
+            BadGatewayException bgEx => (
+                StatusCodes.Status502BadGateway,
+                ApiResponse<object>.Fail(bgEx.Message),
                 problem
             ),
             _ => (

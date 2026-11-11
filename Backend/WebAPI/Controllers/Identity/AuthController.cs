@@ -133,36 +133,7 @@ public class AuthController : ControllerBase
         }
 
         var result = await passwordLoginService.LoginAsync(request.Email, request.Password, request.Role, ct);
-
-        if (result.Success && result.Data != null)
-        {
-            return Ok(ApiResponse<AuthResultDto>.Ok(result.Data, "Authentication successful."));
-        }
-
-        switch (result.StatusCode)
-        {
-            case StatusCodes.Status400BadRequest:
-                return BadRequest(ApiResponse<object>.Fail(
-                    result.ErrorMessage ?? "Validation failed",
-                    result.ValidationErrors != null ? new { errors = result.ValidationErrors } : null));
-
-            case StatusCodes.Status403Forbidden:
-                return StatusCode(StatusCodes.Status403Forbidden,
-                    ApiResponse<object>.Fail(result.ErrorMessage ?? "Account is disabled.", null));
-
-            case StatusCodes.Status423Locked:
-                if (result.RetryAfterSeconds.HasValue)
-                {
-                    Response.Headers["Retry-After"] = result.RetryAfterSeconds.Value.ToString();
-                }
-
-                return StatusCode(StatusCodes.Status423Locked,
-                    ApiResponse<object>.Fail(result.ErrorMessage ?? "Account is temporarily locked.", null));
-
-            default:
-                return StatusCode(StatusCodes.Status401Unauthorized,
-                    ApiResponse<object>.Fail(result.ErrorMessage ?? "Invalid email or password.", null));
-        }
+        return Ok(ApiResponse<AuthResultDto>.Ok(result, "Authentication successful."));
     }
 
     /// <summary>

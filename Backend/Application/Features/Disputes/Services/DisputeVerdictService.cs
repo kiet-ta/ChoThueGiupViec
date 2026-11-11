@@ -1,3 +1,4 @@
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Disputes.Dtos;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
@@ -12,7 +13,7 @@ namespace CommonService.Application.Features.Disputes.Services;
 public interface IDisputeVerdictService
 {
     /// <summary>The Admin's verdict (contract disputes.md 2.3): decide the ticket, move the money, audit, then publish <see cref="DisputeResolved"/>.</summary>
-    Task<DisputeResult<AdminDisputeDto>> ResolveAsync(
+    Task<AdminDisputeDto> ResolveAsync(
         int adminId, int disputeId, ResolveDisputeRequestDto request, CancellationToken cancellationToken = default);
 }
 
@@ -40,14 +41,14 @@ public class DisputeVerdictService(
     /// <summary>Thrown inside the unit of work to undo it; never leaves this class.</summary>
     private class VerdictAbortedException(string message) : Exception(message);
 
-    public async Task<DisputeResult<AdminDisputeDto>> ResolveAsync(
+    public async Task<AdminDisputeDto> ResolveAsync(
         int adminId, int disputeId, ResolveDisputeRequestDto request, CancellationToken cancellationToken = default)
     {
         var ticket = await disputes.FindTrackedAsync(disputeId, cancellationToken);
-        if (ticket is null) return DisputeResult<AdminDisputeDto>.NotFound();
+        if (ticket is null) throw new NotFoundException("Not found.");
         if (!DisputeConstants.Unresolved.Contains(ticket.DisputeStatus))
         {
-            return DisputeResult<AdminDisputeDto>.Conflict("The dispute is already decided.");
+            throw new BusinessRuleViolationException("The dispute is already decided.");
         }
 
         var assignments = await disputes.GetVerdictAssignmentsAsync(ticket.OrderId, cancellationToken);
@@ -79,7 +80,7 @@ public class DisputeVerdictService(
                 : "The order has no agency assignment."];
         }
 
-        if (errors.Count > 0) return DisputeResult<AdminDisputeDto>.ValidationError(errors);
+        if (errors.Count > 0) throw new ValidationException("Validation failed", errors);
 
         var shares = Allocate(amount, responsible);
         var newStatus = fault is null ? DisputeConstants.Dismissed : DisputeConstants.Resolved;
@@ -140,7 +141,7 @@ public class DisputeVerdictService(
                 return done;
             }, cancellationToken);
 
-            if (decided is null) return DisputeResult<AdminDisputeDto>.Conflict("The dispute is already decided.");
+            if (decided is null) throw new BusinessRuleViolationException("The dispute is already decided.");
 
             // After the commit: one event per assignment of the order (the event is per assignment, the ticket per order).
             foreach (var a in assignments)
@@ -150,11 +151,11 @@ public class DisputeVerdictService(
                     cancellationToken);
             }
 
-            return DisputeResult<AdminDisputeDto>.Ok(DisputeMapper.ToAdminDto(decided));
+            return DisputeMapper.ToAdminDto(decided);
         }
         catch (VerdictAbortedException ex)
         {
-            return DisputeResult<AdminDisputeDto>.BadGateway(ex.Message);
+            throw new BadGatewayException(ex.Message, ex);
         }
     }
 

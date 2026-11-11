@@ -1,5 +1,6 @@
 using CommonService.Application.Common.Models;
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Identity.Dtos;
 using CommonService.Application.Features.Identity.Services;
 using CommonService.Application.Interfaces.Ports;
@@ -150,7 +151,7 @@ public class PasswordLoginTests
     {
         await using var fx = new Fixture();
 
-        var result = await fx.Service.LoginAsync("not-an-email", "", "Customer");
+        var result = await fx.Service.LoginAsync("not-an-email", "", "Customer").Outcome();
 
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
@@ -169,7 +170,7 @@ public class PasswordLoginTests
     {
         await using var fx = new Fixture();
 
-        var result = await fx.Service.LoginAsync("someone@test.local", GoodPassword, role);
+        var result = await fx.Service.LoginAsync("someone@test.local", GoodPassword, role).Outcome();
 
         Assert.Equal(400, result.StatusCode);
         Assert.Contains("role", result.ValidationErrors!.Keys);
@@ -184,7 +185,7 @@ public class PasswordLoginTests
         await using var fx = new Fixture();
         var admin = await fx.AddAdminAsync();
 
-        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin");
+        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin").Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(200, result.StatusCode);
@@ -214,7 +215,7 @@ public class PasswordLoginTests
         await using var fx = new Fixture();
         var admin = await fx.AddAdminAsync();
 
-        var result = await fx.Service.LoginAsync($"  {admin.Email}  ", GoodPassword, "admin");
+        var result = await fx.Service.LoginAsync($"  {admin.Email}  ", GoodPassword, "admin").Outcome();
 
         Assert.True(result.Success);
     }
@@ -226,8 +227,8 @@ public class PasswordLoginTests
         await using var fx = new Fixture();
         var admin = await fx.AddAdminAsync();
 
-        var unknown = await fx.Service.LoginAsync($"nobody-{Guid.NewGuid():N}@test.local", GoodPassword, "Admin");
-        var wrong = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+        var unknown = await fx.Service.LoginAsync($"nobody-{Guid.NewGuid():N}@test.local", GoodPassword, "Admin").Outcome();
+        var wrong = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
 
         Assert.Equal(401, unknown.StatusCode);
         Assert.Equal(401, wrong.StatusCode);
@@ -241,7 +242,7 @@ public class PasswordLoginTests
         await using var fx = new Fixture();
         var admin = await fx.AddAdminAsync(isActive: false);
 
-        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin");
+        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin").Outcome();
 
         Assert.Equal(403, result.StatusCode);
         Assert.Null(result.Data);
@@ -256,7 +257,7 @@ public class PasswordLoginTests
         await using var fx = new Fixture();
         var admin = await fx.AddAdminAsync(isActive: false);
 
-        var result = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+        var result = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
 
         Assert.Equal(401, result.StatusCode); // disabled state is not revealed without the password
     }
@@ -268,7 +269,7 @@ public class PasswordLoginTests
         await using var fx = new Fixture();
         var admin = await fx.AddAdminAsync();
 
-        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Partner");
+        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Partner").Outcome();
 
         Assert.Equal(401, result.StatusCode);
     }
@@ -282,7 +283,7 @@ public class PasswordLoginTests
         await using var fx = new Fixture();
         var agency = await fx.AddPartnerAsync();
 
-        var result = await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner");
+        var result = await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner").Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(agency.AgencyId, result.Data!.User.Id);
@@ -297,7 +298,7 @@ public class PasswordLoginTests
         await using var fx = new Fixture();
         var agency = await fx.AddPartnerAsync(status: "SUSPENDED");
 
-        var result = await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner");
+        var result = await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner").Outcome();
 
         Assert.True(result.Success); // decisions Q09 / O6
     }
@@ -311,7 +312,7 @@ public class PasswordLoginTests
 
         for (var i = 0; i < 6; i++)
         {
-            var result = await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner");
+            var result = await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner").Outcome();
             Assert.Equal(401, result.StatusCode);
         }
 
@@ -332,11 +333,11 @@ public class PasswordLoginTests
 
         for (var i = 1; i <= 4; i++)
         {
-            var failure = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+            var failure = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
             Assert.Equal(401, failure.StatusCode);
         }
 
-        var fifth = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+        var fifth = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
 
         Assert.Equal(423, fifth.StatusCode);
         Assert.Equal(15 * 60, fifth.RetryAfterSeconds);
@@ -355,11 +356,11 @@ public class PasswordLoginTests
         var admin = await fx.AddAdminAsync();
         for (var i = 0; i < 5; i++)
         {
-            await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+            await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
         }
 
         fx.Clock.UtcNow = fx.Clock.UtcNow.AddMinutes(5);
-        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin");
+        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin").Outcome();
 
         Assert.Equal(423, result.StatusCode);
         Assert.Equal(10 * 60, result.RetryAfterSeconds);
@@ -374,11 +375,11 @@ public class PasswordLoginTests
         var admin = await fx.AddAdminAsync();
         for (var i = 0; i < 5; i++)
         {
-            await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+            await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
         }
 
         fx.Clock.UtcNow = fx.Clock.UtcNow.AddMinutes(15).AddSeconds(1);
-        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin");
+        var result = await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin").Outcome();
 
         Assert.True(result.Success);
         await using var check = CreateContext();
@@ -395,11 +396,11 @@ public class PasswordLoginTests
         var admin = await fx.AddAdminAsync();
         for (var i = 0; i < 5; i++)
         {
-            await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+            await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
         }
 
         fx.Clock.UtcNow = fx.Clock.UtcNow.AddMinutes(16);
-        var result = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+        var result = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
 
         Assert.Equal(401, result.StatusCode);
         await using var check = CreateContext();
@@ -417,15 +418,15 @@ public class PasswordLoginTests
 
         for (var i = 0; i < 4; i++)
         {
-            await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+            await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
         }
 
-        Assert.True((await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin")).Success);
+        Assert.True((await fx.Service.LoginAsync(admin.Email, GoodPassword, "Admin").Outcome()).Success);
 
         // 4 more failures after the reset must not lock (would be 8 without the reset).
         for (var i = 0; i < 4; i++)
         {
-            var failure = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin");
+            var failure = await fx.Service.LoginAsync(admin.Email, WrongPassword, "Admin").Outcome();
             Assert.Equal(401, failure.StatusCode);
         }
 
@@ -444,17 +445,17 @@ public class PasswordLoginTests
 
         for (var i = 1; i <= 4; i++)
         {
-            Assert.Equal(401, (await fx.Service.LoginAsync(agency.ContactEmail, WrongPassword, "Partner")).StatusCode);
+            Assert.Equal(401, (await fx.Service.LoginAsync(agency.ContactEmail, WrongPassword, "Partner").Outcome()).StatusCode);
         }
 
-        var fifth = await fx.Service.LoginAsync(agency.ContactEmail, WrongPassword, "Partner");
-        var duringLock = await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner");
+        var fifth = await fx.Service.LoginAsync(agency.ContactEmail, WrongPassword, "Partner").Outcome();
+        var duringLock = await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner").Outcome();
 
         Assert.Equal(423, fifth.StatusCode);
         Assert.Equal(423, duringLock.StatusCode);
 
         fx.Clock.UtcNow = fx.Clock.UtcNow.AddMinutes(15).AddSeconds(1);
-        Assert.True((await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner")).Success);
+        Assert.True((await fx.Service.LoginAsync(agency.ContactEmail, GoodPassword, "Partner").Outcome()).Success);
     }
 
     [Fact]
@@ -466,20 +467,20 @@ public class PasswordLoginTests
         var second = await fx.AddAdminAsync();
         for (var i = 0; i < 5; i++)
         {
-            await fx.Service.LoginAsync(first.Email, WrongPassword, "Admin");
+            await fx.Service.LoginAsync(first.Email, WrongPassword, "Admin").Outcome();
         }
 
-        var result = await fx.Service.LoginAsync(second.Email, GoodPassword, "Admin");
+        var result = await fx.Service.LoginAsync(second.Email, GoodPassword, "Admin").Outcome();
 
         Assert.True(result.Success);
     }
 
     // ---- controller mapping (no database) ----
 
-    private class StubPasswordLoginService(PasswordLoginResult result) : IPasswordLoginService
+    private class StubPasswordLoginService(Func<AuthResultDto> login) : IPasswordLoginService
     {
-        public Task<PasswordLoginResult> LoginAsync(string email, string password, string roleString, CancellationToken ct = default) =>
-            Task.FromResult(result);
+        public Task<AuthResultDto> LoginAsync(string email, string password, string roleString, CancellationToken ct = default) =>
+            Task.FromResult(login());
     }
 
     private class NoopOtpService : IOtpService
@@ -525,7 +526,7 @@ public class PasswordLoginTests
             User = new AuthUserDto { Id = 7, Role = "Admin", IsNewUser = false }
         };
 
-        var action = await controller.PasswordLogin(Request, new StubPasswordLoginService(PasswordLoginResult.Ok(auth)), CancellationToken.None);
+        var action = await controller.PasswordLogin(Request, new StubPasswordLoginService(() => auth), CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(action);
         var body = Assert.IsType<ApiResponse<AuthResultDto>>(ok.Value);
@@ -533,46 +534,14 @@ public class PasswordLoginTests
         Assert.Equal(7, body.Data!.User.Id);
     }
 
+    // The 400 / 401 / 403 / 423 (+ Retry-After) answers are ErrorHandlingMiddleware's: see Tests/Infrastructure/MiddlewareTests.cs.
     [Fact]
-    public async Task Controller_returns_423_with_Retry_After_header_when_locked()
-    {
-        var (controller, http) = CreateController();
-
-        var action = await controller.PasswordLogin(Request, new StubPasswordLoginService(PasswordLoginResult.Locked(840)), CancellationToken.None);
-
-        var result = Assert.IsType<ObjectResult>(action);
-        Assert.Equal(StatusCodes.Status423Locked, result.StatusCode);
-        Assert.Equal("840", http.Response.Headers["Retry-After"].ToString());
-        Assert.False(Assert.IsType<ApiResponse<object>>(result.Value).Success);
-    }
-
-    [Theory]
-    [InlineData(401)]
-    [InlineData(403)]
-    public async Task Controller_maps_401_and_403_without_retry_after(int status)
-    {
-        var (controller, http) = CreateController();
-        var failure = status == 401 ? PasswordLoginResult.Unauthorized() : PasswordLoginResult.Forbidden();
-
-        var action = await controller.PasswordLogin(Request, new StubPasswordLoginService(failure), CancellationToken.None);
-
-        var result = Assert.IsType<ObjectResult>(action);
-        Assert.Equal(status, result.StatusCode);
-        Assert.False(http.Response.Headers.ContainsKey("Retry-After"));
-    }
-
-    [Fact]
-    public async Task Controller_returns_400_with_errors_map_for_validation_failures()
+    public async Task Controller_lets_a_login_failure_reach_the_error_middleware()
     {
         var (controller, _) = CreateController();
-        var errors = new Dictionary<string, string[]> { ["email"] = ["A valid email address is required."] };
 
-        var action = await controller.PasswordLogin(Request, new StubPasswordLoginService(PasswordLoginResult.ValidationError(errors)), CancellationToken.None);
-
-        var bad = Assert.IsType<BadRequestObjectResult>(action);
-        var body = Assert.IsType<ApiResponse<object>>(bad.Value);
-        Assert.False(body.Success);
-        Assert.NotNull(body.Data);
+        await Assert.ThrowsAsync<AccountLockedException>(() =>
+            controller.PasswordLogin(Request, new StubPasswordLoginService(() => throw new AccountLockedException(840)), CancellationToken.None));
     }
 
     [Fact]
@@ -580,7 +549,7 @@ public class PasswordLoginTests
     {
         var (controller, _) = CreateController();
 
-        var action = await controller.PasswordLogin(null!, new StubPasswordLoginService(PasswordLoginResult.Unauthorized()), CancellationToken.None);
+        var action = await controller.PasswordLogin(null!, new StubPasswordLoginService(() => throw new UnauthorizedAccessException()), CancellationToken.None);
 
         Assert.IsType<BadRequestObjectResult>(action);
     }

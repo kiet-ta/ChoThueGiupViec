@@ -157,10 +157,10 @@ public class DisputeServiceTests
     public async Task A_customer_files_on_their_order_and_the_ticket_is_open_with_a_48h_SLA_and_JSON_evidence()
     {
         var h = new Harness();
-        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request("PROPERTY_DAMAGE", "  Broken vase  ", "/u/1.jpg", "/u/2.jpg"));
+        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request("PROPERTY_DAMAGE", "  Broken vase  ", "/u/1.jpg", "/u/2.jpg")).Outcome();
 
         Assert.True(result.Success);
-        Assert.Equal(201, result.StatusCode);
+        Assert.True(result.Success);
         var ticket = Assert.Single(h.Repo.Tickets);
         Assert.Equal("OPEN", ticket.DisputeStatus);
         Assert.Equal("CUSTOMER", ticket.RaisedBy);
@@ -182,8 +182,8 @@ public class DisputeServiceTests
     public async Task A_worker_on_the_order_files_and_raised_by_is_WORKER()
     {
         var h = new Harness();
-        var result = await h.Filing.FileAsync(DisputeSide.Worker, WorkerId, Request());
-        Assert.Equal(201, result.StatusCode);
+        var result = await h.Filing.FileAsync(DisputeSide.Worker, WorkerId, Request()).Outcome();
+        Assert.True(result.Success);
         Assert.Equal("WORKER", h.Repo.Tickets[0].RaisedBy);
     }
 
@@ -194,7 +194,7 @@ public class DisputeServiceTests
     public async Task Only_assignments_that_reached_acceptance_completion_or_absence_can_be_disputed(JobAssignmentStatus status)
     {
         var h = new Harness(status);
-        Assert.Equal(201, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.True((await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).Success);
     }
 
     [Theory]
@@ -209,7 +209,7 @@ public class DisputeServiceTests
     public async Task An_order_with_nothing_to_dispute_yet_is_409(JobAssignmentStatus status)
     {
         var h = new Harness(status);
-        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request());
+        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome();
         Assert.Equal(409, result.StatusCode);
         Assert.Empty(h.Repo.Tickets);
     }
@@ -222,11 +222,11 @@ public class DisputeServiceTests
         // completed 05:00 UTC, shift end 12:00 local = 05:00 UTC: both 05:00; window closes at 05:00 + 24 h
         var open = new Harness();
         open.Clock.UtcNow = Now.AddHours(1).AddHours(24);
-        Assert.Equal(201, (await open.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.True((await open.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).Success);
 
         var closed = new Harness();
         closed.Clock.UtcNow = Now.AddHours(1).AddHours(24).AddTicks(1);
-        var result = await closed.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request());
+        var result = await closed.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome();
         Assert.Equal(409, result.StatusCode);
         Assert.Contains("passed", result.ErrorMessage);
         Assert.Empty(closed.Repo.Tickets);
@@ -237,17 +237,17 @@ public class DisputeServiceTests
     {
         var absent = new Harness(JobAssignmentStatus.Absent);   // shift end 05:00 UTC, no completed_at
         absent.Clock.UtcNow = new DateTime(2026, 10, 8, 5, 0, 0, DateTimeKind.Utc);
-        Assert.Equal(201, (await absent.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.True((await absent.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).Success);
         absent.Repo.Tickets.Clear();
 
         var late = new Harness();                               // completed later than the shift end
         late.Repo.Orders[OrderId] = new DisputeOrderInfo(OrderId, "ORD900", CustomerId,
             [new DisputeAssignmentInfo(1, WorkerId, JobAssignmentStatus.Completed, new DateTime(2026, 10, 7, 9, 0, 0, DateTimeKind.Utc), new DateTime(2026, 10, 7, 12, 0, 0))]);
         late.Clock.UtcNow = new DateTime(2026, 10, 8, 8, 59, 0, DateTimeKind.Utc);
-        Assert.Equal(201, (await late.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.True((await late.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).Success);
         late.Repo.Tickets.Clear();
         late.Clock.UtcNow = new DateTime(2026, 10, 8, 9, 1, 0, DateTimeKind.Utc);
-        Assert.Equal(409, (await late.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.Equal(409, (await late.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).StatusCode);
     }
 
     [Fact]
@@ -264,21 +264,21 @@ public class DisputeServiceTests
         var absent = new Harness(JobAssignmentStatus.Absent);
         var absentFiling = new DisputeFilingService(absent.Repo, absent.Clock, disputeOptions, rules);
         absent.Clock.UtcNow = shiftEndUtc.AddHours(36);
-        Assert.Equal(201, (await absentFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.True((await absentFiling.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).Success);
         absent.Repo.Tickets.Clear();
         absent.Clock.UtcNow = shiftEndUtc.AddHours(36).AddTicks(1);
-        Assert.Equal(409, (await absentFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.Equal(409, (await absentFiling.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).StatusCode);
 
         // a COMPLETED assignment is not an absence fee: still 24 h, whatever the absence rule says
         var completed = new Harness();
         var completedFiling = new DisputeFilingService(completed.Repo, completed.Clock, disputeOptions, rules);
         completed.Clock.UtcNow = Now.AddHours(1).AddHours(24).AddTicks(1);
-        Assert.Equal(409, (await completedFiling.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.Equal(409, (await completedFiling.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).StatusCode);
 
         // without the rules (an older caller) the default 24 h of Q10 applies, the same number as before
         var plain = new Harness(JobAssignmentStatus.Absent);
         plain.Clock.UtcNow = shiftEndUtc.AddHours(24).AddTicks(1);
-        Assert.Equal(409, (await plain.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.Equal(409, (await plain.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).StatusCode);
     }
 
     // ---- filing: ownership, uniqueness, validation ---------------------------------------------
@@ -287,10 +287,10 @@ public class DisputeServiceTests
     public async Task An_order_that_is_not_the_callers_or_does_not_exist_is_404()
     {
         var h = new Harness();
-        Assert.Equal(404, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId + 1, Request())).StatusCode);
-        Assert.Equal(404, (await h.Filing.FileAsync(DisputeSide.Worker, WorkerId + 1, Request())).StatusCode);
+        Assert.Equal(404, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId + 1, Request()).Outcome()).StatusCode);
+        Assert.Equal(404, (await h.Filing.FileAsync(DisputeSide.Worker, WorkerId + 1, Request()).Outcome()).StatusCode);
         var missing = new FileDisputeRequestDto { OrderId = 12345, Category = "QUALITY", Description = "x", EvidenceUrls = ["/a"] };
-        Assert.Equal(404, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, missing)).StatusCode);
+        Assert.Equal(404, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, missing).Outcome()).StatusCode);
         Assert.Empty(h.Repo.Tickets);
     }
 
@@ -298,15 +298,15 @@ public class DisputeServiceTests
     public async Task One_ticket_per_order_the_second_filing_by_either_side_is_409_and_so_is_losing_a_race()
     {
         var h = new Harness();
-        Assert.Equal(201, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.True((await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).Success);
 
-        var byWorker = await h.Filing.FileAsync(DisputeSide.Worker, WorkerId, Request());
+        var byWorker = await h.Filing.FileAsync(DisputeSide.Worker, WorkerId, Request()).Outcome();
         Assert.Equal(409, byWorker.StatusCode);
         Assert.Contains("already exists", byWorker.ErrorMessage);
         Assert.Single(h.Repo.Tickets);
 
         var race = new Harness { Repo = { LoseTheRace = true } };
-        Assert.Equal(409, (await race.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request())).StatusCode);
+        Assert.Equal(409, (await race.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome()).StatusCode);
     }
 
     [Theory]
@@ -317,7 +317,7 @@ public class DisputeServiceTests
     {
         var h = new Harness();
         var request = new FileDisputeRequestDto { OrderId = orderId, Category = "QUALITY", Description = "x", EvidenceUrls = ["/a"] };
-        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, request);
+        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, request).Outcome();
         Assert.Equal(400, result.StatusCode);
         Assert.Contains("orderId", result.ValidationErrors!.Keys);
     }
@@ -331,8 +331,8 @@ public class DisputeServiceTests
     public async Task Only_the_five_categories_are_accepted_case_sensitively(string? category)
     {
         var h = new Harness();
-        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request(category!));
-        if (category == "QUALITY ") Assert.Equal(201, result.StatusCode); // trimmed
+        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request(category!)).Outcome();
+        if (category == "QUALITY ") Assert.True(result.Success); // trimmed
         else Assert.Contains("category", result.ValidationErrors!.Keys);
     }
 
@@ -345,7 +345,7 @@ public class DisputeServiceTests
     public async Task Every_listed_category_is_accepted(string category)
     {
         var h = new Harness();
-        Assert.Equal(201, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request(category))).StatusCode);
+        Assert.True((await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request(category)).Outcome()).Success);
     }
 
     [Fact]
@@ -354,11 +354,11 @@ public class DisputeServiceTests
         var h = new Harness();
         foreach (var bad in new[] { null, "", "   ", new string('a', 1001) })
         {
-            var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request("QUALITY", bad));
+            var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request("QUALITY", bad)).Outcome();
             Assert.Contains("description", result.ValidationErrors!.Keys);
         }
 
-        Assert.Equal(201, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request("QUALITY", new string('a', 1000)))).StatusCode);
+        Assert.True((await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request("QUALITY", new string('a', 1000))).Outcome()).Success);
     }
 
     [Fact]
@@ -367,30 +367,30 @@ public class DisputeServiceTests
         var h = new Harness();
 
         var none = new FileDisputeRequestDto { OrderId = OrderId, Category = "QUALITY", Description = "x", EvidenceUrls = [] };
-        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, none)).ValidationErrors!.Keys);
+        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, none).Outcome()).ValidationErrors!.Keys);
 
         var missing = new FileDisputeRequestDto { OrderId = OrderId, Category = "QUALITY", Description = "x" };
-        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, missing)).ValidationErrors!.Keys);
+        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, missing).Outcome()).ValidationErrors!.Keys);
 
         var tooMany = Request("QUALITY", "x", Enumerable.Range(0, 11).Select(i => $"/u/{i}").ToArray());
-        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, tooMany)).ValidationErrors!.Keys);
+        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, tooMany).Outcome()).ValidationErrors!.Keys);
 
         var blank = Request("QUALITY", "x", "/ok", "  ");
-        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, blank)).ValidationErrors!.Keys);
+        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, blank).Outcome()).ValidationErrors!.Keys);
 
         var longOne = Request("QUALITY", "x", "/" + new string('a', 500));
-        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, longOne)).ValidationErrors!.Keys);
+        Assert.Contains("evidenceUrls", (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, longOne).Outcome()).ValidationErrors!.Keys);
 
         Assert.Empty(h.Repo.Tickets);
         var ten = Request("QUALITY", "x", Enumerable.Range(0, 10).Select(i => $"/u/{i}").ToArray());
-        Assert.Equal(201, (await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, ten)).StatusCode);
+        Assert.True((await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, ten).Outcome()).Success);
     }
 
     [Fact]
     public async Task Several_validation_problems_are_reported_together()
     {
         var h = new Harness();
-        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, new FileDisputeRequestDto());
+        var result = await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, new FileDisputeRequestDto()).Outcome();
         Assert.Equal(["category", "description", "evidenceUrls", "orderId"], result.ValidationErrors!.Keys.Order().ToArray());
     }
 
@@ -400,20 +400,20 @@ public class DisputeServiceTests
     public async Task Each_party_lists_and_reads_only_their_own_dispute_and_the_admin_handler_is_hidden()
     {
         var h = new Harness();
-        await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request());
+        await h.Filing.FileAsync(DisputeSide.Customer, CustomerId, Request()).Outcome();
         h.Repo.Tickets[0].ResolvedBy = 77;
         var id = h.Repo.Tickets[0].DisputeId;
 
-        Assert.Single((await h.Filing.ListAsync(DisputeSide.Customer, CustomerId)).Data!);
-        Assert.Single((await h.Filing.ListAsync(DisputeSide.Worker, WorkerId)).Data!);
-        Assert.Empty((await h.Filing.ListAsync(DisputeSide.Customer, CustomerId + 1)).Data!);
-        Assert.Empty((await h.Filing.ListAsync(DisputeSide.Worker, WorkerId + 1)).Data!);
+        Assert.Single((await h.Filing.ListAsync(DisputeSide.Customer, CustomerId).Outcome()).Data!);
+        Assert.Single((await h.Filing.ListAsync(DisputeSide.Worker, WorkerId).Outcome()).Data!);
+        Assert.Empty((await h.Filing.ListAsync(DisputeSide.Customer, CustomerId + 1).Outcome()).Data!);
+        Assert.Empty((await h.Filing.ListAsync(DisputeSide.Worker, WorkerId + 1).Outcome()).Data!);
 
-        Assert.Equal(id, (await h.Filing.GetAsync(DisputeSide.Customer, CustomerId, id)).Data!.DisputeId);
-        Assert.Equal(id, (await h.Filing.GetAsync(DisputeSide.Worker, WorkerId, id)).Data!.DisputeId);
-        Assert.Equal(404, (await h.Filing.GetAsync(DisputeSide.Customer, CustomerId + 1, id)).StatusCode);
-        Assert.Equal(404, (await h.Filing.GetAsync(DisputeSide.Worker, WorkerId + 1, id)).StatusCode);
-        Assert.Equal(404, (await h.Filing.GetAsync(DisputeSide.Customer, CustomerId, id + 99)).StatusCode);
+        Assert.Equal(id, (await h.Filing.GetAsync(DisputeSide.Customer, CustomerId, id).Outcome()).Data!.DisputeId);
+        Assert.Equal(id, (await h.Filing.GetAsync(DisputeSide.Worker, WorkerId, id).Outcome()).Data!.DisputeId);
+        Assert.Equal(404, (await h.Filing.GetAsync(DisputeSide.Customer, CustomerId + 1, id).Outcome()).StatusCode);
+        Assert.Equal(404, (await h.Filing.GetAsync(DisputeSide.Worker, WorkerId + 1, id).Outcome()).StatusCode);
+        Assert.Equal(404, (await h.Filing.GetAsync(DisputeSide.Customer, CustomerId, id + 99).Outcome()).StatusCode);
 
         Assert.DoesNotContain(typeof(DisputeDto).GetProperties(), p => p.Name == "ResolvedBy"); // only AdminDisputeDto has it
         Assert.Equal(77, DisputeMapper.ToAdminDto(h.Repo.Tickets[0]).ResolvedBy);
@@ -488,7 +488,7 @@ public class DisputeServiceTests
     public async Task The_default_queue_is_OPEN_and_IN_REVIEW_oldest_SLA_first_page_1_size_20()
     {
         var h = await WithTicketsAsync(("OPEN", 30), ("IN_REVIEW", 2), ("RESOLVED", 1), ("OPEN", 10));
-        var result = await h.Admin.SearchAsync(null, null, null, null, null);
+        var result = await h.Admin.SearchAsync(null, null, null, null, null).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal(["OPEN", "IN_REVIEW"], h.Repo.LastFilter!.Statuses.ToArray());
@@ -502,7 +502,7 @@ public class DisputeServiceTests
     public async Task Summaries_carry_names_workers_priority_remaining_seconds_and_the_absent_fee_flag()
     {
         var h = await WithTicketsAsync(("OPEN", 3), ("OPEN", 30));
-        var items = (await h.Admin.SearchAsync(null, null, null, null, null)).Data!.Items;
+        var items = (await h.Admin.SearchAsync(null, null, null, null, null).Outcome()).Data!.Items;
 
         var first = items[0];
         Assert.Equal("ORD1001", first.OrderCode);
@@ -525,7 +525,7 @@ public class DisputeServiceTests
     public async Task The_priority_filter_becomes_a_due_date_window_on_unresolved_tickets(string priority, int? beforeHours, int? fromHours)
     {
         var h = await WithTicketsAsync(("OPEN", 1));
-        await h.Admin.SearchAsync("OPEN,IN_REVIEW,RESOLVED", priority, null, null, null);
+        await h.Admin.SearchAsync("OPEN,IN_REVIEW,RESOLVED", priority, null, null, null).Outcome();
 
         Assert.Equal(["OPEN", "IN_REVIEW"], h.Repo.LastFilter!.Statuses.ToArray()); // a priority never includes decided tickets
         Assert.Equal(beforeHours is { } b ? Now.AddHours(b) : null, h.Repo.LastFilter.DueBeforeUtc);
@@ -536,14 +536,14 @@ public class DisputeServiceTests
     public async Task NearSla_keeps_unresolved_tickets_due_within_6_hours_overdue_included()
     {
         var h = await WithTicketsAsync(("OPEN", -5), ("OPEN", 5), ("IN_REVIEW", 7), ("RESOLVED", 1));
-        var result = await h.Admin.SearchAsync("OPEN,IN_REVIEW,RESOLVED", null, "true", null, null);
+        var result = await h.Admin.SearchAsync("OPEN,IN_REVIEW,RESOLVED", null, "true", null, null).Outcome();
 
         Assert.Equal(Now.AddHours(6), h.Repo.LastFilter!.DueBeforeUtc);
         Assert.Equal([1, 2], result.Data!.Items.Select(i => i.DisputeId).ToArray());
         Assert.Equal(2, result.Data.Total);
         Assert.Equal(-5 * 3600, result.Data.Items[0].SlaSecondsRemaining); // overdue shows as negative
 
-        var both = await h.Admin.SearchAsync(null, "HIGH", "true", null, null);
+        var both = await h.Admin.SearchAsync(null, "HIGH", "true", null, null).Outcome();
         Assert.Equal(Now.AddHours(6), h.Repo.LastFilter.DueBeforeUtc); // the narrower bound wins
         Assert.True(both.Success);
     }
@@ -552,7 +552,7 @@ public class DisputeServiceTests
     public async Task A_multi_status_list_is_trimmed_case_insensitive_and_de_duplicated()
     {
         var h = await WithTicketsAsync(("RESOLVED", 5));
-        await h.Admin.SearchAsync(" resolved , Dismissed,RESOLVED", null, null, "2", "5");
+        await h.Admin.SearchAsync(" resolved , Dismissed,RESOLVED", null, null, "2", "5").Outcome();
         Assert.Equal(["RESOLVED", "DISMISSED"], h.Repo.LastFilter!.Statuses.ToArray());
         Assert.Equal(2, h.Repo.LastPage);
         Assert.Equal(5, h.Repo.LastPageSize);
@@ -570,7 +570,7 @@ public class DisputeServiceTests
         string? status, string? priority, string? near, string? page, string? size, string field)
     {
         var h = await WithTicketsAsync(("OPEN", 1));
-        var result = await h.Admin.SearchAsync(status, priority, near, page, size);
+        var result = await h.Admin.SearchAsync(status, priority, near, page, size).Outcome();
 
         Assert.Equal(400, result.StatusCode);
         Assert.Contains(field, result.ValidationErrors!.Keys);
@@ -581,7 +581,7 @@ public class DisputeServiceTests
     public async Task A_page_size_of_exactly_100_is_accepted()
     {
         var h = await WithTicketsAsync(("OPEN", 1));
-        Assert.True((await h.Admin.SearchAsync(null, null, null, null, "100")).Success);
+        Assert.True((await h.Admin.SearchAsync(null, null, null, null, "100").Outcome()).Success);
         Assert.Equal(100, h.Repo.LastPageSize);
     }
 
@@ -601,7 +601,7 @@ public class DisputeServiceTests
             ],
             [(1, Now.AddHours(-1))]);
 
-        var file = (await h.Admin.GetAsync(1)).Data!;
+        var file = (await h.Admin.GetAsync(1).Outcome()).Data!;
 
         Assert.Equal(1, file.Dispute.DisputeId);
         Assert.Equal(5, file.Dispute.ResolvedBy);
@@ -629,7 +629,7 @@ public class DisputeServiceTests
             ],
             []);
 
-        var photos = (await h.Admin.GetAsync(1)).Data!.Photos;
+        var photos = (await h.Admin.GetAsync(1).Outcome()).Data!.Photos;
 
         Assert.Equal("/api/v1/workers/assignments/1/photos/29/file", photos.Single(p => p.Phase == "BEFORE").Url); // the raw "job-photos/..." path is no address
         Assert.Equal("https://storage.example/jobs/after_1.jpg", photos.Single(p => p.Phase == "AFTER" && p.AngleNo == 1).Url);
@@ -640,7 +640,7 @@ public class DisputeServiceTests
     public async Task An_unknown_ticket_has_no_case_file()
     {
         var h = await WithTicketsAsync(("OPEN", 1));
-        Assert.Equal(404, (await h.Admin.GetAsync(999)).StatusCode);
+        Assert.Equal(404, (await h.Admin.GetAsync(999).Outcome()).StatusCode);
     }
 
     // ---- take -----------------------------------------------------------------------------------
@@ -649,7 +649,7 @@ public class DisputeServiceTests
     public async Task Taking_an_open_ticket_makes_it_IN_REVIEW_records_the_admin_and_saves_once()
     {
         var h = await WithTicketsAsync(("OPEN", 20));
-        var result = await h.Admin.TakeAsync(42, 1);
+        var result = await h.Admin.TakeAsync(42, 1).Outcome();
 
         Assert.True(result.Success);
         Assert.Equal("IN_REVIEW", result.Data!.DisputeStatus);
@@ -666,7 +666,7 @@ public class DisputeServiceTests
     {
         var h = await WithTicketsAsync((status, 20));
         h.Repo.Tickets[0].ResolvedBy = 9;
-        var result = await h.Admin.TakeAsync(42, 1);
+        var result = await h.Admin.TakeAsync(42, 1).Outcome();
 
         Assert.Equal(409, result.StatusCode);
         Assert.Equal(status, h.Repo.Tickets[0].DisputeStatus);
@@ -678,6 +678,6 @@ public class DisputeServiceTests
     public async Task Taking_a_missing_ticket_is_404()
     {
         var h = await WithTicketsAsync(("OPEN", 20));
-        Assert.Equal(404, (await h.Admin.TakeAsync(42, 999)).StatusCode);
+        Assert.Equal(404, (await h.Admin.TakeAsync(42, 999).Outcome()).StatusCode);
     }
 }

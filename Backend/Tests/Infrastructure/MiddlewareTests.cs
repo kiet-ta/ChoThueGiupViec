@@ -112,6 +112,54 @@ public class MiddlewareTests
     }
 
     [Fact]
+    public async Task ErrorHandlingMiddleware_keeps_the_message_of_UnauthorizedAccessException_as_401()
+    {
+        var middleware = new ErrorHandlingMiddleware(
+            _ => throw new UnauthorizedAccessException("Invalid email or password."),
+            NullLogger<ErrorHandlingMiddleware>.Instance);
+
+        var context = CreateContext();
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
+        using var doc = JsonDocument.Parse(await ReadResponseBodyAsync(context));
+        Assert.Equal("Invalid email or password.", doc.RootElement.GetProperty("message").GetString());
+        Assert.False(context.Response.Headers.ContainsKey("Retry-After"));
+    }
+
+    [Fact]
+    public async Task ErrorHandlingMiddleware_handles_AccountLockedException_as_423_with_Retry_After()
+    {
+        var middleware = new ErrorHandlingMiddleware(
+            _ => throw new AccountLockedException(840),
+            NullLogger<ErrorHandlingMiddleware>.Instance);
+
+        var context = CreateContext();
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status423Locked, context.Response.StatusCode);
+        Assert.Equal("840", context.Response.Headers.RetryAfter.ToString());
+        using var doc = JsonDocument.Parse(await ReadResponseBodyAsync(context));
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, doc.RootElement.GetProperty("data").ValueKind);
+    }
+
+    [Fact]
+    public async Task ErrorHandlingMiddleware_handles_BadGatewayException_as_502_with_its_message()
+    {
+        var middleware = new ErrorHandlingMiddleware(
+            _ => throw new BadGatewayException("Refund failed."),
+            NullLogger<ErrorHandlingMiddleware>.Instance);
+
+        var context = CreateContext();
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status502BadGateway, context.Response.StatusCode);
+        using var doc = JsonDocument.Parse(await ReadResponseBodyAsync(context));
+        Assert.Equal("Refund failed.", doc.RootElement.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task ErrorHandlingMiddleware_handles_unexpected_exception_as_500_without_leaking_message()
     {
         var middleware = new ErrorHandlingMiddleware(
