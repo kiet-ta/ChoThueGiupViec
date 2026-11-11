@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DataTable, type Column } from '@/components/data-table'
+import { DataTable, type Column, type SortState } from '@/components/data-table'
 import { StatusBadge } from '@/components/status'
 import { Button } from '@/components/ui/button'
 import { errorText, useResource } from '@/hooks/use-resource'
@@ -10,6 +10,8 @@ import type { ChainResult, LedgerFilters } from './types'
 import {
   ENTRY_TYPE_OPTIONS,
   EMPTY_FILTERS,
+  LEDGER_DEFAULT_SORT,
+  LEDGER_SORT,
   NO_DISCREPANCY,
   PARTY_TYPE_OPTIONS,
   entryRow,
@@ -22,12 +24,12 @@ import {
 } from './view'
 
 const COLUMNS: Column<EntryRow>[] = [
-  { id: 'code', header: 'Mã GD', cell: (r) => <span className="font-mono text-xs font-semibold">{r.code}</span> },
-  { id: 'time', header: 'Thời gian', cell: (r) => <span className="whitespace-nowrap">{r.time}</span> },
+  { id: 'code', header: 'Mã GD', sortKey: LEDGER_SORT.code, sortLabel: 'mã giao dịch', cell: (r) => <span className="font-mono text-xs font-semibold">{r.code}</span> },
+  { id: 'time', header: 'Thời gian', sortKey: LEDGER_SORT.time, sortLabel: 'thời gian', cell: (r) => <span className="whitespace-nowrap">{r.time}</span> },
   { id: 'from', header: 'Bên chuyển', cell: (r) => r.from },
   { id: 'to', header: 'Bên nhận', cell: (r) => r.to },
   { id: 'type', header: 'Loại', cell: (r) => r.type },
-  { id: 'amount', header: 'Số tiền', align: 'right', cell: (r) => <span className="tabular-nums">{r.amount}</span> },
+  { id: 'amount', header: 'Số tiền', align: 'right', sortKey: LEDGER_SORT.amount, sortLabel: 'số tiền', cell: (r) => <span className="tabular-nums">{r.amount}</span> },
   { id: 'reference', header: 'Tham chiếu', cell: (r) => r.reference },
   { id: 'hash', header: 'Hash', cell: (r) => <span title={r.fullHash} className="font-mono text-xs text-muted-foreground">{r.hash}</span> },
 ]
@@ -39,6 +41,7 @@ export function LedgerPage() {
   const [draft, setDraft] = useState<LedgerFilters>(EMPTY_FILTERS)
   const [applied, setApplied] = useState<LedgerFilters>(EMPTY_FILTERS)
   const [page, setPage] = useState(1)
+  const [sort, setSort] = useState<SortState | null>(LEDGER_DEFAULT_SORT)
   const [verify, setVerify] = useState<{ busy: boolean; result: ChainResult | null; error: string | null }>({ busy: false, result: null, error: null })
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState<string | null>(null)
@@ -47,7 +50,7 @@ export function LedgerPage() {
   const hasErrors = Object.keys(errors).length > 0
 
   const summary = useResource(() => ledgerApi.summary(), [])
-  const list = useResource(() => ledgerApi.list(applied, page), [applied, page])
+  const list = useResource(() => ledgerApi.list(applied, page, sort), [applied, page, sort])
   const reconciliation = useResource(() => ledgerApi.reconciliation(), [])
 
   const cards = summaryCards(summary.data)
@@ -186,6 +189,11 @@ export function LedgerPage() {
 
       <DataTable
         columns={COLUMNS}
+        sort={sort}
+        onSortChange={(next) => {
+          setPage(1)
+          setSort(next)
+        }}
         rows={rows}
         rowKey={(r) => r.entryId}
         loading={list.loading && !list.data}

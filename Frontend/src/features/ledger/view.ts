@@ -1,4 +1,5 @@
 // Pure logic of the ledger page (no React, so `node --test` covers it). Rules: .spec/contracts/ledger.md sections 3 and 9.
+import { sortParams, type SortState } from '../../components/data-table/sort.ts'
 import { formatDateTime, formatVnd } from '../../lib/format.ts'
 import type { ChainResult, LedgerEntry, LedgerFilters, LedgerSummary, ReconciliationReport, Withdrawal, WithdrawalStatus } from './types'
 
@@ -182,7 +183,7 @@ export function filterErrors(f: LedgerFilters): Partial<Record<keyof LedgerFilte
 }
 
 /** The query of the list or the statement: empty filters are left out. */
-export function toQuery(f: LedgerFilters, page?: number, pageSize?: number): Record<string, string | number | undefined> {
+export function toQuery(f: LedgerFilters, page?: number, pageSize?: number, sort: SortState | null = null): Record<string, string | number | undefined> {
   return {
     from: f.from || undefined,
     to: f.to || undefined,
@@ -191,7 +192,24 @@ export function toQuery(f: LedgerFilters, page?: number, pageSize?: number): Rec
     partyId: f.partyType !== '' && f.partyId !== '' ? Number(f.partyId) : undefined,
     page,
     pageSize,
+    ...sortParams(sort),
   }
+}
+
+// ---- sorting by a column header (contract ledger.md section 6: the `sort` and `dir` parameters) ----------------------------
+
+/** The `sort` names of the Admin ledger table: the entry code, the time it was written and the amount. */
+export const LEDGER_SORT = { code: 'entryCode', time: 'createdAt', amount: 'amount' } as const
+
+/** The table opens newest first, which is `createdAt` descending (what the server does without a sort); one click on the time flips it. */
+export const LEDGER_DEFAULT_SORT: SortState = { key: LEDGER_SORT.time, dir: 'desc' }
+
+/** The `sort` names of the withdrawal approval table: the worker's name, the amount, the bank account, the time sent and the status. */
+export const WITHDRAWAL_SORT = { worker: 'worker', amount: 'amount', bank: 'bank', sent: 'requestedAt', status: 'status' } as const
+
+/** The query of `GET /admin/withdrawals`: the tab, the page and, once a header was clicked, the order (before that the server keeps its queue order). */
+export function withdrawalQuery(status: WithdrawalStatus, page: number, pageSize: number, sort: SortState | null): Record<string, string | number | undefined> {
+  return { status, page, pageSize, ...sortParams(sort) }
 }
 
 export function sameFilters(a: LedgerFilters, b: LedgerFilters): boolean {
