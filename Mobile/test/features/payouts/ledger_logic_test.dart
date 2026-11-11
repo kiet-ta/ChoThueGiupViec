@@ -100,7 +100,7 @@ void main() {
       expect(entryTypeLabel('WITHDRAWAL'), 'Rút tiền (ứng lương)');
       expect(entryTypeLabel('UNKNOWN'), 'UNKNOWN');
       expect(partyLabel('PLATFORM_CLEARING', null), 'Tiền giữ hộ khách');
-      expect(partyLabel('WORKER', 3), 'Ví của bạn');
+      expect(partyLabel('WORKER', 3), 'Thu nhập của bạn');
       expect(partyLabel('AGENCY', 4), 'Agency #4');
       expect(referenceLabel('ASSIGNMENT', 10, 41), 'Ca #10 · đơn #41');
       expect(referenceLabel('ORDER', 41, 41), 'Đơn #41');
@@ -182,7 +182,7 @@ void main() {
       final row = ledgerRow(entry(signed: null));
       expect(
         [row.tone, row.amount, row.counterparty],
-        ['plain', '208.000 đ', 'Tiền giữ hộ khách → Ví của bạn'],
+        ['plain', '208.000 đ', 'Tiền giữ hộ khách → Thu nhập của bạn'],
       );
     });
   });
@@ -239,7 +239,7 @@ void main() {
     test('explain a forbidden, a bad period and a missing page', () {
       expect(
         ledgerFailureMessage(const ApiException(403, 'x')),
-        contains('không có ví riêng'),
+        contains('không có số dư riêng'),
       );
       expect(
         ledgerFailureMessage(const ApiException(400, 'x')),

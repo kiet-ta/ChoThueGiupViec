@@ -187,7 +187,7 @@ void main() {
     test('tell an agency worker why there is no wallet and reload after a conflict', () {
       expect(
         walletFailureMessage(const ApiException(403, 'x')),
-        contains('không có ví riêng'),
+        contains('không có số dư riêng'),
       );
       expect(walletFailureMessage(const ApiException(500, 'boom')), 'boom');
       expect(shouldReloadWalletAfter(const ApiException(409, 'x')), isTrue);

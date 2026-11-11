@@ -107,7 +107,7 @@ void main() {
       );
       expect(
         bankFailureMessage(const ApiException(403, 'x')),
-        contains('không có ví riêng'),
+        contains('không có số dư riêng'),
       );
       expect(bankFailureMessage(const ApiException(500, 'boom')), 'boom');
     });

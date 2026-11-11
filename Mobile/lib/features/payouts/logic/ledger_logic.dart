@@ -26,7 +26,7 @@ const Map<String, String> _partyLabels = {
   'EXTERNAL': 'Bên ngoài',
   'PLATFORM_CLEARING': 'Tiền giữ hộ khách',
   'PLATFORM_REVENUE': 'Doanh thu nền tảng',
-  'WORKER': 'Ví của bạn',
+  'WORKER': 'Thu nhập của bạn',
   'AGENCY': 'Agency',
   'AGENCY_ESCROW': 'Ký quỹ Agency',
 };
@@ -179,7 +179,7 @@ List<StatementLine> statementSummary(WorkerStatement s) => [
 /// What a failed load of the history or the statement is told to the worker.
 String ledgerFailureMessage(ApiException e) {
   if (e.isForbidden) {
-    return 'Bạn làm việc cho một đại lý nên tiền công được trả cho đại lý, bạn không có ví riêng.';
+    return 'Bạn làm việc cho một đại lý nên tiền công được trả cho đại lý, bạn không có số dư riêng.';
   }
   if (e.statusCode == 400) return 'Khoảng thời gian đã chọn không hợp lệ.';
   if (e.isNotFound) return 'Không tìm thấy dữ liệu giao dịch.';
