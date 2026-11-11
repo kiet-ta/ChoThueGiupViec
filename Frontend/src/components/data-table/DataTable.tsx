@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Pagination, type PaginationProps } from './Pagination'
+import { ariaSort, nextSort, sortHint, type SortState } from './sort'
 
 export interface Column<T> {
   id: string
@@ -10,6 +12,10 @@ export interface Column<T> {
   align?: 'left' | 'center' | 'right'
   /** Extra classes for the th/td, e.g. 'min-w-48' or 'w-32'. */
   className?: string
+  /** The API name of the column to sort by (the `sort` parameter); the header becomes a button when the table has `onSortChange`. */
+  sortKey?: string
+  /** The header as plain text for the tooltip and the screen reader; defaults to `header` when that is a string. */
+  sortLabel?: string
 }
 
 export interface DataTableProps<T> {
@@ -26,6 +32,10 @@ export interface DataTableProps<T> {
   toolbar?: ReactNode
   /** Server-side paging; omit for an unpaged table. */
   pagination?: PaginationProps
+  /** The column the server is sorting by, if any; shows the arrow and `aria-sort` of that header. */
+  sort?: SortState | null
+  /** Called with the next sort when a sortable header is clicked (the caller reloads from page 1); without it no header is sortable. */
+  onSortChange?: (next: SortState) => void
   skeletonRows?: number
 }
 
@@ -47,6 +57,8 @@ export function DataTable<T>({
   onRowClick,
   toolbar,
   pagination,
+  sort = null,
+  onSortChange,
   skeletonRows = 5,
 }: DataTableProps<T>) {
   const colSpan = columns.length
@@ -107,11 +119,41 @@ export function DataTable<T>({
         <table className="w-full min-w-max border-collapse text-sm" aria-busy={loading}>
           <thead>
             <tr className="text-xs tracking-wide text-muted-foreground uppercase">
-              {columns.map((c) => (
-                <th key={c.id} scope="col" className={cn('px-4 py-3 font-medium', ALIGN[c.align ?? 'left'], c.className)}>
-                  {c.header}
-                </th>
-              ))}
+              {columns.map((c) => {
+                const sortable = c.sortKey !== undefined && onSortChange !== undefined
+                const activeSort = sortable && sort !== null && sort.key === c.sortKey ? sort : null
+                const label = c.sortLabel ?? (typeof c.header === 'string' ? c.header : c.id)
+                return (
+                  <th
+                    key={c.id}
+                    scope="col"
+                    aria-sort={sortable ? ariaSort(sort, c.sortKey!) : undefined}
+                    className={cn('px-4 py-3 font-medium', ALIGN[c.align ?? 'left'], c.className)}
+                  >
+                    {sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => onSortChange(nextSort(sort, c.sortKey!))}
+                        title={sortHint(sort, c.sortKey!, label)}
+                        aria-label={sortHint(sort, c.sortKey!, label)}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded uppercase outline-offset-4 hover:text-foreground',
+                          activeSort !== null && 'text-foreground',
+                        )}
+                      >
+                        {c.header}
+                        {activeSort !== null ? (
+                          activeSort.dir === 'asc' ? <ArrowUp className="size-3.5" aria-hidden="true" /> : <ArrowDown className="size-3.5" aria-hidden="true" />
+                        ) : (
+                          <ArrowUpDown className="size-3.5 opacity-40" aria-hidden="true" />
+                        )}
+                      </button>
+                    ) : (
+                      c.header
+                    )}
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>{body}</tbody>

@@ -1,8 +1,22 @@
 // Pure logic of the payout pages (no React, so `node --test` covers it). Rules: .spec/contracts/payouts.md 2.1-2.4.
+import { sortParams, type SortState } from '../../components/data-table/sort.ts'
 import { formatDateTime, formatVnd } from '../../lib/format.ts'
 import type { BatchStatus, ExportType, PayoutBatch, PayoutItem } from './types'
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent'
+
+// ---- sorting by a column header (contract payouts.md 2.2: the `sort` and `dir` parameters) -------------------------------
+
+/** The `sort` names of the batch table: the month, the status, the number of payees, the total paid out and the time the system closed it. */
+export const BATCH_SORT = { period: 'period', status: 'status', items: 'items', total: 'total', closed: 'closedAt' } as const
+
+/** The table opens with the newest month first, which is `period` descending (what the server does without a sort). */
+export const BATCH_DEFAULT_SORT: SortState = { key: BATCH_SORT.period, dir: 'desc' }
+
+/** The query of `GET /admin/payout-batches`: the page and the order. */
+export function batchQuery(page: number, pageSize: number, sort: SortState | null): Record<string, string | number | undefined> {
+  return { page, pageSize, ...sortParams(sort) }
+}
 
 // ---- months ---------------------------------------------------------------------------------
 

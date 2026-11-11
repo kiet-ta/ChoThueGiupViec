@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { DataTable, type Column } from '@/components/data-table'
+import { DataTable, type Column, type SortState } from '@/components/data-table'
 import { StatusBadge } from '@/components/status'
 import { Button } from '@/components/ui/button'
 import { useResource } from '@/hooks/use-resource'
@@ -8,6 +8,7 @@ import { withdrawalsApi, PAGE_SIZE } from './api'
 import type { WithdrawalStatus } from './types'
 import {
   REASON_MAX,
+  WITHDRAWAL_SORT,
   WITHDRAWAL_TABS,
   approveConfirmText,
   reasonError,
@@ -23,6 +24,8 @@ type Action = { kind: 'approve' | 'reject'; row: WithdrawalRow }
 export function WithdrawalsPage() {
   const [status, setStatus] = useState<WithdrawalStatus>('PENDING')
   const [page, setPage] = useState(1)
+  // Until a header is clicked the server keeps its queue order (the pending ones oldest first); the order stays when the tab changes.
+  const [sort, setSort] = useState<SortState | null>(null)
   const [version, setVersion] = useState(0)
   const [action, setAction] = useState<Action | null>(null)
   const [reason, setReason] = useState('')
@@ -31,7 +34,7 @@ export function WithdrawalsPage() {
   const [done, setDone] = useState<string | null>(null)
   const inFlight = useRef(false) // a second click while a decision runs must not send another one
 
-  const list = useResource(() => withdrawalsApi.list(status, page), [status, page, version])
+  const list = useResource(() => withdrawalsApi.list(status, page, sort), [status, page, sort, version])
   const rows = list.data ? list.data.items.map(withdrawalRow) : []
 
   function open(kind: Action['kind'], row: WithdrawalRow) {
@@ -77,6 +80,8 @@ export function WithdrawalsPage() {
     {
       id: 'worker',
       header: 'Thợ',
+      sortKey: WITHDRAWAL_SORT.worker,
+      sortLabel: 'thợ',
       cell: (r) => (
         <div>
           <div className="font-medium">{r.worker}</div>
@@ -84,10 +89,10 @@ export function WithdrawalsPage() {
         </div>
       ),
     },
-    { id: 'amount', header: 'Số tiền', align: 'right', cell: (r) => <span className="font-semibold tabular-nums">{r.amount}</span> },
-    { id: 'bank', header: 'Tài khoản nhận', cell: (r) => r.bank },
-    { id: 'requestedAt', header: 'Gửi lúc', cell: (r) => <span className="whitespace-nowrap">{r.requestedAt}</span> },
-    { id: 'status', header: 'Trạng thái', cell: (r) => <StatusBadge tone={r.status.tone}>{r.status.label}</StatusBadge> },
+    { id: 'amount', header: 'Số tiền', align: 'right', sortKey: WITHDRAWAL_SORT.amount, sortLabel: 'số tiền', cell: (r) => <span className="font-semibold tabular-nums">{r.amount}</span> },
+    { id: 'bank', header: 'Tài khoản nhận', sortKey: WITHDRAWAL_SORT.bank, sortLabel: 'tài khoản nhận', cell: (r) => r.bank },
+    { id: 'requestedAt', header: 'Gửi lúc', sortKey: WITHDRAWAL_SORT.sent, sortLabel: 'thời gian gửi', cell: (r) => <span className="whitespace-nowrap">{r.requestedAt}</span> },
+    { id: 'status', header: 'Trạng thái', sortKey: WITHDRAWAL_SORT.status, sortLabel: 'trạng thái', cell: (r) => <StatusBadge tone={r.status.tone}>{r.status.label}</StatusBadge> },
     { id: 'detail', header: 'Ghi chú', cell: (r) => <span className="text-sm text-muted-foreground">{r.detail || '—'}</span> },
     {
       id: 'action',
@@ -186,6 +191,11 @@ export function WithdrawalsPage() {
 
       <DataTable
         columns={columns}
+        sort={sort}
+        onSortChange={(next) => {
+          setPage(1)
+          setSort(next)
+        }}
         rows={rows}
         rowKey={(r) => r.withdrawalId}
         loading={list.loading && !list.data}
