@@ -16,6 +16,7 @@ import '../models/dispute_models.dart';
 import '../services/disputes_service.dart';
 import '../services/api_evidence_uploader.dart';
 import '../services/evidence_uploader.dart';
+import '../widgets/evidence_thumbnail.dart';
 
 /// The form that files a dispute about one order (MOB-M6-03); contract disputes.md 2.1.
 /// Evidence photos go through [IEvidenceUploader] (by default [ApiEvidenceUploader]); when the uploader is unavailable the form
@@ -337,20 +338,8 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                   ),
                   child: Stack(
                     children: [
-                      Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.image_outlined,
-                              color: NordicColors.textSecondary,
-                            ),
-                            Text(
-                              'Ảnh ${i + 1}',
-                              style: NordicTypography.bodySmall,
-                            ),
-                          ],
-                        ),
+                      Positioned.fill(
+                        child: EvidenceThumbnail(url: _evidence[i], index: i),
                       ),
                       Positioned(
                         top: 0.0,
@@ -359,6 +348,11 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                           key: Key('dispute-remove-$i'),
                           tooltip: 'Bỏ ảnh ${i + 1}',
                           iconSize: 18.0,
+                          style: IconButton.styleFrom(
+                            backgroundColor: NordicColors.surface.withValues(
+                              alpha: 0.85,
+                            ),
+                          ),
                           icon: const Icon(Icons.close),
                           onPressed: () =>
                               setState(() => _evidence.removeAt(i)),
