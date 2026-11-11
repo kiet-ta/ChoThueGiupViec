@@ -19,14 +19,18 @@ public record RejectWithdrawalRequestDto(string? Reason);
 [Authorize(Policy = "AdminOnly")]
 public class AdminWithdrawalsController(IAdminWithdrawalService withdrawals, ICurrentUser currentUser) : ControllerBase
 {
-    /// <summary>The requests of every worker, optionally of one <c>status</c> (PENDING, PAID, REJECTED, CANCELLED); <c>pageSize</c> is 1-100, default 20.</summary>
+    /// <summary>
+    /// The requests of every worker, optionally of one <c>status</c> (PENDING, PAID, REJECTED, CANCELLED); <c>pageSize</c> is 1-100, default 20.
+    /// <c>sort</c> (worker, amount, bank, requestedAt, status) and <c>dir</c> (asc, desc) order all pages; without them the pending queue is oldest first.
+    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<AdminWithdrawalPageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> List([FromQuery] string? status, [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct) =>
-        Ok(ApiResponse<AdminWithdrawalPageDto>.Ok(await withdrawals.ListAsync(status, page, pageSize, ct), "Withdrawals retrieved."));
+    public async Task<IActionResult> List(
+        [FromQuery] string? status, [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] string? sort, [FromQuery] string? dir, CancellationToken ct) =>
+        Ok(ApiResponse<AdminWithdrawalPageDto>.Ok(await withdrawals.ListAsync(status, page, pageSize, sort, dir, ct), "Withdrawals retrieved."));
 
     /// <summary>
     /// Approves a pending request: in one transaction the withdrawable amount is recomputed, the WITHDRAWAL entry is written and the

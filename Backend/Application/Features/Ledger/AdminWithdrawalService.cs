@@ -13,9 +13,22 @@ public record AdminWithdrawalDto(
 
 public record AdminWithdrawalPageDto(IReadOnlyList<AdminWithdrawalDto> Items, int Page, int PageSize, int Total);
 
+/// <summary>The column of the Admin's request list: the worker's name, the amount, the bank account, the time it was sent or the status.</summary>
+public enum AdminWithdrawalSortKey
+{
+    Worker,
+    Amount,
+    Bank,
+    RequestedAt,
+    Status,
+}
+
+public record AdminWithdrawalSort(AdminWithdrawalSortKey Key, bool Descending);
+
 public interface IAdminWithdrawalService
 {
-    Task<AdminWithdrawalPageDto> ListAsync(string? status, int? page, int? pageSize, CancellationToken cancellationToken = default);
+    /// <summary><c>sort</c> is worker, amount, bank, requestedAt or status and <c>dir</c> asc or desc (default desc); a <c>dir</c> alone orders by the time sent.</summary>
+    Task<AdminWithdrawalPageDto> ListAsync(string? status, int? page, int? pageSize, string? sort = null, string? dir = null, CancellationToken cancellationToken = default);
     Task<WithdrawalDto> ApproveAsync(int adminId, int withdrawalId, CancellationToken cancellationToken = default);
     Task<WithdrawalDto> RejectAsync(int adminId, int withdrawalId, string? reason, CancellationToken cancellationToken = default);
 }
@@ -48,7 +61,7 @@ public class AdminWithdrawalService(
     private const string AuditEntityType = "WITHDRAWAL_REQUEST";
     private const string AuditStatusField = "request_status";
 
-    public async Task<AdminWithdrawalPageDto> ListAsync(string? status, int? page, int? pageSize, CancellationToken cancellationToken = default)
+    public async Task<AdminWithdrawalPageDto> ListAsync(string? status, int? page, int? pageSize, string? sort = null, string? dir = null, CancellationToken cancellationToken = default)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         WithdrawalStatus? parsed = null;
@@ -61,10 +74,45 @@ public class AdminWithdrawalService(
 
         if (page is < 1) errors["page"] = ["page must be at least 1."];
         if (pageSize is < 1 or > MaxPageSize) errors["pageSize"] = [$"pageSize must be between 1 and {MaxPageSize}."];
+        var order = ParseSort(sort, dir, errors);
         if (errors.Count > 0) throw new ValidationException(errors);
 
-        var (rows, total) = await repository.ListForAdminAsync(parsed, page ?? 1, pageSize ?? DefaultPageSize, cancellationToken);
+        var (rows, total) = await repository.ListForAdminAsync(parsed, page ?? 1, pageSize ?? DefaultPageSize, order, cancellationToken);
         return new AdminWithdrawalPageDto(rows.Select(ToAdminDto).ToList(), page ?? 1, pageSize ?? DefaultPageSize, total);
+    }
+
+    private static AdminWithdrawalSort? ParseSort(string? sort, string? dir, Dictionary<string, string[]> errors)
+    {
+        var descending = true;
+        var hasDir = !string.IsNullOrWhiteSpace(dir);
+        if (hasDir)
+        {
+            switch (dir!.Trim().ToLowerInvariant())
+            {
+                case "asc": descending = false; break;
+                case "desc": descending = true; break;
+                default: errors["dir"] = ["dir must be asc or desc."]; hasDir = false; break;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(sort)) return hasDir ? new AdminWithdrawalSort(AdminWithdrawalSortKey.RequestedAt, descending) : null;
+
+        AdminWithdrawalSortKey? key = sort.Trim().ToLowerInvariant() switch
+        {
+            "worker" => AdminWithdrawalSortKey.Worker,
+            "amount" => AdminWithdrawalSortKey.Amount,
+            "bank" => AdminWithdrawalSortKey.Bank,
+            "requestedat" => AdminWithdrawalSortKey.RequestedAt,
+            "status" => AdminWithdrawalSortKey.Status,
+            _ => null,
+        };
+        if (key is null)
+        {
+            errors["sort"] = ["sort must be one of: worker, amount, bank, requestedAt, status."];
+            return null;
+        }
+
+        return new AdminWithdrawalSort(key.Value, descending);
     }
 
     public async Task<WithdrawalDto> ApproveAsync(int adminId, int withdrawalId, CancellationToken cancellationToken = default)

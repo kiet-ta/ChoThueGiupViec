@@ -51,9 +51,12 @@ public interface IWithdrawalRepository
     /// <summary>Any worker's request by id (the Admin's view); null when it does not exist.</summary>
     Task<WithdrawalRequest?> GetByIdAsync(int withdrawalId, CancellationToken cancellationToken = default);
 
-    /// <summary>The requests of every worker, optionally of one status; the pending queue oldest first, the others newest first.</summary>
+    /// <summary>
+    /// The requests of every worker, optionally of one status. Without a <paramref name="sort"/> the pending queue is oldest first and the
+    /// others newest first; with one the order is applied before paging, ties by the request id in the same direction.
+    /// </summary>
     Task<(IReadOnlyList<AdminWithdrawalRow> Items, int Total)> ListForAdminAsync(
-        WithdrawalStatus? status, int page, int pageSize, CancellationToken cancellationToken = default);
+        WithdrawalStatus? status, int page, int pageSize, AdminWithdrawalSort? sort, CancellationToken cancellationToken = default);
 
     /// <summary>One conditional update PENDING to PAID with the ledger entry and the reviewer; false when no longer pending.</summary>
     Task<bool> TryApproveAsync(int withdrawalId, long entryId, int adminId, DateTime atUtc, CancellationToken cancellationToken = default);

@@ -104,15 +104,38 @@ public class EfWithdrawalRepository(AppDbContext db) : IWithdrawalRepository
     public Task<WithdrawalRequest?> GetByIdAsync(int withdrawalId, CancellationToken cancellationToken = default) =>
         db.WithdrawalRequests.AsNoTracking().FirstOrDefaultAsync(w => w.WithdrawalId == withdrawalId, cancellationToken);
 
+    /// <summary>The requested order, ties by the request id in the same direction; no sort keeps the queue order (oldest first when pending, newest first otherwise).</summary>
+    private IOrderedQueryable<WithdrawalRequest> Ordered(IQueryable<WithdrawalRequest> query, WithdrawalStatus? status, AdminWithdrawalSort? sort)
+    {
+        if (sort is null)
+        {
+            return status == WithdrawalStatus.Pending
+                ? query.OrderBy(w => w.RequestedAt).ThenBy(w => w.WithdrawalId)
+                : query.OrderByDescending(w => w.RequestedAt).ThenByDescending(w => w.WithdrawalId);
+        }
+
+        var desc = sort.Descending;
+        return sort.Key switch
+        {
+            AdminWithdrawalSortKey.Amount => desc ? query.OrderByDescending(w => w.Amount).ThenByDescending(w => w.WithdrawalId) : query.OrderBy(w => w.Amount).ThenBy(w => w.WithdrawalId),
+            AdminWithdrawalSortKey.Status => desc ? query.OrderByDescending(w => w.RequestStatus).ThenByDescending(w => w.WithdrawalId) : query.OrderBy(w => w.RequestStatus).ThenBy(w => w.WithdrawalId),
+            AdminWithdrawalSortKey.Bank => desc
+                ? query.OrderByDescending(w => w.BankName).ThenByDescending(w => w.BankAccountNo).ThenByDescending(w => w.WithdrawalId)
+                : query.OrderBy(w => w.BankName).ThenBy(w => w.BankAccountNo).ThenBy(w => w.WithdrawalId),
+            AdminWithdrawalSortKey.Worker => desc
+                ? query.OrderByDescending(w => db.Workers.Where(x => x.WorkerId == w.WorkerId).Select(x => x.FullName).FirstOrDefault()).ThenByDescending(w => w.WithdrawalId)
+                : query.OrderBy(w => db.Workers.Where(x => x.WorkerId == w.WorkerId).Select(x => x.FullName).FirstOrDefault()).ThenBy(w => w.WithdrawalId),
+            _ => desc ? query.OrderByDescending(w => w.RequestedAt).ThenByDescending(w => w.WithdrawalId) : query.OrderBy(w => w.RequestedAt).ThenBy(w => w.WithdrawalId),
+        };
+    }
+
     public async Task<(IReadOnlyList<AdminWithdrawalRow> Items, int Total)> ListForAdminAsync(
-        WithdrawalStatus? status, int page, int pageSize, CancellationToken cancellationToken = default)
+        WithdrawalStatus? status, int page, int pageSize, AdminWithdrawalSort? sort, CancellationToken cancellationToken = default)
     {
         var query = db.WithdrawalRequests.AsNoTracking().AsQueryable();
         if (status is not null) query = query.Where(w => w.RequestStatus == status);
         var total = await query.CountAsync(cancellationToken);
-        var ordered = status == WithdrawalStatus.Pending
-            ? query.OrderBy(w => w.RequestedAt).ThenBy(w => w.WithdrawalId)
-            : query.OrderByDescending(w => w.RequestedAt).ThenByDescending(w => w.WithdrawalId);
+        var ordered = Ordered(query, status, sort);
         var requests = await ordered.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
         var workerIds = requests.Select(r => r.WorkerId).Distinct().ToList();

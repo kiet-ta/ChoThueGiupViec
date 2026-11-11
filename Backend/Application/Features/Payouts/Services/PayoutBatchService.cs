@@ -45,7 +45,8 @@ public interface IPayoutBatchService
     /// </summary>
     Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, bool allowUnfinishedMonth = false, CancellationToken cancellationToken = default);
 
-    Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, CancellationToken cancellationToken = default);
+    /// <summary><c>sort</c> is period, status, items, total or closedAt and <c>dir</c> asc or desc (default desc); a <c>dir</c> alone orders by month.</summary>
+    Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, string? sort = null, string? dir = null, CancellationToken cancellationToken = default);
 
     Task<PayoutResult<PayoutBatchDetailDto>> GetAsync(
         int batchId, string? payeeType, string? page, string? pageSize, CancellationToken cancellationToken = default);
@@ -203,15 +204,50 @@ public class PayoutBatchService(
         return PayoutSettlementCalculator.Compute(type, id, entries, commissions, fromUtc, toUtc, held);
     }
 
-    public async Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, CancellationToken cancellationToken = default)
+    private static PayoutBatchSort? ParseSort(string? sort, string? dir, Dictionary<string, string[]> errors)
+    {
+        var descending = true;
+        var hasDir = !string.IsNullOrWhiteSpace(dir);
+        if (hasDir)
+        {
+            switch (dir!.Trim().ToLowerInvariant())
+            {
+                case "asc": descending = false; break;
+                case "desc": descending = true; break;
+                default: errors["dir"] = ["dir must be asc or desc."]; hasDir = false; break;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(sort)) return hasDir ? new PayoutBatchSort(PayoutBatchSortKey.Period, descending) : null;
+
+        PayoutBatchSortKey? key = sort.Trim().ToLowerInvariant() switch
+        {
+            "period" => PayoutBatchSortKey.Period,
+            "status" => PayoutBatchSortKey.Status,
+            "items" => PayoutBatchSortKey.Items,
+            "total" => PayoutBatchSortKey.Total,
+            "closedat" => PayoutBatchSortKey.ClosedAt,
+            _ => null,
+        };
+        if (key is null)
+        {
+            errors["sort"] = ["sort must be one of: period, status, items, total, closedAt."];
+            return null;
+        }
+
+        return new PayoutBatchSort(key.Value, descending);
+    }
+
+    public async Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, string? sort = null, string? dir = null, CancellationToken cancellationToken = default)
     {
         var errors = new Dictionary<string, string[]>();
         var pageNumber = ParseInt(page, 1, 1, int.MaxValue, "page", "Page must be an integer of at least 1.", errors);
         var size = ParseInt(pageSize, PayoutConstants.DefaultPageSize, 1, PayoutConstants.MaxPageSize, "pageSize",
             $"Page size must be an integer between 1 and {PayoutConstants.MaxPageSize}.", errors);
+        var order = ParseSort(sort, dir, errors);
         if (errors.Count > 0) return PayoutResult<PayoutBatchPageDto>.ValidationError(errors);
 
-        var (batches, total) = await payouts.ListBatchesAsync(pageNumber, size, cancellationToken);
+        var (batches, total) = await payouts.ListBatchesAsync(pageNumber, size, order, cancellationToken);
         var counts = await payouts.CountItemsAsync(batches.Select(b => b.BatchId).ToList(), cancellationToken);
         return PayoutResult<PayoutBatchPageDto>.Ok(new PayoutBatchPageDto
         {

@@ -348,8 +348,8 @@ public class LedgerHistoryTests
         var history = new StubHistory();
         var controller = new AdminLedgerController(new StubReconciliation(), history, null!);
 
-        Assert.IsType<OkObjectResult>(await controller.List("2026-11-01", "2026-11-30", "COMMISSION", "WORKER", 7, 2, 50, default));
-        Assert.Equal(new LedgerHistoryRequest("2026-11-01", "2026-11-30", "COMMISSION", 2, 50, "WORKER", 7), history.LastRequest);
+        Assert.IsType<OkObjectResult>(await controller.List("2026-11-01", "2026-11-30", "COMMISSION", "WORKER", 7, 2, 50, "amount", "asc", default));
+        Assert.Equal(new LedgerHistoryRequest("2026-11-01", "2026-11-30", "COMMISSION", 2, 50, "WORKER", 7, "amount", "asc"), history.LastRequest);
         var summary = Assert.IsType<ApiResponse<LedgerSummaryDto>>(Assert.IsType<OkObjectResult>(await controller.Summary(default)).Value);
         Assert.Equal(5m, summary.Data!.Held);
         var verify = Assert.IsType<ApiResponse<LedgerChainResult>>(Assert.IsType<OkObjectResult>(await controller.Verify(default)).Value);

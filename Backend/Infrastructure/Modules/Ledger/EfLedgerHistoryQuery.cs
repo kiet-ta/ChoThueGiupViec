@@ -30,9 +30,21 @@ public class EfLedgerHistoryQuery(AppDbContext db) : ILedgerHistoryQuery
         }
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await query.OrderByDescending(e => e.EntryId).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var items = await Ordered(query, search.Sort).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         return (items, total);
     }
+
+    /// <summary>The requested order, ties by entry id in the same direction; no sort is newest first (the entry id grows with time).</summary>
+    private static IOrderedQueryable<LedgerEntry> Ordered(IQueryable<LedgerEntry> query, LedgerSort? sort) => sort switch
+    {
+        null => query.OrderByDescending(e => e.EntryId),
+        { Key: LedgerSortKey.Amount, Descending: true } => query.OrderByDescending(e => e.Amount).ThenByDescending(e => e.EntryId),
+        { Key: LedgerSortKey.Amount } => query.OrderBy(e => e.Amount).ThenBy(e => e.EntryId),
+        { Key: LedgerSortKey.Time, Descending: true } => query.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.EntryId),
+        { Key: LedgerSortKey.Time } => query.OrderBy(e => e.CreatedAt).ThenBy(e => e.EntryId),
+        { Descending: true } => query.OrderByDescending(e => e.EntryId),
+        _ => query.OrderBy(e => e.EntryId),
+    };
 
     public async Task<decimal> GetBalanceBeforeAsync(LedgerParty party, DateTime? beforeUtc, CancellationToken cancellationToken = default)
     {

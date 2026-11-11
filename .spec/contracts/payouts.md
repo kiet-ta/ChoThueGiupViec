@@ -71,7 +71,7 @@ Aggregation (PRD §5.2, one table, 0 JOIN): select `JOB_ASSIGNMENT` rows with `a
 
 ### 2.2 Read batches
 
-**`GET /api/v1/admin/payout-batches?page=&pageSize=`** -> 200 `data: { items: PayoutBatch[], page, pageSize, total }`, newest month first.
+**`GET /api/v1/admin/payout-batches?page=&pageSize=&sort=&dir=`** -> 200 `data: { items: PayoutBatch[], page, pageSize, total }`, newest month first by default. `sort` is `period`, `status`, `items` (the number of payees), `total` or `closedAt` and `dir` is `asc` or `desc` (case-insensitive; `dir` defaults to `desc`; a `dir` alone orders by `period`); batches with an equal value are ordered by `batchId` in the same direction and a batch without a closing time comes first when ascending. The order is applied by the database before paging. An unknown `sort` or `dir` is a 400 that names the field.
 **`GET /api/v1/admin/payout-batches/{batchId}?payeeType=&page=&pageSize=`** -> 200 `data: { batch: PayoutBatch, items: PayoutItem[], page, pageSize, total, warnings: ["string"] }`. `warnings` lists items without bank data (**P4**). 404 if missing.
 
 ### 2.3 Bank export (BE-M6-05, WEB-M6-03)

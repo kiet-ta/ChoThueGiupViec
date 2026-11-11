@@ -41,9 +41,9 @@ public class AdminLedgerController(ILedgerReconciliationService reconciliation, 
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> List(
         [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? type, [FromQuery] string? partyType, [FromQuery] int? partyId,
-        [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct) =>
+        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] string? sort, [FromQuery] string? dir, CancellationToken ct) =>
         Ok(ApiResponse<AdminLedgerPageDto>.Ok(
-            await history.GetAdminHistoryAsync(new LedgerHistoryRequest(from, to, type, page, pageSize, partyType, partyId), ct), "Ledger retrieved."));
+            await history.GetAdminHistoryAsync(new LedgerHistoryRequest(from, to, type, page, pageSize, partyType, partyId, sort, dir), ct), "Ledger retrieved."));
 
     /// <summary>What the platform holds and owes: revenue, clearing, the net owed to workers and to agencies, and the pending withdrawals.</summary>
     [HttpGet("summary")]

@@ -6,7 +6,18 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Ledger;
 
 /// <summary>The query values of a history or an export, checked and turned into UTC bounds: <c>from</c>/<c>to</c> are Vietnam days (<c>yyyy-MM-dd</c>, both included).</summary>
-public record ParsedLedgerFilter(DateTime? FromUtc, DateTime? ToExclusiveUtc, LedgerEntryType? Type, int Page, int PageSize);
+public record ParsedLedgerFilter(DateTime? FromUtc, DateTime? ToExclusiveUtc, LedgerEntryType? Type, int Page, int PageSize, LedgerSort? Sort = null);
+
+/// <summary>The column a history is ordered by: the entry code (the same order as the entry id), the time it was written or the amount.</summary>
+public enum LedgerSortKey
+{
+    Code,
+    Time,
+    Amount,
+}
+
+/// <summary>The order of a history page: ties are broken by the entry id in the same direction. No sort means newest first.</summary>
+public record LedgerSort(LedgerSortKey Key, bool Descending);
 
 /// <summary>Reads <see cref="LedgerHistoryRequest"/> values; every mistake is collected under its field name and thrown as a 400.</summary>
 public class LedgerFilterParser(IClock clock)
@@ -30,11 +41,45 @@ public class LedgerFilterParser(IClock clock)
 
         if (request.Page is < 1) errors["page"] = ["page must be at least 1."];
         if (request.PageSize is < 1 or > MaxPageSize) errors["pageSize"] = [$"pageSize must be between 1 and {MaxPageSize}."];
+        var sort = ParseSort(request.Sort, request.Dir, errors);
 
         return new ParsedLedgerFilter(
             from is { } f ? LocalDayStartUtc(f) : null,
             to is { } t ? LocalDayStartUtc(t.AddDays(1)) : null, // the whole last day is included
-            type, request.Page ?? 1, request.PageSize ?? DefaultPageSize);
+            type, request.Page ?? 1, request.PageSize ?? DefaultPageSize, sort);
+    }
+
+    /// <summary><c>sort</c> is entryCode, createdAt or amount and <c>dir</c> asc or desc (default desc); a <c>dir</c> alone orders by time.</summary>
+    private static LedgerSort? ParseSort(string? sort, string? dir, Dictionary<string, string[]> errors)
+    {
+        var descending = true;
+        var hasDir = !string.IsNullOrWhiteSpace(dir);
+        if (hasDir)
+        {
+            switch (dir!.Trim().ToLowerInvariant())
+            {
+                case "asc": descending = false; break;
+                case "desc": descending = true; break;
+                default: errors["dir"] = ["dir must be asc or desc."]; hasDir = false; break;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(sort)) return hasDir ? new LedgerSort(LedgerSortKey.Time, descending) : null;
+
+        LedgerSortKey? key = sort.Trim().ToLowerInvariant() switch
+        {
+            "entrycode" => LedgerSortKey.Code,
+            "createdat" => LedgerSortKey.Time,
+            "amount" => LedgerSortKey.Amount,
+            _ => null,
+        };
+        if (key is null)
+        {
+            errors["sort"] = ["sort must be one of: entryCode, createdAt, amount."];
+            return null;
+        }
+
+        return new LedgerSort(key.Value, descending);
     }
 
     /// <summary>The Admin's account filter: <c>partyType</c> alone is every account of the type, with <c>partyId</c> one account.</summary>

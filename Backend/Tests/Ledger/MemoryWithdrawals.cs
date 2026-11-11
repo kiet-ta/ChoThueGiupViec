@@ -60,15 +60,39 @@ public class MemoryWithdrawals : IWithdrawalRepository
     }
 
     public Task<(IReadOnlyList<AdminWithdrawalRow> Items, int Total)> ListForAdminAsync(
-        WithdrawalStatus? status, int page, int pageSize, CancellationToken cancellationToken = default)
+        WithdrawalStatus? status, int page, int pageSize, AdminWithdrawalSort? sort, CancellationToken cancellationToken = default)
     {
         var all = Rows.Where(r => status is null || r.RequestStatus == status).ToList();
-        var ordered = status == WithdrawalStatus.Pending
-            ? all.OrderBy(r => r.RequestedAt).ThenBy(r => r.WithdrawalId)
-            : all.OrderByDescending(r => r.RequestedAt).ThenByDescending(r => r.WithdrawalId);
+        IEnumerable<WithdrawalRequest> ordered;
+        if (sort is null)
+        {
+            ordered = status == WithdrawalStatus.Pending
+                ? all.OrderBy(r => r.RequestedAt).ThenBy(r => r.WithdrawalId)
+                : all.OrderByDescending(r => r.RequestedAt).ThenByDescending(r => r.WithdrawalId);
+        }
+        else
+        {
+            // The same keys as the SQL repository; the worker is named "Worker {id}" here, compared as text like the database does.
+            Func<WithdrawalRequest, object?> key = sort.Key switch
+            {
+                AdminWithdrawalSortKey.Amount => r => r.Amount,
+                AdminWithdrawalSortKey.Status => r => DbEnum.ToDb(r.RequestStatus),
+                AdminWithdrawalSortKey.Bank => r => (r.BankName is null ? "0" : "1" + r.BankName) + "|" + (r.BankAccountNo is null ? "0" : "1" + r.BankAccountNo), // NULL first when ascending, like SQL Server
+                AdminWithdrawalSortKey.Worker => r => $"Worker {r.WorkerId}",
+                _ => r => r.RequestedAt,
+            };
+            ordered = sort.Descending
+                ? all.OrderByDescending(key, Comparer<object?>.Create(Compare)).ThenByDescending(r => r.WithdrawalId)
+                : all.OrderBy(key, Comparer<object?>.Create(Compare)).ThenBy(r => r.WithdrawalId);
+        }
+
         var items = ordered.Skip((page - 1) * pageSize).Take(pageSize).Select(r => new AdminWithdrawalRow(r, $"Worker {r.WorkerId}", $"09000000{r.WorkerId:00}")).ToList();
         return Task.FromResult<(IReadOnlyList<AdminWithdrawalRow>, int)>((items, all.Count));
     }
+
+    /// <summary>Text is compared ordinally so the expected order does not depend on the culture of the machine.</summary>
+    private static int Compare(object? a, object? b) =>
+        a is string x && b is string y ? string.CompareOrdinal(x, y) : Comparer<object?>.Default.Compare(a, b);
 
     public Task<bool> TryAddAsync(WithdrawalRequest request, CancellationToken cancellationToken = default)
     {
