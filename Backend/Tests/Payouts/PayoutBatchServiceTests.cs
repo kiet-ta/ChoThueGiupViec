@@ -174,9 +174,22 @@ public class PayoutBatchServiceTests
         public Task<decimal> SumNetAsync(int batchId, CancellationToken cancellationToken = default) =>
             Task.FromResult((Stored.GetValueOrDefault(batchId) ?? []).Sum(i => i.NetAmount));
 
-        public Task<(IReadOnlyList<PayoutBatch> Items, int Total)> ListBatchesAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+        public Task<(IReadOnlyList<PayoutBatch> Items, int Total)> ListBatchesAsync(int page, int pageSize, PayoutBatchSort? sort, CancellationToken cancellationToken = default)
         {
-            var all = Batches.OrderByDescending(b => b.PeriodMonth).ToList();
+            var desc = sort?.Descending ?? true;
+            Func<PayoutBatch, object?> key = (sort?.Key ?? PayoutBatchSortKey.Period) switch
+            {
+                PayoutBatchSortKey.Status => b => b.BatchStatus,
+                PayoutBatchSortKey.Total => b => b.TotalAmount,
+                PayoutBatchSortKey.ClosedAt => b => b.ConfirmedAt,
+                PayoutBatchSortKey.Items => b => Stored.GetValueOrDefault(b.BatchId)?.Count ?? 0,
+                _ => b => b.PeriodMonth,
+            };
+            // Text is compared ordinally and a missing time comes first when ascending, like the database does.
+            var comparer = Comparer<object?>.Create((a, b) => a is string x && b is string y ? string.CompareOrdinal(x, y) : Comparer<object?>.Default.Compare(a, b));
+            var all = (desc
+                ? Batches.OrderByDescending(key, comparer).ThenByDescending(b => b.BatchId)
+                : Batches.OrderBy(key, comparer).ThenBy(b => b.BatchId)).ToList();
             return Task.FromResult<(IReadOnlyList<PayoutBatch>, int)>((all.Skip((page - 1) * pageSize).Take(pageSize).ToList(), all.Count));
         }
 
@@ -663,6 +676,65 @@ public class PayoutBatchServiceTests
         Assert.Equal(400, (await h.Service().ListAsync("x", null)).StatusCode);
     }
 
+    // --- sorting by a column (ticket LEDGER-21) --------------------------------------------------------------------
+
+    /// <summary>
+    /// Three batches stored directly: batch 1 = 2026-10 (2 payees, 600,000, closed 1 Nov), batch 2 = 2026-09 (1 payee, 208,000, closed 5 Dec),
+    /// batch 3 = 2026-11 (1 payee, 208,000, still a DRAFT with no closing time).
+    /// </summary>
+    private static Harness ThreeBatches()
+    {
+        var h = new Harness();
+        NewPayoutItem Item(int worker, decimal net) => new(PayeeType.Freelancer, worker, null, 1, net, 0m, 0m, 0m, 0m, net, "123", []);
+        h.Repo.SeedBatch("2026-10", [Item(5, 400_000m), Item(6, 200_000m)]);
+        h.Repo.SeedBatch("2026-09", [Item(5, 208_000m)]);
+        h.Repo.SeedBatch("2026-11", [Item(7, 208_000m)], status: "DRAFT");
+        h.Repo.Batches[0].ConfirmedAt = new DateTime(2026, 11, 1, 17, 10, 0, DateTimeKind.Utc);
+        h.Repo.Batches[1].ConfirmedAt = new DateTime(2026, 12, 5, 17, 10, 0, DateTimeKind.Utc);
+        return h;
+    }
+
+    private static async Task<string[]> Periods(Harness h, string? sort, string? dir, string? page = null, string? size = null) =>
+        (await h.Service().ListAsync(page, size, sort, dir)).Data!.Items.Select(b => b.PeriodMonth).ToArray();
+
+    [Theory]
+    [InlineData("period", "asc", new[] { "2026-09", "2026-10", "2026-11" })]
+    [InlineData("period", "desc", new[] { "2026-11", "2026-10", "2026-09" })]
+    [InlineData("items", "asc", new[] { "2026-09", "2026-11", "2026-10" })] // 1 and 1 (tie: batch id), then 2
+    [InlineData("items", "desc", new[] { "2026-10", "2026-11", "2026-09" })]
+    [InlineData("total", "asc", new[] { "2026-09", "2026-11", "2026-10" })] // 208,000 twice (tie: batch id), then 600,000
+    [InlineData("total", "desc", new[] { "2026-10", "2026-11", "2026-09" })]
+    [InlineData("closedAt", "asc", new[] { "2026-11", "2026-10", "2026-09" })] // no closing time first, like the database
+    [InlineData("closedAt", "desc", new[] { "2026-09", "2026-10", "2026-11" })]
+    [InlineData("status", "asc", new[] { "2026-10", "2026-09", "2026-11" })] // CLOSED (tie: batch id), then DRAFT
+    [InlineData("status", "desc", new[] { "2026-11", "2026-09", "2026-10" })]
+    public async Task The_list_orders_by_every_column_in_both_directions(string sort, string dir, string[] expected)
+    {
+        Assert.Equal(expected, await Periods(ThreeBatches(), sort, dir));
+    }
+
+    [Fact]
+    public async Task The_list_sort_is_applied_before_paging_and_a_direction_alone_orders_by_month()
+    {
+        var h = ThreeBatches();
+        Assert.Equal(new[] { "2026-09", "2026-11" }, await Periods(h, "total", "asc", "1", "2"));
+        Assert.Equal(new[] { "2026-10" }, await Periods(h, "total", "asc", "2", "2"));
+        Assert.Equal(new[] { "2026-09", "2026-10", "2026-11" }, await Periods(h, null, "asc"));
+        Assert.Equal(new[] { "2026-10", "2026-11", "2026-09" }, await Periods(h, "TOTAL", null));
+        Assert.Equal(new[] { "2026-11", "2026-10", "2026-09" }, await Periods(h, null, null)); // the default is unchanged
+    }
+
+    [Theory]
+    [InlineData("name", "asc", "sort")]
+    [InlineData("total", "up", "dir")]
+    public async Task The_list_rejects_an_unknown_sort_or_direction_naming_the_field(string sort, string dir, string field)
+    {
+        var result = await new Harness().Service().ListAsync(null, null, sort, dir);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains(field, result.ValidationErrors!.Keys);
+    }
+
     [Fact]
     public async Task The_detail_has_the_items_with_advance_and_carry_in_a_payee_type_filter_and_a_warning_for_each_payee_without_a_bank_account()
     {
@@ -727,7 +799,7 @@ public class PayoutBatchServiceTests
         public Task<PayoutResult<PayoutBatchDto>> SettleAsync(string? periodMonth, bool allowUnfinishedMonth = false, CancellationToken cancellationToken = default) =>
             Task.FromResult(Answer(new PayoutBatchDto()));
 
-        public Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, CancellationToken cancellationToken = default) =>
+        public Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, string? sort = null, string? dir = null, CancellationToken cancellationToken = default) =>
             Task.FromResult(Answer(new PayoutBatchPageDto()));
 
         public Task<PayoutResult<PayoutBatchDetailDto>> GetAsync(int batchId, string? payeeType, string? page, string? pageSize, CancellationToken cancellationToken = default) =>
@@ -756,7 +828,7 @@ public class PayoutBatchServiceTests
     {
         var controller = new AdminPayoutBatchesController(new StubBatches(status));
 
-        Assert.Equal(status, Assert.IsType<ObjectResult>(await controller.List(null, null, default)).StatusCode);
+        Assert.Equal(status, Assert.IsType<ObjectResult>(await controller.List(null, null, null, null, default)).StatusCode);
         Assert.Equal(status, Assert.IsType<ObjectResult>(await controller.Get(5, null, null, null, default)).StatusCode);
     }
 

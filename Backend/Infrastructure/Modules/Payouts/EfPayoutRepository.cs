@@ -126,13 +126,28 @@ public class EfPayoutRepository(AppDbContext db) : IPayoutRepository
     public async Task<decimal> SumNetAsync(int batchId, CancellationToken cancellationToken = default) =>
         await db.PayoutItems.AsNoTracking().Where(i => i.BatchId == batchId).SumAsync(i => (decimal?)i.NetAmount, cancellationToken) ?? 0m;
 
-    public async Task<(IReadOnlyList<PayoutBatch> Items, int Total)> ListBatchesAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<PayoutBatch> Items, int Total)> ListBatchesAsync(int page, int pageSize, PayoutBatchSort? sort, CancellationToken cancellationToken = default)
     {
         var query = db.PayoutBatches.AsNoTracking();
         var total = await query.CountAsync(cancellationToken);
-        var items = await query.OrderByDescending(b => b.PeriodMonth).ThenByDescending(b => b.BatchId)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var items = await Ordered(query, sort).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         return (items, total);
+    }
+
+    /// <summary>The requested order, ties by the batch id in the same direction; no sort is newest month first.</summary>
+    private IOrderedQueryable<PayoutBatch> Ordered(IQueryable<PayoutBatch> query, PayoutBatchSort? sort)
+    {
+        var desc = sort?.Descending ?? true;
+        return (sort?.Key ?? PayoutBatchSortKey.Period) switch
+        {
+            PayoutBatchSortKey.Status => desc ? query.OrderByDescending(b => b.BatchStatus).ThenByDescending(b => b.BatchId) : query.OrderBy(b => b.BatchStatus).ThenBy(b => b.BatchId),
+            PayoutBatchSortKey.Total => desc ? query.OrderByDescending(b => b.TotalAmount).ThenByDescending(b => b.BatchId) : query.OrderBy(b => b.TotalAmount).ThenBy(b => b.BatchId),
+            PayoutBatchSortKey.ClosedAt => desc ? query.OrderByDescending(b => b.ConfirmedAt).ThenByDescending(b => b.BatchId) : query.OrderBy(b => b.ConfirmedAt).ThenBy(b => b.BatchId),
+            PayoutBatchSortKey.Items => desc
+                ? query.OrderByDescending(b => db.PayoutItems.Count(i => i.BatchId == b.BatchId)).ThenByDescending(b => b.BatchId)
+                : query.OrderBy(b => db.PayoutItems.Count(i => i.BatchId == b.BatchId)).ThenBy(b => b.BatchId),
+            _ => desc ? query.OrderByDescending(b => b.PeriodMonth).ThenByDescending(b => b.BatchId) : query.OrderBy(b => b.PeriodMonth).ThenBy(b => b.BatchId),
+        };
     }
 
     public async Task<IReadOnlyDictionary<int, int>> CountItemsAsync(IReadOnlyCollection<int> batchIds, CancellationToken cancellationToken = default)

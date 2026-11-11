@@ -21,6 +21,7 @@
 - [x] **LEDGER-18** End-to-end ledger acceptance — evidence: .harness/evidence/20261110-215338-L3.log
 - [x] **LEDGER-19** Worker withdrawal request history — evidence: .harness/evidence/20261111-103553-L3.log
 - [x] **LEDGER-20** Worker payout bank account — evidence: .harness/evidence/20261111-105327-L3.log
+- [ ] **LEDGER-21** Admin lists sort by column (API)
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).

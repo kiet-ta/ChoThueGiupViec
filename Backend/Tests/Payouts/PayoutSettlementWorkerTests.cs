@@ -77,7 +77,7 @@ public class PayoutSettlementWorkerTests
             });
         }
 
-        public Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, CancellationToken cancellationToken = default) =>
+        public Task<PayoutResult<PayoutBatchPageDto>> ListAsync(string? page, string? pageSize, string? sort = null, string? dir = null, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public Task<PayoutResult<PayoutBatchDetailDto>> GetAsync(int batchId, string? payeeType, string? page, string? pageSize, CancellationToken cancellationToken = default) =>

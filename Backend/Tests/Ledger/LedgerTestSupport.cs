@@ -130,7 +130,17 @@ public class MemoryHistoryQuery(MemoryLedger ledger) : ILedgerHistoryQuery
         var rows = ledger.Rows.Where(e =>
             (search.FromUtc is null || e.CreatedAt >= search.FromUtc) && (search.ToExclusiveUtc is null || e.CreatedAt < search.ToExclusiveUtc)
             && (search.Type is null || e.EntryType == search.Type)
-            && (search.Parties.Count == 0 || search.Parties.Any(p => Touches(e, p)))).OrderByDescending(e => e.EntryId).ToList();
+            && (search.Parties.Count == 0 || search.Parties.Any(p => Touches(e, p)))).ToList();
+        rows = (search.Sort switch
+        {
+            null => rows.OrderByDescending(e => e.EntryId),
+            { Key: LedgerSortKey.Amount, Descending: true } => rows.OrderByDescending(e => e.Amount).ThenByDescending(e => e.EntryId),
+            { Key: LedgerSortKey.Amount } => rows.OrderBy(e => e.Amount).ThenBy(e => e.EntryId),
+            { Key: LedgerSortKey.Time, Descending: true } => rows.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.EntryId),
+            { Key: LedgerSortKey.Time } => rows.OrderBy(e => e.CreatedAt).ThenBy(e => e.EntryId),
+            { Descending: true } => rows.OrderByDescending(e => e.EntryId),
+            _ => rows.OrderBy(e => e.EntryId),
+        }).ToList();
         return Task.FromResult<(IReadOnlyList<LedgerEntry>, int)>((rows.Skip((page - 1) * pageSize).Take(pageSize).ToList(), rows.Count));
     }
 

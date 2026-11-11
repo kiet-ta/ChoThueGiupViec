@@ -36,13 +36,13 @@ public record WorkerStatementDto(
 public record LedgerSummaryDto(decimal Revenue, decimal Clearing, decimal WorkerDebt, decimal AgencyDebt, decimal Held);
 
 /// <summary>Raw query values of a history call; the service validates them (400 with field errors).</summary>
-public record LedgerHistoryRequest(string? From, string? To, string? Type, int? Page, int? PageSize, string? PartyType = null, int? PartyId = null);
+public record LedgerHistoryRequest(string? From, string? To, string? Type, int? Page, int? PageSize, string? PartyType = null, int? PartyId = null, string? Sort = null, string? Dir = null);
 
 /// <summary>An account to search: exact (<c>Id</c>) or every account of the type (<c>AnyId</c>).</summary>
 public record LedgerPartyFilter(LedgerPartyType Type, int? Id, bool AnyId);
 
 /// <summary>Entries that touch one of <c>Parties</c> (all entries when empty) created in [<c>FromUtc</c>, <c>ToExclusiveUtc</c>) of the given type.</summary>
-public record LedgerSearch(IReadOnlyList<LedgerPartyFilter> Parties, DateTime? FromUtc, DateTime? ToExclusiveUtc, LedgerEntryType? Type);
+public record LedgerSearch(IReadOnlyList<LedgerPartyFilter> Parties, DateTime? FromUtc, DateTime? ToExclusiveUtc, LedgerEntryType? Type, LedgerSort? Sort = null);
 
 /// <summary>What the platform holds and owes: net balances of the revenue and clearing accounts, of every worker and of every agency, and the pending withdrawals.</summary>
 public record LedgerTotals(decimal Revenue, decimal Clearing, decimal WorkerDebt, decimal AgencyDebt, decimal Held);
@@ -91,7 +91,7 @@ public class LedgerHistoryService(
         if (errors.Count > 0) throw new ValidationException(errors);
 
         var (items, total) = await query.SearchAsync(
-            new LedgerSearch(party is null ? [] : [party], filter.FromUtc, filter.ToExclusiveUtc, filter.Type), filter.Page, filter.PageSize, cancellationToken);
+            new LedgerSearch(party is null ? [] : [party], filter.FromUtc, filter.ToExclusiveUtc, filter.Type, filter.Sort), filter.Page, filter.PageSize, cancellationToken);
         return new AdminLedgerPageDto(items.Select(e => ToDto(e)).ToList(), filter.Page, filter.PageSize, total);
     }
 
@@ -120,7 +120,7 @@ public class LedgerHistoryService(
         var filter = _parser.Parse(request, errors);
         if (errors.Count > 0) throw new ValidationException(errors);
 
-        var search = new LedgerSearch(accounts.Select(a => new LedgerPartyFilter(a.Type, a.Id, false)).ToList(), filter.FromUtc, filter.ToExclusiveUtc, filter.Type);
+        var search = new LedgerSearch(accounts.Select(a => new LedgerPartyFilter(a.Type, a.Id, false)).ToList(), filter.FromUtc, filter.ToExclusiveUtc, filter.Type, filter.Sort);
         var (items, total) = await query.SearchAsync(search, filter.Page, filter.PageSize, cancellationToken);
 
         var main = accounts[0];

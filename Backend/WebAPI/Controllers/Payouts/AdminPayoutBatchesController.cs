@@ -16,14 +16,14 @@ namespace CommonService.WebAPI.Controllers.Payouts;
 [Authorize(Policy = "AdminOnly")]
 public class AdminPayoutBatchesController(IPayoutBatchService batches) : ControllerBase
 {
-    /// <summary>The batches, newest month first; <c>pageSize</c> is 1-100, default 20.</summary>
+    /// <summary>The batches, newest month first; <c>pageSize</c> is 1-100, default 20. <c>sort</c> (period, status, items, total, closedAt) and <c>dir</c> (asc, desc) order all pages.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<PayoutBatchPageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> List([FromQuery] string? page, [FromQuery] string? pageSize, CancellationToken ct) =>
-        ToResult(await batches.ListAsync(page, pageSize, ct), "Payout batches retrieved.");
+    public async Task<IActionResult> List([FromQuery] string? page, [FromQuery] string? pageSize, [FromQuery] string? sort, [FromQuery] string? dir, CancellationToken ct) =>
+        ToResult(await batches.ListAsync(page, pageSize, sort, dir, ct), "Payout batches retrieved.");
 
     /// <summary>One batch with its items (optionally only FREELANCER or AGENCY) and a warning for each payee without a bank account.</summary>
     [HttpGet("{batchId:int}")]

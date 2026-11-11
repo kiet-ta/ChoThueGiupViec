@@ -295,6 +295,67 @@ public class AdminWithdrawalTests
         Assert.NotEmpty((await Thrown<ValidationException>(() => setup.Admin.ListAsync(status, page, pageSize))).Errors);
     }
 
+    // --- sorting by a column (ticket LEDGER-21) -----------------------------------------------------------------------
+
+    private static Setup FourRequests()
+    {
+        var setup = new Setup();
+        foreach (var worker in new[] { 8, 9 }) setup.Repository.Workers[worker] = new WithdrawalWorker(WorkerType.Freelancer, null, null);
+        WithdrawalRequest Row(int id, int worker, decimal amount, WithdrawalStatus status, int hoursAgo, string? bank, string? account) =>
+            new() { WithdrawalId = id, WorkerId = worker, Amount = amount, RequestStatus = status, RequestedAt = Now.AddHours(-hoursAgo), BankName = bank, BankAccountNo = account };
+        setup.Repository.Rows.Add(Row(21, 9, 3_000m, WithdrawalStatus.Pending, 2, "BIDV", "222"));
+        setup.Repository.Rows.Add(Row(22, Worker, 1_000m, WithdrawalStatus.Paid, 4, "ACB", "111"));
+        setup.Repository.Rows.Add(Row(23, 8, 2_000m, WithdrawalStatus.Rejected, 1, null, null));
+        setup.Repository.Rows.Add(Row(24, Worker, 2_000m, WithdrawalStatus.Cancelled, 3, "ACB", "333"));
+        return setup;
+    }
+
+    [Theory]
+    [InlineData("amount", "asc", new[] { 22, 23, 24, 21 })] // the two 2,000 requests: ties by id in the same direction
+    [InlineData("amount", "desc", new[] { 21, 24, 23, 22 })]
+    [InlineData("requestedAt", "asc", new[] { 22, 24, 21, 23 })]
+    [InlineData("requestedAt", "desc", new[] { 23, 21, 24, 22 })]
+    [InlineData("worker", "asc", new[] { 22, 24, 23, 21 })]
+    [InlineData("worker", "desc", new[] { 21, 23, 24, 22 })]
+    [InlineData("bank", "asc", new[] { 23, 22, 24, 21 })] // no account first, then by bank and number
+    [InlineData("bank", "desc", new[] { 21, 24, 22, 23 })]
+    [InlineData("status", "asc", new[] { 24, 22, 21, 23 })]
+    [InlineData("status", "desc", new[] { 23, 21, 22, 24 })]
+    public async Task List_orders_by_every_column_in_both_directions(string sort, string dir, int[] expected)
+    {
+        var page = await FourRequests().Admin.ListAsync(null, null, null, sort, dir);
+        Assert.Equal(expected, page.Items.Select(i => i.WithdrawalId).ToArray());
+    }
+
+    [Fact]
+    public async Task List_sort_is_applied_before_paging_and_keeps_the_status_filter()
+    {
+        var setup = FourRequests();
+        Assert.Equal(new[] { 22, 23 }, (await setup.Admin.ListAsync(null, 1, 2, "amount", "asc")).Items.Select(i => i.WithdrawalId).ToArray());
+        Assert.Equal(new[] { 24, 21 }, (await setup.Admin.ListAsync(null, 2, 2, "amount", "asc")).Items.Select(i => i.WithdrawalId).ToArray());
+
+        setup.Repository.Rows.Add(new WithdrawalRequest { WithdrawalId = 25, WorkerId = Worker, Amount = 500m, RequestStatus = WithdrawalStatus.Pending, RequestedAt = Now.AddHours(-9) });
+        var pending = await setup.Admin.ListAsync("PENDING", null, null, "amount", "desc");
+        Assert.Equal(new[] { 21, 25 }, pending.Items.Select(i => i.WithdrawalId).ToArray());
+    }
+
+    [Fact]
+    public async Task List_a_direction_alone_orders_by_the_time_sent_and_a_column_alone_is_descending()
+    {
+        var setup = FourRequests();
+        Assert.Equal(new[] { 22, 24, 21, 23 }, (await setup.Admin.ListAsync(null, null, null, null, "asc")).Items.Select(i => i.WithdrawalId).ToArray());
+        Assert.Equal(new[] { 21, 24, 23, 22 }, (await setup.Admin.ListAsync(null, null, null, "AMOUNT", null)).Items.Select(i => i.WithdrawalId).ToArray());
+    }
+
+    [Theory]
+    [InlineData("name", "asc", "sort")]
+    [InlineData("amount", "up", "dir")]
+    public async Task List_rejects_an_unknown_sort_or_direction_naming_the_field(string sort, string dir, string field)
+    {
+        var error = await Thrown<ValidationException>(() => new Setup().Admin.ListAsync(null, null, null, sort, dir));
+        Assert.Contains(field, error.Errors.Keys, StringComparer.OrdinalIgnoreCase);
+    }
+
     // --- controller ---------------------------------------------------------------------------------------------------
 
     private class StubUser(int? id) : ICurrentUser
@@ -314,7 +375,7 @@ public class AdminWithdrawalTests
         var setup = new Setup();
         var controller = new AdminWithdrawalsController(setup.Admin, new StubUser(Admin));
         var first = await setup.Wallet.CreateAsync(Worker, 100_000m);
-        Assert.IsType<OkObjectResult>(await controller.List("PENDING", null, null, default));
+        Assert.IsType<OkObjectResult>(await controller.List("PENDING", null, null, null, null, default));
         Assert.IsType<OkObjectResult>(await controller.Reject(first.WithdrawalId, new RejectWithdrawalRequestDto("no"), default));
         Assert.Equal(Admin, setup.Repository.Rows.Single().ReviewedBy);
         var second = await setup.Wallet.CreateAsync(Worker, 100_000m);

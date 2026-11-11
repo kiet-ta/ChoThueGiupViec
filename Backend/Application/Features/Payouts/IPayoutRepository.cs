@@ -4,6 +4,18 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Payouts;
 
 /// <summary>A payout item to be stored; <c>AssignmentIds</c> are the assignments it pays.</summary>
+/// <summary>The column of the Admin's batch list: the month, the status, the number of payees, the total paid out or the time it was closed.</summary>
+public enum PayoutBatchSortKey
+{
+    Period,
+    Status,
+    Items,
+    Total,
+    ClosedAt,
+}
+
+public record PayoutBatchSort(PayoutBatchSortKey Key, bool Descending);
+
 public record NewPayoutItem(
     PayeeType PayeeType,
     int? WorkerId,
@@ -76,7 +88,8 @@ public interface IPayoutRepository
     /// <summary>The sum of the net amounts of the batch's items.</summary>
     Task<decimal> SumNetAsync(int batchId, CancellationToken cancellationToken = default);
 
-    Task<(IReadOnlyList<PayoutBatch> Items, int Total)> ListBatchesAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    /// <summary>The batches, newest month first; with a <paramref name="sort"/> the order is applied before paging, ties by the batch id in the same direction.</summary>
+    Task<(IReadOnlyList<PayoutBatch> Items, int Total)> ListBatchesAsync(int page, int pageSize, PayoutBatchSort? sort, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyDictionary<int, int>> CountItemsAsync(IReadOnlyCollection<int> batchIds, CancellationToken cancellationToken = default);
 
