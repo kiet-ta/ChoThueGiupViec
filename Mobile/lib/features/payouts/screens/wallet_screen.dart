@@ -16,6 +16,7 @@ import '../logic/payout_logic.dart';
 import '../logic/wallet_logic.dart';
 import '../models/wallet_models.dart';
 import '../services/wallet_service.dart';
+import 'bank_account_screen.dart';
 import 'ledger_history_screen.dart';
 import 'withdrawal_history_screen.dart';
 
@@ -209,6 +210,15 @@ class _WalletScreenState extends State<WalletScreen> {
       ],
       _form(wallet),
       const SizedBox(height: NordicSpace.md),
+      NordicButton(
+        key: const Key('wallet-bank'),
+        label: 'Tài khoản nhận tiền',
+        variant: NordicButtonVariant.secondary,
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const BankAccountScreen()),
+        ),
+      ),
+      const SizedBox(height: NordicSpace.xs),
       NordicButton(
         key: const Key('wallet-withdrawals'),
         label: 'Lịch sử rút tiền',
