@@ -1,4 +1,4 @@
-# UAT stack: SQL Server + migrations + backend (Development) + Web. `docker compose up --build`, then http://localhost:8080.
+# UAT stack: SQL Server + migrations + Valhalla (routing) + backend (Development) + Web. `docker compose up --build`, then http://localhost:8080.
 # The dev-only SA password has a default; override it with docker/uat.env.example copied to docker/uat.env (--env-file docker/uat.env).
 name: giupviec-uat
 
@@ -41,6 +41,31 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # Routing engine for the route maps (ROUTE-WEB-01, ROUTE-MOB-01). Tiles are built once from an OpenStreetMap extract of Vietnam that you put in
+  # the volume (see scripts/uat/UAT.md, "Route maps"); without it the stack still starts and the route endpoints answer 502.
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:latest
+    environment:
+      server_threads: "4"
+      use_tiles_ignore_pbf: "True"   # reuse the built tiles on later starts
+      build_tar: "True"
+      serve_tiles: "True"
+      build_admins: "True"
+      build_time_zones: "True"
+      build_elevation: "False"
+      build_transit: "False"
+    volumes:
+      - valhalla_data:/custom_files
+    ports:
+      - "${VALHALLA_HOST_PORT:-8002}:8002"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8002/status || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 30s
+    restart: unless-stopped
+
   backend:
     build:
       context: ./Backend
@@ -48,6 +73,8 @@ services:
     environment:
       # Development: the dev admin is seeded (Seed:Admin:* of appsettings.Development.json), the OTP is written to the log, payments are Fake.
       ASPNETCORE_ENVIRONMENT: Development
+      # Inside the container `localhost` is the container itself, so appsettings.Development.json (localhost:8002) cannot reach Valhalla.
+      Valhalla__BaseUrl: "http://valhalla:8002"
       ConnectionStrings__DefaultConnection: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Uat_Passw0rd!2026};TrustServerCertificate=True;"
     deploy:
       resources:
@@ -57,6 +84,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      valhalla:
+        condition: service_started   # not service_healthy: the first tile build takes a long time and the stack must start without it
     ports:
       - "5004:5004"
 
@@ -75,3 +104,5 @@ services:
 
 volumes:
   sqldata:
+  valhalla_data:
+    name: valhalla_data   # fixed name: the tiles (long to build) survive `docker compose down -v` of other stacks and are reused

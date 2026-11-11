@@ -6,7 +6,7 @@ Fake/sandbox build: no real money, no real SMS, no real eKYC.
 ## 1. Start the environment (one person, one machine)
 
 ```bash
-docker compose up --build -d          # SQL Server, migrations, backend (5004), Web (8080); first build takes several minutes
+docker compose up --build -d          # SQL Server, migrations, Valhalla (8002), backend (5004), Web (8080); first build takes several minutes
 python scripts/uat/seed.py --admin-password "<Seed:Admin:Password of Backend/appsettings.Development.json>"
 ```
 
@@ -14,9 +14,14 @@ python scripts/uat/seed.py --admin-password "<Seed:Admin:Password of Backend/app
 |---|---|
 | Web (Admin, Partner portal, agency registration) | http://localhost:8080 |
 | API / Swagger | http://localhost:5004 / http://localhost:5004/swagger |
-| Stop / reset | `docker compose down` / `docker compose down -v` (also drops the database) |
+| Stop / reset | `docker compose down` / `docker compose down -v` (also drops the database; the Valhalla tiles live in the fixed-name volume `valhalla_data` and stay) |
 | OTP codes (there is no SMS) | `docker compose logs backend \| findstr "FAKE OTP"` (Linux/macOS: `grep`) |
 
+- **Route maps (Valhalla).** The Customer's Web order page and the Worker's Mobile job show the road route, distance and time. The `valhalla` service of the compose file calculates them from an OpenStreetMap extract of Vietnam that is **not in the repository** (about 330 MB). One-time setup:
+  1. Download the extract (for example `vietnam-latest.osm.pbf` from https://download.geofabrik.de/asia/vietnam.html) to the repository root (`*.osm.pbf` is git-ignored).
+  2. `docker compose up -d valhalla`, then `docker compose cp vietnam-latest.osm.pbf valhalla:/custom_files/` and `docker compose restart valhalla`.
+  3. Wait until `docker compose ps valhalla` says `healthy` (the **first tile build takes many minutes**; later starts reuse the tiles). The backend reaches it at `http://valhalla:8002` (`Valhalla__BaseUrl` in the compose file; `localhost` would be the backend container itself).
+  Without the extract the stack still starts, but `GET /api/v1/dispatch/assignments/{id}/route` answers 502 and the pages show "Chưa tính được lộ trình." The route starts at the worker's last known position: an Android emulator defaults to California, which has no data in the extract, so set the emulator location to Ho Chi Minh City (10.7769, 106.7009).
 - **Everybody uses this one backend** so the actors see each other. The Mobile app calls `http://10.0.2.2:5004` (hard-coded), which is the PC running Docker **from an Android emulator on that same PC**. Several emulators on that PC are fine; a phone or another PC needs the address changed in the app (not supported yet).
 - **Android emulator hangs on start?** Device Manager -> Cold Boot Now; if it still hangs: Edit -> Advanced -> Graphics: Software.
 - **Payments:** a QR is shown but cannot be scanned. Pay with Admin -> sidebar **Công cụ dev -> Xác nhận thanh toán** (button "Xác nhận đã thanh toán"; it works only on this Development build).
