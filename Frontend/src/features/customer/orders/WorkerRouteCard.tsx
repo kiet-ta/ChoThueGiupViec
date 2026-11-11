@@ -42,7 +42,7 @@ function FitRoute({ points }: { points: [number, number][] }) {
 }
 
 /**
- * ROUTE-WEB-01 (#765): the route from the worker to the customer's house (Valhalla, motor_scooter), drawn like Google Maps on CARTO Voyager tiles (ROUTE-WEB-02, #774).
+ * ROUTE-WEB-01 (#765): the route from the worker to the customer's house (Valhalla, motor_scooter), drawn like Google Maps on OpenStreetMap tiles softened with a CSS filter (white roads, light green parks, blue water; ROUTE-WEB-02, #774; CARTO Voyager now answers "API KEY REQUIRED" tiles and the Esri sets were too yellow or too grey).
  * It reloads every 30 s. The worker's position is rounded by the server, so the marker is approximate. A failed call keeps the
  * rest of the order page working; a job that is no longer on its way (409/404) hides the card.
  */
@@ -89,7 +89,7 @@ export function WorkerRouteCard({ assignmentId, workerName }: { assignmentId: nu
         <p className="mt-2 text-sm text-stone-700">Khoảng cách: <strong>{formatDistance(route.distanceMeters)}</strong> · Dự kiến: <strong>{formatDuration(route.durationSeconds)}</strong></p>
         <div className="mt-4 h-72 overflow-hidden rounded-lg border border-stone-200">
           <MapContainer center={[route.destination.latitude, route.destination.longitude]} zoom={14} scrollWheelZoom zoomControl={false} className="h-full w-full">
-            <TileLayer attribution="&copy; OpenStreetMap contributors &copy; CARTO" url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} className="[filter:saturate(.85)_brightness(1.04)]" />
             <ZoomControl position="bottomright" />
             {line.length > 1 && <>
               <Polyline positions={line} pathOptions={{ color: '#ffffff', weight: 10, lineCap: 'round', lineJoin: 'round' }} />
@@ -101,7 +101,7 @@ export function WorkerRouteCard({ assignmentId, workerName }: { assignmentId: nu
             <FitRoute points={line.length > 1 ? line : [[route.workerPosition.latitude, route.workerPosition.longitude], [route.destination.latitude, route.destination.longitude]]} />
           </MapContainer>
         </div>
-        <p className="mt-2 text-xs text-stone-500">Vị trí thợ là gần đúng. Dữ liệu bản đồ © OpenStreetMap contributors © CARTO.</p>
+        <p className="mt-2 text-xs text-stone-500">Vị trí thợ là gần đúng. Dữ liệu bản đồ © OpenStreetMap contributors.</p>
       </>}
     </section>
   )
