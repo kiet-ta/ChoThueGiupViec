@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
-import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_dropdown.dart';
 import '../../../core/widgets/nordic_page.dart';
-import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../logic/ledger_logic.dart';
@@ -34,6 +33,9 @@ class LedgerHistoryScreen extends StatefulWidget {
 
 class _LedgerHistoryScreenState extends State<LedgerHistoryScreen> {
   static const int _pageSize = 20;
+
+  /// The dropdown value of "Tất cả" (a dropdown choice cannot be null).
+  static const String _allTypes = 'ALL';
 
   late final ILedgerService _service;
   late final String _currentMonth;
@@ -181,52 +183,17 @@ class _LedgerHistoryScreenState extends State<LedgerHistoryScreen> {
     );
   }
 
+  /// The type filter: one dropdown instead of a stack of pills ("Tất cả" is the choice without a type).
   Widget _filters() {
-    return Wrap(
-      spacing: NordicSpace.xs,
-      runSpacing: NordicSpace.xs,
-      children: [
+    return NordicDropdown<String>(
+      key: const Key('ledger-filter'),
+      label: 'Loại giao dịch',
+      value: _type ?? _allTypes,
+      options: [
         for (final f in ledgerTypeFilters)
-          _chip(f.label, f.value == _type, () => _filter(f.value), f.value),
+          NordicDropdownOption(f.value ?? _allTypes, f.label),
       ],
-    );
-  }
-
-  /// A selectable pill; the selected one is also marked with `selected` for screen readers.
-  Widget _chip(String label, bool selected, VoidCallback onTap, String? value) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: Pressable(
-        child: GestureDetector(
-          key: Key('ledger-filter-${value ?? 'all'}'),
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 44.0),
-            padding: const EdgeInsets.symmetric(
-              horizontal: NordicSpace.md,
-              vertical: NordicSpace.xs,
-            ),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: selected ? NordicColors.primary : NordicColors.surface,
-              borderRadius: NordicRadius.pill,
-              border: Border.all(
-                color: selected ? NordicColors.primary : NordicColors.border,
-              ),
-            ),
-            child: Text(
-              label,
-              style: NordicTypography.bodySmall.copyWith(
-                color: selected
-                    ? NordicColors.textInverse
-                    : NordicColors.textTitle,
-              ),
-            ),
-          ),
-        ),
-      ),
+      onChanged: (picked) => _filter(picked == _allTypes ? null : picked),
     );
   }
 

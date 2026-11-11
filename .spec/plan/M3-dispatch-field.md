@@ -23,6 +23,7 @@
 - [x] **LEDGER-20** Worker payout bank account — evidence: .harness/evidence/20261111-105327-L3.log
 - [x] **LEDGER-21** Admin lists sort by column (API) — evidence: .harness/evidence/20261111-142152-L3.log
 - [x] **LEDGER-22** Admin tables sort by column (web) — evidence: .harness/evidence/20261111-144109-L3.log
+- [x] **LEDGER-23** Worker app history filter as a dropdown — evidence: .harness/evidence/20261111-220201-L3.log
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).

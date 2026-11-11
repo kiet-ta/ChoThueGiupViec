@@ -172,14 +172,12 @@ void main() {
       final service = FakeLedgerService()..pages.add(_page([_entry(5)]));
       await _pumpHistory(tester, service);
 
-      await tester.tap(find.byKey(const Key('ledger-filter-WITHDRAWAL')));
-      await tester.pumpAndSettle();
+      await _chooseType(tester, 'Rút tiền');
 
       expect(service.calls.last.type, 'WITHDRAWAL');
       expect(service.calls.length, 2);
 
-      await tester.tap(find.byKey(const Key('ledger-filter-all')));
-      await tester.pumpAndSettle();
+      await _chooseType(tester, 'Tất cả');
       expect(service.calls.last.type, isNull);
     });
 
@@ -388,4 +386,12 @@ void main() {
       expect(find.byKey(const Key('statement-closing')), findsOneWidget);
     });
   });
+}
+
+/// Opens the type dropdown and picks an option by its label (the open list is the last widget with that text).
+Future<void> _chooseType(WidgetTester tester, String label) async {
+  await tester.tap(find.byKey(const Key('ledger-filter')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
 }
