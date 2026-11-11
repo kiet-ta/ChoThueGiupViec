@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  ARRIVED_HINT, arrivalCandidates, decodePolyline6, formatDistance, formatDuration, routeCandidates, routeProblem, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, toggleSaved, vnDateTime, vnTime,
+  ARRIVED_HINT, arrivalCandidates, decodePolyline6, formatDistance, formatDuration, routeCandidates, routeProblem, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, routeMidpoint, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, toggleSaved, vnDateTime, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -208,6 +208,17 @@ describe('worker route (ROUTE-WEB-01)', () => {
     // same string the backend FakeRoutingService test pins for (38.5, -120.2) -> (40.7, -120.95)
     assert.deepEqual(decodePolyline6('_izlhA~rlgdF_{geC~ywl@'), [[38.5, -120.2], [40.7, -120.95]])
     assert.deepEqual(decodePolyline6(''), [])
+  })
+  it('finds the midpoint of a route by length', () => {
+    assert.deepEqual(routeMidpoint([]), null)
+    assert.deepEqual(routeMidpoint([[10, 106]]), [10, 106])
+    assert.deepEqual(routeMidpoint([[0, 0], [0, 2]]), [0, 1])
+    // L shape: east 1 then north 1 (equal lengths near the equator): the middle is the corner, not the midpoint of the chord
+    const corner = routeMidpoint([[0, 0], [0, 1], [1, 1]])!
+    assert.ok(Math.abs(corner[0] - 0) < 0.01 && Math.abs(corner[1] - 1) < 0.01)
+    // uneven: the long first leg holds the middle
+    const m = routeMidpoint([[0, 0], [0, 3], [1, 3]])!
+    assert.ok(Math.abs(m[0] - 0) < 1e-9 && Math.abs(m[1] - 2) < 0.01)
   })
   it('formats distance', () => {
     assert.equal(formatDistance(850.4), '850 m')
