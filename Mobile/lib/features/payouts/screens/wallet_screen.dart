@@ -17,6 +17,7 @@ import '../logic/wallet_logic.dart';
 import '../models/wallet_models.dart';
 import '../services/wallet_service.dart';
 import 'ledger_history_screen.dart';
+import 'withdrawal_history_screen.dart';
 
 /// The freelancer's wallet and advance request (LEDGER-16); contract ledger.md section 6, decisions D28 and E.
 /// Pushed from the income screen. The server says what can be withdrawn; the device only checks the typed number
@@ -208,6 +209,17 @@ class _WalletScreenState extends State<WalletScreen> {
       ],
       _form(wallet),
       const SizedBox(height: NordicSpace.md),
+      NordicButton(
+        key: const Key('wallet-withdrawals'),
+        label: 'Lịch sử rút tiền',
+        variant: NordicButtonVariant.secondary,
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const WithdrawalHistoryScreen(),
+          ),
+        ),
+      ),
+      const SizedBox(height: NordicSpace.xs),
       NordicButton(
         key: const Key('wallet-history'),
         label: 'Lịch sử giao dịch',
