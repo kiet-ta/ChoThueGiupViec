@@ -1,4 +1,5 @@
 using CommonService.Application.Common.Options;
+using CommonService.Application.Features.Agencies;
 using CommonService.Application.Features.Dispatch;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
@@ -27,6 +28,7 @@ public class DispatchModule : IModule
         services.AddScoped<DispatchOfferEngine>();
         services.AddScoped<MilestoneFailoverService>(sp => new MilestoneFailoverService(
             sp.GetRequiredService<IMilestoneFailoverRepository>(),
+            sp.GetRequiredService<IAgencySwapRepository>(),
             sp.GetRequiredService<IAgencyCapacityService>(),
             sp.GetRequiredService<ISlaPenaltyService>(),
             sp.GetRequiredService<IClock>(),
