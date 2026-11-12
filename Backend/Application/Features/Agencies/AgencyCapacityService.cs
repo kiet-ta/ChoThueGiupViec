@@ -79,7 +79,7 @@ public class AgencyCapacityService(
         for (var attempt = 0; attempt < MaxAttempts; attempt++)
         {
             var open = await repository.GetOpenSlotsAsync(request.Date, request.ShiftCode, MinSlaScore, cancellationToken);
-            var plan = CapacityPlanner.Plan(open, request.RequiredWorkers, lost);
+            var plan = CapacityPlanner.Plan(open, request.RequiredWorkers, lost, request.OrderId);
             if (plan is null)
             {
                 return null; // fully booked (decisions Q13)
