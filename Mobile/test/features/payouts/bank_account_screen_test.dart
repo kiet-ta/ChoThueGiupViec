@@ -13,13 +13,41 @@ const _acb = WorkerBank(
   bankName: 'ACB',
   bankAccountNo: '0011001234567',
   isSet: true,
+  canRequestChange: true,
+);
+
+final _pending = WorkerBank(
+  bankName: 'ACB',
+  bankAccountNo: '0011001234567',
+  isSet: true,
+  pendingRequest: BankChangePending(
+    requestId: 4,
+    bankName: 'Techcombank',
+    bankAccountNo: '8800770066',
+    requestedAt: DateTime.utc(2026, 11, 12, 18, 10),
+  ),
+  changeLockedUntil: DateTime.utc(2026, 11, 27, 18, 10),
+  lastRequest: BankChangeLast(
+    status: 'PENDING',
+    requestedAt: DateTime.utc(2026, 11, 12, 18, 10),
+  ),
+);
+
+WorkerBank _locked(BankChangeLast last) => WorkerBank(
+  bankName: 'Techcombank',
+  bankAccountNo: '8800770066',
+  isSet: true,
+  changeLockedUntil: DateTime.utc(2026, 11, 27, 18, 10),
+  lastRequest: last,
 );
 
 class FakeWorkerBank implements IWorkerBankService {
   WorkerBank bank;
   Object? loadError;
   Object? saveError;
+  Object? requestError;
   final saved = <({String name, String account})>[];
+  final requests = <({String name, String account})>[];
   int loads = 0;
 
   FakeWorkerBank(this.bank);
@@ -42,6 +70,34 @@ class FakeWorkerBank implements IWorkerBankService {
       bankName: bankName,
       bankAccountNo: bankAccountNo,
       isSet: true,
+      canRequestChange: true,
+    );
+    return Future.value(bank);
+  }
+
+  @override
+  Future<WorkerBank> requestChange({
+    required String bankName,
+    required String bankAccountNo,
+  }) {
+    requests.add((name: bankName, account: bankAccountNo));
+    if (requestError != null) return Future.error(requestError!);
+    // like the server: the account in use stays, the request is pending and the lock starts
+    bank = WorkerBank(
+      bankName: bank.bankName,
+      bankAccountNo: bank.bankAccountNo,
+      isSet: true,
+      pendingRequest: BankChangePending(
+        requestId: 9,
+        bankName: bankName,
+        bankAccountNo: bankAccountNo,
+        requestedAt: DateTime.utc(2026, 11, 12, 18, 10),
+      ),
+      changeLockedUntil: DateTime.utc(2026, 11, 27, 18, 10),
+      lastRequest: BankChangeLast(
+        status: 'PENDING',
+        requestedAt: DateTime.utc(2026, 11, 12, 18, 10),
+      ),
     );
     return Future.value(bank);
   }
@@ -110,15 +166,16 @@ void main() {
     );
 
     testWidgets(
-      'shows a saved account with its number masked and fills the form for a change',
+      'shows a saved account with its number masked and a button to send a change request, not the form',
       (tester) async {
         await _pump(tester, FakeWorkerBank(_acb));
 
         expect(_text(tester, 'bank-summary-title'), 'ACB');
         expect(_text(tester, 'bank-summary-account'), '•••• 4567');
         expect(_text(tester, 'bank-summary-status'), 'Đã thiết lập');
-        expect(find.text('Lưu thay đổi'), findsOneWidget);
-        expect(_value(tester, 'bank-name'), 'ACB');
+        expect(find.byKey(const Key('bank-open-change')), findsOneWidget);
+        expect(find.byKey(const Key('bank-name')), findsNothing);
+        expect(find.byKey(const Key('bank-save')), findsNothing);
       },
     );
 
@@ -150,7 +207,9 @@ void main() {
         expect(_text(tester, 'bank-notice'), 'Đã lưu tài khoản nhận tiền.');
         expect(_text(tester, 'bank-summary-title'), 'Vietcombank');
         expect(_text(tester, 'bank-summary-account'), '•••• 4567');
-        expect(find.text('Lưu thay đổi'), findsOneWidget);
+        // the first account is saved: from now on a change is a request
+        expect(find.byKey(const Key('bank-open-change')), findsOneWidget);
+        expect(find.byKey(const Key('bank-save')), findsNothing);
       },
     );
 
@@ -257,6 +316,235 @@ void main() {
 
       expect(find.byKey(const Key('bank-save')), findsOneWidget);
     });
+  });
+
+  group('BankAccountScreen change request (LEDGER-28, MOB-BANK-01)', () {
+    Future<void> openChange(WidgetTester tester) async {
+      await tester.ensureVisible(find.byKey(const Key('bank-open-change')));
+      await tester.tap(find.byKey(const Key('bank-open-change')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('opens an empty form with the 15-day warning and a way back', (
+      tester,
+    ) async {
+      await _pump(tester, FakeWorkerBank(_acb));
+
+      await openChange(tester);
+
+      expect(find.byKey(const Key('bank-change-warning')), findsOneWidget);
+      expect(find.textContaining('15 ngày không đổi được nữa'), findsOneWidget);
+      expect(_value(tester, 'bank-name'), '');
+      expect(_value(tester, 'bank-account'), '');
+      expect(find.text('Gửi đơn đổi tài khoản'), findsWidgets);
+
+      await tester.ensureVisible(find.byKey(const Key('bank-cancel-change')));
+      await tester.tap(find.byKey(const Key('bank-cancel-change')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('bank-name')), findsNothing);
+      expect(find.byKey(const Key('bank-open-change')), findsOneWidget);
+    });
+
+    testWidgets(
+      'checks the fields before asking to confirm and sends nothing',
+      (tester) async {
+        final service = FakeWorkerBank(_acb);
+        await _pump(tester, service);
+        await openChange(tester);
+
+        await _save(tester);
+
+        expect(find.byKey(const Key('bank-confirm')), findsNothing);
+        expect(
+          _text(tester, 'bank-name-error'),
+          contains('Hãy nhập tên ngân hàng'),
+        );
+        expect(service.requests, isEmpty);
+      },
+    );
+
+    testWidgets('"Xem lại" in the confirmation sends nothing', (tester) async {
+      final service = FakeWorkerBank(_acb);
+      await _pump(tester, service);
+      await openChange(tester);
+      await _fill(tester, name: 'Techcombank', account: '8800 7700 66');
+
+      await _save(tester);
+      expect(find.byKey(const Key('bank-confirm')), findsOneWidget);
+      expect(find.textContaining('15 ngày không đổi được nữa'), findsWidgets);
+      await tester.tap(find.byKey(const Key('bank-confirm-no')));
+      await tester.pumpAndSettle();
+
+      expect(service.requests, isEmpty);
+      expect(find.byKey(const Key('bank-name')), findsOneWidget);
+    });
+
+    testWidgets(
+      'confirming sends the request once and shows the pending state with the account still in use',
+      (tester) async {
+        final service = FakeWorkerBank(_acb);
+        await _pump(tester, service);
+        await openChange(tester);
+        await _fill(tester, name: ' Techcombank ', account: '8800 7700 66');
+
+        await _save(tester);
+        await tester.tap(find.byKey(const Key('bank-confirm-yes')));
+        await tester.pumpAndSettle();
+
+        expect(service.requests, [
+          (name: 'Techcombank', account: '8800770066'),
+        ]);
+        expect(service.saved, isEmpty);
+        expect(find.byKey(const Key('bank-pending')), findsOneWidget);
+        expect(
+          _text(tester, 'bank-pending-account'),
+          'Tài khoản mới: Techcombank · •••• 0066',
+        );
+        expect(
+          _text(tester, 'bank-summary-title'),
+          'ACB',
+        ); // the current account stays
+        expect(find.byKey(const Key('bank-notice')), findsOneWidget);
+        expect(find.byKey(const Key('bank-save')), findsNothing);
+        expect(find.byKey(const Key('bank-open-change')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a pending request shows when it was sent and that it waits for the Admin',
+      (tester) async {
+        await _pump(tester, FakeWorkerBank(_pending));
+
+        expect(
+          _text(tester, 'bank-pending-note'),
+          'Đơn đổi tài khoản đã gửi ngày 13/11/2026, đang chờ Admin duyệt.',
+        );
+        expect(find.byKey(const Key('bank-open-change')), findsNothing);
+        expect(find.byKey(const Key('bank-name')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'during the lock it says when a new request can be sent and what the Admin decided (approved)',
+      (tester) async {
+        await _pump(
+          tester,
+          FakeWorkerBank(
+            _locked(
+              BankChangeLast(
+                status: 'APPROVED',
+                requestedAt: DateTime.utc(2026, 11, 12, 18, 10),
+                reviewedAt: DateTime.utc(2026, 11, 12, 19, 0),
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          _text(tester, 'bank-lock-note'),
+          'Bạn đã gửi đơn đổi tài khoản ngày 13/11/2026. Có thể gửi đơn mới từ ngày 28/11/2026.',
+        );
+        expect(_text(tester, 'bank-last-decision'), contains('đã được duyệt'));
+        expect(find.byKey(const Key('bank-open-change')), findsNothing);
+        expect(find.byKey(const Key('bank-name')), findsNothing);
+      },
+    );
+
+    testWidgets('after a rejection the lock still shows, with the reason', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        FakeWorkerBank(
+          _locked(
+            BankChangeLast(
+              status: 'REJECTED',
+              rejectReason: 'Sai tên chủ tài khoản',
+              requestedAt: DateTime.utc(2026, 11, 12, 18, 10),
+            ),
+          ),
+        ),
+      );
+
+      expect(_text(tester, 'bank-lock-note'), contains('28/11/2026'));
+      expect(
+        _text(tester, 'bank-last-decision'),
+        'Đơn gần nhất bị từ chối: Sai tên chủ tài khoản',
+      );
+    });
+
+    testWidgets('a 409 says what happened and loads the real state again', (
+      tester,
+    ) async {
+      final service = FakeWorkerBank(_acb);
+      await _pump(tester, service);
+      await openChange(tester);
+      await _fill(tester, name: 'Techcombank', account: '8800770066');
+      service.requestError = const ApiException(
+        409,
+        'x',
+        code: 'BANK_CHANGE_PENDING',
+      );
+      service.bank = _pending; // what the server holds now
+      final loadsBefore = service.loads;
+
+      await _save(tester);
+      await tester.tap(find.byKey(const Key('bank-confirm-yes')));
+      await tester.pumpAndSettle();
+
+      expect(service.loads, greaterThan(loadsBefore));
+      expect(find.byKey(const Key('bank-pending')), findsOneWidget);
+    });
+
+    testWidgets(
+      'the 409 of the lock shows the message of the server with its date',
+      (tester) async {
+        final service = FakeWorkerBank(_acb);
+        await _pump(tester, service);
+        await openChange(tester);
+        await _fill(tester, name: 'Techcombank', account: '8800770066');
+        service.requestError = const ApiException(
+          409,
+          'Bạn đã gửi đơn đổi tài khoản gần đây. Có thể gửi đơn mới từ ngày 28/11/2026.',
+          code: 'BANK_CHANGE_LOCKED',
+        );
+
+        await _save(tester);
+        await tester.tap(find.byKey(const Key('bank-confirm-yes')));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('28/11/2026'), findsWidgets);
+        expect(service.requests, hasLength(1));
+      },
+    );
+
+    testWidgets(
+      'the account must differ: the server 400 message shows and the typed values stay',
+      (tester) async {
+        final service = FakeWorkerBank(_acb);
+        await _pump(tester, service);
+        await openChange(tester);
+        await _fill(tester, name: 'ACB', account: '0011001234567');
+        service.requestError = const ApiException(
+          400,
+          'x',
+          fieldErrors: {
+            'bankAccountNo': ['Tài khoản mới phải khác tài khoản hiện tại.'],
+          },
+        );
+
+        await _save(tester);
+        await tester.tap(find.byKey(const Key('bank-confirm-yes')));
+        await tester.pumpAndSettle();
+
+        expect(
+          _text(tester, 'bank-error'),
+          'Tài khoản mới phải khác tài khoản hiện tại.',
+        );
+        expect(_value(tester, 'bank-account'), '0011001234567');
+      },
+    );
   });
 
   testWidgets(
