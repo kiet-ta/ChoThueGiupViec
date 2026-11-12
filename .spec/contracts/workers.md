@@ -295,7 +295,7 @@ Sets an availability slot for a date (`yyyy-MM-dd`) and shift (`SHIFT_MORNING`, 
 **Rules:**
 - Table `BOOKING_SLOT` has `UNIQUE(worker_id, slot_date, shift_code)`.
 - `enabled: true` -> `AVAILABLE`, `enabled: false` -> `BLOCKED`. Operation is idempotent (double clicks / concurrent requests return existing slot state safely without duplicate row errors).
-- The toggle only moves `AVAILABLE <-> BLOCKED`. A slot owned by Dispatch (`HELD` by an offer or agency hold, `BOOKED` by an assignment) is refused with **409 `SLOT_IN_USE`** and keeps its status (#398).
+- The toggle only moves `AVAILABLE <-> BLOCKED`. A slot owned by Dispatch (`HELD` by an offer or agency hold, `BOOKED` by an assignment) is refused with **409 `SLOT_IN_USE`** and keeps its status (#398). A shift of **today** whose start time has already passed (Vietnam local time) is refused with **409 `SHIFT_ALREADY_STARTED`** for both on and off; a past date stays `400` (`slotDate`) (MOB-SLOTS-ERR-01, #814).
 
 #### 2.3.3 `GET /api/v1/workers/me/assignments` (WorkerOnly)
 The jobs booked for the signed-in worker, so the app can show them in the schedule next to the slots (#550). Reads `JOB_ASSIGNMENT` -> `BOOKING_SLOT` (date, shift, times) -> `JOB_ORDER` -> `CUSTOMER_ADDRESS` (district only). No table change.

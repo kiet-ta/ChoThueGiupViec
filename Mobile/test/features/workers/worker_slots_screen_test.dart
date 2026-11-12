@@ -657,6 +657,91 @@ void main() {
       );
 
       testWidgets(
+        'at 19:15 every shift of today is locked with a clear sentence',
+        (tester) async {
+          await open(
+            tester,
+            DateTime(2026, 10, 14, 19, 15),
+          ); // Wednesday evening
+
+          for (final shift in [
+            'SHIFT_MORNING',
+            'SHIFT_AFTERNOON',
+            'SHIFT_EVENING',
+          ]) {
+            expect(
+              find.byKey(Key('shift-started-2026-10-14-$shift')),
+              findsOneWidget,
+            );
+          }
+          final switches = tester.widgetList<Switch>(find.byType(Switch));
+          expect(switches.every((sw) => sw.onChanged == null), isTrue);
+          expect(mockService.toggleCalls, 0);
+        },
+      );
+
+      testWidgets(
+        'at 10:00 only the morning shift is locked; the others still toggle',
+        (tester) async {
+          await open(tester, DateTime(2026, 10, 14, 10, 0));
+
+          expect(
+            find.byKey(const Key('shift-started-2026-10-14-SHIFT_MORNING')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('shift-started-2026-10-14-SHIFT_AFTERNOON')),
+            findsNothing,
+          );
+          final switches = tester
+              .widgetList<Switch>(find.byType(Switch))
+              .toList();
+          expect(switches[0].onChanged, isNull);
+          expect(switches[1].onChanged, isNotNull);
+          expect(switches[2].onChanged, isNotNull);
+        },
+      );
+
+      testWidgets('a later day is not locked even late in the evening', (
+        tester,
+      ) async {
+        await open(tester, DateTime(2026, 10, 14, 19, 15));
+        await tapVisible(
+          tester,
+          find.byKey(const Key('slots-day-3')),
+        ); // Thursday
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('đã bắt đầu'), findsNothing);
+        expect(
+          tester
+              .widgetList<Switch>(find.byType(Switch))
+              .every((sw) => sw.onChanged != null),
+          isTrue,
+        );
+      });
+
+      testWidgets('a SHIFT_ALREADY_STARTED answer shows its own sentence', (
+        tester,
+      ) async {
+        mockService.toggleError = const ApiException(
+          409,
+          'x',
+          code: 'SHIFT_ALREADY_STARTED',
+        );
+        await open(tester, fixedDate);
+        await tapVisible(tester, find.byType(Switch).first);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            'Ca này đã bắt đầu hoặc đã qua giờ nên không thể bật hoặc tắt.',
+          ),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets(
         'SLOT_IN_USE, a network error and anything else have their own sentence',
         (tester) async {
           final cases = <Object, String>{

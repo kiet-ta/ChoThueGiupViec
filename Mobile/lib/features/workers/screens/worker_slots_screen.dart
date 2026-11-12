@@ -126,11 +126,23 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   /// A day before today: the server refuses to change it (400 `slotDate`), so the app does not offer it.
   bool _isPastDay(String dateStr) => dateStr.compareTo(_todayStr) < 0;
 
+  /// A shift of today whose start time has passed (08:00 / 13:00 / 17:30): the server refuses it too (409 `SHIFT_ALREADY_STARTED`).
+  bool _isShiftStarted(String dateStr, Map<String, String> shift) {
+    if (dateStr != _todayStr) return false;
+    final start = shift['time']!.substring(0, 5).split(':');
+    final now = widget.initialDate ?? DateTime.now();
+    return now.hour * 60 + now.minute >=
+        int.parse(start[0]) * 60 + int.parse(start[1]);
+  }
+
   /// One plain sentence for a failed toggle, never the raw server text (MOB-SLOTS-ERR-01).
   static String _toggleErrorMessage(Object error) {
     if (error is ApiException) {
       if (error.fieldErrors?.containsKey('slotDate') ?? false) {
         return 'Ngày này đã qua nên không thể thay đổi lịch rảnh. Hãy chọn từ hôm nay trở đi.';
+      }
+      if (error.code == 'SHIFT_ALREADY_STARTED') {
+        return 'Ca này đã bắt đầu hoặc đã qua giờ nên không thể bật hoặc tắt.';
       }
       if (error.code == 'SLOT_IN_USE') {
         return 'Ca này đang có đơn (đang mời hoặc đã nhận) nên không thể bật hoặc tắt.';
@@ -547,6 +559,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     final shiftCode = shift['code']!;
     final assignment = _assignmentOf(dateStr, shiftCode);
     final booked = assignment != null;
+    final started = _isShiftStarted(dateStr, shift);
     final isActive =
         booked || (_slotActiveState['$dateStr:$shiftCode'] ?? false);
 
@@ -584,6 +597,14 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                   children: [
                     Text(shift['time']!, style: NordicTypography.titleSmall),
                     Text(shift['name']!, style: NordicTypography.bodySmall),
+                    if (started && !booked)
+                      Text(
+                        'Ca đã bắt đầu hoặc đã qua giờ, không thể bật hoặc tắt.',
+                        key: Key('shift-started-$dateStr-$shiftCode'),
+                        style: NordicTypography.bodySmall.copyWith(
+                          color: NordicColors.error,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -597,7 +618,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                 Switch.adaptive(
                   value: isActive,
                   activeTrackColor: NordicColors.primary,
-                  onChanged: _isPastDay(dateStr)
+                  onChanged: _isPastDay(dateStr) || started
                       ? null
                       : (_) => _toggleSlot(dateStr, shiftCode, isActive),
                 ),
