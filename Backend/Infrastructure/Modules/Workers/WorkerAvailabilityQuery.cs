@@ -78,7 +78,7 @@ public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoServ
 
             if (distanceKm <= query.RadiusKm)
             {
-                availableWorkers.Add(new AvailableWorker(c.WorkerId, c.SlotId, distanceKm));
+                availableWorkers.Add(new AvailableWorker(c.WorkerId, c.SlotId, distanceKm, c.Lat, c.Lng));
             }
         }
 

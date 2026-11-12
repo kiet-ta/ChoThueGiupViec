@@ -309,6 +309,8 @@ Khách trả lời câu hỏi "Chỉ có 1 thợ: thợ làm 2 ca liên tiếp?"
 - Thợ từ chối hoặc không xác nhận trong 120 giây -> đơn bị hủy và hoàn 100 % như trên (khách thấy `state` = `NOT_WAITING` và đơn `CANCELLED`).
 
 
+> **Chọn thợ theo đường bộ (DISPATCH-ROAD-01, #807, D30):** không đổi endpoint/DTO. Khi đặt đơn, hệ thống mời thợ có quãng đường đường bộ (Valhalla) ngắn nhất trước, rồi thợ gần tiếp theo; Valhalla lỗi thì dùng khoảng cách đường chim bay.
+
 #### `GET /api/v1/dispatch/assignments/{assignmentId}/route`
 Khách xem lộ trình từ thợ tới nhà (ROUTE-WEB-01, #765, quyết định D29). Lộ trình do Valhalla tính (costing `motor_scooter`, dữ liệu OpenStreetMap).
 

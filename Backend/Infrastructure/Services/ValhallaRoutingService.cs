@@ -23,6 +23,7 @@ public class ValhallaRoutingService : IRoutingService
     private readonly string? _baseUrl;
     private readonly ILogger<ValhallaRoutingService> _logger;
     private readonly FakeRoutingService _fake = new();
+    private readonly double _matrixTimeoutSeconds;
 
     public ValhallaRoutingService(HttpClient http, IConfiguration configuration, ILogger<ValhallaRoutingService> logger)
     {
@@ -30,6 +31,8 @@ public class ValhallaRoutingService : IRoutingService
         _logger = logger;
         var raw = configuration[BaseUrlKey];
         _baseUrl = string.IsNullOrWhiteSpace(raw) ? null : raw.Trim().TrimEnd('/');
+        _matrixTimeoutSeconds = double.TryParse(configuration[MatrixTimeoutKey], System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var t) && t > 0 ? t : DefaultMatrixTimeoutSeconds;
     }
 
     public async Task<RouteResult?> GetRouteAsync(double fromLat, double fromLng, double toLat, double toLng, CancellationToken ct = default) =>
@@ -76,6 +79,81 @@ public class ValhallaRoutingService : IRoutingService
             _logger.LogWarning(ex, "Valhalla route request failed; no route returned.");
             return [];
         }
+    }
+
+    /// <summary>Config key for the matrix timeout in seconds (default <see cref="DefaultMatrixTimeoutSeconds"/>).</summary>
+    public const string MatrixTimeoutKey = "Valhalla:MatrixTimeoutSeconds";
+    public const double DefaultMatrixTimeoutSeconds = 3.0;
+
+    /// <summary>
+    /// One Valhalla <c>sources_to_targets</c> (matrix) call: road metres from the origin to every target (DISPATCH-ROAD-01). A target with
+    /// no route is null in the result; null overall when Valhalla does not answer within the timeout. With no BaseUrl the fake straight line is used.
+    /// </summary>
+    public async Task<IReadOnlyList<double?>?> GetRoadDistancesAsync(
+        double fromLat, double fromLng, IReadOnlyList<(double Lat, double Lng)> targets, CancellationToken ct = default)
+    {
+        if (targets.Count == 0) return [];
+        if (_baseUrl is null) return await _fake.GetRoadDistancesAsync(fromLat, fromLng, targets, ct);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(_matrixTimeoutSeconds));
+        try
+        {
+            var body = new
+            {
+                sources = new[] { new { lat = fromLat, lon = fromLng } },
+                targets = targets.Select(t => new { lat = t.Lat, lon = t.Lng }).ToArray(),
+                costing = Costing,
+            };
+
+            using var response = await _http.PostAsJsonAsync($"{_baseUrl}/sources_to_targets", body, timeout.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Valhalla matrix returned HTTP {StatusCode} for {Count} targets.", (int)response.StatusCode, targets.Count);
+                return null;
+            }
+
+            var root = await response.Content.ReadFromJsonAsync<ValhallaMatrixResponse>(cancellationToken: timeout.Token);
+            return ParseMatrix(root, targets.Count);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException)
+        {
+            if (ct.IsCancellationRequested) throw;
+            _logger.LogWarning(ex, "Valhalla matrix request failed; dispatch falls back to straight-line distance.");
+            return null;
+        }
+    }
+
+    /// <summary>Metres per target (km -> m) from the first source row; null for a target without a distance or missing from the answer.</summary>
+    public static IReadOnlyList<double?> ParseMatrix(ValhallaMatrixResponse? root, int targetCount)
+    {
+        var result = new double?[targetCount];
+        var row = root?.SourcesToTargets?.FirstOrDefault();
+        foreach (var cell in row ?? [])
+        {
+            if (cell.ToIndex is >= 0 && cell.ToIndex < targetCount && cell.Distance is not null)
+            {
+                result[cell.ToIndex.Value] = Math.Round(cell.Distance.Value * 1000.0, 1);
+            }
+        }
+
+        return result;
+    }
+
+    public class ValhallaMatrixResponse
+    {
+        [JsonPropertyName("sources_to_targets")]
+        public List<List<ValhallaMatrixCell>>? SourcesToTargets { get; set; }
+    }
+
+    public class ValhallaMatrixCell
+    {
+        /// <summary>Kilometres (Valhalla's default unit); null when the target cannot be reached.</summary>
+        [JsonPropertyName("distance")]
+        public double? Distance { get; set; }
+
+        [JsonPropertyName("to_index")]
+        public int? ToIndex { get; set; }
     }
 
     /// <summary>Reads distance (km -> m), time (s) and the first leg's encoded shape; null when any part is missing.</summary>

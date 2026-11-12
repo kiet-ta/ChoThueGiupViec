@@ -20,6 +20,11 @@ public class FakeRoutingService : IRoutingService
         return Task.FromResult<RouteResult?>(new RouteResult(Math.Round(meters, 1), Math.Round(seconds, 1), polyline));
     }
 
+    public Task<IReadOnlyList<double?>?> GetRoadDistancesAsync(
+        double fromLat, double fromLng, IReadOnlyList<(double Lat, double Lng)> targets, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<double?>?>(
+            targets.Select(t => (double?)Math.Round(HaversineMeters(fromLat, fromLng, t.Lat, t.Lng), 1)).ToList());
+
     public static double HaversineMeters(double lat1, double lng1, double lat2, double lng2)
     {
         static double Rad(double d) => d * Math.PI / 180.0;
