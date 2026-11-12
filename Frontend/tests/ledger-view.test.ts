@@ -4,6 +4,7 @@ import {
   EMPTY_FILTERS,
   ENTRY_TYPE_LABELS,
   ENTRY_TYPE_OPTIONS,
+  entryPartyLabel,
   entryRow,
   entryTypeLabel,
   exportErrorMessage,
@@ -11,6 +12,7 @@ import {
   exportHint,
   filterErrors,
   loadErrorText,
+  PARTY_TYPE_OPTIONS,
   partyLabel,
   reconciliationRows,
   referenceLabel,
@@ -65,8 +67,88 @@ describe('labels', () => {
     assert.equal(partyLabel('WORKER', 7), 'Thợ #7')
     assert.equal(partyLabel('AGENCY_ESCROW', 3), 'Ký quỹ Agency #3')
     assert.equal(partyLabel('PLATFORM_REVENUE', null), 'Doanh thu nền tảng')
-    assert.equal(partyLabel('EXTERNAL', null), 'Bên ngoài')
-    assert.equal(partyLabel('EXTERNAL', 12), 'Bên ngoài #12')
+    assert.equal(partyLabel('EXTERNAL', null), 'Ngoài nền tảng')
+    assert.equal(partyLabel('EXTERNAL', 12), 'Ngoài nền tảng #12')
+  })
+
+  describe('the party outside the platform is named by what it is in the entry (LEDGER-27)', () => {
+    const entry = (entryType: string, from: [string, number | null], to: [string, number | null]) => ({
+      entryType,
+      fromPartyType: from[0],
+      fromPartyId: from[1],
+      toPartyType: to[0],
+      toPartyId: to[1],
+    })
+
+    it('the customer who pays an order or an extension', () => {
+      const paid = entry('ORDER_PAID', ['EXTERNAL', 12], ['PLATFORM_CLEARING', null])
+      assert.equal(entryPartyLabel(paid, 'from'), 'Khách hàng #12')
+      assert.equal(entryPartyLabel(entry('EXTENSION_PAID', ['EXTERNAL', null], ['PLATFORM_CLEARING', null]), 'from'), 'Khách hàng')
+    })
+
+    it('the customer who is paid back', () => {
+      const refund = entry('REFUND', ['PLATFORM_CLEARING', null], ['EXTERNAL', 12])
+      assert.equal(entryPartyLabel(refund, 'to'), 'Khách hàng #12 (nhận hoàn tiền)')
+    })
+
+    it('the Agency that pays a subscription or a deposit in', () => {
+      assert.equal(entryPartyLabel(entry('SUBSCRIPTION', ['EXTERNAL', 3], ['PLATFORM_REVENUE', null]), 'from'), 'Agency #3 (thanh toán)')
+      assert.equal(entryPartyLabel(entry('ESCROW_DEPOSIT', ['EXTERNAL', 3], ['AGENCY_ESCROW', 3]), 'from'), 'Agency #3 (thanh toán)')
+    })
+
+    it('the bank account a withdrawal or a settlement is paid out to, and for the Agency its own', () => {
+      const withdrawal = entry('WITHDRAWAL', ['WORKER', 7], ['EXTERNAL', null])
+      const settlement = entry('SETTLEMENT', ['AGENCY', 3], ['EXTERNAL', null])
+      assert.equal(entryPartyLabel(withdrawal, 'to'), 'Tài khoản ngân hàng của người nhận')
+      assert.equal(entryPartyLabel(settlement, 'to'), 'Tài khoản ngân hàng của người nhận')
+      assert.equal(entryPartyLabel(settlement, 'to', 'agency'), 'Tài khoản ngân hàng của bạn')
+    })
+
+    it('a party that is not outside the platform keeps its normal label', () => {
+      const withdrawal = entry('WITHDRAWAL', ['WORKER', 7], ['EXTERNAL', null])
+      assert.equal(entryPartyLabel(withdrawal, 'from'), 'Thợ #7')
+    })
+
+    it('any other combination says "Ngoài nền tảng", and nothing says "Bên ngoài"', () => {
+      const odd = entry('REVERSAL', ['EXTERNAL', null], ['EXTERNAL', 5])
+      assert.equal(entryPartyLabel(odd, 'from'), 'Ngoài nền tảng')
+      assert.equal(entryPartyLabel(odd, 'to'), 'Ngoài nền tảng #5')
+      const everything = ENTRY_TYPE_OPTIONS.map((o) => o.value)
+        .filter(Boolean)
+        .flatMap((type) =>
+          (['from', 'to'] as const).flatMap((side) => [
+            entryPartyLabel(entry(type, ['EXTERNAL', null], ['EXTERNAL', null]), side),
+            entryPartyLabel(entry(type, ['EXTERNAL', 9], ['EXTERNAL', 9]), side, 'agency'),
+          ]),
+        )
+      assert.ok(everything.length > 0)
+      assert.ok(everything.every((label) => !label.includes('Bên ngoài')))
+    })
+
+    it('the filter option says what the outside party can be', () => {
+      assert.equal(PARTY_TYPE_OPTIONS.find((o) => o.value === 'EXTERNAL')?.label, 'Ngoài nền tảng (khách, ngân hàng)')
+    })
+
+    it('a table row names both sides by the entry', () => {
+      const row = entryRow({
+        entryId: 1,
+        entryCode: 'LG00000001',
+        createdAt: '2026-11-11T10:17:00Z',
+        entryType: 'WITHDRAWAL',
+        fromPartyType: 'WORKER',
+        fromPartyId: 3,
+        toPartyType: 'EXTERNAL',
+        toPartyId: null,
+        amount: 100000,
+        refType: 'WITHDRAWAL',
+        refId: 149,
+        orderId: null,
+        note: null,
+        entryHash: 'a'.repeat(64),
+      })
+      assert.equal(row.from, 'Thợ #3')
+      assert.equal(row.to, 'Tài khoản ngân hàng của người nhận')
+    })
   })
 
   it('adds the order to a reference unless the reference is that order', () => {

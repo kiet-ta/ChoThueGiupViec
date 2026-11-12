@@ -1,6 +1,6 @@
 // Pure logic of the agency's transaction history (no React, so `node --test` covers it). Rules: .spec/contracts/ledger.md sections 5 and 9.
 import { formatDateTime, formatVnd } from '../../lib/format.ts'
-import { entryTypeLabel, partyLabel, referenceLabel, shortHash } from '../ledger/view.ts'
+import { entryPartyLabel, entryTypeLabel, referenceLabel, shortHash } from '../ledger/view.ts'
 import type { LedgerEntry } from '../ledger/types.ts'
 
 /** A row of the agency's history: the entry plus the account of the agency it touched and the signed amount (`GET /agencies/me/ledger`). */
@@ -69,14 +69,14 @@ export interface HistoryRow {
 
 export function historyRow(e: AgencyLedgerEntry): HistoryRow {
   const received = e.signedAmount !== null && e.signedAmount > 0
-  const other = received ? partyLabel(e.fromPartyType, e.fromPartyId) : partyLabel(e.toPartyType, e.toPartyId)
+  const other = received ? entryPartyLabel(e, 'from', 'agency') : entryPartyLabel(e, 'to', 'agency')
   return {
     entryId: e.entryId,
     code: e.entryCode,
     time: formatDateTime(e.createdAt),
     account: accountLabel(e.account),
     type: entryTypeLabel(e.entryType),
-    counterparty: e.signedAmount === null ? `${partyLabel(e.fromPartyType, e.fromPartyId)} → ${partyLabel(e.toPartyType, e.toPartyId)}` : other,
+    counterparty: e.signedAmount === null ? `${entryPartyLabel(e, 'from', 'agency')} → ${entryPartyLabel(e, 'to', 'agency')}` : other,
     amount: signedAmountText(e.signedAmount, e.amount),
     tone: e.signedAmount === null ? 'plain' : e.signedAmount > 0 ? 'in' : 'out',
     reference: referenceLabel(e.refType, e.refId, e.orderId),

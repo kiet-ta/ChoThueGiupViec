@@ -110,7 +110,7 @@ describe('rows', () => {
     assert.equal(settlement.settlement, true)
     assert.equal(settlement.type, 'Tất toán lương tháng')
     assert.equal(settlement.amount, '-221.000 đ')
-    assert.equal(settlement.counterparty, 'Bên ngoài')
+    assert.equal(settlement.counterparty, 'Tài khoản ngân hàng của bạn')
     assert.equal(settlement.reference, 'Kỳ payout #2')
   })
 
