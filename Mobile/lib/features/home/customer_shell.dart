@@ -68,7 +68,7 @@ class _CustomerShellState extends State<CustomerShell> {
       await Navigator.of(context).push<OnboardingResult>(
         MaterialPageRoute(
           fullscreenDialog: true,
-          builder: (_) => CustomerOnboardingScreen(onSignOut: widget.onSignOut),
+          builder: (_) => const CustomerOnboardingScreen(),
         ),
       );
       if (!mounted) return;

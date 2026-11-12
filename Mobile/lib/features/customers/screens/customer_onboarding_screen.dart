@@ -31,14 +31,10 @@ class CustomerOnboardingScreen extends StatefulWidget {
   final CustomerProfileService? profileService;
   final CustomerAddressService? addressService;
 
-  /// The way out of step 1 (the name cannot be skipped): signs out. No button when null.
-  final VoidCallback? onSignOut;
-
   const CustomerOnboardingScreen({
     super.key,
     this.profileService,
     this.addressService,
-    this.onSignOut,
   });
 
   @override
@@ -402,27 +398,6 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
         validator: (value) => callNameError(value ?? ''),
       ),
     ),
-    if (widget.onSignOut != null) ...[
-      const SizedBox(height: NordicSpace.lg),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton(
-          key: const Key('onboarding-signout'),
-          onPressed: _busy
-              ? null
-              : () {
-                  Navigator.of(context).pop(
-                    OnboardingResult(
-                      nameSaved: _nameSaved,
-                      addressSaved: _addressSaved,
-                    ),
-                  );
-                  widget.onSignOut!();
-                },
-          child: const Text('Đăng xuất'),
-        ),
-      ),
-    ],
   ];
 
   List<Widget> _addressStep() => [

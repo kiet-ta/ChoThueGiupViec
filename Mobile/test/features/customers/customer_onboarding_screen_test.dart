@@ -47,14 +47,12 @@ class _Addresses extends CustomerAddressService {
 class _Host extends StatefulWidget {
   final _Profiles profiles;
   final _Addresses addresses;
-  final VoidCallback? onSignOut;
   final void Function(OnboardingResult?) onResult;
 
   const _Host({
     required this.profiles,
     required this.addresses,
     required this.onResult,
-    this.onSignOut,
   });
 
   @override
@@ -74,7 +72,6 @@ class _HostState extends State<_Host> {
                 builder: (_) => CustomerOnboardingScreen(
                   profileService: widget.profiles,
                   addressService: widget.addresses,
-                  onSignOut: widget.onSignOut,
                 ),
               ),
             );
@@ -92,7 +89,6 @@ Future<void> _open(
   required _Profiles profiles,
   required _Addresses addresses,
   required void Function(OnboardingResult?) onResult,
-  VoidCallback? onSignOut,
 }) async {
   tester.view.physicalSize = const Size(390, 1600);
   tester.view.devicePixelRatio = 1.0;
@@ -103,12 +99,7 @@ Future<void> _open(
   await tester.pumpWidget(
     MaterialApp(
       theme: NordicTheme.lightTheme,
-      home: _Host(
-        profiles: profiles,
-        addresses: addresses,
-        onResult: onResult,
-        onSignOut: onSignOut,
-      ),
+      home: _Host(profiles: profiles, addresses: addresses, onResult: onResult),
     ),
   );
   await tester.tap(find.byKey(const Key('open')));
@@ -186,21 +177,24 @@ void main() {
   }
 
   group('step 1: the name', () {
-    testWidgets('starts on step 1 of 3 with no skip and no back arrow', (
-      tester,
-    ) async {
-      await _open(
-        tester,
-        profiles: profiles,
-        addresses: addresses,
-        onResult: onResult,
-      );
+    testWidgets(
+      'starts on step 1 of 3 with no skip, no back arrow and no sign-out',
+      (tester) async {
+        await _open(
+          tester,
+          profiles: profiles,
+          addresses: addresses,
+          onResult: onResult,
+        );
 
-      expect(_stepLabel(tester), 'Bước 1/3');
-      expect(find.text('Chúng tôi nên gọi bạn là gì?'), findsOneWidget);
-      expect(find.byKey(const Key('onboarding-skip')), findsNothing);
-      expect(find.byKey(const Key('onboarding-back')), findsNothing);
-    });
+        expect(_stepLabel(tester), 'Bước 1/3');
+        expect(find.text('Chúng tôi nên gọi bạn là gì?'), findsOneWidget);
+        expect(find.byKey(const Key('onboarding-skip')), findsNothing);
+        expect(find.byKey(const Key('onboarding-back')), findsNothing);
+        // MOB-ONBOARD-03: no way out of the name step but giving a name
+        expect(find.text('Đăng xuất'), findsNothing);
+      },
+    );
 
     testWidgets('a blank name is refused on the device and nothing is sent', (
       tester,
@@ -257,23 +251,6 @@ void main() {
       expect(_stepLabel(tester), 'Bước 1/3');
       expect(find.text('Máy chủ đang bận.'), findsOneWidget);
       expect(profiles.names, isEmpty);
-    });
-
-    testWidgets('the only way out of step 1 is to sign out', (tester) async {
-      var signedOut = 0;
-      await _open(
-        tester,
-        profiles: profiles,
-        addresses: addresses,
-        onResult: onResult,
-        onSignOut: () => signedOut++,
-      );
-
-      await _tap(tester, 'onboarding-signout');
-
-      expect(signedOut, 1);
-      expect(closed, isTrue);
-      expect(result?.nameSaved, isFalse);
     });
   });
 
