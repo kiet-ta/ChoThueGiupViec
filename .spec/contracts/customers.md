@@ -67,6 +67,8 @@ All endpoints require `Authorization: Bearer <accessToken>` with policy **`Custo
 
 A `CUSTOMER` row is created by the first successful OTP login (`identity.md` §2.2) with: `phone_number` from the login, `full_name` empty string until the customer sets it (C1), `email` null, `otp_verified_at = now`, `trust_score` = `Customer.InitialTrustScore` (C2), `account_status` = `ACTIVE` (`identity.md` O6), `created_at = updated_at = now (UTC)`.
 
+`fullName` may hold the name the customer chose to be called (for example "Anh Duy"), not a legal full name: the Mobile onboarding after the first login asks "how should we call you" and saves the answer here (MOB-ONBOARD-01). Workers and Admin see it where the customer's name is shown. An empty `fullName` means the customer has not been through the onboarding yet.
+
 **`PUT /api/v1/customers/me`** (full replace of the editable fields)
 ```json
 { "fullName": "string", "email": "string | null" }
