@@ -80,6 +80,14 @@ OTP sign-up, add an address (area decides the price and the number of workers), 
 
 **S4 Refusals** - registering the same tax code twice; importing a file with a duplicate phone; a PUT roster for a worker of another company; a blurry photo; a booking less than 4 hours ahead (Premium). Expect a clear message each time, never a blank error page.
 
+**S5 Road-distance dispatch (DISPATCH-ROAD-01, #807)** - Customer (Mobile) + Admin (Web) + a terminal.
+0. Valhalla must be `healthy` (see "Route maps" above). Without it the backend falls back to straight line and the log says so.
+1. Seed: `node scripts/uat/seed_road_dispatch.mjs` (3 freelancers in HCMC with open slots for the next 7 days, 1 customer `0988000111` with the address "12 Nguyen Hue"). It prints the expected offer order by road distance and whether it differs from the straight-line order.
+2. Customer app: sign in with phone `0988000111` (OTP: `docker compose logs backend | findstr "FAKE OTP"`). Book **Economy**, tomorrow, morning, address "Nha Nguyen Hue". Admin: Cong cu dev -> Xac nhan thanh toan.
+3. "Find worker" runs by itself on payment. Proof: `docker compose logs backend | findstr DISPATCH-ROAD`. Expect one line `offer order by road distance: worker X road a km (straight b km) > worker Y ...`; the first worker listed is the one offered, and the order of the list is by road km, not by straight km.
+4. Admin -> "Giam sat dieu phoi" shows the order and the worker currently offered. Do not accept: after 30 s the offer expires and the next worker in the log line is offered (a new `DISPATCH-ROAD` line, the first worker excluded).
+5. Fallback: `docker compose stop valhalla`, book and pay another order. Expect the log `Valhalla matrix request failed; dispatch falls back to straight-line distance` and an offer anyway.
+
 ## 4. Result table (copy it)
 
 | Scenario / step | Tester | Result | What you saw (screen, message, time) |

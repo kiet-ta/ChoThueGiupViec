@@ -43,14 +43,17 @@ public class SteppedRadiusDispatchScanner
     private readonly BusinessRules _businessRules;
     private readonly MatchingScoreOptions _matchingScoreOptions;
     private readonly ILogger<SteppedRadiusDispatchScanner> _logger;
+    private readonly IRoutingService? _routing;
 
     public SteppedRadiusDispatchScanner(
         IWorkerAvailabilityQuery workerAvailabilityQuery,
         IOptions<BusinessRules> businessRules,
         IOptions<MatchingScoreOptions>? matchingScoreOptions = null,
         IWorkerProfileQuery? workerProfileQuery = null,
-        ILogger<SteppedRadiusDispatchScanner>? logger = null)
+        ILogger<SteppedRadiusDispatchScanner>? logger = null,
+        IRoutingService? routingService = null)
     {
+        _routing = routingService;
         _workerAvailabilityQuery = workerAvailabilityQuery ?? throw new ArgumentNullException(nameof(workerAvailabilityQuery));
         _businessRules = businessRules?.Value ?? new BusinessRules();
         _matchingScoreOptions = matchingScoreOptions?.Value ?? new MatchingScoreOptions();
@@ -96,6 +99,7 @@ public class SteppedRadiusDispatchScanner
             );
 
             var availableWorkers = await _workerAvailabilityQuery.FindAvailableFreelancersAsync(query, cancellationToken);
+            availableWorkers = await WithRoadDistancesAsync(location, availableWorkers, cancellationToken);
 
             // Fetch profile metrics (Rating, CompletedJobs) if worker profile query is supplied, otherwise default
             IReadOnlyDictionary<int, WorkerProfileSummary>? profiles = null;
@@ -174,6 +178,55 @@ public class SteppedRadiusDispatchScanner
         };
     }
 
+    /// <summary>
+    /// DISPATCH-ROAD-01: replaces the straight-line <see cref="AvailableWorker.DistanceKm"/> by the road distance (Valhalla, one matrix call)
+    /// so candidates are ranked and tested against the radius by road. A worker without coordinates or without a route, or any routing
+    /// failure, keeps the straight-line value: dispatch never fails because routing does.
+    /// </summary>
+    private async Task<IReadOnlyList<AvailableWorker>> WithRoadDistancesAsync(
+        GeoPoint origin, IReadOnlyList<AvailableWorker> workers, CancellationToken cancellationToken)
+    {
+        if (_routing == null || workers.Count == 0) return workers;
+
+        var withPoint = workers.Where(w => w.Latitude.HasValue && w.Longitude.HasValue).ToList();
+        if (withPoint.Count == 0) return workers;
+
+        IReadOnlyList<double?>? meters;
+        try
+        {
+            meters = await _routing.GetRoadDistancesAsync(
+                origin.Latitude, origin.Longitude, withPoint.Select(w => (w.Latitude!.Value, w.Longitude!.Value)).ToList(), cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Road distance failed for {Count} candidates; using straight-line distance.", withPoint.Count);
+            return workers;
+        }
+
+        if (meters == null || meters.Count != withPoint.Count)
+        {
+            _logger.LogWarning("Road distance unavailable for {Count} candidates; using straight-line distance.", withPoint.Count);
+            return workers;
+        }
+
+        var roadKm = new Dictionary<int, double>();
+        for (var i = 0; i < withPoint.Count; i++)
+        {
+            if (meters[i] is { } m) roadKm[withPoint[i].WorkerId] = m / 1000.0;
+        }
+
+        var byRoad = workers
+            .Select(w => roadKm.TryGetValue(w.WorkerId, out var km) ? w with { DistanceKm = km } : w)
+            .OrderBy(w => w.DistanceKm)
+            .ToList();
+
+        // Evidence line for UAT / support: who is nearest by road, with the straight-line value that used to decide.
+        var straight = workers.ToDictionary(w => w.WorkerId, w => w.DistanceKm);
+        _logger.LogInformation("[DISPATCH-ROAD] offer order by road distance: {Ranking}",
+            string.Join(" > ", byRoad.Select(w => $"worker {w.WorkerId} road {w.DistanceKm:F2} km (straight {straight[w.WorkerId]:F2} km{(roadKm.ContainsKey(w.WorkerId) ? "" : ", no route: straight used")})")));
+        return byRoad;
+    }
+
     /// <summary>How many free workers the preferred-worker lookup reads at the widest radius; the query sorts by distance.</summary>
     private const int PreferredLookupLimit = 1000;
 
@@ -205,6 +258,8 @@ public class SteppedRadiusDispatchScanner
         {
             return null;
         }
+
+        worker = (await WithRoadDistancesAsync(location, [worker], cancellationToken))[0];
 
         WorkerProfileSummary? profile = null;
         if (_workerProfileQuery != null)

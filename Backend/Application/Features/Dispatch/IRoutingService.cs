@@ -16,6 +16,15 @@ public interface IRoutingService
     Task<RouteResult?> GetRouteAsync(double fromLat, double fromLng, double toLat, double toLng, CancellationToken ct = default);
 
     /// <summary>
+    /// Road distance in metres from one point to each of <paramref name="targets"/> (DISPATCH-ROAD-01), in the order of the targets;
+    /// an item is null when that target has no route. Returns null when the engine cannot answer at all, so Dispatch falls back to the
+    /// straight-line distance. The default says "cannot answer".
+    /// </summary>
+    Task<IReadOnlyList<double?>?> GetRoadDistancesAsync(
+        double fromLat, double fromLng, IReadOnlyList<(double Lat, double Lng)> targets, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<double?>?>(null);
+
+    /// <summary>
     /// Up to <paramref name="maxRoutes"/> routes, the fastest first, the others sorted by duration (ROUTE-MOB-01, #760). Empty when the
     /// engine cannot answer. The default is the single route of <see cref="GetRouteAsync"/>, so an adapter without alternatives needs nothing.
     /// </summary>
