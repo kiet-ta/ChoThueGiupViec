@@ -233,14 +233,69 @@ void main() {
     }
 
     testWidgets(
-      'offers both segments, explained, with the lead time from the options',
+      'offers both segments with a tag and two short lines, the lead time from the options (MOB-BOOK-01)',
       (tester) async {
         await pumpBooking(tester, FakeBookingService());
 
         expect(find.byKey(const Key('tier-ECONOMY')), findsOneWidget);
         expect(find.byKey(const Key('tier-PREMIUM')), findsOneWidget);
-        expect(find.textContaining('Người làm tự do'), findsOneWidget);
+        expect(find.text('Tiết kiệm'), findsOneWidget);
+        expect(find.text('An tâm tối đa'), findsOneWidget);
+        expect(
+          find.text(
+            'Dọn dẹp tiêu chuẩn, thao tác nhanh, phù hợp nhu cầu hằng ngày.',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Hoàn tiền tự động 100% nếu không khớp được ca làm.'),
+          findsOneWidget,
+        );
         expect(find.textContaining('ít nhất 4 giờ'), findsOneWidget);
+        expect(
+          find.text(
+            'Đảm bảo có người làm, hỗ trợ thay thế khẩn cấp khi phát sinh sự cố.',
+          ),
+          findsOneWidget,
+        );
+        // the long text is behind the "?" now, not on the card
+        expect(find.textContaining('Người làm tự do'), findsNothing);
+        expect(find.textContaining('Bạn kiểm tra trực tiếp'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the ? of a package opens its details and closing leaves the selection as it was (MOB-BOOK-01)',
+      (tester) async {
+        await pumpBooking(
+          tester,
+          FakeBookingService(),
+          favorites: FakeFavorites([_mai]),
+        );
+        expect(find.byKey(const Key('favorite-42')), findsNothing);
+
+        await tapKey(tester, 'tier-info-ECONOMY');
+
+        expect(find.byKey(const Key('tier-details')), findsOneWidget);
+        expect(find.text('Gói Cơ bản'), findsOneWidget);
+        expect(find.textContaining('Người làm tự do'), findsOneWidget);
+        expect(
+          find.textContaining(
+            'tự động hoàn tiền nếu khu vực hết người nhận ca',
+          ),
+          findsOneWidget,
+        );
+
+        await tapKey(tester, 'tier-details-close');
+
+        expect(find.byKey(const Key('tier-details')), findsNothing);
+        // Economy was not selected by the "?": its favourite workers stay hidden
+        expect(find.byKey(const Key('favorite-42')), findsNothing);
+
+        await tapKey(tester, 'tier-info-PREMIUM');
+        expect(find.text('Gói Cao cấp'), findsOneWidget);
+        expect(find.textContaining('Bạn kiểm tra trực tiếp'), findsOneWidget);
+        await tapKey(tester, 'tier-details-close');
       },
     );
 

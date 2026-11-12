@@ -52,6 +52,41 @@ String tierDescription(String tier, BookingOptions options) => switch (tier) {
   _ => '',
 };
 
+/// The short tag of a package on its card (MOB-BOOK-01).
+String tierTag(String tier) => switch (tier) {
+  ServiceTier.economy => 'Tiết kiệm',
+  ServiceTier.premium => 'An tâm tối đa',
+  _ => '',
+};
+
+/// The two short lines on the card of a package (MOB-BOOK-01); the premium lead time is the options' (`premiumMinLeadHours`).
+List<String> tierBullets(String tier, BookingOptions options) => switch (tier) {
+  ServiceTier.economy => const [
+    'Dọn dẹp tiêu chuẩn, thao tác nhanh, phù hợp nhu cầu hằng ngày.',
+    'Hoàn tiền tự động 100% nếu không khớp được ca làm.',
+  ],
+  ServiceTier.premium => [
+    'Nhân sự từ đơn vị đối tác uy tín (đặt trước ít nhất ${options.premiumMinLeadHours} giờ).',
+    'Đảm bảo có người làm, hỗ trợ thay thế khẩn cấp khi phát sinh sự cố.',
+  ],
+  _ => const [],
+};
+
+/// The long text behind the "?" button of a package: its description, then what the card used to show under it.
+List<String> tierDetails(String tier, BookingOptions options) => switch (tier) {
+  ServiceTier.economy => [
+    tierDescription(tier, options),
+    'Đơn có thể tự động hoàn tiền nếu khu vực hết người nhận ca.',
+  ],
+  ServiceTier.premium => [
+    tierDescription(tier, options),
+    '• Đối tác cung cấp người làm theo lịch đã giữ.\n'
+        '• Hỗ trợ điều phối thay thế khẩn cấp khi có sự cố; hoàn tiền nếu không tìm được người thay thế.\n'
+        '• Bạn kiểm tra trực tiếp; người làm khắc phục tại chỗ trong 15–30 phút nếu cần.',
+  ],
+  _ => const [],
+};
+
 String shiftLabel(String shiftCode) => switch (shiftCode) {
   'SHIFT_MORNING' => 'Ca sáng',
   'SHIFT_AFTERNOON' => 'Ca chiều',

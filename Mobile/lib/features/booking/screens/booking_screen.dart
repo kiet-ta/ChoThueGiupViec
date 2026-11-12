@@ -500,7 +500,9 @@ class _BookingScreenState extends State<BookingScreen> {
           selected: _tier == tier,
           tier: tier,
           title: tierLabel(tier),
-          subtitle: tierDescription(tier, options),
+          tag: tierTag(tier),
+          bullets: tierBullets(tier, options),
+          onInfo: () => _showTierDetails(tier, options),
           onTap: () => _chooseTier(tier),
         ),
         const SizedBox(height: NordicSpace.sm),
@@ -766,6 +768,37 @@ class _BookingScreenState extends State<BookingScreen> {
     ];
   }
 
+  /// The long text of a package in a popup (MOB-BOOK-01): what the card used to show in full.
+  Future<void> _showTierDetails(String tier, BookingOptions options) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('tier-details'),
+        title: Text('Gói ${tierLabel(tier)}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final paragraph in tierDetails(tier, options))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+                  child: Text(paragraph, style: NordicTypography.bodyRegular),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('tier-details-close'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _heading(String text, {double top = 0.0, String? trailing}) => Padding(
     padding: EdgeInsets.only(top: top, bottom: 8.0),
     child: Row(
@@ -826,12 +859,14 @@ BoxDecoration _tileDecoration(bool selected) => BoxDecoration(
   ),
 );
 
-/// ui-templates `.tier`: one segment, its radio and its one-line explanation.
+/// ui-templates `.tier`: one segment, its tag and two short lines, a "?" for the details, and its radio.
 class _TierTile extends StatelessWidget {
   final bool selected;
   final String tier;
   final String title;
-  final String subtitle;
+  final String tag;
+  final List<String> bullets;
+  final VoidCallback onInfo;
   final VoidCallback onTap;
 
   const _TierTile({
@@ -839,7 +874,9 @@ class _TierTile extends StatelessWidget {
     required this.selected,
     required this.tier,
     required this.title,
-    required this.subtitle,
+    required this.tag,
+    required this.bullets,
+    required this.onInfo,
     required this.onTap,
   });
 
@@ -864,6 +901,16 @@ class _TierTile extends StatelessWidget {
                   Expanded(
                     child: Text(title, style: NordicTypography.titleSmall),
                   ),
+                  // Tapping the "?" opens the details only: it is its own button, the card is not selected.
+                  IconButton(
+                    key: Key('tier-info-$tier'),
+                    tooltip: 'Xem chi tiết gói $title',
+                    onPressed: onInfo,
+                    icon: const Icon(
+                      Icons.help_outline_rounded,
+                      color: NordicColors.textSecondary,
+                    ),
+                  ),
                   Icon(
                     selected
                         ? Icons.check_circle_rounded
@@ -874,31 +921,27 @@ class _TierTile extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: NordicSpace.xs),
-              if (tier == ServiceTier.economy)
-                const StatusPill('Giá tốt nhất', tone: PillTone.ok)
-              else if (tier == ServiceTier.premium)
-                const StatusPill(
-                  'Hỗ trợ thay thế khi có sự cố',
-                  tone: PillTone.ok,
-                ),
-              const SizedBox(height: NordicSpace.xs),
-              Text(subtitle, style: NordicTypography.bodySmall),
-              if (tier == ServiceTier.economy) ...[
-                const SizedBox(height: NordicSpace.xs),
-                const Text(
-                  'Đơn có thể tự động hoàn tiền nếu khu vực hết người nhận ca.',
-                  style: NordicTypography.bodySmall,
-                ),
-              ] else if (tier == ServiceTier.premium) ...[
-                const SizedBox(height: NordicSpace.xs),
-                const Text(
-                  '• Đối tác cung cấp người làm theo lịch đã giữ.\n'
-                  '• Hỗ trợ điều phối thay thế khẩn cấp khi có sự cố; hoàn tiền nếu không tìm được người thay thế.\n'
-                  '• Bạn kiểm tra trực tiếp; người làm khắc phục tại chỗ trong 15–30 phút nếu cần.',
-                  style: NordicTypography.bodySmall,
+              if (tag.isNotEmpty) ...[
+                const SizedBox(height: NordicSpace.xxs),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: StatusPill(tag, tone: PillTone.ok),
                 ),
               ],
+              const SizedBox(height: NordicSpace.xs),
+              for (final line in bullets)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: NordicSpace.xxs),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('•  ', style: NordicTypography.bodySmall),
+                      Expanded(
+                        child: Text(line, style: NordicTypography.bodySmall),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),

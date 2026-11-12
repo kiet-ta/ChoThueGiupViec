@@ -71,6 +71,46 @@ void main() {
       expect(tierDescription('PREMIUM', options), contains('ít nhất 4 giờ'));
     });
 
+    test(
+      'the card of a package has a tag and two short lines (MOB-BOOK-01)',
+      () {
+        expect(tierTag('ECONOMY'), 'Tiết kiệm');
+        expect(tierTag('PREMIUM'), 'An tâm tối đa');
+        expect(tierTag('GOLD'), '');
+        expect(tierBullets('ECONOMY', options), hasLength(2));
+        expect(tierBullets('PREMIUM', options), hasLength(2));
+        expect(tierBullets('GOLD', options), isEmpty);
+        expect(
+          tierBullets('PREMIUM', options).first,
+          'Nhân sự từ đơn vị đối tác uy tín (đặt trước ít nhất 4 giờ).',
+        );
+      },
+    );
+
+    test('the lead time of the Premium line comes from the options', () {
+      final six = BookingOptions(
+        serviceTiers: options.serviceTiers,
+        shifts: options.shifts,
+        premiumMinLeadHours: 6,
+        shiftMaxHours: options.shiftMaxHours,
+        standardMaxAreaM2: options.standardMaxAreaM2,
+        paymentQrExpiryMinutes: options.paymentQrExpiryMinutes,
+        sandbox: options.sandbox,
+      );
+
+      expect(tierBullets('PREMIUM', six).first, contains('ít nhất 6 giờ'));
+    });
+
+    test('the long text behind the ? keeps what the card used to show', () {
+      final economy = tierDetails('ECONOMY', options);
+      expect(economy.first, tierDescription('ECONOMY', options));
+      expect(economy.last, contains('tự động hoàn tiền'));
+      final premium = tierDetails('PREMIUM', options);
+      expect(premium.first, tierDescription('PREMIUM', options));
+      expect(premium.last, contains('15–30 phút'));
+      expect(tierDetails('GOLD', options), isEmpty);
+    });
+
     test('names a shift with its local hours', () {
       expect(shiftText(options.shifts[0]), 'Ca sáng · 08:00–12:00');
       expect(shiftText(options.shifts[2]), 'Ca tối · 17:30–20:30');
