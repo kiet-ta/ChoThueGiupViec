@@ -1,0 +1,140 @@
+# Optimized Dev/Test Stack (All-in-one including Valhalla maps):
+# SQL Server (optimized) + EF migrations + Valhalla (optimized) + Backend + Web
+# Run: docker compose -f docker-compose.dev.yml up -d
+name: giupviec-dev
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-123456}
+      MSSQL_PID: Developer
+      MSSQL_MEMORY_LIMIT_MB: 768    # Giới hạn buffer pool của SQL Server tối đa 768MB
+    ports:
+      # Port 14330 trên máy host -> 1433 trong container (tránh xung đột với SQL Server local port 1433)
+      # Xem trên SSMS: Server name = localhost,14330 (Authentication: SQL Server Auth, Login: sa)
+      - "${DB_HOST_PORT:-14330}:1433"
+    volumes:
+      - sqldata_dev:/var/opt/mssql
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  migrate:
+    build:
+      context: ./Backend
+      target: migrate
+    environment:
+      CONNECTION: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-123456};TrustServerCertificate=True;"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    mem_limit: 512m
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # Routing engine Valhalla (Bản đồ đường đi, khoảng cách, ETA của thợ)
+  # Đã tinh chỉnh CPU threads = 2 và tắt nén tar để tiết kiệm CPU và đĩa
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:latest
+    environment:
+      server_threads: "2"          # Giảm từ 4 xuống 2 threads CPU
+      tile_urls: "https://download.geofabrik.de/asia/vietnam-latest.osm.pbf" # Tự động tải bản đồ OSM Việt Nam nếu chưa có
+      use_tiles_ignore_pbf: "True" # Tái sử dụng tile sau lần build đầu
+      build_tar: "False"           # Tắt nén tar để tránh nhân đôi dung lượng ổ đĩa
+      serve_tiles: "True"
+      build_admins: "True"
+      build_time_zones: "False"    # Việt Nam chỉ có 1 múi giờ UTC+7, tắt để tăng tốc
+      build_elevation: "False"
+      build_transit: "False"
+    volumes:
+      - valhalla_data:/custom_files
+    ports:
+      - "${VALHALLA_HOST_PORT:-8002}:8002"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8002/status || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 30s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./Backend
+      target: runtime
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Valhalla__BaseUrl: "http://valhalla:8002"
+      ConnectionStrings__DefaultConnection: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-123456};TrustServerCertificate=True;"
+      # OpenTelemetry gửi traces về Jaeger qua cổng OTLP HTTP 4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318"
+      OTEL_SERVICE_NAME: "ChoThueGiupViec.Backend"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+    mem_limit: 512m
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valhalla:
+        condition: service_started
+    ports:
+      - "5004:5004"
+
+  web:
+    build:
+      context: ./Frontend
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128m
+    mem_limit: 128m
+    depends_on:
+      - backend
+    ports:
+      - "${WEB_HOST_PORT:-8080}:80"
+
+  # Jaeger All-in-One: Công cụ thu thập và hiển thị Waterfall Tracing siêu nhẹ (~50MB RAM)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # Web UI Jaeger xem Traces: http://localhost:16686
+      - "4317:4317"     # OTLP gRPC endpoint
+      - "4318:4318"     # OTLP HTTP endpoint
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128m
+    mem_limit: 128m
+    restart: unless-stopped
+
+volumes:
+  sqldata_dev:
+  valhalla_data:
+    name: valhalla_data
