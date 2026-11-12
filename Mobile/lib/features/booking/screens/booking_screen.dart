@@ -883,7 +883,15 @@ class _TierTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Pressable(child: _tile(context));
 
+  bool get _premium => tier == ServiceTier.premium;
+
   Widget _tile(BuildContext context) {
+    // The Cao cấp tile is the one dark tile of the form (MOB-BOOK-02): a deep green surface with an amber accent.
+    final title0 = _premium ? NordicColors.textInverse : NordicColors.textTitle;
+    final body = _premium ? NordicColors.textInverse : null;
+    final quiet = _premium
+        ? NordicColors.onDarkMuted
+        : NordicColors.textSecondary;
     return Semantics(
       selected: selected,
       button: true,
@@ -891,33 +899,51 @@ class _TierTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: NordicRadius.cardAll,
         child: Container(
+          key: Key('tier-surface-$tier'),
           padding: const EdgeInsets.all(NordicSpace.md),
-          decoration: _tileDecoration(selected),
+          decoration: _premium
+              ? _premiumDecoration(selected)
+              : _tileDecoration(selected),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
+                  if (_premium) ...[
+                    const Icon(
+                      Icons.workspace_premium_rounded,
+                      key: Key('tier-premium-icon'),
+                      color: NordicColors.accentAmber,
+                      size: 22.0,
+                    ),
+                    const SizedBox(width: NordicSpace.xs),
+                  ],
                   Expanded(
-                    child: Text(title, style: NordicTypography.titleSmall),
+                    child: Text(
+                      title,
+                      style: NordicTypography.titleSmall.copyWith(
+                        color: title0,
+                      ),
+                    ),
                   ),
                   // Tapping the "?" opens the details only: it is its own button, the card is not selected.
                   IconButton(
                     key: Key('tier-info-$tier'),
                     tooltip: 'Xem chi tiết gói $title',
                     onPressed: onInfo,
-                    icon: const Icon(
-                      Icons.help_outline_rounded,
-                      color: NordicColors.textSecondary,
-                    ),
+                    icon: Icon(Icons.help_outline_rounded, color: quiet),
                   ),
                   Icon(
                     selected
                         ? Icons.check_circle_rounded
                         : Icons.radio_button_unchecked,
                     color: selected
-                        ? NordicColors.primary
-                        : NordicColors.borderVariant,
+                        ? (_premium
+                              ? NordicColors.accentAmber
+                              : NordicColors.primary)
+                        : (_premium
+                              ? NordicColors.onDarkMuted
+                              : NordicColors.borderVariant),
                   ),
                 ],
               ),
@@ -925,7 +951,9 @@ class _TierTile extends StatelessWidget {
                 const SizedBox(height: NordicSpace.xxs),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: StatusPill(tag, tone: PillTone.ok),
+                  child: _premium
+                      ? _PremiumTag(tag)
+                      : StatusPill(tag, tone: PillTone.ok),
                 ),
               ],
               const SizedBox(height: NordicSpace.xs),
@@ -935,9 +963,17 @@ class _TierTile extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('•  ', style: NordicTypography.bodySmall),
+                      Text(
+                        '•  ',
+                        style: NordicTypography.bodySmall.copyWith(color: body),
+                      ),
                       Expanded(
-                        child: Text(line, style: NordicTypography.bodySmall),
+                        child: Text(
+                          line,
+                          style: NordicTypography.bodySmall.copyWith(
+                            color: body,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -948,6 +984,49 @@ class _TierTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The surface of the Cao cấp tile: a deep green gradient; amber border when chosen, a thin soft one when not.
+BoxDecoration _premiumDecoration(bool selected) => BoxDecoration(
+  gradient: const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [NordicColors.contrastDark, NordicColors.contrastCard],
+  ),
+  borderRadius: NordicRadius.cardAll,
+  border: Border.all(
+    color: selected
+        ? NordicColors.accentAmber
+        : NordicColors.onDarkMuted.withValues(alpha: 0.35),
+    width: selected ? 2.0 : 1.0,
+  ),
+);
+
+/// The tag of the Cao cấp tile: an amber pill with dark green text (6.6:1).
+class _PremiumTag extends StatelessWidget {
+  final String text;
+
+  const _PremiumTag(this.text);
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('tier-premium-tag'),
+    padding: const EdgeInsets.symmetric(
+      horizontal: NordicSpace.sm,
+      vertical: NordicSpace.xxs,
+    ),
+    decoration: const BoxDecoration(
+      color: NordicColors.accentAmber,
+      borderRadius: NordicRadius.pill,
+    ),
+    child: Text(
+      text,
+      style: NordicTypography.bodySmall.copyWith(
+        color: NordicColors.primary,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }
 
 /// ui-templates `.day`: weekday above the day number.
