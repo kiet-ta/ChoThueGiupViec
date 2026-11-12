@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/motion/error_shake.dart';
@@ -16,8 +18,9 @@ import '../../../core/widgets/status_state_widget.dart';
 import '../logic/bank_logic.dart';
 import '../services/worker_bank_service.dart';
 
-/// The freelancer's payout account (LEDGER-20); contract workers.md (`GET` and `PUT /workers/me/bank`), decision D19.
-/// A worker who has none adds it here; one who has can change it. It is a sandbox account: no real transfer is made.
+/// The freelancer's payout account (LEDGER-20, LEDGER-28); contract workers.md (`GET`, `PUT /workers/me/bank` and
+/// `POST /workers/me/bank-change-requests`), decision D19. A worker has ONE account at a time. The first one is saved at once; a change is a
+/// REQUEST that an Admin approves, and 15 days after a request was sent no new one can be sent. It is a sandbox account: no real transfer is made.
 /// A new withdrawal request copies this account, and the Admin sees it in the approval list.
 /// Built with the shared Nordic kit only (`Mobile/DESIGN-SYSTEM.md`, `DESIGN-SYSTEM-WORKER.md`).
 class BankAccountScreen extends StatefulWidget {
@@ -45,6 +48,9 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
   String? _notice;
   bool _saving = false;
   int _errors = 0;
+
+  /// The form of a change request is open (an account exists and the worker may send a request).
+  bool _changing = false;
 
   /// A second tap while the save runs must not send another one.
   bool _inFlight = false;
@@ -74,10 +80,7 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
       if (!mounted) return;
       setState(() {
         _bank = bank;
-        if (bank.isSet) {
-          _bankName.text = bank.bankName;
-          _account.text = bank.bankAccountNo;
-        }
+        _changing = _changing && bankStage(bank) == BankStage.canRequest;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -91,8 +94,10 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
     }
   }
 
-  Future<void> _save() async {
-    if (_inFlight || _bank == null) return;
+  /// Saves the first account at once, or sends a change request after the worker confirms the 15-day lock.
+  Future<void> _submit() async {
+    final bank = _bank;
+    if (_inFlight || bank == null) return;
     final nameProblem = bankNameError(_bankName.text);
     final accountProblem = accountError(_account.text);
     if (nameProblem != null || accountProblem != null) {
@@ -106,6 +111,10 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
       return;
     }
 
+    final change = bankStage(bank) == BankStage.canRequest;
+    if (change && !await _confirmChange()) return;
+    if (!mounted) return;
+
     _inFlight = true;
     setState(() {
       _saving = true;
@@ -115,16 +124,20 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
       _notice = null;
     });
     try {
-      final saved = await _service.saveBank(
-        bankName: _bankName.text.trim(),
-        bankAccountNo: normalizeAccount(_account.text),
-      );
+      final name = _bankName.text.trim();
+      final account = normalizeAccount(_account.text);
+      final saved = change
+          ? await _service.requestChange(bankName: name, bankAccountNo: account)
+          : await _service.saveBank(bankName: name, bankAccountNo: account);
       if (!mounted) return;
       setState(() {
         _bank = saved;
-        _bankName.text = saved.bankName;
-        _account.text = saved.bankAccountNo;
-        _notice = 'Đã lưu tài khoản nhận tiền.';
+        _changing = false;
+        _bankName.clear();
+        _account.clear();
+        _notice = change
+            ? 'Đã gửi đơn đổi tài khoản. Admin sẽ duyệt; trong 15 ngày bạn không gửi được đơn khác.'
+            : 'Đã lưu tài khoản nhận tiền.';
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -132,25 +145,60 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
         _saveError = bankFailureMessage(e);
         _errors++;
       });
+      // The state moved under the worker (a request is pending, the lock started, an account exists): show the real one.
+      if (e.statusCode == 409) unawaited(_load());
     } finally {
       _inFlight = false;
       if (mounted) setState(() => _saving = false);
     }
   }
 
+  /// The warning step before a request is sent: after it, 15 days without another one.
+  Future<bool> _confirmChange() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('bank-confirm'),
+        title: const Text('Gửi đơn đổi tài khoản?'),
+        content: Text(
+          '$bankChangeWarning\n\nTài khoản mới: ${_bankName.text.trim()} · ${maskedAccount(_account.text)}',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('bank-confirm-no'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Xem lại'),
+          ),
+          TextButton(
+            key: const Key('bank-confirm-yes'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Gửi đơn'),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ready = _bank != null;
+    final bank = _bank;
+    final stage = bank == null ? null : bankStage(bank);
+    final formOpen =
+        stage == BankStage.firstAccount ||
+        (stage == BankStage.canRequest && _changing);
     return NordicPage.pushed(
       title: 'Tài khoản nhận tiền',
       onRefresh: _load,
-      actions: ready
+      actions: formOpen
           ? [
               NordicButton(
                 key: const Key('bank-save'),
-                label: _bank!.isSet ? 'Lưu thay đổi' : 'Lưu tài khoản',
+                label: stage == BankStage.firstAccount
+                    ? 'Lưu tài khoản'
+                    : 'Gửi đơn đổi tài khoản',
                 isLoading: _saving,
-                onPressed: _saving ? null : _save,
+                onPressed: _saving ? null : _submit,
               ),
             ]
           : null,
@@ -190,8 +238,121 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
         ),
         const SizedBox(height: NordicSpace.sm),
       ],
-      _form(),
+      ...switch (bankStage(bank)) {
+        BankStage.firstAccount => [_form()],
+        BankStage.canRequest => _changing ? _changeForm() : _requestChange(),
+        BankStage.pending => [_pendingCard(bank.pendingRequest!)],
+        BankStage.locked => [_lockedCard(bank)],
+      },
     ];
+  }
+
+  /// An account exists and no lock: the way to a change request.
+  List<Widget> _requestChange() => [
+    NordicButton(
+      key: const Key('bank-open-change'),
+      label: 'Gửi đơn đổi tài khoản',
+      width: double.infinity,
+      variant: NordicButtonVariant.secondary,
+      onPressed: () => setState(() {
+        _changing = true;
+        _notice = null;
+        _saveError = null;
+        _bankName.clear();
+        _account.clear();
+      }),
+    ),
+    const SizedBox(height: NordicSpace.xs),
+    Text(
+      'Muốn đổi tài khoản, bạn gửi đơn và Admin duyệt.',
+      key: const Key('bank-change-hint'),
+      textAlign: TextAlign.center,
+      style: NordicTypography.bodySmall.copyWith(
+        color: NordicColors.textSecondary,
+      ),
+    ),
+  ];
+
+  /// The form of a change request, with the warning about the 15 days above it and a way back below.
+  List<Widget> _changeForm() => [
+    NordicCard(
+      key: const Key('bank-change-warning'),
+      child: Text(bankChangeWarning, style: NordicTypography.bodySmall),
+    ),
+    const SizedBox(height: NordicSpace.sm),
+    _form(),
+    const SizedBox(height: NordicSpace.xs),
+    NordicButton(
+      key: const Key('bank-cancel-change'),
+      label: 'Không đổi nữa',
+      width: double.infinity,
+      variant: NordicButtonVariant.ghost,
+      onPressed: _saving ? null : () => setState(() => _changing = false),
+    ),
+  ];
+
+  /// A request waits for the Admin: the account in use stays the current one.
+  Widget _pendingCard(BankChangePending pending) => NordicCard(
+    key: const Key('bank-pending'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const StatusPill(
+          'Đang chờ Admin duyệt',
+          dot: true,
+          tone: PillTone.warn,
+        ),
+        const SizedBox(height: NordicSpace.xs),
+        Text(
+          'Tài khoản mới: ${pending.bankName} · ${maskedAccount(pending.bankAccountNo)}',
+          key: const Key('bank-pending-account'),
+          style: NordicTypography.titleSmall,
+        ),
+        const SizedBox(height: NordicSpace.xxs),
+        Text(
+          bankPendingNote(pending),
+          key: const Key('bank-pending-note'),
+          style: NordicTypography.bodySmall,
+        ),
+        const SizedBox(height: NordicSpace.xxs),
+        Text(
+          'Trong lúc chờ, các khoản rút và lương vẫn dùng tài khoản hiện tại.',
+          style: NordicTypography.bodySmall.copyWith(
+            color: NordicColors.textSecondary,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  /// A request was sent less than 15 days ago (decided): when a new one can be sent, and what the Admin decided.
+  Widget _lockedCard(WorkerBank bank) {
+    final decision = bankLastDecisionNote(bank.lastRequest);
+    return NordicCard(
+      key: const Key('bank-locked'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            bankLockNote(bank.lastRequest, bank.changeLockedUntil),
+            key: const Key('bank-lock-note'),
+            style: NordicTypography.bodyRegular,
+          ),
+          if (decision != null) ...[
+            const SizedBox(height: NordicSpace.xs),
+            Text(
+              decision,
+              key: const Key('bank-last-decision'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: bank.lastRequest?.isRejected == true
+                    ? NordicColors.error
+                    : NordicColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   /// The account the worker has now, or a plain "no account yet".
