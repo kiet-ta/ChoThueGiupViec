@@ -28,7 +28,7 @@ export function Hero() {
   return (
     <section ref={root} id="top" className="relative isolate flex min-h-svh items-center overflow-hidden bg-(--lp-forest) text-white">
       {/* Full-Bleed Immersive Photographic & Cinematic Video Canvas */}
-      <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+      <div className="absolute inset-0 -z-10 overflow-hidden bg-(--lp-forest)" aria-hidden="true">
         <video
           ref={videoRef}
           data-hero-bg
@@ -37,13 +37,14 @@ export function Hero() {
           muted
           playsInline
           poster={IMAGES.hero}
-          className="h-full w-full object-cover object-center filter brightness-[1.08] contrast-[102%]"
+          className="h-full w-full object-cover object-center md:object-right filter brightness-[1.05] contrast-[102%]"
         >
           <source src="/videos/hero-family.mp4" type="video/mp4" />
         </video>
-        {/* Lớp phủ gradient giữ chữ và các chỉ số luôn rõ ràng, tương phản cao */}
-        <div className="absolute inset-0 bg-linear-to-r from-(--lp-forest)/65 via-(--lp-forest)/30 to-black/20" />
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-(--lp-forest)/35 to-transparent" />
+        {/* Lớp phủ chuyển sắc thông minh: trên Mobile phủ đều dịu mắt đảm bảo đọc chữ; trên Desktop viền xanh từ trái lan sang làm nổi khối chữ */}
+        <div className="absolute inset-0 bg-linear-to-b from-(--lp-forest)/90 via-(--lp-forest)/65 to-(--lp-forest)/80 md:bg-none md:bg-linear-to-r md:from-(--lp-forest) md:from-10% md:via-(--lp-forest)/85 md:via-30% md:via-(--lp-forest)/25 md:via-46% md:to-transparent md:to-58%" />
+        {/* Gradient chân trang giữ độ sắc nét cho thanh stats */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-(--lp-forest)/90 via-(--lp-forest)/30 to-transparent" />
       </div>
 
       <div className="mx-auto w-full max-w-7xl px-6 pb-20 pt-36 lg:px-12">
