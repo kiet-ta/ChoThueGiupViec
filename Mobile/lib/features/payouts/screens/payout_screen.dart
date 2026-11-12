@@ -255,7 +255,12 @@ class _PayoutScreenState extends State<PayoutScreen> {
         ),
         const SizedBox(height: NordicSpace.xs),
         Text(
-          payoutStatusHint(e.payoutStatus),
+          payoutStatusHint(
+            e.payoutStatus,
+            // the pay day is in the future only for the current month
+            payNote: _month == _currentMonth ? payoutPayDayNote(_month) : null,
+          ),
+          key: const Key('earnings-status-hint'),
           textAlign: TextAlign.center,
           style: NordicTypography.bodySmall,
         ),

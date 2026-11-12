@@ -209,6 +209,35 @@ void main() {
     );
 
     testWidgets(
+      'the current month says "Chưa đến kỳ lương" and when it is paid; an older month keeps the general sentence (MOB-PAYOUT-01)',
+      (tester) async {
+        final service = FakePayoutsService();
+        await pumpEarnings(tester, service);
+
+        expect(
+          tester.widget<Text>(find.byKey(const Key('earnings-status'))).data,
+          'Chưa đến kỳ lương',
+        );
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('earnings-status-hint')))
+              .data,
+          'Lương được thanh toán tự động lúc 00:05 ngày 01/11/2026 (giờ Việt Nam), nếu không có gì phát sinh.',
+        );
+
+        await tester.tap(find.byKey(const Key('earnings-prev')));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('earnings-status-hint')))
+              .data,
+          'Thu nhập được giải ngân theo tháng, sau khi tháng kết thúc.',
+        );
+      },
+    );
+
+    testWidgets(
       'going back over New Year loads December of the previous year',
       (tester) async {
         final service = FakePayoutsService();
