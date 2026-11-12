@@ -149,6 +149,10 @@ class AdminUnitPickerField extends StatelessWidget {
   final String notInListMessage;
   final ValueChanged<String> onSelected;
 
+  /// The label as a text above the field (like `NordicTextInput`) instead of a floating label on the border of the field.
+  /// Off by default: the address form keeps its look.
+  final bool labelAbove;
+
   const AdminUnitPickerField({
     super.key,
     required this.label,
@@ -159,6 +163,7 @@ class AdminUnitPickerField extends StatelessWidget {
     required this.onSelected,
     this.enabled = true,
     this.helperText,
+    this.labelAbove = false,
   });
 
   Future<void> _openPicker(BuildContext context) async {
@@ -177,14 +182,15 @@ class AdminUnitPickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Keyed by the value: a new choice rebuilds the field with it (setting a controller during build would mark the Form dirty).
-    return TextFormField(
+    final field = TextFormField(
       key: ValueKey('$label|$value'),
       initialValue: value ?? '',
       readOnly: true,
       enabled: enabled,
       onTap: () => _openPicker(context),
       decoration: InputDecoration(
-        labelText: label,
+        labelText: labelAbove ? null : label,
+        hintText: labelAbove ? 'Chọn' : null,
         helperText: helperText,
         suffixIcon: const Icon(Icons.arrow_drop_down_rounded),
       ),
@@ -194,6 +200,22 @@ class AdminUnitPickerField extends StatelessWidget {
         if (!options.contains(current)) return notInListMessage;
         return null;
       },
+    );
+    if (!labelAbove) return field;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: NordicTypography.labelMedium.copyWith(
+            fontWeight: FontWeight.w600,
+            color: NordicColors.textTitle,
+          ),
+        ),
+        const SizedBox(height: 6.0),
+        field,
+      ],
     );
   }
 }
