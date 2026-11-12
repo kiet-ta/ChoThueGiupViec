@@ -31,6 +31,7 @@
 - [x] **MOB-ONBOARD-02** Customer app opens the onboarding for a customer without a name — evidence: .harness/evidence/20261112-182028-L3.log
 - [x] **MOB-ONBOARD-03** Customer onboarding: remove the sign-out button from the name step — evidence: .harness/evidence/20261112-191025-L3.log
 - [x] **MOB-ONBOARD-04** Customer onboarding: labels above the fields and a hint that fits — evidence: .harness/evidence/20261112-193124-L3.log
+- [x] **MOB-BOOK-01** Booking: short package cards with a ? button for the details — evidence: .harness/evidence/20261112-194852-L3.log
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).
