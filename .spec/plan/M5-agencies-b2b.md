@@ -36,3 +36,7 @@
 
 ## AGENCY-UAT-02 (ticket #444) — Retire an agency worker and replace them atomically
 - [x] **BE-UAT-02** Backend: WorkStatus Retiring/Retired, state machine edges, GET /api/agencies/workers, POST /api/agencies/workers/{workerId}/retire (atomic replacement, rescue confirm), sweep, quota exclusions, docs (agencies.md §9, workers.md statuses, decisions.md D22). — evidence: PR #447 merged with defects; fixed by ticket #451 (AGENCY-FIX-01): `Backend/Tests/Agencies/WorkerRetirementTests.cs` (33 tests, in-memory), `WorkerRetirementSqlServerTests.cs` (5 tests, real SQL Server LocalDB), `.harness/evidence/20261025-162943-L3.log` (VERIFY L3 PASSED); decisions D22 amendments.
+
+## WEB-M5-09 (ticket #834) — Fix Partner Dashboard metric loading and opacity rendering glitch
+- [x] **WEB-M5-09** Fix Partner Dashboard GSAP opacity glitch, add metric skeleton loaders, and mount cleanly at /partner. — evidence: ticket #834 (`npm run build` and `npm test` pass with 480 tests; `Fix_Dashboard_Loaded.png`).
+
