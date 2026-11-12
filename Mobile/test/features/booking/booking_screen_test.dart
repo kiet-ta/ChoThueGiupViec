@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
+import 'package:mobile/core/theme/nordic_colors.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/screens/booking_screen.dart';
@@ -261,6 +262,74 @@ void main() {
         // the long text is behind the "?" now, not on the card
         expect(find.textContaining('Người làm tự do'), findsNothing);
         expect(find.textContaining('Bạn kiểm tra trực tiếp'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the Cao cấp tile is dark with an amber accent, the Cơ bản tile stays white (MOB-BOOK-02)',
+      (tester) async {
+        await pumpBooking(tester, FakeBookingService());
+
+        BoxDecoration surface(String tier) =>
+            tester
+                    .widget<Container>(find.byKey(Key('tier-surface-$tier')))
+                    .decoration!
+                as BoxDecoration;
+
+        final premium = surface('PREMIUM');
+        expect(premium.gradient, isNotNull);
+        expect((premium.gradient! as LinearGradient).colors, [
+          NordicColors.contrastDark,
+          NordicColors.contrastCard,
+        ]);
+        expect(find.byKey(const Key('tier-premium-icon')), findsOneWidget);
+        expect(
+          tester
+              .widget<Container>(find.byKey(const Key('tier-premium-tag')))
+              .decoration,
+          isA<BoxDecoration>().having(
+            (d) => d.color,
+            'color',
+            NordicColors.accentAmber,
+          ),
+        );
+
+        final economy = surface('ECONOMY');
+        expect(economy.gradient, isNull);
+        expect(economy.color, NordicColors.surface);
+        expect(find.byKey(const Key('tier-economy-icon')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'choosing the Cao cấp tile gives it the amber border and check (MOB-BOOK-02)',
+      (tester) async {
+        await pumpBooking(tester, FakeBookingService());
+
+        Border border() =>
+            (tester
+                            .widget<Container>(
+                              find.byKey(const Key('tier-surface-PREMIUM')),
+                            )
+                            .decoration!
+                        as BoxDecoration)
+                    .border!
+                as Border;
+
+        expect(border().top.color, isNot(NordicColors.accentAmber));
+        expect(border().top.width, 1.0);
+
+        await tapKey(tester, 'tier-PREMIUM');
+
+        expect(border().top.color, NordicColors.accentAmber);
+        expect(border().top.width, 2.0);
+        final check = tester.widget<Icon>(
+          find.descendant(
+            of: find.byKey(const Key('tier-PREMIUM')),
+            matching: find.byIcon(Icons.check_circle_rounded),
+          ),
+        );
+        expect(check.color, NordicColors.accentAmber);
       },
     );
 
