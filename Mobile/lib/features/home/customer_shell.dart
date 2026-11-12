@@ -10,7 +10,11 @@ import '../../core/theme/nordic_spacing.dart';
 import '../../core/widgets/pressable.dart';
 import '../booking/routes.dart';
 import '../booking/screens/order_history_screen.dart';
+import '../customers/logic/onboarding_logic.dart';
+import '../customers/models/customer_profile.dart';
+import '../customers/screens/customer_onboarding_screen.dart';
 import '../customers/screens/favorite_workers_screen.dart';
+import '../customers/services/customer_profile_service.dart';
 import 'customer_account_tab.dart';
 import 'customer_home_tab.dart';
 
@@ -26,11 +30,16 @@ class CustomerShell extends StatefulWidget {
   final List<Widget>? tabs;
   final int initialTab;
 
+  /// Reads the customer's profile for the onboarding check (MOB-ONBOARD-02). The real app asks the server; a test passes its own.
+  /// With [tabs] replaced and no loader the check is skipped, so the existing shell tests stay offline.
+  final Future<CustomerProfile> Function()? profileLoader;
+
   const CustomerShell({
     super.key,
     required this.onSignOut,
     this.tabs,
     this.initialTab = 0,
+    this.profileLoader,
   }) : assert(initialTab >= 0 && initialTab < 4);
 
   @override
@@ -44,6 +53,33 @@ class _CustomerShellState extends State<CustomerShell> {
   void initState() {
     super.initState();
     _tab = widget.initialTab;
+    if (widget.profileLoader != null || widget.tabs == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkOnboarding());
+    }
+  }
+
+  /// A customer without a name (a new one, or one who quit the onboarding before giving it) is taken to the onboarding, at every
+  /// login until a name exists. A failed call is ignored: it must never block the app.
+  Future<void> _checkOnboarding() async {
+    try {
+      final load = widget.profileLoader ?? CustomerProfileService().getProfile;
+      final profile = await load();
+      if (!mounted || !needsOnboarding(profile)) return;
+      await Navigator.of(context).push<OnboardingResult>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => CustomerOnboardingScreen(onSignOut: widget.onSignOut),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        for (var i = 0; i < _generation.length; i++) {
+          _generation[i]++;
+        }
+      });
+    } catch (_) {
+      // The app works without the check.
+    }
   }
 
   /// A counter per tab: pushing a new key rebuilds (reloads) the tab when the customer comes back to it.
