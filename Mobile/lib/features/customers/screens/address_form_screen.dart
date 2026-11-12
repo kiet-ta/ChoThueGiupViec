@@ -8,6 +8,7 @@ import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../logic/address_rules.dart';
 import '../models/customer_address.dart';
 import '../models/vn_admin_units.dart';
 import '../services/customer_address_service.dart';
@@ -71,7 +72,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     _city = init?.city ?? 'Thành phố Hồ Chí Minh';
     _ward = init?.district;
     _floorAreaController = TextEditingController(
-      text: init != null ? init.floorAreaM2.toString() : '60.0',
+      text: init != null ? init.floorAreaM2.toString() : defaultFloorAreaText,
     );
     _numFloorsController = TextEditingController(
       text: init != null ? init.numFloors.toString() : '1',
@@ -101,17 +102,10 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     setState(() {});
   }
 
-  double get _currentFloorArea {
-    return double.tryParse(_floorAreaController.text) ?? 0.0;
-  }
+  double get _currentFloorArea => parseFloorArea(_floorAreaController.text);
 
-  int get _currentNumFloors {
-    if (_housingType == HousingType.apartment ||
-        _housingType == HousingType.room) {
-      return 1;
-    }
-    return int.tryParse(_numFloorsController.text) ?? 1;
-  }
+  int get _currentNumFloors =>
+      effectiveFloors(_housingType, _numFloorsController.text);
 
   double get _previewTotalArea {
     return CustomerAddress.calculateTotalArea(
@@ -123,12 +117,10 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   void _onHousingTypeSelected(HousingType type) {
     setState(() {
       _housingType = type;
-      if (type == HousingType.apartment || type == HousingType.room) {
-        _numFloorsController.text = '1';
-      }
-      if (type == HousingType.room && _currentFloorArea > 30.0) {
-        _floorAreaController.text = '30.0';
-      }
+      final floors = floorsTextAfterTypeChange(type);
+      if (floors != null) _numFloorsController.text = floors;
+      final area = floorAreaTextAfterTypeChange(type, _currentFloorArea);
+      if (area != null) _floorAreaController.text = area;
     });
   }
 
@@ -368,21 +360,9 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                         ),
                         decoration: InputDecoration(
                           labelText: 'Mỗi sàn (m²)',
-                          helperText: _housingType == HousingType.room
-                              ? 'Phòng trọ tối đa 30 m²'
-                              : 'Diện tích một sàn',
+                          helperText: floorAreaHelper(_housingType),
                         ),
-                        validator: (val) {
-                          final d = double.tryParse(val ?? '');
-                          if (d == null || d <= 0) {
-                            return 'Nhập số lớn hơn 0.';
-                          }
-                          if (d > 9999.99) return 'Tối đa 9999,99 m².';
-                          if (_housingType == HousingType.room && d > 30.0) {
-                            return 'Phòng trọ tối đa 30 m².';
-                          }
-                          return null;
-                        },
+                        validator: (val) => floorAreaError(_housingType, val),
                       ),
                     ),
                     const SizedBox(width: NordicSpace.sm),
@@ -393,20 +373,9 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                         enabled: _housingType == HousingType.house,
                         decoration: InputDecoration(
                           labelText: 'Số tầng',
-                          helperText: _housingType != HousingType.house
-                              ? 'Cố định 1 tầng'
-                              : 'Từ 1 đến 10 tầng',
+                          helperText: floorsHelper(_housingType),
                         ),
-                        validator: (val) {
-                          if (_housingType != HousingType.house) {
-                            return null;
-                          }
-                          final f = int.tryParse(val ?? '');
-                          if (f == null || f < 1 || f > 10) {
-                            return 'Từ 1 đến 10 tầng.';
-                          }
-                          return null;
-                        },
+                        validator: (val) => floorsError(_housingType, val),
                       ),
                     ),
                   ],
