@@ -107,7 +107,7 @@ Controllers: `animateWith(spring.simulate(from: value, velocity: velocity))`. Im
 | Component | File | Notes |
 |---|---|---|
 | `NordicPage.tab` / `NordicPage.pushed` | `core/widgets/nordic_page.dart` | the scaffold of every screen (§5); a pushed page may supply `fullWidthHeader` for a `DarkHeader`, or `bodyOverride` for a state-specific scrollable body while keeping its action bar |
-| `NordicButton` (primary, secondary, ghost) | `core/widgets/nordic_button.dart` | pill, `Pressable`, loading state |
+| `NordicButton` (primary, secondary, ghost, danger) | `core/widgets/nordic_button.dart` | pill, `Pressable`, loading state; `danger` is a red filled button (`NordicColors.error`, white label, no cta shadow), only for an action that cancels or deletes something (the order's "Huỷ đơn") |
 | `NordicDropdown<T>` | `core/widgets/nordic_dropdown.dart` | one choice among **four or more** options: a field (same border and radius as a text field) that opens the list under it; two or three options stay as pills. Options are `NordicDropdownOption(value, label)`, the value is never null (use a name such as `ALL` for "all"); optional `label`, `enabled` |
 | `BottomActionBar` | `core/widgets/bottom_action_bar.dart` | the main button(s); `NordicPage(actions:)` places it |
 | `NordicCard` | `core/widgets/nordic_card.dart` | white card with the `card` shadow; `onTap` makes it a pressable button; `elevated: false` flattens it |
