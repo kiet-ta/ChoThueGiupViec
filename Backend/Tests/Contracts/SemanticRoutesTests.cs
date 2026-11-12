@@ -47,7 +47,7 @@ public class SemanticRoutesTests
     public async Task PUT_slot_passes_the_route_date_and_shift_and_the_body_state_to_the_slot_service()
     {
         var slots = new RecordingSlots();
-        var controller = new WorkersController(null!, null!, slots, null!, null!, null!, null!, null!);
+        var controller = new WorkersController(null!, null!, null!, slots, null!, null!, null!, null!, null!);
 
         var result = await controller.PutSlot(new DateOnly(2026, 11, 20), "SHIFT_MORNING", new PutBookingSlotBody(false), default);
 

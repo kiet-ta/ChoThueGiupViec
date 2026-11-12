@@ -421,10 +421,13 @@ Where the worker is now. The dispatch search offers a job only to a worker who h
 **Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009 }` (latitude -90..90, longitude -180..180).
 **Response 200 `data`:** `{ "latitude": 10.7769, "longitude": 106.7009 }` (six decimals kept). 400 in the shared validation envelope when a value is missing or out of range.
 
-#### `GET /api/v1/workers/me/bank` and `PUT /api/v1/workers/me/bank` (WorkerOnly)
-The account the platform transfers the worker's monthly payout to (`WORKER.bank_name`, `bank_account_no`; the payout export reads them).
-- `GET` 200 `data`: `{ "bankName": "", "bankAccountNo": "", "isSet": false }` (empty strings while never set).
-- `PUT` body `{ "bankName": "Vietcombank", "bankAccountNo": "0011001234567" }`; both required; `bankName` <= 100 characters, `bankAccountNo` 6 to 30 digits (spaces dropped). 200 with the stored values and `isSet: true`; 400 otherwise.
+#### `GET /api/v1/workers/me/bank`, `PUT /api/v1/workers/me/bank` and `POST /api/v1/workers/me/bank-change-requests` (WorkerOnly, LEDGER-28)
+The account the platform transfers the worker's monthly payout to (`WORKER.bank_name`, `bank_account_no`; the payout export reads them). A worker has **one** account at a time. The **first** account is saved at once (no approval, no lock); **changing** it is a request that an Admin approves (`admin.md` 2.6), and after a request is **sent** no new request can be sent for 15 days, whatever the Admin decides (a rejection still locks). Sandbox: no real transfer is made (decision G-1).
+- `GET` 200 `data`: `{ "bankName": "", "bankAccountNo": "", "isSet": false, "canRequestChange": false, "changeLockedUntil": null, "pendingRequest": null, "lastRequest": null }` (empty strings while never set).
+  `canRequestChange` is true only with an account, no pending request and no lock. `changeLockedUntil` is the UTC instant when the lock ends (the sent time of the latest request plus `BusinessRules.Worker.BankChangeLockDays`, default 15), or null. `pendingRequest`: `{ requestId, bankName, bankAccountNo, requestedAt }`. `lastRequest`: `{ status PENDING|APPROVED|REJECTED, rejectReason, requestedAt, reviewedAt }` of the latest request of any status.
+- `PUT` body `{ "bankName": "Vietcombank", "bankAccountNo": "0011001234567" }`: sets the **first** account. Both required; `bankName` <= 100 characters, `bankAccountNo` 6 to 30 digits (spaces dropped). 200 with the stored values (the same shape as `GET`); 400 otherwise; **409 `BANK_CHANGE_REQUIRES_REQUEST`** when the worker already has an account (send a request instead).
+- `POST …/bank-change-requests` body `{ "bankName", "bankAccountNo" }` (same field rules): creates a request PENDING that keeps the previous account; 200 with the `GET` shape. 400 when a field is malformed or the account equals the current one. 409 with `data: { code }`: `BANK_NOT_SET` (no account yet: use `PUT`), `BANK_CHANGE_PENDING` (a request is pending; also enforced by a filtered unique index), `BANK_CHANGE_LOCKED` (now is before the sent time of the latest request plus 15 days; the message names the Vietnam date from which a new request can be sent, and `GET` gives `changeLockedUntil`).
+- While a request is pending, after a rejection and during the lock, withdrawals and the monthly settlement keep using the **current** account. A withdrawal request copies the account when it is made (`ledger.md` 6), so an approval changes nothing already in motion.
 
 ---
 

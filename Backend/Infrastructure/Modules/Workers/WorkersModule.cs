@@ -26,6 +26,9 @@ public class WorkersModule : IModule
         services.AddScoped<IWorkerFreeShiftQuery, WorkerFreeShiftQuery>();
 
         services.AddScoped<IWorkerProfileService, WorkerProfileService>();
+        services.AddScoped<IWorkerBankChangeRepository, EfWorkerBankChangeRepository>();
+        services.AddScoped<IWorkerBankService, WorkerBankService>();
+        services.AddScoped<IAdminBankChangeService, AdminBankChangeService>();
         services.AddScoped<IWorkerEkycService, WorkerEkycService>();
         services.AddScoped<IWorkerBookingSlotService, WorkerBookingSlotService>();
         services.AddScoped<IWorkerAssignmentRepository, EfWorkerAssignmentRepository>();

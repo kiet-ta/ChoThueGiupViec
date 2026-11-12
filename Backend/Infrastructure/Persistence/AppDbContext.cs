@@ -46,6 +46,7 @@ public class AppDbContext : DbContext
     public DbSet<TwoWayRating> TwoWayRatings => Set<TwoWayRating>();
     public DbSet<Worker> Workers => Set<Worker>();
     public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
+    public DbSet<WorkerBankChangeRequest> WorkerBankChangeRequests => Set<WorkerBankChangeRequest>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -118,6 +119,8 @@ public class AppDbContext : DbContext
             .HaveConversion<DbEnumValueConverter<LedgerRefType>>();
         configurationBuilder.Properties<WithdrawalStatus>()
             .HaveConversion<DbEnumValueConverter<WithdrawalStatus>>();
+        configurationBuilder.Properties<BankChangeStatus>()
+            .HaveConversion<DbEnumValueConverter<BankChangeStatus>>();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

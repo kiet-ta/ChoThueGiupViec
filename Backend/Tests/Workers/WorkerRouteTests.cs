@@ -152,7 +152,7 @@ public class WorkerRouteTests
     }
 
     private static WorkersController BuildController(WorkerRouteService service) =>
-        new(null!, null!, null!, null!, null!, null!, null!, null!);
+        new(null!, null!, null!, null!, null!, null!, null!, null!, null!);
 
     // ---- Valhalla alternates ----
 

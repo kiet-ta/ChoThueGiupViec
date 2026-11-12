@@ -84,6 +84,16 @@ Exactly the three groups the plan names (orders, shifts, open disputes); no othe
 
 **`GET /api/v1/admin/audit-logs?entityType=&entityId=&actorType=&from=&to=&page=&pageSize=`** -> 200 `data: { items: AuditLogEntry[], page, pageSize, total }`, newest first; `from`/`to` are ISO-8601 UTC dates; `pageSize` max 100. No write endpoints.
 
+### 2.6 Requests to change a worker's payout account (LEDGER-28)
+
+Policy `AdminOnly`. The worker side is `workers.md` (`POST /workers/me/bank-change-requests`). Table `WORKER_BANK_CHANGE_REQUEST` (`request_id, worker_id, bank_name, bank_account_no, previous_bank_name, previous_bank_account_no, request_status PENDING|APPROVED|REJECTED, reject_reason, reviewed_by, reviewed_at, requested_at`; at most one PENDING per worker).
+
+**`GET /api/v1/admin/bank-change-requests?status=&page=&pageSize=`** -> 200 `data: { items: [{ requestId, workerId, workerName, workerPhone, previousBankName, previousBankAccountNo, bankName, bankAccountNo, status, requestedAt, reviewedAt, rejectReason }], page, pageSize, total }`. `status` is PENDING, APPROVED or REJECTED (400 otherwise); `pageSize` 1 to 100, default 20. The pending queue is oldest first, the other lists newest first.
+
+**`POST /api/v1/admin/bank-change-requests/{id}/approve`** -> 200 `data`: the request as above. In one transaction under the worker's application lock (the same as the withdrawals) the new account is written on the worker and the request becomes APPROVED; an `IAuditLog` row (`entity_type WORKER_BANK_CHANGE`, only the last 4 digits of the accounts) is written and the worker is notified (`bank-change.approved`, best effort). 404 for an unknown id; **409 `BANK_CHANGE_NOT_PENDING`** when it was already decided.
+
+**`POST /api/v1/admin/bank-change-requests/{id}/reject`** body `{ "reason": "…" }` (1 to 255 characters, 400 otherwise) -> 200 `data`: the request. The account does not change; audit row and notification (`bank-change.rejected`) as above; 404 and 409 as above. The 15-day lock of the worker is not lifted by a rejection.
+
 ### 2.5 Super-Freelancer (BE-M6-09)
 
 **`POST /api/v1/admin/workers/{workerId}/super-freelancer`** -> 200 `data: { workerId, isSuperFreelancer: true }`

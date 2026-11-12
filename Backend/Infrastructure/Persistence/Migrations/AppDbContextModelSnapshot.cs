@@ -2286,6 +2286,83 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CommonService.Domain.Entities.WorkerBankChangeRequest", b =>
+                {
+                    b.Property<int>("RequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("request_id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RequestId"));
+
+                    b.Property<string>("BankAccountNo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("bank_account_no");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("bank_name");
+
+                    b.Property<string>("PreviousBankAccountNo")
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("previous_bank_account_no");
+
+                    b.Property<string>("PreviousBankName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("previous_bank_name");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("reject_reason");
+
+                    b.Property<string>("RequestStatus")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("request_status");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("requested_at");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<int?>("ReviewedBy")
+                        .HasColumnType("int")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<int>("WorkerId")
+                        .HasColumnType("int")
+                        .HasColumnName("worker_id");
+
+                    b.HasKey("RequestId");
+
+                    b.HasIndex("WorkerId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_WORKER_BANK_CHANGE_worker_pending")
+                        .HasFilter("[request_status] = 'PENDING'");
+
+                    b.HasIndex("RequestStatus", "RequestedAt")
+                        .HasDatabaseName("IX_WORKER_BANK_CHANGE_status_requested");
+
+                    b.HasIndex("WorkerId", "RequestedAt")
+                        .HasDatabaseName("IX_WORKER_BANK_CHANGE_worker_requested");
+
+                    b.ToTable("WORKER_BANK_CHANGE_REQUEST", (string)null);
+                });
+
             modelBuilder.Entity("CommonService.Domain.Entities.AdminAuditLog", b =>
                 {
                     b.HasOne("CommonService.Domain.Entities.AdminAccount", null)
@@ -2637,6 +2714,15 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("KycReviewedBy")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("CommonService.Domain.Entities.WorkerBankChangeRequest", b =>
+                {
+                    b.HasOne("CommonService.Domain.Entities.Worker", null)
+                        .WithMany()
+                        .HasForeignKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
