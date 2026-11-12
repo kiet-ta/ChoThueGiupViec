@@ -2,7 +2,6 @@ using CommonService.Application.Common.Options;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.IServices;
 using CommonService.Application.Interfaces.Ports;
-using CommonService.Application.Services;
 using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modularity;
 using CommonService.Infrastructure.Observability;
@@ -31,9 +30,6 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString);
         });
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-        // Services
-        services.AddScoped<IEmailService, EmailService>();
 
         // Shared Infrastructure & Cross-cutting Ports (BASE-11)
         services.AddHttpContextAccessor();
