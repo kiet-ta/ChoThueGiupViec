@@ -1,4 +1,5 @@
 using CommonService.Application.Common.Models;
+using CommonService.Application.Features.Workers;
 using CommonService.Application.Features.Workers.Dtos;
 using CommonService.Application.Features.Workers.Services;
 using CommonService.Domain.Enums;
@@ -15,6 +16,7 @@ namespace CommonService.WebAPI.Controllers.Workers;
 [Route("api/v1/workers")]
 public class WorkersController(
     IWorkerProfileService profiles,
+    IWorkerBankService bank,
     IWorkerEkycService ekyc,
     IWorkerBookingSlotService slots,
     IWorkerAssignmentService assignments,
@@ -60,22 +62,43 @@ public class WorkersController(
         return Ok(result);
     }
 
-    /// <summary>The account the worker's monthly payout is transferred to (decisions D19).</summary>
+    /// <summary>
+    /// The account the worker's monthly payout is transferred to (decisions D19) and what the worker can do about it: <c>canRequestChange</c>,
+    /// <c>changeLockedUntil</c>, the pending and the latest change request (LEDGER-28).
+    /// </summary>
     [HttpGet("me/bank")]
     [Authorize(Policy = "WorkerOnly")]
     [ProducesResponseType(typeof(ApiResponse<WorkerBankResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetBank(CancellationToken ct) =>
-        Ok(await profiles.GetBankAsync(ct));
+        Ok(ApiResponse<WorkerBankResponse>.Ok(await bank.GetAsync(ct)));
 
-    /// <summary>Sets the payout account; 400 when a field is missing or malformed (decisions D19).</summary>
+    /// <summary>
+    /// Sets the FIRST payout account (no approval, no lock); 400 when a field is missing or malformed; 409 <c>BANK_CHANGE_REQUIRES_REQUEST</c> when
+    /// the worker already has an account (a change is a request, see <c>POST me/bank-change-requests</c>).
+    /// </summary>
     [HttpPut("me/bank")]
     [Authorize(Policy = "WorkerOnly")]
     [ProducesResponseType(typeof(ApiResponse<WorkerBankResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> PutBank([FromBody] UpdateWorkerBankRequest? request, CancellationToken ct) =>
-        Ok(await profiles.UpdateBankAsync(request, ct));
+        Ok(ApiResponse<WorkerBankResponse>.Ok(await bank.SetFirstAsync(request, ct), "Bank account saved."));
+
+    /// <summary>
+    /// Sends a request to change the payout account; an Admin approves it. 409 <c>BANK_NOT_SET</c> without an account, <c>BANK_CHANGE_PENDING</c> while
+    /// one is pending, <c>BANK_CHANGE_LOCKED</c> during the 15 days after the latest request was sent (a rejected one counts too); 400 when the
+    /// account is the current one or a field is malformed.
+    /// </summary>
+    [HttpPost("me/bank-change-requests")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerBankResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RequestBankChange([FromBody] CreateBankChangeRequest? request, CancellationToken ct) =>
+        Ok(ApiResponse<WorkerBankResponse>.Ok(await bank.RequestChangeAsync(request, ct), "Bank change request sent."));
 
     /// <summary>Stores where the worker is now; the dispatch search needs it (decisions D19).</summary>
     [HttpPut("me/location")]

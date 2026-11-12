@@ -31,6 +31,7 @@ public class BusinessRules
     public PrivacyRules Privacy { get; set; } = new();
     public CustomerRules Customer { get; set; } = new();
     public AddressRules Address { get; set; } = new();
+    public WorkerRules Worker { get; set; } = new();
 }
 
 public class ShiftRules
@@ -217,6 +218,13 @@ public class PrivacyRules
 {
     public int PhoneVisibleBeforeMinutes { get; set; } = 60;
     public int PhoneVisibleAfterMinutes { get; set; } = 60;
+}
+
+/// <summary>Rules of the freelancer's own account (LEDGER-28). The default is in the class, so appsettings.json needs no entry.</summary>
+public class WorkerRules
+{
+    /// <summary>After a request to change the payout account is sent, no new request can be sent for this many days (decided with Duy: 15).</summary>
+    public int BankChangeLockDays { get; set; } = 15;
 }
 
 public class CustomerRules

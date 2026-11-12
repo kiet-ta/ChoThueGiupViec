@@ -19,9 +19,5 @@ public interface IWorkerProfileService
     /// <summary>Public summary view of any worker by id (contract §2.1.4).</summary>
     Task<ApiResponse<WorkerPublicProfileResponse>> GetByIdAsync(int workerId, CancellationToken ct = default);
 
-    Task<ApiResponse<WorkerBankResponse>> GetBankAsync(CancellationToken ct = default);
-
-    Task<ApiResponse<WorkerBankResponse>> UpdateBankAsync(UpdateWorkerBankRequest? request, CancellationToken ct = default);
-
     Task<ApiResponse<WorkerLocationResponse>> UpdateLocationAsync(UpdateWorkerLocationRequest? request, CancellationToken ct = default);
 }

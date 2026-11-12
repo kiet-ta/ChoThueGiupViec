@@ -135,41 +135,6 @@ public class WorkerProfileService(
         return ApiResponse<WorkerPublicProfileResponse>.Ok(response);
     }
 
-    public async Task<ApiResponse<WorkerBankResponse>> GetBankAsync(CancellationToken ct = default)
-    {
-        if (currentUser.UserId is not int workerId)
-        {
-            throw new ForbiddenAccessException("Authenticated worker user ID is required.");
-        }
-
-        var worker = await workerRepository.GetByIdAsync(workerId, ct)
-            ?? throw new NotFoundException("Worker profile not found.");
-        var name = worker.BankName ?? string.Empty;
-        var account = worker.BankAccountNo ?? string.Empty;
-        return ApiResponse<WorkerBankResponse>.Ok(new WorkerBankResponse(name, account, name.Length > 0 && account.Length > 0));
-    }
-
-    public async Task<ApiResponse<WorkerBankResponse>> UpdateBankAsync(UpdateWorkerBankRequest? request, CancellationToken ct = default)
-    {
-        if (currentUser.UserId is not int workerId)
-        {
-            throw new ForbiddenAccessException("Authenticated worker user ID is required.");
-        }
-
-        var body = request ?? throw new ValidationException("request", "Request body is required.");
-        var (name, account) = WorkerBankValidator.Validate(body.BankName, body.BankAccountNo);
-
-        var worker = await workerRepository.GetByIdAsync(workerId, ct)
-            ?? throw new NotFoundException("Worker profile not found.");
-        worker.BankName = name;
-        worker.BankAccountNo = account;
-        worker.UpdatedAt = clock.UtcNow;
-        workerRepository.Update(worker);
-        await workerRepository.SaveChangesAsync(ct);
-
-        return ApiResponse<WorkerBankResponse>.Ok(new WorkerBankResponse(name, account, true), "Bank account saved.");
-    }
-
     /// <summary>
     /// Stores the worker's position in <c>WORKER.current_lat / current_lng</c>. The dispatch search only offers a job to a worker who has one
     /// (<c>WorkerAvailabilityQuery</c>), and nothing wrote it before, so no freelancer could ever be found (ECON-FLOW-FIX).
