@@ -42,7 +42,7 @@ export function Hero() {
           <source src="/videos/hero-family.mp4" type="video/mp4" />
         </video>
         {/* Lớp phủ chuyển sắc thông minh: trên Mobile phủ đều dịu mắt đảm bảo đọc chữ; trên Desktop viền xanh từ trái lan sang làm nổi khối chữ */}
-        <div className="absolute inset-0 bg-linear-to-b from-(--lp-forest)/90 via-(--lp-forest)/65 to-(--lp-forest)/80 md:bg-none md:bg-linear-to-r md:from-(--lp-forest) md:from-10% md:via-(--lp-forest)/85 md:via-30% md:via-(--lp-forest)/25 md:via-46% md:to-transparent md:to-58%" />
+        <div className="absolute inset-0 bg-linear-to-b from-(--lp-forest)/90 via-(--lp-forest)/65 to-(--lp-forest)/80 md:bg-linear-to-r md:from-(--lp-forest) md:from-10% md:via-(--lp-forest)/85 md:via-30% md:via-(--lp-forest)/25 md:via-46% md:to-transparent md:to-58%" />
         {/* Gradient chân trang giữ độ sắc nét cho thanh stats */}
         <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-(--lp-forest)/90 via-(--lp-forest)/30 to-transparent" />
       </div>
