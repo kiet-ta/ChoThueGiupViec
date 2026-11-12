@@ -1,4 +1,5 @@
 using CommonService.Application.Common.Options;
+using CommonService.Application.Features.Agencies;
 using CommonService.Application.Features.Dispatch;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
@@ -242,29 +243,63 @@ public class MilestoneFailoverServiceTests
         }
     }
 
-    private static (MilestoneFailoverService, InMemoryMilestoneFailoverRepository, MockClock, MockMediator, MockAgencyCapacityService, MockSlaPenaltyService, MockUnitOfWork) CreateTestRig()
+    /// <summary>The persisted AGENCY_SWAP_WINDOW table (one row per assignment); outlives any service instance, like the database.</summary>
+    private class InMemorySwapRepository : IAgencySwapRepository
     {
+        public Dictionary<long, AgencySwapWindow> Windows { get; } = new();
+
+        public Task<AgencySwapWindow?> GetWindowAsync(long assignmentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Windows.TryGetValue(assignmentId, out var w) ? w : null);
+
+        public void AddWindow(AgencySwapWindow window) => Windows[window.AssignmentId] = window;
+
+        public Task<bool> TryCloseWindowAsync(long assignmentId, string to, int? newWorkerId, DateTime nowUtc, CancellationToken cancellationToken = default)
+        {
+            if (!Windows.TryGetValue(assignmentId, out var w) || w.Status != SwapWindowStatuses.Open)
+            {
+                return Task.FromResult(false);
+            }
+
+            w.Status = to;
+            w.NewWorkerId = newWorkerId;
+            w.ClosedAt = nowUtc;
+            return Task.FromResult(true);
+        }
+
+        public Task<IReadOnlyList<AgencySwapWindow>> ListOpenAsync(int? agencyId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AgencySwapWindow>>(Windows.Values.Where(w => w.Status == SwapWindowStatuses.Open).ToList());
+
+        public Task<IReadOnlyList<AgencySwapWindow>> ListOpenDueAsync(DateTime nowUtc, int take, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AgencySwapWindow>>(Windows.Values.Where(w => w.Status == SwapWindowStatuses.Open && w.DeadlineAt <= nowUtc).Take(take).ToList());
+
+        public Task<SwapAssignmentView?> GetAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<WorkStatus?> GetAgencyWorkerStatusAsync(int agencyId, int workerId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<BookingSlot?> GetAvailableSlotAsync(int workerId, DateOnly date, string shiftCode, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> TrySwapAsync(long assignmentId, int oldSlotId, int newWorkerId, int newSlotId, DateTime nowUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private static MilestoneFailoverService NewService(
+        InMemoryMilestoneFailoverRepository repo, InMemorySwapRepository swaps, MockClock clock, MockMediator mediator,
+        MockAgencyCapacityService agencyService, MockSlaPenaltyService slaService, MockUnitOfWork unitOfWork) =>
+        new(repo, swaps, agencyService, slaService, clock, mediator, unitOfWork, MicrosoftOptions.Create(new BusinessRules()), NullLogger<MilestoneFailoverService>.Instance);
+
+    private static (MilestoneFailoverService, InMemoryMilestoneFailoverRepository, MockClock, MockMediator, MockAgencyCapacityService, MockSlaPenaltyService, MockUnitOfWork) CreateTestRig() =>
+        CreateTestRigWithSwaps(out _);
+
+    private static (MilestoneFailoverService, InMemoryMilestoneFailoverRepository, MockClock, MockMediator, MockAgencyCapacityService, MockSlaPenaltyService, MockUnitOfWork) CreateTestRigWithSwaps(out InMemorySwapRepository swaps)
+    {
+        swaps = new InMemorySwapRepository();
         var repo = new InMemoryMilestoneFailoverRepository();
         var clock = new MockClock();
         var mediator = new MockMediator();
         var agencyService = new MockAgencyCapacityService();
         var slaService = new MockSlaPenaltyService();
         var unitOfWork = new MockUnitOfWork();
-        var rules = MicrosoftOptions.Create(new BusinessRules());
         repo.Uow = unitOfWork;
         mediator.Uow = unitOfWork;
         slaService.Uow = unitOfWork;
 
-        var service = new MilestoneFailoverService(
-            repo,
-            agencyService,
-            slaService,
-            clock,
-            mediator,
-            unitOfWork,
-            rules,
-            NullLogger<MilestoneFailoverService>.Instance
-        );
+        var service = NewService(repo, swaps, clock, mediator, agencyService, slaService, unitOfWork);
 
         return (service, repo, clock, mediator, agencyService, slaService, unitOfWork);
     }
@@ -543,6 +578,138 @@ public class MilestoneFailoverServiceTests
         Assert.Equal(FailoverStatus.EmergencyRescuedToAgency, result.Status);
         Assert.Equal(8, result.NewAgencyId);
         Assert.Single(slaService.AppliedRequests);
+    }
+
+    // ---- BE-DISPATCH-REFACTOR-01: the 30-minute window lives in AGENCY_SWAP_WINDOW, not in static memory --------------------------
+
+    private static JobAssignment SeedWindowJob(InMemoryMilestoneFailoverRepository repo, MockClock clock, long id)
+    {
+        var assignment = new JobAssignment
+        {
+            AssignmentId = id,
+            OrderId = id * 10,
+            AgencyId = 5,
+            WorkerId = 50,
+            SlotId = (int)id * 100,
+            ServiceTier = ServiceTier.Premium,
+            GrossAmount = 400000m,
+            PayoutAmount = 320000m
+        };
+        assignment.TransitionTo(JobAssignmentStatus.Assigned);
+        repo.Assignments[id] = assignment;
+        repo.Slots[(int)id * 100] = new BookingSlot
+        {
+            SlotId = (int)id * 100,
+            SlotDate = DateOnly.FromDateTime(clock.UtcNow),
+            StartTime = new TimeOnly(10, 0),
+            ShiftCode = Morning,
+            SlotStatus = "LOCKED"
+        };
+        return assignment;
+    }
+
+    [Fact]
+    public async Task ReportUnavailability_MoreThan2Hours_PersistsOpenWindowRowWith30MinDeadline()
+    {
+        var (service, repo, clock, _, _, _, _) = CreateTestRigWithSwaps(out var swaps);
+        SeedWindowJob(repo, clock, 11);
+
+        var result = await service.ReportUnavailabilityAsync(11, "Thợ ốm");
+
+        var row = Assert.Single(swaps.Windows).Value;
+        Assert.Equal((11L, 5, SwapWindowStatuses.Open), (row.AssignmentId, row.AgencyId, row.Status));
+        Assert.Equal(clock.UtcNow, row.OpenedAt);
+        Assert.Equal(clock.UtcNow.AddMinutes(MilestoneFailoverService.SelfSwapWindowMinutes), row.DeadlineAt);
+        Assert.Equal(row.DeadlineAt, result.SelfSwapDeadlineUtc);
+    }
+
+    [Fact]
+    public async Task SelfSwapWindow_SurvivesRestart_ANewServiceInstanceStillHonoursTheDeadline()
+    {
+        var (service, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRigWithSwaps(out var swaps);
+        SeedWindowJob(repo, clock, 12);
+        repo.Workers[55] = new Worker { WorkerId = 55, FullName = "Replacement" };
+        typeof(Worker).GetProperty(nameof(Worker.AgencyId))!.SetValue(repo.Workers[55], 5);
+        await service.ReportUnavailabilityAsync(12, "Thợ ốm");
+
+        // "Restart": a brand-new service instance over the same persisted table (the old static dictionary would be empty here).
+        var restarted = NewService(repo, swaps, clock, mediator, agencyService, slaService, unitOfWork);
+
+        clock.UtcNow = clock.UtcNow.AddMinutes(10);
+        var swapped = await restarted.ExecuteAgencySelfSwapAsync(12, 55);
+
+        Assert.Equal(FailoverStatus.AgencySelfSwapped, swapped.Status);
+        Assert.Equal(55, repo.Assignments[12].WorkerId);
+        var row = swaps.Windows[12];
+        Assert.Equal((SwapWindowStatuses.Swapped, 55), (row.Status, row.NewWorkerId));
+    }
+
+    [Fact]
+    public async Task SelfSwapAfterDeadline_AfterRestart_ClosesWindowExpiredAndTriggersEmergencyRescue()
+    {
+        var (service, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRigWithSwaps(out var swaps);
+        SeedWindowJob(repo, clock, 13);
+        repo.Workers[55] = new Worker { WorkerId = 55, FullName = "Replacement" };
+        typeof(Worker).GetProperty(nameof(Worker.AgencyId))!.SetValue(repo.Workers[55], 5);
+        repo.Slots[801] = new BookingSlot { SlotId = 801, WorkerId = 80, SlotDate = DateOnly.FromDateTime(clock.UtcNow), StartTime = new TimeOnly(10, 0), ShiftCode = Morning, SlotStatus = "AVAILABLE" };
+        await service.ReportUnavailabilityAsync(13, "Thợ ốm");
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 8, [801], 0.200m);
+
+        var restarted = NewService(repo, swaps, clock, mediator, agencyService, slaService, unitOfWork);
+        clock.UtcNow = clock.UtcNow.AddMinutes(31);
+        var result = await restarted.ExecuteAgencySelfSwapAsync(13, 55);
+
+        Assert.Equal(FailoverStatus.EmergencyRescuedToAgency, result.Status);
+        Assert.Equal(SwapWindowStatuses.Expired, swaps.Windows[13].Status);
+        Assert.Equal(50, repo.Assignments[13].WorkerId); // the late swap did not go through
+    }
+
+    [Fact]
+    public async Task ReportUnavailability_CalledTwice_KeepsTheFirstWindowAndDeadline()
+    {
+        var (service, repo, clock, _, _, _, _) = CreateTestRigWithSwaps(out var swaps);
+        SeedWindowJob(repo, clock, 14);
+        var first = await service.ReportUnavailabilityAsync(14, "Thợ ốm");
+
+        clock.UtcNow = clock.UtcNow.AddMinutes(5);
+        var second = await service.ReportUnavailabilityAsync(14, "Báo lại");
+
+        Assert.Single(swaps.Windows);
+        Assert.Equal(first.SelfSwapDeadlineUtc, second.SelfSwapDeadlineUtc);
+    }
+
+    [Fact]
+    public async Task HandleSelfSwapTimeout_ClosesPersistedWindowAsExpired()
+    {
+        var (service, repo, clock, _, agencyService, _, _) = CreateTestRigWithSwaps(out var swaps);
+        SeedWindowJob(repo, clock, 15);
+        repo.Slots[801] = new BookingSlot { SlotId = 801, WorkerId = 80, SlotDate = DateOnly.FromDateTime(clock.UtcNow), StartTime = new TimeOnly(10, 0), ShiftCode = Morning, SlotStatus = "AVAILABLE" };
+        await service.ReportUnavailabilityAsync(15, "Thợ ốm");
+        agencyService.NextReservation = new CapacityReservation(Guid.NewGuid(), 8, [801], 0.200m);
+        clock.UtcNow = clock.UtcNow.AddMinutes(31);
+
+        await service.HandleSelfSwapTimeoutAsync(15);
+
+        var row = swaps.Windows[15];
+        Assert.Equal(SwapWindowStatuses.Expired, row.Status);
+        Assert.Equal(clock.UtcNow, row.ClosedAt);
+    }
+
+    [Fact]
+    public async Task SelfSwap_WhenTheSweepAlreadyClosedTheWindow_IsRejectedAndSwapsNothing()
+    {
+        var (service, repo, clock, _, _, _, _) = CreateTestRigWithSwaps(out var swaps);
+        SeedWindowJob(repo, clock, 16);
+        repo.Workers[55] = new Worker { WorkerId = 55, FullName = "Replacement" };
+        typeof(Worker).GetProperty(nameof(Worker.AgencyId))!.SetValue(repo.Workers[55], 5);
+        await service.ReportUnavailabilityAsync(16, "Thợ ốm");
+        await swaps.TryCloseWindowAsync(16, SwapWindowStatuses.Expired, null, clock.UtcNow); // the Agencies sweep won the race
+
+        var result = await service.ExecuteAgencySelfSwapAsync(16, 55);
+
+        Assert.False(result.Success);
+        Assert.Equal(FailoverStatus.InvalidNotice, result.Status);
+        Assert.Equal(50, repo.Assignments[16].WorkerId);
     }
 
     // ---- RESCUE-TEST-01: the named tests for the criteria of #443 (production code unchanged) ---------------------------------

@@ -1,4 +1,6 @@
 using CommonService.Application.Common.Options;
+using CommonService.Application.Exceptions;
+using CommonService.Application.Features.Agencies;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -81,6 +83,7 @@ public class MilestoneFailoverService
     public const int NoticeThresholdHours = 2;
 
     private readonly IMilestoneFailoverRepository _repository;
+    private readonly IAgencySwapRepository _swapRepository;
     private readonly IAgencyCapacityService _agencyCapacityService;
     private readonly ISlaPenaltyService _slaPenaltyService;
     private readonly IClock _clock;
@@ -89,11 +92,9 @@ public class MilestoneFailoverService
     private readonly BusinessRules _rules;
     private readonly ILogger<MilestoneFailoverService> _logger;
 
-    // Track active self-swap windows in memory (assignmentId -> deadlineUtc)
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, DateTime> ActiveSwapWindows = new();
-
     public MilestoneFailoverService(
         IMilestoneFailoverRepository repository,
+        IAgencySwapRepository swapRepository,
         IAgencyCapacityService agencyCapacityService,
         ISlaPenaltyService slaPenaltyService,
         IClock clock,
@@ -103,6 +104,7 @@ public class MilestoneFailoverService
         ILogger<MilestoneFailoverService>? logger = null)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _swapRepository = swapRepository ?? throw new ArgumentNullException(nameof(swapRepository));
         _agencyCapacityService = agencyCapacityService ?? throw new ArgumentNullException(nameof(agencyCapacityService));
         _slaPenaltyService = slaPenaltyService ?? throw new ArgumentNullException(nameof(slaPenaltyService));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -168,9 +170,39 @@ public class MilestoneFailoverService
 
         if (noticeHours > NoticeThresholdHours)
         {
-            // Notice > 2 hours: Open 30-minute window for Agency internal self-swap
-            var deadlineUtc = nowUtc.AddMinutes(SelfSwapWindowMinutes);
-            ActiveSwapWindows[assignmentId] = deadlineUtc;
+            // Notice > 2 hours: Open 30-minute window for Agency internal self-swap. The window is a row of AGENCY_SWAP_WINDOW
+            // (one per assignment), so the deadline survives a server restart and the Agencies sweep sees it.
+            var window = await _swapRepository.GetWindowAsync(assignmentId, cancellationToken);
+            if (window is not null && window.Status != SwapWindowStatuses.Open)
+            {
+                return new MilestoneFailoverResult
+                {
+                    Success = false,
+                    AssignmentId = assignmentId,
+                    Status = FailoverStatus.InvalidNotice,
+                    Message = $"Cửa sổ tự đổi thợ của ca này đã đóng ({window.Status})."
+                };
+            }
+
+            if (window is null)
+            {
+                window = new AgencySwapWindow
+                {
+                    AssignmentId = assignmentId,
+                    AgencyId = assignment.AgencyId.Value,
+                    OpenedAt = nowUtc,
+                    DeadlineAt = nowUtc.AddMinutes(SelfSwapWindowMinutes),
+                    Reason = reason.Length > 255 ? reason[..255] : reason,
+                    Status = SwapWindowStatuses.Open,
+                };
+                await _unitOfWork.ExecuteInTransactionAsync(() =>
+                {
+                    _swapRepository.AddWindow(window);
+                    return Task.FromResult(true);
+                }, cancellationToken);
+            }
+
+            var deadlineUtc = window.DeadlineAt;
 
             _logger.LogInformation(
                 "Agency {AgencyId} opened self-swap window for assignment {AssignmentId}. Deadline: {DeadlineUtc}",
@@ -231,11 +263,23 @@ public class MilestoneFailoverService
 
         var nowUtc = _clock.UtcNow;
 
-        if (ActiveSwapWindows.TryGetValue(assignmentId, out var deadlineUtc))
+        var window = await _swapRepository.GetWindowAsync(assignmentId, cancellationToken);
+        if (window is not null)
         {
-            if (nowUtc > deadlineUtc)
+            if (window.Status != SwapWindowStatuses.Open)
             {
-                ActiveSwapWindows.TryRemove(assignmentId, out _);
+                return new MilestoneFailoverResult
+                {
+                    Success = false,
+                    AssignmentId = assignmentId,
+                    Status = FailoverStatus.InvalidNotice,
+                    Message = $"Cửa sổ tự đổi thợ của ca này đã đóng ({window.Status})."
+                };
+            }
+
+            if (nowUtc > window.DeadlineAt)
+            {
+                await CloseWindowAsync(assignmentId, SwapWindowStatuses.Expired, null, nowUtc, cancellationToken);
                 var order = await _repository.GetOrderAsync(assignment.OrderId, cancellationToken);
                 var slot = await _repository.GetSlotAsync(assignment.SlotId, cancellationToken);
                 return await TriggerEmergencyRescueAsync(assignment, order, slot, "Hết hạn cửa sổ 30 phút tự đổi thợ", cancellationToken);
@@ -255,8 +299,31 @@ public class MilestoneFailoverService
             };
         }
 
-        await _repository.SwapWorkerInAssignmentAsync(assignmentId, newWorkerId, cancellationToken);
-        ActiveSwapWindows.TryRemove(assignmentId, out _);
+        try
+        {
+            // The new worker and the closed window land together; if the sweep closed the window first, nothing is swapped.
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
+            {
+                await _repository.SwapWorkerInAssignmentAsync(assignmentId, newWorkerId, cancellationToken);
+                if (window is not null
+                    && !await _swapRepository.TryCloseWindowAsync(assignmentId, SwapWindowStatuses.Swapped, newWorkerId, nowUtc, cancellationToken))
+                {
+                    throw new BusinessRuleViolationException("The 30-minute window has ended; Dispatch took over.", SwapErrorCodes.WindowClosed);
+                }
+
+                return true;
+            }, cancellationToken);
+        }
+        catch (BusinessRuleViolationException ex) when (ex.Code == SwapErrorCodes.WindowClosed)
+        {
+            return new MilestoneFailoverResult
+            {
+                Success = false,
+                AssignmentId = assignmentId,
+                Status = FailoverStatus.InvalidNotice,
+                Message = "Cửa sổ tự đổi thợ đã đóng; hệ thống đã chuyển sang Cứu hộ Khẩn cấp."
+            };
+        }
 
         _logger.LogInformation(
             "Agency {AgencyId} successfully self-swapped worker for assignment {AssignmentId} to Worker {WorkerId}.",
@@ -292,12 +359,17 @@ public class MilestoneFailoverService
             };
         }
 
-        ActiveSwapWindows.TryRemove(assignmentId, out _);
+        await CloseWindowAsync(assignmentId, SwapWindowStatuses.Expired, null, _clock.UtcNow, cancellationToken);
         var order = await _repository.GetOrderAsync(assignment.OrderId, cancellationToken);
         var slot = await _repository.GetSlotAsync(assignment.SlotId, cancellationToken);
 
         return await TriggerEmergencyRescueAsync(assignment, order, slot, "Quá hạn 30 phút tự đổi thợ", cancellationToken);
     }
+
+    /// <summary>Conditional <c>OPEN -&gt; <paramref name="to"/></c> of the persisted window; a no-op when it is absent or already closed.</summary>
+    private Task CloseWindowAsync(long assignmentId, string to, int? newWorkerId, DateTime nowUtc, CancellationToken cancellationToken) =>
+        _unitOfWork.ExecuteInTransactionAsync(
+            () => _swapRepository.TryCloseWindowAsync(assignmentId, to, newWorkerId, nowUtc, cancellationToken), cancellationToken);
 
     /// <summary>
     /// Executes Emergency Rescue:
