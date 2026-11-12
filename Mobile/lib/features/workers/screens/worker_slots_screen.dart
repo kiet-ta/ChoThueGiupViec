@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
@@ -57,6 +58,9 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   late final IMapLauncher _mapLauncher;
   late DateTime _weekStartDate;
 
+  /// "Today" of the screen (the device's local date, or `initialDate` in tests). Days before it are read-only (MOB-SLOTS-ERR-01).
+  late final String _todayStr;
+
   bool _isLoading = false;
 
   /// The week could not be loaded: the whole list is replaced by a retry state.
@@ -95,6 +99,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     _mapLauncher = widget.mapLauncher ?? const UrlMapLauncher();
 
     final now = widget.initialDate ?? DateTime.now();
+    _todayStr = _formatDate(now);
     // Align to Monday of current week
     _weekStartDate = now.subtract(Duration(days: now.weekday - 1));
     _selectedDay = now.weekday - 1;
@@ -116,6 +121,25 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     final m = dt.month.toString().padLeft(2, '0');
     final d = dt.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
+  }
+
+  /// A day before today: the server refuses to change it (400 `slotDate`), so the app does not offer it.
+  bool _isPastDay(String dateStr) => dateStr.compareTo(_todayStr) < 0;
+
+  /// One plain sentence for a failed toggle, never the raw server text (MOB-SLOTS-ERR-01).
+  static String _toggleErrorMessage(Object error) {
+    if (error is ApiException) {
+      if (error.fieldErrors?.containsKey('slotDate') ?? false) {
+        return 'Ngày này đã qua nên không thể thay đổi lịch rảnh. Hãy chọn từ hôm nay trở đi.';
+      }
+      if (error.code == 'SLOT_IN_USE') {
+        return 'Ca này đang có đơn (đang mời hoặc đã nhận) nên không thể bật hoặc tắt.';
+      }
+      if (error.statusCode == 0) {
+        return 'Không có kết nối mạng. Vui lòng thử lại.';
+      }
+    }
+    return 'Không thể thay đổi lịch rảnh lúc này. Vui lòng thử lại sau.';
   }
 
   String _formatDisplayDate(DateTime dt) {
@@ -229,7 +253,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
       // Revert on error
       setState(() {
         _slotActiveState[key] = currentActive;
-        _toggleError = 'Không thể thay đổi lịch rảnh: ${e.toString()}';
+        _toggleError = _toggleErrorMessage(e);
       });
     }
   }
@@ -489,6 +513,17 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
             style: NordicTypography.titleSmall,
           ),
         ),
+        if (_isPastDay(dateStr))
+          Padding(
+            padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+            child: Text(
+              'Ngày này đã qua, không thể thay đổi lịch rảnh.',
+              key: const Key('slots-past-day-hint'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.textSecondary,
+              ),
+            ),
+          ),
         NordicCard(
           padding: EdgeInsets.zero,
           child: Column(
@@ -562,7 +597,9 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                 Switch.adaptive(
                   value: isActive,
                   activeTrackColor: NordicColors.primary,
-                  onChanged: (_) => _toggleSlot(dateStr, shiftCode, isActive),
+                  onChanged: _isPastDay(dateStr)
+                      ? null
+                      : (_) => _toggleSlot(dateStr, shiftCode, isActive),
                 ),
             ],
           ),

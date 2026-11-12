@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/features/workers/models/booking_slot_models.dart';
 import 'package:mobile/features/dispatch/routes.dart';
@@ -16,6 +17,10 @@ import 'design_frame.dart';
 
 class MockWorkersSlotsService extends WorkersSlotsService {
   ToggleBookingSlotRequest? lastToggleRequest;
+  int toggleCalls = 0;
+
+  /// When set, `toggleSlot` throws it (a refused or failed call).
+  Object? toggleError;
   List<BookingSlotDto> slotsToReturn = [];
 
   @override
@@ -34,7 +39,9 @@ class MockWorkersSlotsService extends WorkersSlotsService {
   Future<ApiResponse<BookingSlotDto>> toggleSlot(
     ToggleBookingSlotRequest request,
   ) async {
+    toggleCalls++;
     lastToggleRequest = request;
+    if (toggleError != null) throw toggleError!;
     return ApiResponse<BookingSlotDto>(
       success: true,
       message: 'OK',
@@ -579,6 +586,97 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('19/10 – 25/10/2026'), findsOneWidget);
+    });
+
+    group('MOB-SLOTS-ERR-01 past days and plain-language errors', () {
+      Future<void> open(WidgetTester tester, DateTime initial) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: WorkerSlotsScreen(
+              slotsService: mockService,
+              locationService: mockLocation,
+              initialDate: initial,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('a past day has disabled switches, a hint and no request', (
+        tester,
+      ) async {
+        await open(
+          tester,
+          DateTime(2026, 10, 14),
+        ); // Wednesday; Monday 12/10 is past
+        await tapVisible(tester, find.byKey(const Key('slots-day-0')));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('slots-past-day-hint')), findsOneWidget);
+        final switches = tester.widgetList<Switch>(find.byType(Switch));
+        expect(switches, isNotEmpty);
+        expect(switches.every((sw) => sw.onChanged == null), isTrue);
+        expect(mockService.toggleCalls, 0);
+      });
+
+      testWidgets('today still toggles and shows no past-day hint', (
+        tester,
+      ) async {
+        await open(tester, DateTime(2026, 10, 14));
+
+        expect(find.byKey(const Key('slots-past-day-hint')), findsNothing);
+        await tapVisible(tester, find.byType(Switch).first);
+        await tester.pumpAndSettle();
+        expect(mockService.toggleCalls, 1);
+      });
+
+      testWidgets(
+        'a slotDate 400 shows the past-day sentence, not the server text',
+        (tester) async {
+          mockService.toggleError = const ApiException(
+            400,
+            'Validation failed',
+            fieldErrors: {
+              'slotDate': ['Cannot toggle availability slots in the past.'],
+            },
+          );
+          await open(tester, fixedDate);
+          await tapVisible(tester, find.byType(Switch).first);
+          await tester.pumpAndSettle();
+
+          expect(find.textContaining('Validation failed'), findsNothing);
+          expect(find.textContaining('Cannot toggle'), findsNothing);
+          expect(
+            find.text(
+              'Ngày này đã qua nên không thể thay đổi lịch rảnh. Hãy chọn từ hôm nay trở đi.',
+            ),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        'SLOT_IN_USE, a network error and anything else have their own sentence',
+        (tester) async {
+          final cases = <Object, String>{
+            const ApiException(409, 'x', code: 'SLOT_IN_USE'): 'Ca này đang có đơn (đang mời hoặc đã nhận) nên không thể bật hoặc tắt.',
+            const ApiException(0, 'Lỗi kết nối: SocketException'):
+                'Không có kết nối mạng. Vui lòng thử lại.',
+            Exception('boom'):
+                'Không thể thay đổi lịch rảnh lúc này. Vui lòng thử lại sau.',
+          };
+          for (final entry in cases.entries) {
+            mockService.toggleError = entry.key;
+            await open(tester, fixedDate);
+            await tapVisible(tester, find.byType(Switch).first);
+            await tester.pumpAndSettle();
+            expect(find.text(entry.value), findsOneWidget);
+            expect(find.textContaining('boom'), findsNothing);
+            expect(find.textContaining('SocketException'), findsNothing);
+          }
+        },
+      );
     });
   });
 }
