@@ -5,9 +5,13 @@ import { gsap, prefersReducedMotion } from './motion'
 
 export function Hero() {
   const root = useRef<HTMLElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
-    if (prefersReducedMotion()) return
+    if (prefersReducedMotion()) {
+      if (videoRef.current) videoRef.current.pause()
+      return
+    }
     const ctx = gsap.context(() => {
       gsap.from('[data-hero-in]', {
         opacity: 0,
@@ -23,18 +27,23 @@ export function Hero() {
 
   return (
     <section ref={root} id="top" className="relative isolate flex min-h-svh items-center overflow-hidden bg-(--lp-forest) text-white">
-      {/* Full-Bleed Immersive Photographic Canvas - Sáng & Giảm phủ màu xanh */}
-      <div className="absolute inset-0 -z-10" aria-hidden="true">
-        <img
+      {/* Full-Bleed Immersive Photographic & Cinematic Video Canvas */}
+      <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <video
+          ref={videoRef}
           data-hero-bg
-          src={IMAGES.hero}
-          alt="Không gian sống sạch sẽ hiện đại tiêu chuẩn TỔ ẤM"
-          fetchPriority="high"
-          className="h-full w-full object-cover object-center filter brightness-[1.12] contrast-[103%]"
-        />
-        {/* Giảm mạnh độ phủ màu xanh để ảnh sáng rõ, chỉ giữ một lớp nhẹ phía chữ để dễ đọc */}
-        <div className="absolute inset-0 bg-linear-to-r from-(--lp-forest)/45 via-(--lp-forest)/20 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-(--lp-forest)/25 to-transparent" />
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster={IMAGES.hero}
+          className="h-full w-full object-cover object-center filter brightness-[1.08] contrast-[102%]"
+        >
+          <source src="/videos/hero-family.mp4" type="video/mp4" />
+        </video>
+        {/* Lớp phủ gradient giữ chữ và các chỉ số luôn rõ ràng, tương phản cao */}
+        <div className="absolute inset-0 bg-linear-to-r from-(--lp-forest)/65 via-(--lp-forest)/30 to-black/20" />
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-(--lp-forest)/35 to-transparent" />
       </div>
 
       <div className="mx-auto w-full max-w-7xl px-6 pb-20 pt-36 lg:px-12">
