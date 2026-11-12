@@ -161,6 +161,30 @@ public class AgencyCapacityTests
     }
 
     [Fact]
+    public void Planner_with_equal_standing_balances_distribution_across_orders()
+    {
+        // Two agencies with identical priority and SLA score
+        var slotA = new CapacitySlot(1, AgencyId: 10, SlaScore: 95m, PriorityDispatch: false, CommissionRate: 0.2m);
+        var slotB = new CapacitySlot(2, AgencyId: 20, SlaScore: 95m, PriorityDispatch: false, CommissionRate: 0.2m);
+        var slots = new[] { slotA, slotB };
+
+        int agency10Wins = 0;
+        int agency20Wins = 0;
+
+        for (long orderId = 1; orderId <= 100; orderId++)
+        {
+            var plan = CapacityPlanner.Plan(slots, 1, orderId: orderId);
+            Assert.NotNull(plan);
+            if (plan.AgencyId == 10) agency10Wins++;
+            else if (plan.AgencyId == 20) agency20Wins++;
+        }
+
+        // Neither agency should monopolize; both should receive a fair share (between 35% and 65%)
+        Assert.True(agency10Wins >= 35, $"Agency 10 won only {agency10Wins} times out of 100.");
+        Assert.True(agency20Wins >= 35, $"Agency 20 won only {agency20Wins} times out of 100.");
+    }
+
+    [Fact]
     public void Planner_skips_excluded_slots_and_ignores_a_non_positive_request()
     {
         var slots = new[] { new CapacitySlot(1, 10, 100m, false, 0.2m), new CapacitySlot(2, 10, 100m, false, 0.2m) };
