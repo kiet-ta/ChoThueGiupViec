@@ -36,7 +36,7 @@ export const ENTRY_TYPE_OPTIONS: { value: string; label: string }[] = [
 ]
 
 const PARTY_LABELS: Record<string, string> = {
-  EXTERNAL: 'Bên ngoài',
+  EXTERNAL: 'Ngoài nền tảng',
   PLATFORM_CLEARING: 'Tiền giữ hộ khách',
   PLATFORM_REVENUE: 'Doanh thu nền tảng',
   WORKER: 'Thợ',
@@ -46,13 +46,50 @@ const PARTY_LABELS: Record<string, string> = {
 
 export const PARTY_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Tất cả bên' },
-  ...Object.entries(PARTY_LABELS).map(([value, label]) => ({ value, label })),
+  ...Object.entries(PARTY_LABELS).map(([value, label]) => ({
+    value,
+    // the filter says what the outside party can be; a row says which one it is (`entryPartyLabel`)
+    label: value === 'EXTERNAL' ? 'Ngoài nền tảng (khách, ngân hàng)' : label,
+  })),
 ]
 
 /** `Thợ #7`, `Ký quỹ Agency #3`, `Doanh thu nền tảng` (the platform's own accounts have no id). */
 export function partyLabel(type: string, id: number | null): string {
   const name = PARTY_LABELS[type] ?? type
   return id === null ? name : `${name} #${id}`
+}
+
+/** The fields of an entry that name its two parties. */
+export interface EntryParties {
+  entryType: string
+  fromPartyType: string
+  fromPartyId: number | null
+  toPartyType: string
+  toPartyId: number | null
+}
+
+const withId = (name: string, id: number | null): string => (id === null ? name : `${name} #${id}`)
+
+/**
+ * One side of an entry as a person reads it. The party "EXTERNAL" (outside the platform) is named by what it is in that
+ * entry: the customer who pays or is paid back, the Agency that pays in, or the bank account the money is paid out to
+ * (a withdrawal or the monthly settlement). Any other combination is "Ngoài nền tảng". `viewer: 'agency'` is the Partner
+ * Portal, where the bank account paid out to is the Agency's own.
+ */
+export function entryPartyLabel(entry: EntryParties, side: 'from' | 'to', viewer: 'admin' | 'agency' = 'admin'): string {
+  const type = side === 'from' ? entry.fromPartyType : entry.toPartyType
+  const id = side === 'from' ? entry.fromPartyId : entry.toPartyId
+  if (type !== 'EXTERNAL') return partyLabel(type, id)
+  if (side === 'from') {
+    if (entry.entryType === 'ORDER_PAID' || entry.entryType === 'EXTENSION_PAID') return withId('Khách hàng', id)
+    if (entry.entryType === 'SUBSCRIPTION' || entry.entryType === 'ESCROW_DEPOSIT') return `${withId('Agency', id)} (thanh toán)`
+  } else {
+    if (entry.entryType === 'REFUND') return `${withId('Khách hàng', id)} (nhận hoàn tiền)`
+    if (entry.entryType === 'WITHDRAWAL' || entry.entryType === 'SETTLEMENT') {
+      return viewer === 'agency' ? 'Tài khoản ngân hàng của bạn' : 'Tài khoản ngân hàng của người nhận'
+    }
+  }
+  return partyLabel(type, id)
 }
 
 const REF_LABELS: Record<string, string> = {
@@ -98,8 +135,8 @@ export function entryRow(e: LedgerEntry): EntryRow {
     entryId: e.entryId,
     code: e.entryCode,
     time: formatDateTime(e.createdAt),
-    from: partyLabel(e.fromPartyType, e.fromPartyId),
-    to: partyLabel(e.toPartyType, e.toPartyId),
+    from: entryPartyLabel(e, 'from'),
+    to: entryPartyLabel(e, 'to'),
     type: entryTypeLabel(e.entryType),
     amount: formatVnd(e.amount),
     reference: referenceLabel(e.refType, e.refId, e.orderId),
