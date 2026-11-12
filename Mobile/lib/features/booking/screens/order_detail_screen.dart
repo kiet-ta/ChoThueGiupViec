@@ -1360,7 +1360,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       return NordicButton(
         key: const Key('open-cancel'),
         label: 'Huỷ đơn',
-        variant: NordicButtonVariant.ghost,
+        width: double.infinity,
+        variant: NordicButtonVariant.danger,
         onPressed: () => setState(() {
           _cancelOpen = true;
           _cancelError = null;
@@ -1395,6 +1396,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             key: const Key('submit-cancel'),
             label: 'Xác nhận huỷ',
             width: double.infinity,
+            variant: NordicButtonVariant.danger,
             isLoading: _cancelling,
             onPressed: _cancel,
           ),

@@ -5,7 +5,8 @@ import '../theme/nordic_elevation.dart';
 import '../theme/nordic_radius.dart';
 import 'pressable.dart';
 
-enum NordicButtonVariant { primary, secondary, ghost }
+/// `danger`: a red filled button, only for an action that cancels or deletes something (DESIGN-SYSTEM.md section 4).
+enum NordicButtonVariant { primary, secondary, ghost, danger }
 
 /// Pill-shaped CTA button matching the TỔ ẤM Nordic Care specification.
 /// It shrinks slightly the moment it is pressed ([Pressable], MOB-UI-12).
@@ -55,6 +56,22 @@ class NordicButton extends StatelessWidget {
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
             backgroundColor: NordicColors.primary,
+            foregroundColor: Colors.white,
+            shape: const StadiumBorder(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 14.0,
+            ),
+            elevation: 0,
+          ),
+          child: effectiveChild,
+        );
+        break;
+      case NordicButtonVariant.danger:
+        button = ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: NordicColors.error,
             foregroundColor: Colors.white,
             shape: const StadiumBorder(),
             padding: const EdgeInsets.symmetric(

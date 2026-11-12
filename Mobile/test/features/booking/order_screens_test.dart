@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/widgets/nordic_button.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
@@ -472,6 +473,34 @@ void main() {
   });
 
   group('OrderDetailScreen: cancel', () {
+    testWidgets('"Huỷ đơn" and "Xác nhận huỷ" are red buttons (MOB-ORDER-01)', (
+      tester,
+    ) async {
+      await pumpDetail(tester, FakeOrderService());
+
+      final open = tester.widget<NordicButton>(
+        find.byKey(const Key('open-cancel')),
+      );
+      expect(open.variant, NordicButtonVariant.danger);
+      expect(open.label, 'Huỷ đơn');
+
+      await tapKey(tester, 'open-cancel');
+
+      final confirm = tester.widget<NordicButton>(
+        find.byKey(const Key('submit-cancel')),
+      );
+      expect(confirm.variant, NordicButtonVariant.danger);
+      // the way back stays a quiet button
+      expect(
+        tester
+            .widget<NordicButton>(
+              find.widgetWithText(NordicButton, 'Không huỷ nữa'),
+            )
+            .variant,
+        NordicButtonVariant.ghost,
+      );
+    });
+
     testWidgets('an empty reason is refused before any request', (
       tester,
     ) async {
