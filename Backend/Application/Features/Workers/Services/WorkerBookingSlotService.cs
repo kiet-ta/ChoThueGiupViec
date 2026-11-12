@@ -16,6 +16,9 @@ public class WorkerBookingSlotService(
     /// <summary>409 code when the slot is held by an offer or booked by a job (contracts workers.md 2.3.2).</summary>
     public const string SlotInUseCode = "SLOT_IN_USE";
 
+    /// <summary>409 code when the shift of today has already started (or ended) in Vietnam local time (MOB-SLOTS-ERR-01).</summary>
+    public const string ShiftAlreadyStartedCode = "SHIFT_ALREADY_STARTED";
+
     public async Task<ApiResponse<IReadOnlyList<BookingSlotResponse>>> GetSlotsAsync(DateOnly? startDate, DateOnly? endDate, CancellationToken ct = default)
     {
         if (currentUser.UserId is not int workerId)
@@ -68,6 +71,12 @@ public class WorkerBookingSlotService(
         var nowUtc = clock.UtcNow;
         var shiftCode = ShiftHelper.NormalizeShiftCode(request.ShiftCode);
         var (startTime, endTime) = ShiftHelper.GetShiftTimes(shiftCode);
+
+        // A shift of today whose start time has passed cannot be switched on or off any more (local time, decisions G-3).
+        if (request.SlotDate == clock.LocalToday && TimeOnly.FromDateTime(clock.ToLocal(nowUtc)) >= startTime)
+        {
+            throw new BusinessRuleViolationException("Ca này đã bắt đầu hoặc đã qua giờ, không thể bật hoặc tắt.", ShiftAlreadyStartedCode);
+        }
         string newStatus = request.IsActive ? "AVAILABLE" : "BLOCKED";
 
         var existingSlot = await workerRepository.GetWorkerSlotByShiftAsync(workerId, request.SlotDate, shiftCode, ct);
