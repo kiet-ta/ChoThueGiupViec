@@ -241,6 +241,23 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     String shiftCode,
     bool currentActive,
   ) async {
+    // The shift's time is over: say so, change nothing and send nothing (the server would refuse it too).
+    final shift = _shifts.firstWhere((x) => x['code'] == shiftCode);
+    if (_isPastDay(dateStr)) {
+      setState(
+        () => _toggleError =
+            'Không thể bật hoặc tắt vì đã qua thời gian của ca (ngày ${dateStr.substring(8)}/${dateStr.substring(5, 7)} đã qua).',
+      );
+      return;
+    }
+    if (_isShiftStarted(dateStr, shift)) {
+      setState(
+        () => _toggleError =
+            'Không thể bật hoặc tắt vì ${shift['name']!.toLowerCase()} (${shift['time']}) đã bắt đầu hoặc đã qua giờ.',
+      );
+      return;
+    }
+
     final newActive = !currentActive;
     final key = '$dateStr:$shiftCode';
 
@@ -618,9 +635,8 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                 Switch.adaptive(
                   value: isActive,
                   activeTrackColor: NordicColors.primary,
-                  onChanged: _isPastDay(dateStr) || started
-                      ? null
-                      : (_) => _toggleSlot(dateStr, shiftCode, isActive),
+                  // A locked shift keeps its switch tappable: the tap explains why nothing changes (see _toggleSlot).
+                  onChanged: (_) => _toggleSlot(dateStr, shiftCode, isActive),
                 ),
             ],
           ),

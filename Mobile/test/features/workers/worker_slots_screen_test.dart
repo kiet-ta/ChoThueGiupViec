@@ -603,22 +603,34 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      testWidgets('a past day has disabled switches, a hint and no request', (
-        tester,
-      ) async {
-        await open(
-          tester,
-          DateTime(2026, 10, 14),
-        ); // Wednesday; Monday 12/10 is past
-        await tapVisible(tester, find.byKey(const Key('slots-day-0')));
-        await tester.pumpAndSettle();
+      testWidgets(
+        'a past day: a hint, and tapping a switch explains why, with no request',
+        (tester) async {
+          await open(
+            tester,
+            DateTime(2026, 10, 14),
+          ); // Wednesday; Monday 12/10 is past
+          await tapVisible(tester, find.byKey(const Key('slots-day-0')));
+          await tester.pumpAndSettle();
 
-        expect(find.byKey(const Key('slots-past-day-hint')), findsOneWidget);
-        final switches = tester.widgetList<Switch>(find.byType(Switch));
-        expect(switches, isNotEmpty);
-        expect(switches.every((sw) => sw.onChanged == null), isTrue);
-        expect(mockService.toggleCalls, 0);
-      });
+          expect(find.byKey(const Key('slots-past-day-hint')), findsOneWidget);
+          final first = find.byType(Switch).first;
+          await tapVisible(tester, first);
+          await tester.pumpAndSettle();
+
+          expect(
+            find.text(
+              'Không thể bật hoặc tắt vì đã qua thời gian của ca (ngày 12/10 đã qua).',
+            ),
+            findsOneWidget,
+          );
+          expect(
+            tester.widget<Switch>(first).value,
+            isTrue,
+          ); // unchanged: the sample data has this shift ON
+          expect(mockService.toggleCalls, 0);
+        },
+      );
 
       testWidgets('today still toggles and shows no past-day hint', (
         tester,
@@ -674,8 +686,14 @@ void main() {
               findsOneWidget,
             );
           }
-          final switches = tester.widgetList<Switch>(find.byType(Switch));
-          expect(switches.every((sw) => sw.onChanged == null), isTrue);
+          await tapVisible(tester, find.byType(Switch).first);
+          await tester.pumpAndSettle();
+          expect(
+            find.text(
+              'Không thể bật hoặc tắt vì ca sáng (08:00 – 12:00) đã bắt đầu hoặc đã qua giờ.',
+            ),
+            findsOneWidget,
+          );
           expect(mockService.toggleCalls, 0);
         },
       );
@@ -693,12 +711,12 @@ void main() {
             find.byKey(const Key('shift-started-2026-10-14-SHIFT_AFTERNOON')),
             findsNothing,
           );
-          final switches = tester
-              .widgetList<Switch>(find.byType(Switch))
-              .toList();
-          expect(switches[0].onChanged, isNull);
-          expect(switches[1].onChanged, isNotNull);
-          expect(switches[2].onChanged, isNotNull);
+          await tapVisible(tester, find.byType(Switch).first);
+          await tester.pumpAndSettle();
+          expect(mockService.toggleCalls, 0); // the morning shift: refused here
+          await tapVisible(tester, find.byType(Switch).at(1));
+          await tester.pumpAndSettle();
+          expect(mockService.toggleCalls, 1); // the afternoon shift: sent
         },
       );
 
@@ -713,12 +731,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.textContaining('đã bắt đầu'), findsNothing);
-        expect(
-          tester
-              .widgetList<Switch>(find.byType(Switch))
-              .every((sw) => sw.onChanged != null),
-          isTrue,
-        );
+        await tapVisible(tester, find.byType(Switch).first);
+        await tester.pumpAndSettle();
+        expect(mockService.toggleCalls, 1);
       });
 
       testWidgets('a SHIFT_ALREADY_STARTED answer shows its own sentence', (
