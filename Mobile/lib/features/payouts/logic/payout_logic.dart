@@ -66,19 +66,33 @@ String payoutStatusLabel(String status) {
     case PayoutStatus.transferred:
       return 'Đã chuyển khoản';
     default:
-      return 'Chưa chốt đợt';
+      return 'Chưa đến kỳ lương';
   }
 }
 
-/// A short explanation under the status, because pay is monthly and held until a batch (Q04).
-String payoutStatusHint(String status) {
+/// The monthly settlement starts this many minutes after midnight of the first day (Vietnam time): the server leaves the first
+/// minutes of a month alone so every entry of the old month is in (`PayoutSettlementSchedule.GracePeriod`, 5 minutes).
+const int payoutSettlementDelayMinutes = 5;
+
+/// The small line under "Chưa đến kỳ lương": when the month [month] (`YYYY-MM`) is paid automatically, like
+/// `Lương được thanh toán tự động lúc 00:05 ngày 01/12/2026 (giờ Việt Nam), nếu không có gì phát sinh.`
+String payoutPayDayNote(String month) {
+  final next = shiftMonth(month, 1);
+  final time = '00:${payoutSettlementDelayMinutes.toString().padLeft(2, '0')}';
+  return 'Lương được thanh toán tự động lúc $time ngày 01/${next.substring(5, 7)}/${next.substring(0, 4)} (giờ Việt Nam), nếu không có gì phát sinh.';
+}
+
+/// A short explanation under the status, because pay is monthly and held until a batch (Q04). [payNote] (see
+/// [payoutPayDayNote]) replaces the general sentence while the month is not paid yet.
+String payoutStatusHint(String status, {String? payNote}) {
   switch (status) {
     case PayoutStatus.pending:
       return 'Đợt giải ngân đã được lập, đang chờ Admin chuyển khoản.';
     case PayoutStatus.transferred:
       return 'Khoản này đã được chuyển vào tài khoản của bạn.';
     default:
-      return 'Thu nhập được giải ngân theo tháng, sau khi tháng kết thúc.';
+      return payNote ??
+          'Thu nhập được giải ngân theo tháng, sau khi tháng kết thúc.';
   }
 }
 

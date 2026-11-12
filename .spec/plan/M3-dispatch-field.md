@@ -35,6 +35,7 @@
 - [x] **LEDGER-27** Ledger table names the outside party by what it is — evidence: .harness/evidence/20261112-200420-L3.log
 - [x] **MOB-ORDER-01** Order detail: "Huỷ đơn" as a red button — evidence: .harness/evidence/20261112-204455-L3.log
 - [x] **MOB-BOOK-02** Booking: the Cao cấp package card looks premium — evidence: .harness/evidence/20261112-210415-L3.log
+- [x] **MOB-PAYOUT-01** Worker earnings: "Chưa đến kỳ lương" and the automatic pay day — evidence: .harness/evidence/20261113-004103-L3.log
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).

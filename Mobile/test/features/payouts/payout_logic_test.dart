@@ -80,14 +80,50 @@ void main() {
     });
   });
 
+  group('the pay day note (MOB-PAYOUT-01)', () {
+    test('names the first day of the next month at 00:05, Vietnam time', () {
+      expect(
+        payoutPayDayNote('2026-11'),
+        'Lương được thanh toán tự động lúc 00:05 ngày 01/12/2026 (giờ Việt Nam), nếu không có gì phát sinh.',
+      );
+      expect(payoutPayDayNote('2026-09'), contains('ngày 01/10/2026'));
+    });
+
+    test('December rolls to January of the next year', () {
+      expect(payoutPayDayNote('2026-12'), contains('ngày 01/01/2027'));
+    });
+
+    test('the time mirrors the delay of the server settlement (5 minutes)', () {
+      expect(payoutSettlementDelayMinutes, 5);
+      expect(payoutPayDayNote('2026-11'), contains('00:05'));
+    });
+
+    test('the hint is the note only while the month is not paid yet', () {
+      final note = payoutPayDayNote('2026-11');
+      expect(payoutStatusHint(PayoutStatus.notBuilt, payNote: note), note);
+      expect(
+        payoutStatusHint(PayoutStatus.notBuilt),
+        contains('giải ngân theo tháng'),
+      );
+      expect(
+        payoutStatusHint(PayoutStatus.pending, payNote: note),
+        contains('Admin'),
+      );
+      expect(
+        payoutStatusHint(PayoutStatus.transferred, payNote: note),
+        contains('đã được chuyển'),
+      );
+    });
+  });
+
   group('payout status text', () {
     test(
       'has a label and a hint for each status and falls back to not built',
       () {
-        expect(payoutStatusLabel(PayoutStatus.notBuilt), 'Chưa chốt đợt');
+        expect(payoutStatusLabel(PayoutStatus.notBuilt), 'Chưa đến kỳ lương');
         expect(payoutStatusLabel(PayoutStatus.pending), 'Chờ chuyển khoản');
         expect(payoutStatusLabel(PayoutStatus.transferred), 'Đã chuyển khoản');
-        expect(payoutStatusLabel('SOMETHING'), 'Chưa chốt đợt');
+        expect(payoutStatusLabel('SOMETHING'), 'Chưa đến kỳ lương');
         expect(payoutStatusHint(PayoutStatus.notBuilt), contains('theo tháng'));
         expect(payoutStatusHint(PayoutStatus.pending), contains('Admin'));
         expect(
