@@ -106,6 +106,12 @@ Future<void> _open(
   await tester.pumpAndSettle();
 }
 
+/// The text field inside a keyed `NordicTextInput` or picker (the key is on the wrapper, the label is above the field).
+Finder _input(String key) => find.descendant(
+  of: find.byKey(Key(key)),
+  matching: find.byType(TextFormField),
+);
+
 Future<void> _tap(WidgetTester tester, String key) async {
   final finder = find.byKey(Key(key));
   await tester.ensureVisible(finder);
@@ -126,7 +132,7 @@ Future<void> _typeName(WidgetTester tester, String text) async {
 }
 
 Future<void> _pickWard(WidgetTester tester) async {
-  final field = find.widgetWithText(TextFormField, 'Phường / Xã');
+  final field = _input('onboarding-ward');
   await tester.ensureVisible(field);
   await tester.pumpAndSettle();
   await tester.tap(field);
@@ -351,7 +357,7 @@ void main() {
       await _toHouseStep(tester);
 
       await _tap(tester, 'onboarding-type-HOUSE');
-      await tester.enterText(find.byKey(const Key('onboarding-floors')), '3');
+      await tester.enterText(_input('onboarding-floors'), '3');
       await tester.pump();
       await _tap(tester, 'onboarding-save-address');
 
@@ -387,7 +393,7 @@ void main() {
       await _toHouseStep(tester);
 
       await _tap(tester, 'onboarding-type-HOUSE');
-      await tester.enterText(find.byKey(const Key('onboarding-area')), '45');
+      await tester.enterText(_input('onboarding-area'), '45');
       await tester.pump();
       await _tap(tester, 'onboarding-type-ROOM');
       await _tap(tester, 'onboarding-save-address');
@@ -405,7 +411,7 @@ void main() {
       await _toHouseStep(tester);
 
       await _tap(tester, 'onboarding-type-ROOM');
-      await tester.enterText(find.byKey(const Key('onboarding-area')), '45');
+      await tester.enterText(_input('onboarding-area'), '45');
       await tester.pump();
       await _tap(tester, 'onboarding-save-address');
 
@@ -472,5 +478,91 @@ void main() {
         expect(result?.addressSaved, isFalse);
       },
     );
+  });
+
+  group('layout of the house type step (MOB-ONBOARD-04)', () {
+    Future<void> openOnNarrowPhone(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData.fromView(tester.view)
+              .copyWith(textScaler: const TextScaler.linear(1.3)),
+          child: MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: _Host(
+              profiles: profiles,
+              addresses: addresses,
+              onResult: onResult,
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('open')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'the fields are full width with their label above, and the room hint is whole',
+      (tester) async {
+        await openOnNarrowPhone(tester);
+        await _toHouseStep(tester);
+
+        await _tap(tester, 'onboarding-type-ROOM');
+
+        expect(find.text('Diện tích mỗi sàn (m²)'), findsOneWidget);
+        expect(find.text('Phòng trọ tối đa 30 m²'), findsOneWidget);
+        // the label is a text above the field, not a floating label inside it
+        final label = tester.getRect(find.text('Diện tích mỗi sàn (m²)'));
+        final field = tester.getRect(_input('onboarding-area'));
+        expect(label.bottom, lessThanOrEqualTo(field.top + 1));
+        // full width of the screen minus the gutters, not half of it
+        expect(field.width, greaterThan(360 / 2 + 40));
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('the error for a room over 30 m2 is whole too', (tester) async {
+      await openOnNarrowPhone(tester);
+      await _toHouseStep(tester);
+
+      await _tap(tester, 'onboarding-type-ROOM');
+      await tester.enterText(_input('onboarding-area'), '45');
+      await tester.pump();
+      await _tap(tester, 'onboarding-save-address');
+
+      expect(find.text('Phòng trọ tối đa 30 m².'), findsOneWidget);
+      expect(
+        tester.getSize(find.text('Phòng trọ tối đa 30 m².')).width,
+        lessThan(360),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the floors field is greyed out and read only for a room', (
+      tester,
+    ) async {
+      await openOnNarrowPhone(tester);
+      await _toHouseStep(tester);
+
+      await _tap(tester, 'onboarding-type-ROOM');
+
+      expect(
+        tester
+            .widget<Opacity>(
+              find.ancestor(
+                of: find.byKey(const Key('onboarding-floors')),
+                matching: find.byType(Opacity),
+              ),
+            )
+            .opacity,
+        0.5,
+      );
+      expect(find.text('Cố định 1 tầng'), findsOneWidget);
+    });
   });
 }

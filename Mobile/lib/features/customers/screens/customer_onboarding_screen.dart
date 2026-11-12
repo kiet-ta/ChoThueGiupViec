@@ -419,6 +419,8 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
           ),
           const SizedBox(height: NordicSpace.md),
           AdminUnitPickerField(
+            key: const Key('onboarding-city'),
+            labelAbove: true,
             label: 'Tỉnh / Thành phố',
             value: _city,
             options: vietnamAdminUnits.keys.toList(),
@@ -431,6 +433,8 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
           ),
           const SizedBox(height: NordicSpace.md),
           AdminUnitPickerField(
+            key: const Key('onboarding-ward'),
+            labelAbove: true,
             label: 'Phường / Xã',
             value: _ward,
             options: vietnamAdminUnits[_city] ?? const [],
@@ -459,6 +463,42 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
       ),
     ),
   ];
+
+  /// A number field with its label above, and its hint under it using the whole width (a half-width field cut the hint
+  /// "Phòng trọ tối đa 30 m²" and the error under the label). [locked] greys it out and makes it read only.
+  Widget _numberField({
+    required Key key,
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    required FormFieldValidator<String> validator,
+    bool decimal = false,
+    bool locked = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Opacity(
+          opacity: locked ? 0.5 : 1.0,
+          child: NordicTextInput(
+            key: key,
+            label: label,
+            controller: controller,
+            readOnly: locked,
+            keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+            validator: validator,
+          ),
+        ),
+        const SizedBox(height: NordicSpace.xxs),
+        Text(
+          hint,
+          style: NordicTypography.bodySmall.copyWith(
+            color: NordicColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
 
   List<Widget> _houseStep() => [
     _heading(
@@ -491,36 +531,26 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
     const SizedBox(height: NordicSpace.md),
     Form(
       key: _houseForm,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: TextFormField(
-              key: const Key('onboarding-area'),
-              controller: _floorArea,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Mỗi sàn (m²)',
-                helperText: floorAreaHelper(_typeForRules),
-              ),
-              validator: (value) => floorAreaError(_typeForRules, value),
-            ),
+          _numberField(
+            key: const Key('onboarding-area'),
+            label: 'Diện tích mỗi sàn (m²)',
+            controller: _floorArea,
+            hint: floorAreaHelper(_typeForRules),
+            decimal: true,
+            validator: (value) => floorAreaError(_typeForRules, value),
           ),
-          const SizedBox(width: NordicSpace.sm),
-          Expanded(
-            child: TextFormField(
-              key: const Key('onboarding-floors'),
-              controller: _floors,
-              keyboardType: TextInputType.number,
-              enabled: _typeForRules == HousingType.house,
-              decoration: InputDecoration(
-                labelText: 'Số tầng',
-                helperText: floorsHelper(_typeForRules),
-              ),
-              validator: (value) => floorsError(_typeForRules, value),
-            ),
+          const SizedBox(height: NordicSpace.md),
+          _numberField(
+            key: const Key('onboarding-floors'),
+            label: 'Số tầng',
+            controller: _floors,
+            hint: floorsHelper(_typeForRules),
+            // one floor for an apartment and a room: shown, greyed out, not editable
+            locked: _typeForRules != HousingType.house,
+            validator: (value) => floorsError(_typeForRules, value),
           ),
         ],
       ),
