@@ -14,21 +14,19 @@ CustomerProfile _profile(String name) => CustomerProfile(
   accountStatus: 'ACTIVE',
 );
 
-Widget _shell({
-  required Future<CustomerProfile> Function() loader,
-  VoidCallback? onSignOut,
-}) => MaterialApp(
-  home: CustomerShell(
-    onSignOut: onSignOut ?? () {},
-    tabs: const [
-      Text('tab home'),
-      Text('tab orders'),
-      Text('tab favourites'),
-      Text('tab account'),
-    ],
-    profileLoader: loader,
-  ),
-);
+Widget _shell({required Future<CustomerProfile> Function() loader}) =>
+    MaterialApp(
+      home: CustomerShell(
+        onSignOut: () {},
+        tabs: const [
+          Text('tab home'),
+          Text('tab orders'),
+          Text('tab favourites'),
+          Text('tab account'),
+        ],
+        profileLoader: loader,
+      ),
+    );
 
 void main() {
   group('CustomerShell onboarding check (MOB-ONBOARD-02)', () {
@@ -95,27 +93,6 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.byType(CustomerOnboardingScreen), findsNothing);
-      },
-    );
-
-    testWidgets(
-      'the way out of the first step signs out and closes the onboarding',
-      (tester) async {
-        useDesignFrame(tester);
-        var signedOut = 0;
-        await tester.pumpWidget(
-          _shell(
-            loader: () async => _profile(''),
-            onSignOut: () => signedOut++,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byKey(const Key('onboarding-signout')));
-        await tester.pumpAndSettle();
-
-        expect(signedOut, 1);
         expect(find.byType(CustomerOnboardingScreen), findsNothing);
       },
     );

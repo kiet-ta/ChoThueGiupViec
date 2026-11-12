@@ -29,6 +29,7 @@
 - [x] **LEDGER-26** Admin sidebar as a collapsible tree — evidence: .harness/evidence/20261111-232225-L3.log
 - [x] **MOB-ONBOARD-01** Customer onboarding screens: name, home address, house type — evidence: .harness/evidence/20261112-180131-L3.log
 - [x] **MOB-ONBOARD-02** Customer app opens the onboarding for a customer without a name — evidence: .harness/evidence/20261112-182028-L3.log
+- [x] **MOB-ONBOARD-03** Customer onboarding: remove the sign-out button from the name step — evidence: .harness/evidence/20261112-191025-L3.log
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).
