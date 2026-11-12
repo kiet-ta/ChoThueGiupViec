@@ -121,6 +121,12 @@ Live in `src/components/` (outside `features/`, so no module owns them). No extr
 - **Errors:** `withdrawalActionError` translates the 409 codes `WITHDRAWAL_INSUFFICIENT` (the amount is no longer withdrawable: reject instead), `WITHDRAWAL_NOT_PENDING` and `LEDGER_BUSY`, and the 400 and 404 answers; after a 409 or 404 the list is loaded again (`shouldReloadAfter`).
 - Tests: `tests/ledger-view.test.ts` (tabs, rows, confirmation text, reason rules, error codes).
 
+## Approving payout account changes (LEDGER-29, contract `admin.md` 2.6, `workers.md` bank section)
+- `/admin/bank-changes` (`features/admin/bank-changes/BankChangesPage.tsx`, sidebar section QUẢN LÝ NHÂN SỰ "Duyệt đổi tài khoản"): the Admin's queue of the requests a freelancer sends to change the payout account (`GET /api/v1/admin/bank-change-requests`). Tabs Chờ duyệt / Đã duyệt / Bị từ chối, 20 per page, a table with the worker (name and phone), the old and the new account side by side, "Gửi lúc", the status, a note (the rejection reason, or when it was approved) and, for a pending one, "Duyệt" and "Từ chối". The API keeps the queue order (pending oldest first), so the headers are not sortable.
+- **Approve:** a confirmation line naming both accounts and saying the worker cannot send another request for 15 days from the day the request was sent, before `POST .../{id}/approve`. **Reject:** a reason of 1-255 characters (`reasonError`, `REASON_MAX`, shared with the withdrawals page from `features/ledger/view.ts`) before `POST .../{id}/reject`. A ref guard sends one request per click.
+- **Errors:** `bankChangeActionError` translates 409 `BANK_CHANGE_NOT_PENDING` and `LEDGER_BUSY`, and the 400 and 404 answers; after a 409 or 404 the list is loaded again (`shouldReloadAfter`).
+- Pure logic in `features/admin/bank-changes/view.ts`, tested in `tests/bank-changes-view.test.ts`.
+
 
 ## Sorting by a column header (LEDGER-22, contracts `ledger.md` section 6 and `payouts.md` 2.2)
 - The shared `DataTable` has sortable headers. A column with `sortKey` (the API name, not the label) becomes a button when the table gets `sort` and `onSortChange`; the pure logic is `components/data-table/sort.ts` (`nextSort`, `sortParams`, `ariaSort`, `sortHint`). One click on a new column asks for ascending, the next click on the same column flips to descending and back; the active header shows an arrow and `aria-sort`, an inactive sortable header shows a faint double arrow. A table without `onSortChange` is unchanged.

@@ -37,6 +37,7 @@
 - [x] **MOB-BOOK-02** Booking: the Cao cấp package card looks premium — evidence: .harness/evidence/20261112-210415-L3.log
 - [x] **MOB-PAYOUT-01** Worker earnings: "Chưa đến kỳ lương" and the automatic pay day — evidence: .harness/evidence/20261113-004103-L3.log
 - [x] **LEDGER-28** Worker payout account: change by an Admin-approved request (API) — evidence: .harness/evidence/20261113-011039-L3.log
+- [x] **LEDGER-29** Admin page to approve payout account changes — evidence: .harness/evidence/20261113-013010-L3.log
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).
