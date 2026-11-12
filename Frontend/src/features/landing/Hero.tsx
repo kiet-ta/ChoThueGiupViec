@@ -28,7 +28,7 @@ export function Hero() {
   return (
     <section ref={root} id="top" className="relative isolate flex min-h-svh items-center overflow-hidden bg-(--lp-forest) text-white">
       {/* Full-Bleed Immersive Photographic & Cinematic Video Canvas */}
-      <div className="absolute inset-0 -z-10 overflow-hidden bg-(--lp-forest)" aria-hidden="true">
+      <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <video
           ref={videoRef}
           data-hero-bg
@@ -37,14 +37,14 @@ export function Hero() {
           muted
           playsInline
           poster={IMAGES.hero}
-          className="h-full w-full object-cover object-center md:object-right filter brightness-[1.05] contrast-[102%]"
+          className="h-full w-full object-cover object-center filter brightness-[1.03] contrast-[102%]"
         >
           <source src="/videos/hero-family.mp4" type="video/mp4" />
         </video>
-        {/* Lớp phủ chuyển sắc thông minh: trên Mobile phủ đều dịu mắt đảm bảo đọc chữ; trên Desktop viền xanh từ trái lan sang làm nổi khối chữ */}
-        <div className="absolute inset-0 bg-linear-to-b from-(--lp-forest)/90 via-(--lp-forest)/65 to-(--lp-forest)/80 md:bg-linear-to-r md:from-(--lp-forest) md:from-10% md:via-(--lp-forest)/85 md:via-30% md:via-(--lp-forest)/25 md:via-46% md:to-transparent md:to-58%" />
-        {/* Gradient chân trang giữ độ sắc nét cho thanh stats */}
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-(--lp-forest)/90 via-(--lp-forest)/30 to-transparent" />
+        {/* Lớp phủ tối nhẹ trung tính phía chữ, hoàn toàn không ám xanh, giữ trọn màu sắc tự nhiên của căn phòng */}
+        <div className="absolute inset-0 bg-linear-to-r from-black/40 via-black/15 via-35% to-transparent" />
+        {/* Lớp phủ nhẹ dưới đáy giúp thanh chỉ số và thông tin nhanh dễ đọc */}
+        <div className="absolute inset-x-0 bottom-0 h-36 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
       </div>
 
       <div className="mx-auto w-full max-w-7xl px-6 pb-20 pt-36 lg:px-12">
