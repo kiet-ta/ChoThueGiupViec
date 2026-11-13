@@ -18,6 +18,9 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // OpenTelemetry Observability (Prometheus metrics & OTLP traces)
+        services.AddOpenTelemetryObservability(configuration);
+
         // In-Memory Cache
         services.AddMemoryCache();
         services.AddScoped<ICacheService, InMemoryCacheService>();
@@ -42,9 +45,6 @@ public static class DependencyInjection
         services.AddHttpClient<CommonService.Application.Features.Dispatch.IRoutingService, ValhallaRoutingService>(); // worker route on the order page (ROUTE-WEB-01, #765)
         services.AddScoped<CommonService.Application.Features.Workers.Services.WorkerRouteService>(); // worker route and alternatives (ROUTE-MOB-01, #760)
         services.AddScoped<CommonService.Application.Features.Dispatch.CustomerRouteService>(); // needs IWorkerDispatchQuery from the Dispatch module
-
-        // Observability & Distributed Tracing (BE-OBS-01)
-        services.AddObservability(configuration);
 
         // Business rules options (BASE-05, decisions.md section 4)
         services.Configure<BusinessRules>(configuration.GetSection(BusinessRules.SectionName));

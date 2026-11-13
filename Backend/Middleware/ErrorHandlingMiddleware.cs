@@ -50,15 +50,19 @@ public class ErrorHandlingMiddleware
     private async Task HandleExceptionAsync(HttpContext context, Exception ex)
     {
         var (statusCode, apiResponse, problemDetails) = MapException(ex, context.Request.Path);
+        var traceId = System.Diagnostics.Activity.Current?.TraceId.ToString()
+            ?? (!string.IsNullOrEmpty(context.TraceIdentifier) ? context.TraceIdentifier : string.Empty);
+        var spanId = System.Diagnostics.Activity.Current?.SpanId.ToString() ?? string.Empty;
 
         if (statusCode >= 500)
         {
-            _logger.LogError(ex, "Unhandled server error processing {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogError(ex, "Unhandled server error processing {Method} {Path} TraceId={TraceId} SpanId={SpanId}",
+                context.Request.Method, context.Request.Path, traceId, spanId);
         }
         else
         {
-            _logger.LogWarning("Request failed with {StatusCode} ({ExceptionType}) on {Method} {Path}: {Message}",
-                statusCode, ex.GetType().Name, context.Request.Method, context.Request.Path, ex.Message);
+            _logger.LogWarning("Request failed with {StatusCode} ({ExceptionType}) on {Method} {Path} TraceId={TraceId} SpanId={SpanId}: {Message}",
+                statusCode, ex.GetType().Name, context.Request.Method, context.Request.Path, traceId, spanId, ex.Message);
         }
 
         context.Response.Clear();
