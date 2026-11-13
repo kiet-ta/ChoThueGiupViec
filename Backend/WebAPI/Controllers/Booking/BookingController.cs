@@ -12,7 +12,7 @@ namespace CommonService.WebAPI.Controllers.Booking;
 [ApiController]
 [Route("api/v1/booking")]
 [Authorize(Policy = "CustomerOnly")]
-public class BookingOrdersController(IOrderQueryService service, ICurrentUser currentUser) : ControllerBase
+public class BookingController(IOrderQueryService service, ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>Static booking choices (tiers, shifts, limits) so the app hard-codes nothing.</summary>
     [HttpGet("options")]

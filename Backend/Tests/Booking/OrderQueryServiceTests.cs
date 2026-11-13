@@ -425,8 +425,8 @@ public class OrderQueryServiceTests
     {
         var f = new Fixture();
         f.AddOrder(1);
-        var controller = new BookingOrdersController(f.Service(), new StubUser(CustomerId));
-        var anonymous = new BookingOrdersController(f.Service(), new StubUser(null));
+        var controller = new BookingController(f.Service(), new StubUser(CustomerId));
+        var anonymous = new BookingController(f.Service(), new StubUser(null));
         var body = new CreateOrderBody(AddressId, "ECONOMY", new DateOnly(2026, 10, 15), "SHIFT_MORNING", null, null);
 
         Assert.Equal(200, ((ObjectResult)controller.Options()).StatusCode);
@@ -437,7 +437,7 @@ public class OrderQueryServiceTests
         Assert.Equal(200, ((ObjectResult)await controller.Progress(1, default)).StatusCode);
         Assert.Equal(401, ((ObjectResult)await anonymous.Create(body, default)).StatusCode);
         Assert.Equal(401, ((ObjectResult)await anonymous.Get(1, default)).StatusCode);
-        var authorize = typeof(BookingOrdersController).GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true).Cast<AuthorizeAttribute>().Single();
+        var authorize = typeof(BookingController).GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true).Cast<AuthorizeAttribute>().Single();
         Assert.Equal("CustomerOnly", authorize.Policy);
     }
 }
