@@ -45,6 +45,7 @@ namespace CommonService
 
             app.MapControllers();
             app.MapModuleEndpoints();
+            app.MapPrometheusScrapingEndpoint();
 
             app.Run();
         }

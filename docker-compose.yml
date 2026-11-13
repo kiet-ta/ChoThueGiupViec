@@ -76,6 +76,9 @@ services:
       # Inside the container `localhost` is the container itself, so appsettings.Development.json (localhost:8002) cannot reach Valhalla.
       Valhalla__BaseUrl: "http://valhalla:8002"
       ConnectionStrings__DefaultConnection: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Uat_Passw0rd!2026};TrustServerCertificate=True;"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OpenTelemetry__Otlp__Endpoint: "http://tempo:4317"
+      OpenTelemetry__ServiceName: "ChoThueGiupViec-Backend"
     deploy:
       resources:
         limits:
@@ -102,7 +105,88 @@ services:
     ports:
       - "${WEB_HOST_PORT:-8080}:80"
 
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: giupviec-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--enable-feature=exemplar-storage'
+    volumes:
+      - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    mem_limit: 1g
+    depends_on:
+      - backend
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: giupviec-tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./docker/observability/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/tmp/tempo
+    ports:
+      - "${TEMPO_HOST_PORT:-3200}:3200"
+      - "4317:4317"
+      - "4318:4318"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    mem_limit: 1g
+
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: giupviec-loki
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./docker/observability/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/tmp/loki
+    ports:
+      - "${LOKI_HOST_PORT:-3100}:3100"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    mem_limit: 1g
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: giupviec-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./docker/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    mem_limit: 1g
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+
 volumes:
   sqldata:
   valhalla_data:
     name: valhalla_data   # fixed name: the tiles (long to build) survive `docker compose down -v` of other stacks and are reused
+  prometheus_data:
+  tempo_data:
+  loki_data:
+  grafana_data:
