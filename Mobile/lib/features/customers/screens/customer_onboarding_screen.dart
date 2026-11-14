@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/device/device_location.dart';
 import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
-import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_text_input.dart';
 import '../../../core/widgets/step_dots.dart';
 import '../../identity/services/api_error.dart';
 import '../logic/address_rules.dart';
+import '../logic/map_address.dart';
 import '../logic/onboarding_logic.dart';
 import '../models/customer_address.dart';
 import '../models/vn_admin_units.dart';
 import '../services/customer_address_service.dart';
 import '../services/customer_profile_service.dart';
+import '../widgets/address_map_card.dart';
 import '../widgets/admin_unit_picker_field.dart';
 import '../widgets/area_calculator_card.dart';
-import '../widgets/gps_picker.dart';
 
 /// What a customer sees after the first login (MOB-ONBOARD-01): three short steps, a name to be called, the home address
 /// and the house type. Only the name is required and it is saved as soon as step 1 is done. "Để sau" on the address or the
@@ -31,10 +32,18 @@ class CustomerOnboardingScreen extends StatefulWidget {
   final CustomerProfileService? profileService;
   final CustomerAddressService? addressService;
 
+  /// The phone's position for the address map; the real device by default, a fake in tests.
+  final IDeviceLocationProvider? locationProvider;
+
+  /// False in widget tests: the address map fetches no tile.
+  final bool showMapTiles;
+
   const CustomerOnboardingScreen({
     super.key,
     this.profileService,
     this.addressService,
+    this.locationProvider,
+    this.showMapTiles = true,
   });
 
   @override
@@ -60,6 +69,9 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
   String? _ward;
   double _latitude = 10.7769;
   double _longitude = 106.7009;
+
+  /// Whether the customer chose the point on the map (ADDR-MAP-01).
+  bool _hasPoint = false;
   HousingType? _housingType;
   String? _typeError;
 
@@ -203,38 +215,31 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
     });
   }
 
-  /// A position fills the address line, province and ward when the server can read them; otherwise the person types them.
-  Future<void> _onCoordinatesChanged(double lat, double lng) async {
+  /// ADDR-MAP-01: the house tapped on the map gives the point and fills the street, province and ward read there (a ward
+  /// that cannot be matched is left empty); when nothing can be read the person types them.
+  Future<void> _pickOnMap() async {
+    final picked = await openAddressMap(
+      context,
+      hasPoint: _hasPoint,
+      latitude: _latitude,
+      longitude: _longitude,
+      reverseGeocode: _addresses.reverseGeocode,
+      locationProvider: widget.locationProvider,
+      showTiles: widget.showMapTiles,
+    );
+    if (picked == null || !mounted) return;
+    final address = picked.address;
     setState(() {
-      _latitude = lat;
-      _longitude = lng;
+      _latitude = picked.latitude;
+      _longitude = picked.longitude;
+      _hasPoint = true;
+      if (address != null) {
+        final fill = fillFromGeocode(address, currentCity: _city);
+        if (fill.addressLine != null) _addressLine.text = fill.addressLine!;
+        _city = fill.city;
+        _ward = fill.ward;
+      }
     });
-    try {
-      final res = await _addresses.reverseGeocode(lat, lng);
-      if (!mounted) return;
-      setState(() {
-        final line = res.addressLine.isNotEmpty
-            ? res.addressLine
-            : res.formattedAddress;
-        if (line.isNotEmpty) _addressLine.text = line;
-        final newCity = matchAdminCity(res.city) ?? _city;
-        final cityChanged = newCity != _city;
-        _city = newCity;
-        final ward = matchAdminWard(
-          _city,
-          res.district,
-          addressLine: res.addressLine,
-          formattedAddress: res.formattedAddress,
-        );
-        if (ward != null) {
-          _ward = ward;
-        } else if (cityChanged) {
-          _ward = null;
-        }
-      });
-    } catch (_) {
-      // The coordinates stay; the address is typed by hand.
-    }
   }
 
   @override
@@ -410,6 +415,8 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          AddressMapCard(hasPoint: _hasPoint, onTap: _pickOnMap),
+          const SizedBox(height: NordicSpace.md),
           NordicTextInput(
             key: const Key('onboarding-address-line'),
             label: 'Số nhà, đường',
@@ -445,19 +452,6 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
             requiredMessage: 'Chọn phường / xã.',
             notInListMessage: 'Chọn lại phường / xã theo danh mục mới.',
             onSelected: (ward) => setState(() => _ward = ward),
-          ),
-          const SizedBox(height: NordicSpace.lg),
-          Text(
-            'Vị trí trên bản đồ (không bắt buộc)',
-            style: NordicTypography.titleSmall,
-          ),
-          const SizedBox(height: NordicSpace.xs),
-          NordicCard(
-            child: GpsCoordinatePicker(
-              latitude: _latitude,
-              longitude: _longitude,
-              onCoordinatesChanged: _onCoordinatesChanged,
-            ),
           ),
         ],
       ),
