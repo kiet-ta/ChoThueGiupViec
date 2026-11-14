@@ -35,7 +35,10 @@ public record WorkerAssignmentDetailRow(
     decimal PayoutAmount,
     int? PendingExtensionId,
     decimal? PendingExtraHours,
-    decimal? PendingExtraAmount);
+    decimal? PendingExtraAmount,
+    DateTime? SubmittedAt = null,
+    CompletionSource? CompletionSource = null,
+    int RedoCount = 0);
 
 /// <summary>Read of the jobs booked for a worker (contract workers.md 2.3.3 and 2.3.4).</summary>
 public interface IWorkerAssignmentRepository

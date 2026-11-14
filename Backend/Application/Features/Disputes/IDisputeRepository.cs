@@ -4,8 +4,9 @@ using CommonService.Domain.Enums;
 namespace CommonService.Application.Features.Disputes;
 
 /// <param name="ShiftEndLocal">Shift end as Asia/Ho_Chi_Minh local time (slot date + end time, decision G-3).</param>
+/// <param name="SubmittedAtUtc">T, when the AFTER photos were submitted (decision D32); the dispute window then ends at T + AutoAcceptHours.</param>
 public record DisputeAssignmentInfo(
-    long AssignmentId, int WorkerId, JobAssignmentStatus Status, DateTime? CompletedAtUtc, DateTime ShiftEndLocal);
+    long AssignmentId, int WorkerId, JobAssignmentStatus Status, DateTime? CompletedAtUtc, DateTime ShiftEndLocal, DateTime? SubmittedAtUtc = null);
 
 public record DisputeOrderInfo(long OrderId, string OrderCode, int CustomerId, IReadOnlyList<DisputeAssignmentInfo> Assignments);
 
@@ -29,10 +30,14 @@ public record DisputeCheckInData(long AssignmentId, DateTime CheckedInAtUtc, boo
 public record DisputePhotoData(
     long AssignmentId, string Phase, byte AngleNo, string Url, double VolScore, bool IsAccepted, DateTime CapturedAtUtc, long PhotoId = 0);
 
+/// <summary>Decision D32: when the AFTER photos were last submitted (T), how many redos the customer asked, and who accepted the job.</summary>
+public record DisputeAcceptanceData(long AssignmentId, DateTime? SubmittedAtUtc, int RedoCount, CompletionSource? CompletionSource);
+
 public record DisputeCaseData(
     IReadOnlyList<DisputeCheckInData> CheckIns,
     IReadOnlyList<DisputePhotoData> Photos,
-    IReadOnlyList<(long AssignmentId, DateTime CompletedAtUtc)> Completions);
+    IReadOnlyList<(long AssignmentId, DateTime CompletedAtUtc)> Completions,
+    IReadOnlyList<DisputeAcceptanceData>? Acceptance = null);
 
 /// <summary>An assignment of the disputed order as the verdict needs it: who worked it, for which agency, and what it was worth.</summary>
 public record DisputeVerdictAssignment(long AssignmentId, int WorkerId, int? AgencyId, decimal GrossAmount);

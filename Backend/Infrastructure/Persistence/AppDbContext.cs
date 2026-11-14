@@ -121,6 +121,8 @@ public class AppDbContext : DbContext
             .HaveConversion<DbEnumValueConverter<WithdrawalStatus>>();
         configurationBuilder.Properties<BankChangeStatus>()
             .HaveConversion<DbEnumValueConverter<BankChangeStatus>>();
+        configurationBuilder.Properties<CompletionSource?>()
+            .HaveConversion<NullableDbEnumValueConverter<CompletionSource>>();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -1,5 +1,6 @@
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Domain.Entities;
+using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Workers;
 
@@ -43,6 +44,15 @@ public interface IWorkerRepository : IRepository<Worker, int>
     /// </summary>
     Task<bool> TryCompleteAssignmentAsync(
         long assignmentId, int workerId, decimal commissionRate, decimal payoutAmount, DateTime completedAtUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The same conditional completion with who accepted the job (decision D32): <c>completion_source</c> is stored and
+    /// <c>customer_confirmed_at</c> is set only for <see cref="CompletionSource.Customer"/>. The default keeps the older test doubles working.
+    /// </summary>
+    Task<bool> TryCompleteAssignmentAsync(
+        long assignmentId, int workerId, decimal commissionRate, decimal payoutAmount, DateTime completedAtUtc, CompletionSource source,
+        CancellationToken cancellationToken = default) =>
+        TryCompleteAssignmentAsync(assignmentId, workerId, commissionRate, payoutAmount, completedAtUtc, cancellationToken);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -9,7 +9,9 @@ namespace CommonService.Application.Features.Workers.Services;
 public class WorkerAssignmentService(
     IWorkerAssignmentRepository repository,
     ICurrentUser currentUser,
-    IClock clock) : IWorkerAssignmentService
+    IClock clock,
+    IOpenDisputeQuery? disputes = null,
+    Microsoft.Extensions.Options.IOptions<Common.Options.BusinessRules>? rules = null) : IWorkerAssignmentService
 {
     /// <summary>Default length of the range from the start date, and the longest range one call may ask for.</summary>
     public const int DefaultDays = 14;
@@ -109,8 +111,19 @@ public class WorkerAssignmentService(
             row.Latitude,
             row.Longitude,
             row.PayoutAmount,
-            pending);
+            pending,
+            await AcceptanceOfAsync(row, ct));
 
         return ApiResponse<WorkerAssignmentDetailResponse>.Ok(detail, "Retrieved the job successfully.");
+    }
+
+    /// <summary>Decision D32: the acceptance block of the job, computed from the server's clock and the order's open dispute.</summary>
+    private async Task<Common.Helpers.AcceptanceDto?> AcceptanceOfAsync(WorkerAssignmentDetailRow row, CancellationToken ct)
+    {
+        if (row.Status is not (JobAssignmentStatus.InProgress or JobAssignmentStatus.AwaitingAcceptance or JobAssignmentStatus.Completed)) return null;
+        var disputeOpen = disputes is not null && (await disputes.GetOpenOrderIdsAsync([row.OrderId], ct)).Contains(row.OrderId);
+        return Common.Helpers.AcceptanceWindow.Describe(
+            row.Status, row.SubmittedAt, disputeOpen, row.CompletionSource, row.RedoCount, clock.UtcNow,
+            rules?.Value.Acceptance ?? new Common.Options.AcceptanceRules());
     }
 }

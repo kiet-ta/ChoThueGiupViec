@@ -204,8 +204,12 @@ public static class LedgerRules
         return new NewLedgerEntry(from, to, txn.Amount, type, LedgerRefType.EscrowTxn, txn.EscrowTxnId, null, null, LedgerKeys.Escrow(txn.EscrowTxnId));
     }
 
+    /// <summary>
+    /// A freelancer's earning is withdrawable once the dispute window is over: T + 24 h when the job has a submit time T (decision D32, the
+    /// same 24 hours as BusinessRules.Acceptance.AutoAcceptHours), else completion + 24 h. An agency's earning has no hold.
+    /// </summary>
     private static DateTime? AvailableAt(LedgerAssignmentSource assignment, DateTime completedAtUtc) =>
-        assignment.AgencyId is null ? completedAtUtc.AddHours(WithdrawalHoldHours) : null;
+        assignment.AgencyId is not null ? null : (assignment.SubmittedAtUtc ?? completedAtUtc).AddHours(WithdrawalHoldHours);
 
     private static (decimal Earning, decimal Commission) Split(decimal gross, decimal rate)
     {

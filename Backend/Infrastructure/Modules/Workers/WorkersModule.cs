@@ -35,6 +35,10 @@ public class WorkersModule : IModule
         services.AddScoped<IWorkerAssignmentService, WorkerAssignmentService>();
         services.AddScoped<IWorkerWorkAreaService, WorkerWorkAreaService>();
         services.AddScoped<IJobCompletionService, JobCompletionService>();
+        // ACCEPT-01 (decision D32): the 24-hour acceptance window.
+        services.AddScoped<IAcceptanceTimerRepository, EfAcceptanceTimerRepository>();
+        services.AddScoped<IAcceptanceTimerService, AcceptanceTimerService>();
+        services.AddHostedService<AcceptanceTimerWorker>();
         services.AddScoped<IJobPhotoService, JobPhotoService>();
         services.AddScoped<IWorkerExtensionRepository, EfWorkerExtensionRepository>();
         services.AddScoped<IWorkerExtensionService, WorkerExtensionService>();

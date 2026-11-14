@@ -869,6 +869,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("DECIMAL(18,2)")
                         .HasColumnName("absence_fee_amount");
 
+                    b.Property<DateTime?>("AcceptanceRemindedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("acceptance_reminded_at");
+
                     b.Property<DateTime?>("AcceptedAt")
                         .HasColumnType("DATETIME2")
                         .HasColumnName("accepted_at");
@@ -896,6 +900,12 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("DATETIME2")
                         .HasColumnName("completed_at");
+
+                    b.Property<string>("CompletionSource")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("completion_source");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("DATETIME2")
@@ -936,6 +946,12 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("payout_item_id");
 
+                    b.Property<byte>("RedoCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0)
+                        .HasColumnName("redo_count");
+
                     b.Property<string>("ServiceTier")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -950,6 +966,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("DATETIME2")
                         .HasColumnName("started_at");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("submitted_at");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("DATETIME2")
@@ -980,6 +1000,8 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasFilter("[assignment_status] <> 'CANCELLED' AND [assignment_status] <> 'CANCELLED_BY_WORKER' AND [assignment_status] <> 'REASSIGNED'");
 
                     b.HasIndex("WorkerId");
+
+                    b.HasIndex("AssignmentStatus", "SubmittedAt");
 
                     b.ToTable("JOB_ASSIGNMENT", (string)null);
                 });

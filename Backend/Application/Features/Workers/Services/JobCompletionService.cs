@@ -1,4 +1,7 @@
 using CommonService.Application.Common.Models;
+using CommonService.Application.Common.Helpers;
+using CommonService.Application.Common.Options;
+using Microsoft.Extensions.Options;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Workers.Dtos;
 using CommonService.Application.Interfaces.Ports;
@@ -13,8 +16,11 @@ public class JobCompletionService(
     IWorkerRepository workerRepository,
     IPublisher publisher,
     ICurrentUser currentUser,
-    IClock clock) : IJobCompletionService
+    IClock clock,
+    IOptions<BusinessRules>? rules = null) : IJobCompletionService
 {
+    private readonly AcceptanceRules _acceptance = rules?.Value.Acceptance ?? new AcceptanceRules();
+
     private const string WorkerNotAssigned = "Worker is not assigned to this job assignment.";
     private const string CustomerNotAuthorized = "Customer is not authorized for this assignment.";
 
@@ -72,6 +78,9 @@ public class JobCompletionService(
         var nowUtc = clock.UtcNow;
         assignment.TransitionTo(JobAssignmentStatus.AwaitingAcceptance);
         assignment.UpdatedAt = nowUtc;
+        // Decision D32: T, the start of the 24-hour acceptance window (a new window after every redo).
+        assignment.SubmittedAt = nowUtc;
+        assignment.AcceptanceRemindedAt = null;
 
         await workerRepository.SaveChangesAsync(ct);
 
@@ -107,34 +116,13 @@ public class JobCompletionService(
         }
 
         var nowUtc = clock.UtcNow;
-
-        // Payout computation (Freelancer commission 20% -> 80% payout; Agency per package commission rate)
-        decimal commissionRate = assignment.AgencyId == null ? 0.20m : assignment.CommissionRate;
-        decimal payoutAmount = Vnd.Net(assignment.GrossAmount, commissionRate);
-
-        // AWAITING_ACCEPTANCE -> COMPLETED, the payout, and for the worker BUSY -> IDLE and CompletedJobs + 1, as one conditional write:
-        // of two accepts running at the same time only one completes the assignment (and publishes the event).
-        var completed = await workerRepository.TryCompleteAssignmentAsync(
-            assignment.AssignmentId, assignment.WorkerId, commissionRate, payoutAmount, nowUtc, ct);
+        var (completed, commissionRate, payoutAmount) = await CompleteAsync(assignment, CompletionSource.Customer, nowUtc, ct);
         if (!completed)
         {
             var current = await workerRepository.GetAssignmentByIdAsync(assignmentId, ct)
                 ?? throw new NotFoundException($"Job assignment with ID {assignmentId} not found.");
             throw new BusinessRuleViolationException($"Cannot accept assignment in status {current.AssignmentStatus}.");
         }
-
-        // Emit JobCompleted domain event (M6 rating window opens, payout batch accumulator receives item)
-        await publisher.Publish(
-            new JobCompleted(
-                assignment.AssignmentId,
-                assignment.OrderId,
-                assignment.WorkerId,
-                assignment.AgencyId,
-                payoutAmount,
-                nowUtc
-            ),
-            ct
-        );
 
         return ApiResponse<AssignmentCompletionResponse>.Ok(
             new AssignmentCompletionResponse(
@@ -147,6 +135,35 @@ public class JobCompletionService(
             ),
             "Job assignment completed successfully."
         );
+    }
+
+    public async Task<bool> CompleteBySystemAsync(long assignmentId, CompletionSource source, CancellationToken ct = default)
+    {
+        if (source == CompletionSource.Customer) throw new ArgumentException("A customer accept goes through AcceptAsync.", nameof(source));
+        var assignment = await workerRepository.GetAssignmentByIdAsync(assignmentId, ct);
+        if (assignment is null || assignment.AssignmentStatus != JobAssignmentStatus.AwaitingAcceptance) return false;
+        return (await CompleteAsync(assignment, source, clock.UtcNow, ct)).Completed;
+    }
+
+    /// <summary>
+    /// AWAITING_ACCEPTANCE -> COMPLETED with the payout and, for the worker, BUSY -> IDLE and CompletedJobs + 1, as one conditional write: of
+    /// two completions running at the same time (two accepts, an accept and the timer, the timer and a verdict) only one completes the
+    /// assignment and publishes <c>JobCompleted</c> (the rating window, the ledger earning and the order status follow it).
+    /// </summary>
+    private async Task<(bool Completed, decimal CommissionRate, decimal PayoutAmount)> CompleteAsync(
+        Domain.Entities.JobAssignment assignment, CompletionSource source, DateTime nowUtc, CancellationToken ct)
+    {
+        // Payout computation (Freelancer commission 20% -> 80% payout; Agency per package commission rate)
+        decimal commissionRate = assignment.AgencyId == null ? 0.20m : assignment.CommissionRate;
+        decimal payoutAmount = Vnd.Net(assignment.GrossAmount, commissionRate);
+
+        var completed = await workerRepository.TryCompleteAssignmentAsync(
+            assignment.AssignmentId, assignment.WorkerId, commissionRate, payoutAmount, nowUtc, source, ct);
+        if (!completed) return (false, commissionRate, payoutAmount);
+
+        await publisher.Publish(
+            new JobCompleted(assignment.AssignmentId, assignment.OrderId, assignment.WorkerId, assignment.AgencyId, payoutAmount, nowUtc), ct);
+        return (true, commissionRate, payoutAmount);
     }
 
     public async Task<ApiResponse<AssignmentStatusResponse>> RequestRedoAsync(long assignmentId, RequestRedoRequest request, CancellationToken ct = default)
@@ -174,11 +191,21 @@ public class JobCompletionService(
             throw new BusinessRuleViolationException($"Cannot request redo for assignment in status {assignment.AssignmentStatus}.");
         }
 
+        var nowUtc = clock.UtcNow;
+        // Decision D32: a redo is done on site, so only while the worker is still there (RedoMinutes after the submit).
+        if (!AcceptanceWindow.CanRedo(assignment.SubmittedAt, nowUtc, _acceptance))
+        {
+            throw new BusinessRuleViolationException(
+                $"Người làm đã rời đi ({_acceptance.RedoMinutes} phút sau khi bàn giao), không thể nhờ dọn lại nữa. Bạn có thể nghiệm thu hoặc gửi khiếu nại.",
+                AcceptanceErrorCodes.RedoWindowClosed);
+        }
+
         assignment.TransitionTo(JobAssignmentStatus.InProgress);
         var reworkNote = $"Rework requested: {request.Reason.Trim()}";
-        var nowUtc = clock.UtcNow;
         assignment.WorkZone = reworkNote;
         assignment.UpdatedAt = nowUtc;
+        assignment.SubmittedAt = null;
+        assignment.RedoCount = (byte)Math.Min(byte.MaxValue, assignment.RedoCount + 1);
 
         await workerRepository.SaveChangesAsync(ct);
 

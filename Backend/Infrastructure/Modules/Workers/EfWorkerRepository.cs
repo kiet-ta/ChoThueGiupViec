@@ -138,9 +138,16 @@ public class EfWorkerRepository(AppDbContext dbContext) : IWorkerRepository
         await dbContext.JobPhotos.AddAsync(photo, cancellationToken);
     }
 
+    public Task<bool> TryCompleteAssignmentAsync(
+        long assignmentId, int workerId, decimal commissionRate, decimal payoutAmount, DateTime completedAtUtc, CancellationToken cancellationToken = default) =>
+        TryCompleteAssignmentAsync(assignmentId, workerId, commissionRate, payoutAmount, completedAtUtc, CompletionSource.Customer, cancellationToken);
+
     public async Task<bool> TryCompleteAssignmentAsync(
-        long assignmentId, int workerId, decimal commissionRate, decimal payoutAmount, DateTime completedAtUtc, CancellationToken cancellationToken = default)
+        long assignmentId, int workerId, decimal commissionRate, decimal payoutAmount, DateTime completedAtUtc, CompletionSource source,
+        CancellationToken cancellationToken = default)
     {
+        DateTime? confirmedAt = source == CompletionSource.Customer ? completedAtUtc : null;
+        CompletionSource? storedSource = source;
         // A caller (a test) may already hold a transaction; then it is theirs to commit or roll back.
         IDbContextTransaction? transaction = dbContext.Database.CurrentTransaction == null
             ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
@@ -152,7 +159,8 @@ public class EfWorkerRepository(AppDbContext dbContext) : IWorkerRepository
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(a => a.AssignmentStatus, JobAssignmentStatus.Completed)
                     .SetProperty(a => a.CompletedAt, (DateTime?)completedAtUtc)
-                    .SetProperty(a => a.CustomerConfirmedAt, (DateTime?)completedAtUtc)
+                    .SetProperty(a => a.CustomerConfirmedAt, confirmedAt)
+                    .SetProperty(a => a.CompletionSource, storedSource)
                     .SetProperty(a => a.CommissionRate, commissionRate)
                     .SetProperty(a => a.PayoutAmount, payoutAmount)
                     .SetProperty(a => a.UpdatedAt, completedAtUtc), cancellationToken);

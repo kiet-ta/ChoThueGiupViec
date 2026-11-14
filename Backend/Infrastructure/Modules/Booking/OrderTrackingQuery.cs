@@ -14,7 +14,7 @@ public class OrderTrackingQuery(AppDbContext context) : IOrderTrackingQuery
             .OrderBy(a => a.AssignmentSeq)
             .ThenBy(a => a.AssignmentId)
             .Select(a => new AssignmentProgress(
-                a.AssignmentId, a.AssignmentSeq, a.WorkerId, a.AssignmentStatus, a.AcceptedAt, a.CompletedAt));
+                a.AssignmentId, a.AssignmentSeq, a.WorkerId, a.AssignmentStatus, a.AcceptedAt, a.CompletedAt, a.SubmittedAt, a.CompletionSource, a.RedoCount));
 
     public IQueryable<CustomerAssignmentSummary> CustomerHistoryQuery(int customerId) =>
         context.JobAssignments

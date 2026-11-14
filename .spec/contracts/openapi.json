@@ -15725,6 +15725,44 @@
         },
         "additionalProperties": false
       },
+      "AcceptanceDto": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "type": "string",
+            "nullable": true
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "redoUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "autoAcceptAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "disputeUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completionSource": {
+            "type": "string",
+            "nullable": true
+          },
+          "redoCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "AddressDto": {
         "type": "object",
         "properties": {
@@ -20269,6 +20307,9 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "acceptance": {
+            "$ref": "#/components/schemas/AcceptanceDto"
           }
         },
         "additionalProperties": false
@@ -21676,6 +21717,9 @@
           },
           "pendingExtension": {
             "$ref": "#/components/schemas/WorkerPendingExtension"
+          },
+          "acceptance": {
+            "$ref": "#/components/schemas/AcceptanceDto"
           }
         },
         "additionalProperties": false

@@ -42,5 +42,7 @@ public record WorkerAssignmentDetailResponse(
     decimal Latitude,
     decimal Longitude,
     decimal PayoutAmount,
-    WorkerPendingExtension? PendingExtension
+    WorkerPendingExtension? PendingExtension,
+    // Decision D32 (ACCEPT-01): the acceptance phase and deadlines, the same block the customer reads; null before the work starts.
+    CommonService.Application.Common.Helpers.AcceptanceDto? Acceptance = null
 );

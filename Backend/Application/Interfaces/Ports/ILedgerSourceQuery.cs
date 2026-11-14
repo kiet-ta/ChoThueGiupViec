@@ -5,10 +5,13 @@ namespace CommonService.Application.Interfaces.Ports;
 /// <summary>An order as the ledger needs it: who paid, the total split over the seats.</summary>
 public record LedgerOrderSource(long OrderId, int CustomerId, decimal TotalAmount, int RequiredWorkers);
 
-/// <summary>One assignment (seat <see cref="Seat"/> of an order). <see cref="AgencyId"/> set means the agency, not the worker, is paid.</summary>
+/// <summary>
+/// One assignment (seat <see cref="Seat"/> of an order). <see cref="AgencyId"/> set means the agency, not the worker, is paid.
+/// <see cref="SubmittedAtUtc"/> is T, when the AFTER photos were submitted (decision D32): the earning is withdrawable from T + 24 h.
+/// </summary>
 public record LedgerAssignmentSource(
     long AssignmentId, long OrderId, int WorkerId, int? AgencyId, int Seat, decimal GrossAmount, decimal CommissionRate, DateTime? CompletedAtUtc,
-    bool IsCompleted);
+    bool IsCompleted, DateTime? SubmittedAtUtc = null);
 
 /// <summary>An extension ("Làm lần 2"); <see cref="IsPaid"/> is true while it is PAID or ACCEPTED (not declined, expired or unpaid).</summary>
 public record LedgerExtensionSource(int ExtensionId, long OrderId, int WorkerId, decimal ExtraAmount, bool IsPaid);
