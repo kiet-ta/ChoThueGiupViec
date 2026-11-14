@@ -80,6 +80,13 @@ class NordicTheme {
           ),
         ),
       ),
+      // MOB-UI-18: a fixed SnackBar lifts the centre button docked in the shells' bottom bar while it is shown; a floating one
+      // sits above it and moves nothing. Accent green is the snackbar colour of DESIGN-SYSTEM.md; a screen may pass its own.
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: NordicColors.secondaryAccent,
+        shape: RoundedRectangleBorder(borderRadius: NordicRadius.fieldAll),
+      ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: NordicColors.primary,
         foregroundColor: Colors.white,
