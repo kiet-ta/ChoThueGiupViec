@@ -62,6 +62,7 @@ class WorkersFeatureModule extends FeatureModule {
         return CustomerAcceptanceScreen(
           assignmentId: args.assignmentId,
           completed: args.completed,
+          acceptance: args.acceptance,
         );
       }
       return const Scaffold(

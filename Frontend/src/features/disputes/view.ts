@@ -116,6 +116,9 @@ const TIMELINE_LABELS: Record<string, string> = {
   PHOTO_AFTER: 'Ảnh After',
   CUSTOMER_DISPUTED: 'Khiếu nại',
   CHECK_OUT: 'Hoàn tất ca',
+  // ACCEPT-01/02 (decision D32): the hand-over and the redos the customer asked on site.
+  SUBMITTED: 'Bàn giao nghiệm thu',
+  REDO_REQUESTED: 'Khách nhờ dọn lại',
 }
 
 export interface TimelineRow {
@@ -161,6 +164,17 @@ export function timelineDetail(e: TimelineEntry): string {
       const m = /filed by (CUSTOMER|WORKER)/i.exec(e.detail)
       return m ? (m[1].toUpperCase() === 'CUSTOMER' ? 'do khách gửi' : 'do thợ gửi') : ''
     }
+    case 'SUBMITTED':
+      return 'thợ gửi ảnh After, bắt đầu 24 giờ chờ nghiệm thu'
+    case 'REDO_REQUESTED': {
+      const m = /redo on site (\d+) time/i.exec(e.detail)
+      return m ? `${m[1]} lần, trước lần bàn giao này` : ''
+    }
+    case 'CHECK_OUT':
+      if (/accepted by the customer/i.test(e.detail)) return 'khách nghiệm thu'
+      if (/automatically/i.test(e.detail)) return 'tự nghiệm thu sau 24 giờ'
+      if (/dispute verdict/i.test(e.detail)) return 'đóng theo phán quyết khiếu nại'
+      return ''
     default:
       return ''
   }

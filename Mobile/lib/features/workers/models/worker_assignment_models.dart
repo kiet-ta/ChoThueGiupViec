@@ -1,3 +1,5 @@
+import '../logic/acceptance_logic.dart';
+
 /// A job booked for the signed-in worker (contract workers.md §2.3.3). Only the district of the address is known to the app.
 class WorkerAssignmentDto {
   final int assignmentId;
@@ -98,6 +100,9 @@ class WorkerAssignmentDetailDto {
   /// Null when no paid extension waits for this worker.
   final WorkerPendingExtensionDto? pendingExtension;
 
+  /// ACCEPT-02: the server's acceptance phase and deadlines once the photos are submitted (null before the work).
+  final AcceptanceBlock? acceptance;
+
   const WorkerAssignmentDetailDto({
     required this.assignmentId,
     required this.orderId,
@@ -115,6 +120,7 @@ class WorkerAssignmentDetailDto {
     required this.longitude,
     required this.payoutAmount,
     this.pendingExtension,
+    this.acceptance,
   });
 
   factory WorkerAssignmentDetailDto.fromJson(Map<String, dynamic> json) {
@@ -138,6 +144,7 @@ class WorkerAssignmentDetailDto {
       pendingExtension: pending is Map<String, dynamic>
           ? WorkerPendingExtensionDto.fromJson(pending)
           : null,
+      acceptance: AcceptanceBlock.fromJson(json['acceptance']),
     );
   }
 

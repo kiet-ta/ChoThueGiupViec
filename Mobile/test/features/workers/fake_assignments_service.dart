@@ -1,3 +1,4 @@
+import 'package:mobile/features/workers/logic/acceptance_logic.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/features/workers/models/worker_assignment_models.dart';
@@ -9,8 +10,14 @@ class FakeAssignmentsService extends WorkersAssignmentsService {
   ApiException? failure;
   int calls = 0;
 
-  FakeAssignmentsService({this.status = 'IN_PROGRESS', this.failure})
-    : super(apiClient: ApiClient(baseUrl: 'http://api.test'));
+  /// ACCEPT-02: the acceptance block the server would send (null by default, like before the work).
+  AcceptanceBlock? acceptance;
+
+  FakeAssignmentsService({
+    this.status = 'IN_PROGRESS',
+    this.failure,
+    this.acceptance,
+  }) : super(apiClient: ApiClient(baseUrl: 'http://api.test'));
 
   @override
   Future<ApiResponse<WorkerAssignmentDetailDto>> getAssignment(
@@ -37,6 +44,7 @@ class FakeAssignmentsService extends WorkersAssignmentsService {
         latitude: 10.77,
         longitude: 106.7,
         payoutAmount: 400000,
+        acceptance: acceptance,
       ),
     );
   }

@@ -14,6 +14,7 @@ import 'package:mobile/features/ratings/models/rating_models.dart';
 import 'package:mobile/features/ratings/routes.dart';
 import 'package:mobile/features/ratings/screens/rating_screen.dart';
 import 'package:mobile/features/ratings/services/ratings_service.dart';
+import 'package:mobile/features/workers/logic/acceptance_logic.dart';
 import 'package:mobile/features/workers/routes.dart';
 import 'package:mobile/features/workers/screens/customer_acceptance_screen.dart';
 
@@ -43,6 +44,7 @@ ProgressAssignment _worker(
   int id,
   String status, {
   String? name = 'Nguyễn Thị Lan',
+  AcceptanceBlock? acceptance,
 }) => ProgressAssignment(
   assignmentId: id,
   assignmentSeq: 1,
@@ -52,6 +54,7 @@ ProgressAssignment _worker(
   assignmentStatus: status,
   acceptedAt: null,
   completedAt: null,
+  acceptance: acceptance,
 );
 
 OrderProgress _progress(List<ProgressAssignment> workers) => OrderProgress(
@@ -168,6 +171,54 @@ void main() {
         expect(opened, hasLength(1));
         expect(opened.single.route, WorkerRoutes.customerAcceptance);
         expect((opened.single.args as CustomerAcceptanceArgs).assignmentId, 7);
+      },
+    );
+
+    testWidgets(
+      'ACCEPT-02: the worker card shows the acceptance phase and deadline, and passes it to the acceptance screen',
+      (tester) async {
+        final far = DateTime.now().toUtc().add(const Duration(days: 3));
+        final block = AcceptanceBlock(
+          phase: AcceptancePhase.review,
+          redoUntil: far,
+          autoAcceptAt: far,
+        );
+        final service = FakeOrderService()
+          ..status = OrderStatus.assigned
+          ..workers = [
+            _worker(7, AssignmentStatus.awaitingAcceptance, acceptance: block),
+          ];
+        final opened = await pump(tester, service);
+
+        expect(find.byKey(const Key('acceptance-7')), findsOneWidget);
+        expect(find.text('Chờ bạn nghiệm thu'), findsWidgets);
+        expect(find.textContaining('Tự nghiệm thu lúc'), findsOneWidget);
+        await tap(tester, 'accept-7');
+        expect(
+          (opened.single.args as CustomerAcceptanceArgs).acceptance,
+          same(block),
+        );
+      },
+    );
+
+    testWidgets(
+      'ACCEPT-02: a job completed automatically says so on the card',
+      (tester) async {
+        final service = FakeOrderService()
+          ..status = OrderStatus.completed
+          ..workers = [
+            _worker(
+              8,
+              AssignmentStatus.completed,
+              acceptance: const AcceptanceBlock(
+                phase: AcceptancePhase.completed,
+                completionSource: CompletionSourceValue.auto,
+              ),
+            ),
+          ];
+        await pump(tester, service);
+
+        expect(find.text('Đã tự nghiệm thu sau 24 giờ.'), findsOneWidget);
       },
     );
 

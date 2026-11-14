@@ -4,6 +4,7 @@ import 'package:mobile/core/auth/token_storage.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/core/widgets/nordic_text_input.dart';
+import 'package:mobile/features/workers/logic/acceptance_logic.dart';
 import 'package:mobile/features/workers/models/customer_acceptance_models.dart';
 import 'package:mobile/features/workers/models/job_photo_models.dart';
 import 'package:mobile/features/workers/routes.dart';
@@ -90,6 +91,8 @@ Future<void> pumpScreen(
   FakePhotosService? photos,
   FakeAcceptanceService? acceptance,
   bool completed = false,
+  AcceptanceBlock? block,
+  DateTime? now,
 }) async {
   useDesignFrame(tester);
   await tester.pumpWidget(
@@ -97,6 +100,8 @@ Future<void> pumpScreen(
       home: CustomerAcceptanceScreen(
         assignmentId: 55,
         completed: completed,
+        acceptance: block,
+        now: now == null ? null : () => now,
         photosService: photos ?? FakePhotosService(),
         acceptanceService: acceptance ?? FakeAcceptanceService(),
       ),
@@ -109,6 +114,95 @@ Future<void> pumpScreen(
 void main() {
   setUp(() => TokenStorage().clear());
 
+  group('CustomerAcceptanceScreen acceptance window (ACCEPT-02)', () {
+    final t = DateTime.utc(2026, 11, 14, 3);
+    AcceptanceBlock block(String phase) => AcceptanceBlock(
+      phase: phase,
+      submittedAt: t,
+      redoUntil: t.add(const Duration(minutes: 30)),
+      autoAcceptAt: phase == AcceptancePhase.disputed
+          ? null
+          : t.add(const Duration(hours: 24)),
+      disputeUntil: t.add(const Duration(hours: 24)),
+    );
+
+    testWidgets('on site: the phase banner and the prominent redo action', (
+      tester,
+    ) async {
+      await pumpScreen(
+        tester,
+        block: block(AcceptancePhase.onSite),
+        now: t.add(const Duration(minutes: 10)),
+      );
+
+      expect(find.text('Mời bạn kiểm tra'), findsOneWidget);
+      expect(
+        find.textContaining('Người làm còn ở đây đến 10:30'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('acceptance-redo')), findsOneWidget);
+    });
+
+    testWidgets('after 30 minutes: no redo, the automatic acceptance time', (
+      tester,
+    ) async {
+      await pumpScreen(
+        tester,
+        block: block(AcceptancePhase.review),
+        now: t.add(const Duration(minutes: 31)),
+      );
+
+      expect(find.text('Chờ bạn nghiệm thu'), findsOneWidget);
+      expect(
+        find.textContaining('Tự nghiệm thu lúc 10:00 15/11'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('acceptance-redo')), findsNothing);
+      expect(find.text('Xác nhận nghiệm thu'), findsOneWidget);
+    });
+
+    testWidgets('disputed: the dispute banner and accepting still offered', (
+      tester,
+    ) async {
+      await pumpScreen(
+        tester,
+        block: block(AcceptancePhase.disputed),
+        now: t.add(const Duration(hours: 2)),
+      );
+
+      expect(find.text('Đang xử lý khiếu nại'), findsOneWidget);
+      expect(find.text('Xác nhận nghiệm thu'), findsOneWidget);
+    });
+
+    testWidgets('a 409 REDO_WINDOW_CLOSED is explained in words', (
+      tester,
+    ) async {
+      final acceptance = FakeAcceptanceService()
+        ..failure = const ApiException(
+          409,
+          'closed',
+          code: 'REDO_WINDOW_CLOSED',
+        );
+      await pumpScreen(
+        tester,
+        acceptance: acceptance,
+        block: block(AcceptancePhase.onSite),
+        now: t.add(const Duration(minutes: 29)),
+      );
+
+      await tapVisible(tester, find.text('Chưa sạch? Nhờ dọn lại'));
+      final reasonField = find.descendant(
+        of: find.widgetWithText(NordicTextInput, 'Chỗ cần làm lại'),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(reasonField, 'Còn bụi');
+      await tapVisible(tester, find.text('Gửi yêu cầu'));
+      await scrollTo(tester, find.text(redoWindowClosedText));
+
+      expect(find.text(redoWindowClosedText), findsOneWidget);
+    });
+  });
+
   group('CustomerAcceptanceScreen', () {
     testWidgets('completed acceptance is read-only when reopened', (
       tester,
@@ -117,7 +211,7 @@ void main() {
       await pumpScreen(tester, acceptance: acceptance, completed: true);
       expect(find.text('Đã nghiệm thu'), findsOneWidget);
       expect(find.text('Xác nhận nghiệm thu'), findsNothing);
-      expect(find.text('Yêu cầu dọn lại'), findsNothing);
+      expect(find.text('Chưa sạch? Nhờ dọn lại'), findsNothing);
       expect(acceptance.accepted, isEmpty);
     });
     testWidgets(
@@ -132,7 +226,7 @@ void main() {
         expect(find.text('Trước'), findsOneWidget);
         expect(find.text('Sau'), findsOneWidget);
         expect(find.text('Xác nhận nghiệm thu'), findsOneWidget);
-        expect(find.text('Yêu cầu dọn lại'), findsOneWidget);
+        expect(find.text('Chưa sạch? Nhờ dọn lại'), findsOneWidget);
       },
     );
 
@@ -344,7 +438,7 @@ void main() {
           );
         await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Yêu cầu dọn lại'));
+        await tapVisible(tester, find.text('Chưa sạch? Nhờ dọn lại'));
         expect(find.text('Yêu cầu dọn lại (15–30 phút)'), findsOneWidget);
 
         await tapVisible(tester, find.text('Gửi yêu cầu'));
@@ -373,7 +467,7 @@ void main() {
           ..failure = const ApiException(409, 'Invalid state');
         await pumpScreen(tester, acceptance: acceptance);
 
-        await tapVisible(tester, find.text('Yêu cầu dọn lại'));
+        await tapVisible(tester, find.text('Chưa sạch? Nhờ dọn lại'));
         final reasonField = find.descendant(
           of: find.widgetWithText(NordicTextInput, 'Chỗ cần làm lại'),
           matching: find.byType(TextField),

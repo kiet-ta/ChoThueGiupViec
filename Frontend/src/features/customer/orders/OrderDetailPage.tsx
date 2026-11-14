@@ -10,6 +10,7 @@ import { favoriteToggleError, favoriteToggleLabel } from '../account/view'
 import { ordersApi } from './api'
 import type { AddressDetail, OrderProgress } from './types'
 import { WorkerRouteCard } from './WorkerRouteCard'
+import { customerAcceptanceView } from '../after-shift/acceptance'
 import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, routeCandidates, timeline, toggleSaved, vnTime, type ArrivalStatus, type FallbackStatus } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
@@ -236,14 +237,21 @@ export function OrderDetailPage() {
         <section className={card}>
           <h2 className="text-lg font-semibold">Thợ {progress.assignments.length}/{progress.requiredWorkers}</h2>
           {progress.assignments.length === 0 ? <p className="mt-3 text-sm text-stone-500">Thợ được tìm sau khi bạn thanh toán.</p>
-            : <ul className="mt-3 space-y-3">{progress.assignments.map((a) => <li key={a.assignmentId} className="flex items-center gap-3">
+            : <ul className="mt-3 space-y-3">{progress.assignments.map((a) => <li key={a.assignmentId}>
+              <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-full bg-stone-200 text-sm font-semibold">{(a.workerName ?? '?').split(' ').map((w) => w[0]).slice(-2).join('')}</span>
               <span className="grow"><b>{a.workerName ?? 'Thợ'}</b><span className="block text-sm text-stone-500"><Star size={12} className="mr-1 inline" />{a.workerRatingAvg.toFixed(1)}</span></span>
               {favIds && <button type="button" aria-pressed={favIds.has(a.workerId)} aria-label={favoriteToggleLabel(favIds.has(a.workerId))} title={favoriteToggleLabel(favIds.has(a.workerId))}
                 disabled={favBusy !== null} onClick={() => void toggleFavorite(a.workerId)}
                 className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border disabled:opacity-60 ${favIds.has(a.workerId) ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-stone-300 bg-white text-stone-600'}`}>
                 <Heart size={16} className={favIds.has(a.workerId) ? 'fill-current' : ''} /></button>}
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold">{assignmentLabel(a.assignmentStatus)}</span></li>)}</ul>}
+              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold">{assignmentLabel(a.assignmentStatus)}</span></div>
+              {(() => {
+                // ACCEPT-02: the acceptance phase and deadline of this worker, from the server.
+                const view = customerAcceptanceView(a.acceptance, now)
+                return view && <div data-testid={`acceptance-${a.assignmentId}`} className={`mt-2 rounded-lg p-3 text-sm ${view.tone === 'done' ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>
+                  <b>{view.title}</b><span className="block">{view.note}</span></div>
+              })()}</li>)}</ul>}
           {favError && <p role="alert" className="mt-2 text-sm text-red-700">{favError}</p>}
         </section>
         <section className={card}>

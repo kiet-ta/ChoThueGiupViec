@@ -1,3 +1,5 @@
+import '../logic/acceptance_logic.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/device/camera_wrapper.dart';
@@ -62,6 +64,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
 
   /// The job was already handed to the customer: nothing can be captured or submitted any more.
   bool _submitted = false;
+
+  /// ACCEPT-02: the acceptance phase and deadlines of the submitted job, read from the server.
+  AcceptanceBlock? _acceptance;
   String? _errorMessage;
   String? _successMessage;
   int _errors = 0;
@@ -120,7 +125,12 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
         widget.assignmentId,
       );
       final submitted = response.data?.isSubmittedForAcceptance ?? false;
-      if (submitted && mounted) setState(() => _submitted = true);
+      if (mounted) {
+        setState(() {
+          if (submitted) _submitted = true;
+          _acceptance = response.data?.acceptance;
+        });
+      }
       return submitted;
     } catch (_) {
       return false;
@@ -534,12 +544,41 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
             ],
       children: [
         if (_submitted)
-          _message(
-            'Đang chờ gia chủ xác nhận. Ca này đã được gửi nghiệm thu.',
-            icon: Icons.hourglass_top_rounded,
-            background: NordicColors.primaryFixed,
-            foreground: NordicColors.primary,
-          ),
+          if (workerAcceptanceView(_acceptance, DateTime.now())
+              case final view?)
+            Container(
+              key: const Key('worker-acceptance'),
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: NordicSpace.sm),
+              padding: const EdgeInsets.all(NordicSpace.sm),
+              decoration: const BoxDecoration(
+                color: NordicColors.primaryFixed,
+                borderRadius: NordicRadius.tileAll,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    view.title,
+                    key: const Key('worker-acceptance-title'),
+                    style: NordicTypography.titleSmall,
+                  ),
+                  const SizedBox(height: 2.0),
+                  Text(
+                    view.note,
+                    key: const Key('worker-acceptance-note'),
+                    style: NordicTypography.bodySmall,
+                  ),
+                ],
+              ),
+            )
+          else
+            _message(
+              'Đang chờ gia chủ xác nhận. Ca này đã được gửi nghiệm thu.',
+              icon: Icons.hourglass_top_rounded,
+              background: NordicColors.primaryFixed,
+              foreground: NordicColors.primary,
+            ),
         // KPI statistics
         Row(
           children: [

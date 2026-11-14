@@ -1,3 +1,5 @@
+import '../logic/acceptance_logic.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
@@ -65,9 +67,13 @@ class CustomerAcceptanceArgs {
   final int assignmentId;
   final bool completed;
 
+  /// ACCEPT-02: the server's acceptance block of the job, passed by the order screen (null from an older caller).
+  final AcceptanceBlock? acceptance;
+
   const CustomerAcceptanceArgs({
     required this.assignmentId,
     this.completed = false,
+    this.acceptance,
   });
 }
 
@@ -77,13 +83,19 @@ class CustomerAcceptanceArgs {
 class CustomerAcceptanceScreen extends StatefulWidget {
   final int assignmentId;
   final bool completed;
+  final AcceptanceBlock? acceptance;
   final CustomerAcceptanceService? acceptanceService;
   final WorkersPhotosService? photosService;
+
+  /// The clock of the redo window; tests pin it.
+  final DateTime Function()? now;
 
   const CustomerAcceptanceScreen({
     super.key,
     required this.assignmentId,
     this.completed = false,
+    this.acceptance,
+    this.now,
     this.acceptanceService,
     this.photosService,
   });
@@ -177,6 +189,9 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
     if (e.isNetworkError) return e.message;
     if (e.isNotFound || e.isForbidden) {
       return 'Không tìm thấy ca làm này trong đơn của bạn.';
+    }
+    if (e.isConflict && e.code == 'REDO_WINDOW_CLOSED') {
+      return redoWindowClosedText;
     }
     if (e.isConflict) {
       return 'Ca này không còn chờ nghiệm thu. Hãy quay lại chi tiết đơn để xem trạng thái mới.';
@@ -288,6 +303,13 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
   @override
   Widget build(BuildContext context) {
     final awaiting = _status != 'COMPLETED' && !_showRedoForm;
+    final now = widget.now?.call() ?? DateTime.now();
+    // ACCEPT-02: "Dọn lại" only while the worker is still on site; the server refuses it later anyway.
+    final redoOpen =
+        canAskRedo(widget.acceptance, now) && _status != 'COMPLETED';
+    final view = _status == 'COMPLETED'
+        ? null
+        : customerAcceptanceView(widget.acceptance, now);
     // MOB-UI-16: a pushed `NordicPage` titled in words; "Dọn lại" beside the main "Nghiệm thu" in the bar.
     return NordicPage.pushed(
       title: 'Nghiệm thu ca',
@@ -299,19 +321,48 @@ class _CustomerAcceptanceScreenState extends State<CustomerAcceptanceScreen> {
                 isLoading: _isLoading,
                 onPressed: _handleAcceptCompletion,
               ),
-              NordicButton(
-                label: 'Yêu cầu dọn lại',
-                variant: NordicButtonVariant.secondary,
-                onPressed: () {
-                  setState(() {
-                    _showRedoForm = true;
-                    _errorMessage = null;
-                  });
-                },
-              ),
+              if (redoOpen)
+                NordicButton(
+                  key: const Key('acceptance-redo'),
+                  label: 'Chưa sạch? Nhờ dọn lại',
+                  variant: NordicButtonVariant.secondary,
+                  onPressed: () {
+                    setState(() {
+                      _showRedoForm = true;
+                      _errorMessage = null;
+                    });
+                  },
+                ),
             ]
           : null,
       children: [
+        if (view != null) ...[
+          Container(
+            key: const Key('acceptance-phase'),
+            padding: const EdgeInsets.all(NordicSpace.sm),
+            decoration: const BoxDecoration(
+              color: NordicColors.amberSoft,
+              borderRadius: NordicRadius.tileAll,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  view.title,
+                  key: const Key('acceptance-phase-title'),
+                  style: NordicTypography.titleSmall,
+                ),
+                const SizedBox(height: 2.0),
+                Text(
+                  view.note,
+                  key: const Key('acceptance-phase-note'),
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: NordicSpace.md),
+        ],
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

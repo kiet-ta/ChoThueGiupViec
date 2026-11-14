@@ -1,5 +1,6 @@
 // Pure logic of the acceptance, rating and dispute screens (no React, so `node --test` covers it).
 // Rules: workers.md 2.5.2/2.5.3 (accept, redo), ratings.md (window, criteria Q14), disputes.md 2.1/2.1a (1-1000, 1-10 photos, jpeg/png/webp <= 5 MB).
+import { REDO_WINDOW_CLOSED_TEXT } from './acceptance.ts'
 import type { Dispute, JobPhoto, RatingWindow } from './types.ts'
 
 export const COMMENT_MAX = 500
@@ -189,12 +190,18 @@ export function disputeHoursLeft(endedAt: string | null, now: Date, windowHours 
 }
 
 /** Text of a failed form call: field messages of a 400, the dispute rules of a 409, the server message otherwise. */
-export function afterShiftProblem(error: { status?: number; message?: string; fieldErrors?: Record<string, string[]> }): string {
+function conflictCodeOf(error: { data?: unknown }): string | null {
+  const data = error.data
+  return typeof data === 'object' && data !== null && typeof (data as { code?: unknown }).code === 'string' ? (data as { code: string }).code : null
+}
+
+export function afterShiftProblem(error: { status?: number; message?: string; fieldErrors?: Record<string, string[]>; data?: unknown }): string {
   if (error.status === 400) {
     const first = Object.values(error.fieldErrors ?? {}).flat()[0]
     if (first) return first
   }
   if (error.status === 409) {
+    if (conflictCodeOf(error) === 'REDO_WINDOW_CLOSED') return REDO_WINDOW_CLOSED_TEXT
     if (/time to file/i.test(error.message ?? '')) return 'Đã quá 24 giờ sau ca nên không thể khiếu nại đơn này nữa.'
     if (/nothing to dispute/i.test(error.message ?? '')) return 'Đơn này chưa có ca nào để khiếu nại. Bạn chỉ khiếu nại được khi thợ đã làm hoặc đang chờ nghiệm thu.'
     if (/already exists/i.test(error.message ?? '')) return 'Đơn này đã có khiếu nại. Mỗi đơn chỉ có một khiếu nại.'
