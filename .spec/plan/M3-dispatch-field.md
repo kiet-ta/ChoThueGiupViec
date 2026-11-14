@@ -45,6 +45,7 @@
 - [x] **ACCEPT-02** Show the acceptance phases and deadlines on both sides (Mobile + Web) — evidence: .harness/evidence/20261114-184217-L3.log
 - [x] **ADDR-MAP-01** Pick the home on a map in the Mobile address forms — evidence: .harness/evidence/20261114-210353-L3.log
 - [x] **ADDR-MAP-02** Pick the home on a map in the Web address form — evidence: .harness/evidence/20261114-205107-L3.log
+- [x] **ADDR-MAP-03** Remove the address map and restore the previous location picker (Mobile + Web) — evidence: .harness/evidence/20261114-230450-L3.log
 
 > **Bắt buộc đọc trước khi làm bất kỳ task nào: [`../decisions.md`](../decisions.md) (tiếng Anh, giá trị & quy tắc đã chốt). Task ghi `decisions: Q##` → đọc mục đó. Mâu thuẫn → decisions.md thắng; thiếu → hỏi leader, không đoán.**
 > Module backend: **Dispatch**. Thực thể: INCIDENT_LOG, CHECK_IN_LOG, JOB_ASSIGNMENT (vòng đời gán/offer/check-in).

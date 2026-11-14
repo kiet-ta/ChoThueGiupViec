@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CircleAlert, LocateFixed, Loader, Ruler } from 'lucide-react'
+import { CircleAlert, Loader, Ruler } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { accountApi } from './api'
-import { AddressMap } from './AddressMap'
 import { SearchSelect } from './SearchSelect'
 import {
-  accountProblem, bandText, DEFAULT_LATITUDE, DEFAULT_LONGITUDE, fillFromGeocode, formFromAddress, HOUSING_TYPES, latestRequest, parseNumber, placeText,
-  roundCoordinate, toAddressBody, totalArea, safeAddressNext, validateAddress, wardsOf, type AddressErrors, type AddressForm,
+  accountProblem, bandText, DEFAULT_LATITUDE, DEFAULT_LONGITUDE, formFromAddress, HOUSING_TYPES, parseNumber, toAddressBody, totalArea,
+  safeAddressNext, validateAddress, wardsOf, type AddressErrors, type AddressForm,
 } from './view'
 
 const input = 'mt-1 h-11 w-full rounded-lg border border-stone-300 bg-white px-3'
@@ -25,14 +24,10 @@ export function AddressFormPage() {
   const [loaded, setLoaded] = useState(id === null)
   const [errors, setErrors] = useState<AddressErrors>({})
   const [banner, setBanner] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [locating, setLocating] = useState(false)
-  // ADDR-MAP-02: a saved address has its point; a new one waits for a click on the map.
-  const [hasPoint, setHasPoint] = useState(id !== null)
-  const [reading, setReading] = useState(false)
-  const [mapNote, setMapNote] = useState<{ ok: boolean; text: string } | null>(null)
-  const [focus, setFocus] = useState(0)
-  const latest = useRef(latestRequest())
+  const [located, setLocated] = useState(false)
 
   useEffect(() => {
     // The ward catalogue (about 70 KB) is loaded only on this screen.
@@ -60,46 +55,41 @@ export function AddressFormPage() {
   const total = totalArea(parseNumber(form.floorAreaM2), parseNumber(form.numFloors))
   const wards = units ? wardsOf(units, form.city) : []
 
-  /** A click on the map (or "Vị trí của tôi"): the pin moves there and the address read there fills the form. */
-  async function pick(latitude: number, longitude: number) {
-    const lat = roundCoordinate(latitude)
-    const lng = roundCoordinate(longitude)
-    const ticket = latest.current.next()
-    setForm((prev) => ({ ...prev, latitude: lat, longitude: lng }))
-    setHasPoint(true)
-    clear('location')
-    setReading(true)
-    setMapNote(null)
-    try {
-      const res = await accountApi.reverseGeocode(lat, lng)
-      if (!latest.current.isLatest(ticket)) return
-      setForm((prev) => {
-        if (!units) return { ...prev, addressLine: res.addressLine.trim() || prev.addressLine }
-        const fill = fillFromGeocode(units, res, prev.city)
-        return { ...prev, addressLine: fill.addressLine ?? prev.addressLine, city: fill.city, district: fill.district }
-      })
-      clear('city', 'district', 'addressLine')
-      setMapNote({ ok: true, text: placeText(res) })
-    } catch {
-      if (latest.current.isLatest(ticket)) setMapNote({ ok: false, text: 'Không đọc được địa chỉ ở điểm này. Bạn có thể nhập tay.' })
-    } finally {
-      if (latest.current.isLatest(ticket)) setReading(false)
-    }
-  }
-
-  function locateMe() {
-    if (!('geolocation' in navigator)) return setMapNote({ ok: false, text: 'Trình duyệt không hỗ trợ định vị. Hãy bấm vào nhà bạn trên bản đồ.' })
+  function useMyLocation() {
+    if (!('geolocation' in navigator)) return setBanner('Trình duyệt không hỗ trợ định vị.')
     setLocating(true)
-    setMapNote(null)
+    setBanner(null)
+    setNotice(null)
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false)
-        setFocus((n) => n + 1)
-        void pick(pos.coords.latitude, pos.coords.longitude)
+      async (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(6))
+        const lng = Number(pos.coords.longitude.toFixed(6))
+        try {
+          const res = await accountApi.reverseGeocode(lat, lng)
+          setForm((prev) => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng,
+            city: res.city || prev.city,
+            district: res.district || prev.district,
+            addressLine: res.addressLine || prev.addressLine,
+          }))
+          clear('city', 'district', 'addressLine', 'location')
+          setLocated(true)
+          setNotice('Đã định vị và tự động điền địa chỉ từ vị trí hiện tại.')
+        } catch {
+          // Graceful degradation: keeps coordinates
+          setForm((prev) => ({ ...prev, latitude: lat, longitude: lng }))
+          clear('location')
+          setLocated(true)
+          setNotice('Đã lấy toạ độ GPS. Vui lòng kiểm tra và nhập địa chỉ bên trên.')
+        } finally {
+          setLocating(false)
+        }
       },
       () => {
+        setBanner('Không lấy được vị trí. Địa chỉ sẽ dùng vị trí mặc định của thành phố.')
         setLocating(false)
-        setMapNote({ ok: false, text: 'Không lấy được vị trí của bạn. Hãy cho phép trình duyệt dùng vị trí, hoặc bấm vào nhà bạn trên bản đồ.' })
       },
       { timeout: 8000 },
     )
@@ -142,20 +132,6 @@ export function AddressFormPage() {
     <h1 className="mt-3 text-3xl font-semibold">{id === null ? 'Thêm địa chỉ' : 'Sửa địa chỉ'}</h1>
     <section className="mt-6 space-y-5 rounded-xl border border-stone-200 bg-white p-6">
       <div><label className="block text-sm font-medium">Tên gợi nhớ<input className={input} value={form.label} maxLength={50} onChange={(e) => set('label', e.target.value)} aria-invalid={!!errors.label} placeholder="Nhà, Văn phòng…" /></label>{err('label')}</div>
-      <div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-medium">Vị trí nhà trên bản đồ</p>
-          <button type="button" onClick={locateMe} disabled={locating} className="flex h-9 items-center gap-1.5 rounded-lg border border-stone-300 px-3 text-sm font-semibold disabled:opacity-50"><LocateFixed size={16} />{locating ? 'Đang định vị…' : 'Vị trí của tôi'}</button>
-        </div>
-        <p className="mt-1 text-sm text-stone-500">Chạm vào nhà bạn trên bản đồ, địa chỉ sẽ tự điền. Bạn vẫn sửa được từng ô bên dưới.</p>
-        <div data-testid="address-map" className="mt-2 h-72 overflow-hidden rounded-lg border border-stone-300">
-          <AddressMap latitude={form.latitude} longitude={form.longitude} hasPoint={hasPoint} focus={focus} onPick={(lat, lng) => void pick(lat, lng)} />
-        </div>
-        <p data-testid="address-map-note" aria-live="polite" className={`mt-2 text-sm ${mapNote && !mapNote.ok ? 'text-red-700' : 'text-stone-600'}`}>
-          {reading ? 'Đang tìm địa chỉ…' : mapNote ? (mapNote.ok ? `Đã điền theo bản đồ: ${mapNote.text}. Hãy thêm số nhà nếu còn thiếu.` : mapNote.text) : hasPoint ? 'Đã chọn vị trí. Bấm chỗ khác để đổi.' : 'Chưa chọn vị trí trên bản đồ.'}
-        </p>
-        {err('location')}
-      </div>
       <div className="grid gap-5 sm:grid-cols-2">
         <div><SearchSelect label="Tỉnh / Thành phố" value={form.city} options={units ? Object.keys(units) : []} onChange={(city) => { setForm((p) => ({ ...p, city, district: '' })); clear('city', 'district') }} onEdit={() => clear('city')} invalid={!!errors.city} />{err('city')}</div>
         <div><SearchSelect label="Phường / Xã" value={form.district} options={form.district && !wards.includes(form.district) ? [form.district, ...wards] : wards} onChange={(district) => set('district', district)} onEdit={() => clear('district')} invalid={!!errors.district} disabled={!form.city} />{err('district')}</div>
@@ -171,6 +147,11 @@ export function AddressFormPage() {
       </div>
       <p className="flex items-center gap-2 rounded-lg bg-stone-50 p-3 text-sm" aria-live="polite"><Ruler size={16} />
         {total === null ? 'Nhập diện tích để xem khung giá.' : <span><b>{parseNumber(form.floorAreaM2)} m² × {parseNumber(form.numFloors)} tầng = {total} m²</b> · {bandText(total)}</span>}</p>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <button type="button" onClick={useMyLocation} disabled={locating} className="h-9 rounded-lg border border-stone-300 px-3 font-semibold disabled:opacity-50">{locating ? 'Đang định vị…' : 'Dùng vị trí của tôi'}</button>
+        <span className={notice ? 'font-medium text-[#1a2f25]' : 'text-stone-500'}>{notice ? notice : located ? `Đã lấy vị trí (${form.latitude}, ${form.longitude}).` : 'Chưa định vị: dùng vị trí mặc định để tìm thợ gần nhà.'}</span>
+      </div>
+      {err('location')}
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isDefault} onChange={(e) => set('isDefault', e.target.checked)} />Đặt làm địa chỉ mặc định</label>
       {banner && <p role="alert" className="flex gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{banner}</p>}
       <div className="flex justify-end gap-3">
