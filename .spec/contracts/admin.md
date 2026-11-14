@@ -120,6 +120,21 @@ No endpoint: they are `ADMIN_AUDIT_LOG` rows with `actor_type = SYSTEM`, `admin_
 - `entity_type = CUSTOMER`: the customer's latest `Rating.ConsecutiveLowToFlag` (3) ratings from workers are all `<= Rating.LowStarThreshold` (2) stars and come from 3 different workers. Written by the rating that completes the streak, not by the ones after it. The customer can still book (Q14).
 - **Not done (needs a stored marker, i.e. a schema decision of M1):** releasing a freelancer from the matching exclusion "until an Admin reviews" (Q14). Matching still excludes a freelancer with `rating_avg < 4.00` after 10 jobs until the average rises again.
 
+### 2.8 Find a worker (ADMIN-UAT-14)
+
+The unlock and Super-Freelancer actions (2.5, 2.6) need a worker number that no other Admin page shows; this lookup gives it.
+
+**`GET /api/v1/admin/workers?q=&workerType=&workStatus=&page=&pageSize=`** (policy `AdminOnly`) -> 200 `data: { items: AdminWorker[], page, pageSize, total }`. Read-only; the route `GET /api/v1/admin/workers/ekyc-queue` (workers.md 2.2.2) is a different action of the same prefix.
+```json
+{ "workerId": 5, "fullName": "string", "phoneNumber": "0901234567", "nationalId": "079000000001", "workerType": "FREELANCER | AGENCY_STAFF",
+  "agencyId": null, "agencyName": null, "workStatus": "PENDING | IDLE | BUSY | LOCKED | RETIRING | RETIRED", "kycStatus": "string",
+  "isSuperFreelancer": false, "ratingAvg": 4.85, "completedJobs": 61 }
+```
+- `q` (optional, trimmed, at most 100 characters): a whole number matches that worker number (and it is listed first), and any text matches as a substring of `fullName`, `phoneNumber` or `nationalId` (case-insensitive, accents count). Empty or absent: every worker. `%` and `_` are ordinary characters.
+- `workerType` and `workStatus` (optional, case-insensitive) filter exactly. Not-listed values are a **400** (`errors.workerType` / `errors.workStatus`). `RETIRING` exists in the enum next to the five values of the ticket, so it is accepted too.
+- `page` (default 1, at least 1) and `pageSize` (default 20, 1 to 50); anything else is a **400** naming the field. All bad values are reported together.
+- Order: the worker whose number was typed first, then the newest worker (highest `workerId`) first. `agencyName` comes from `PARTNER_AGENCY.legal_name` of an agency worker, null for a freelancer.
+
 ## 3. Events
 - **Handles** `CustomerAbsentReported` (M3): notifies every active Admin through `INotificationService` (BE-M6-03b, topic `absence.reported`, `data { assignmentId, orderId }`); the queue itself is derived from data (2.2). **Handles** `RatingSubmitted` (Ratings) for the auto-revoke above; the Ratings module handles the same event to write `WORKER.rating_avg` and the flags of 2.7 (`ratings.md` section 3).
 - **Publishes** `CustomerAbsentApproved` (consumers M2 refund bookkeeping, M3, M4, M6 Disputes notification).

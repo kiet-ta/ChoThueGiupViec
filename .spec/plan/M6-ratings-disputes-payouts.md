@@ -38,3 +38,6 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 
 ## Ghi chú nền tảng — PLATFORM-01 (ticket #586)
 - Toàn bộ API đổi tiền tố `/api/...` → `/api/v1/...` (Backend controllers, Mobile `lib/`, Web `src/` + proxy, contracts, openapi.json). Các đường dẫn M6 trong file này (`api/admin/...`, `api/workers/me/...`) nay là `api/v1/admin/...`, `api/v1/workers/me/...`. `/files/...` và `/hubs/...` nằm ngoài tiền tố.
+
+## Ghi chú — ADMIN-UAT-14 (ticket #872)
+- Thêm `GET /api/v1/admin/workers?q=&workerType=&workStatus=&page=&pageSize=` (AdminOnly, chỉ đọc) để tìm thợ theo tên, số điện thoại, CCCD hoặc mã số, và ô tìm thợ trên trang "Cờ & mở khoá thợ": Admin gõ, chọn, thẻ thợ hiện đủ thông tin; nhập tay mã số và `?workerId=` vẫn dùng được; sau khi mở khoá hoặc đổi cờ thẻ đọc lại trạng thái mới. Đã chạy thật: tìm "Freelancer" ra 2 thợ, chọn #5 (đang bị khoá), mở khoá, thẻ chuyển sang "Sẵn sàng", DB `work_status = IDLE`. Contract `admin.md` §2.8, `openapi.json` sinh lại (chỉ thêm 1 path và 3 schema).
