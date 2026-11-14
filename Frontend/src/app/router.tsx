@@ -33,6 +33,9 @@ export const router = createBrowserRouter([
       // The sidebar's first item is the dashboard; the bare /admin used to be an empty page.
       { index: true, element: <Navigate to="dashboard" replace /> },
       ...routesFor('admin'),
+      // AdminEntry shows the sign-in form on any /admin/* URL while signed out, so a visitor can sign in at /admin/login; once the session
+      // exists this child route sends them on (and sends an Admin who opens /admin/login to the dashboard) instead of the 404 of '*'.
+      { path: 'login', element: <Navigate to="/admin/dashboard" replace /> },
       { path: '*', element: <AreaNotFoundPage homeTo="/admin" /> },
     ],
   },
