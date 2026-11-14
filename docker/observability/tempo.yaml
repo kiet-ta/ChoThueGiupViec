@@ -20,7 +20,8 @@ compactor:
 storage:
   trace:
     backend: local
+    # /var/tempo is owned by the image user (uid 10001); a root-owned /tmp/tempo volume is not writable.
     wal:
-      path: /tmp/tempo/wal
+      path: /var/tempo/wal
     local:
-      path: /tmp/tempo/blocks
+      path: /var/tempo/blocks
