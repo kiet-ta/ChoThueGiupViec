@@ -134,11 +134,12 @@ services:
     command: ["-config.file=/etc/tempo/tempo.yaml"]
     volumes:
       - ./docker/observability/tempo.yaml:/etc/tempo/tempo.yaml:ro
-      - tempo_data:/tmp/tempo
+      - tempo_data:/var/tempo   # owned by the image user (uid 10001)
     ports:
       - "${TEMPO_HOST_PORT:-3200}:3200"
-      - "4317:4317"
-      - "4318:4318"
+      # OTLP; the backend reaches tempo:4317 inside the network. Override if the host port is taken (e.g. the dev stack's Jaeger).
+      - "${TEMPO_OTLP_GRPC_HOST_PORT:-4317}:4317"
+      - "${TEMPO_OTLP_HTTP_HOST_PORT:-4318}:4318"
     deploy:
       resources:
         limits:
@@ -151,7 +152,7 @@ services:
     command: ["-config.file=/etc/loki/loki.yaml"]
     volumes:
       - ./docker/observability/loki.yaml:/etc/loki/loki.yaml:ro
-      - loki_data:/tmp/loki
+      - loki_data:/loki   # owned by the image user (uid 10001)
     ports:
       - "${LOKI_HOST_PORT:-3100}:3100"
     deploy:
