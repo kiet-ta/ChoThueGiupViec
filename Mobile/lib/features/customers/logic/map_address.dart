@@ -1,13 +1,18 @@
 import '../models/reverse_geocode_result.dart';
 import '../widgets/admin_unit_picker_field.dart';
 
-/// The map tiles of the address map (ADDR-MAP-01). OpenStreetMap is free for the demo and asks for its attribution and an
-/// application name; a paid provider (Goong, MapTiler) replaces [urlTemplate] (and its key) here and nowhere else.
+/// The map tiles of the address map (ADDR-MAP-01): the Humanitarian OSM style served by OpenStreetMap France (free, street
+/// names in Vietnamese; the plain osmfr style shows French names). Not tile.openstreetmap.org: on 2026-11-14 it refused IPv4
+/// connections from a Vietnamese network (IPv6 only), which left the map grey. The tile servers ask for their attribution and
+/// an application name; a paid provider (Goong, MapTiler) replaces [urlTemplate] (and its key) here and nowhere else.
 abstract final class AddressMapTiles {
   static const String urlTemplate =
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
+  static const List<String> subdomains = ['a', 'b', 'c'];
   static const String userAgentPackageName = 'com.example.mobile';
-  static const String attribution = '© OpenStreetMap';
+
+  /// Shown after the "©" that `SimpleAttributionWidget` adds itself.
+  static const String attribution = 'OpenStreetMap · HOT · OSM France';
 }
 
 /// Where the map opens when there is no saved point and no phone position: District 1, Ho Chi Minh City (the app's default).

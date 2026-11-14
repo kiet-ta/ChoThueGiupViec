@@ -188,6 +188,7 @@ class _AddressMapScreenState extends State<AddressMapScreen> {
                 if (widget.showTiles)
                   TileLayer(
                     urlTemplate: AddressMapTiles.urlTemplate,
+                    subdomains: AddressMapTiles.subdomains,
                     userAgentPackageName: AddressMapTiles.userAgentPackageName,
                   ),
                 if (_pin != null)
