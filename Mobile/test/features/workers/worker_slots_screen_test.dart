@@ -359,6 +359,7 @@ void main() {
               'COMPLETED',
               tier: 'PREMIUM',
             ),
+            job(10005, '2026-10-13', 'SHIFT_AFTERNOON', 'AWAITING_ACCEPTANCE'),
           ];
       });
 
@@ -372,6 +373,9 @@ void main() {
               ),
               WorkerRoutes.execution: (c) => Scaffold(
                 body: Text('execution:${ModalRoute.of(c)!.settings.arguments}'),
+              ),
+              WorkerRoutes.photos: (c) => Scaffold(
+                body: Text('photos:${ModalRoute.of(c)!.settings.arguments}'),
               ),
             },
             home: WorkerSlotsScreen(
@@ -523,6 +527,24 @@ void main() {
 
         expect(find.text('execution:10003'), findsOneWidget);
       });
+
+      testWidgets(
+        'ACCEPT-02: a job handed over to the customer opens its acceptance status',
+        (tester) async {
+          await pumpScreen(tester);
+          await tapVisible(
+            tester,
+            find.byKey(const Key('slots-day-1')),
+          ); // 13/10
+          await tapVisible(tester, find.byKey(const Key('order-10005')));
+
+          expect(find.text('Xem nghiệm thu'), findsOneWidget);
+          await tester.tap(find.byKey(const Key('order-sheet-action')));
+          await tester.pumpAndSettle();
+
+          expect(find.text('photos:10005'), findsOneWidget);
+        },
+      );
 
       testWidgets('a finished order has no button', (tester) async {
         await pumpScreen(tester);

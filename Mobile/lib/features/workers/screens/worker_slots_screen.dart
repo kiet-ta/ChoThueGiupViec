@@ -773,10 +773,16 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
         .where((s) => s['code'] == a.shiftCode)
         .map((s) => s['name']!)
         .firstOrNull;
+    // ACCEPT-02: a job handed over to the customer opens the photo screen, which shows the acceptance phase and deadline.
+    final awaiting = a.status == 'AWAITING_ACCEPTANCE';
     final route = a.isNotStarted
         ? DispatchRoutes.checkIn
-        : (a.isUnderWay ? WorkerRoutes.execution : null);
-    final action = a.isNotStarted ? 'Đến nơi' : 'Tiếp tục ca';
+        : (a.isUnderWay
+              ? WorkerRoutes.execution
+              : (awaiting ? WorkerRoutes.photos : null));
+    final action = a.isNotStarted
+        ? 'Đến nơi'
+        : (awaiting ? 'Xem nghiệm thu' : 'Tiếp tục ca');
 
     showModalBottomSheet<void>(
       context: context,
