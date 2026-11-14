@@ -1,5 +1,6 @@
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Ledger;
+using CommonService.Application.Features.Payouts;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Fakes;
@@ -98,6 +99,13 @@ public class WithdrawalSqlTests
             repository, new LedgerBalanceService(new EfLedgerQuery(db), new FakeOpenDisputeQuery(), clock), writer, new EfAuditLog(db, clock), notifications, clock,
             NullLogger<AdminWithdrawalService>.Instance);
 
+        // Decision D31: October must be settled before a November approval (rolled back below with everything else).
+        if (!await db.PayoutBatches.AnyAsync(b => b.PeriodMonth == "2026-10"))
+        {
+            db.PayoutBatches.Add(new PayoutBatch { PeriodMonth = "2026-10", BatchStatus = PayoutConstants.BatchClosed, TotalAmount = 0m, CreatedAt = Now });
+            await db.SaveChangesAsync();
+        }
+
         await writer.AppendAsync([new NewLedgerEntry(LedgerRules.Clearing, new LedgerParty(LedgerPartyType.Worker, worker), 288_000m, LedgerEntryType.JobEarning,
             LedgerRefType.Assignment, 1, null, Now.AddHours(-1), "sql-earn:" + Guid.NewGuid().ToString("N"))]);
         var first = Request(worker, 100_000m, Now);
@@ -131,6 +139,43 @@ public class WithdrawalSqlTests
         Assert.Equal(first.WithdrawalId, Assert.Single((await service.ListAsync("paid", null, null)).Items, i => i.WorkerId == worker).WithdrawalId);
         Assert.Equal(3, (await service.ListAsync(null, null, null)).Items.Count(i => i.WorkerId == worker));
         Assert.Equal(2, notifications.Sent.Count);
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task Sql_a_month_is_settled_for_a_worker_once_its_batch_holds_the_workers_item_or_is_closed()
+    {
+        var connection = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+        if (string.IsNullOrEmpty(connection) || new SqlConnectionStringBuilder(connection).InitialCatalog != "LedgerTicket725Test") return;
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(connection).Options);
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE PAYOUT_ITEM NOCHECK CONSTRAINT ALL"); // made-up worker ids, rolled back below
+        const int worker = 987670;
+        var repository = new EfWithdrawalRepository(db);
+
+        Assert.False(await repository.IsSettledForAsync(worker, "2091-03")); // no batch at all
+
+        var draft = new PayoutBatch { PeriodMonth = "2091-03", BatchStatus = PayoutConstants.BatchDraft, TotalAmount = 0m, CreatedAt = Now };
+        db.PayoutBatches.Add(draft);
+        await db.SaveChangesAsync();
+        Assert.False(await repository.IsSettledForAsync(worker, "2091-03")); // DRAFT without the worker's item
+
+        db.PayoutItems.Add(new PayoutItem
+        {
+            BatchId = draft.BatchId,
+            PayeeType = PayeeType.Freelancer,
+            WorkerId = worker,
+            BankAccountNo = string.Empty,
+            ItemStatus = PayoutConstants.ItemTransferred,
+            TransferredAt = Now,
+        });
+        await db.SaveChangesAsync();
+        Assert.True(await repository.IsSettledForAsync(worker, "2091-03")); // the worker is settled although the batch is still DRAFT
+        Assert.False(await repository.IsSettledForAsync(worker + 1, "2091-03")); // another worker is not
+
+        db.PayoutBatches.Add(new PayoutBatch { PeriodMonth = "2091-04", BatchStatus = PayoutConstants.BatchClosed, TotalAmount = 0m, CreatedAt = Now });
+        await db.SaveChangesAsync();
+        Assert.True(await repository.IsSettledForAsync(worker + 1, "2091-04")); // a CLOSED month is settled for everyone
         await transaction.RollbackAsync();
     }
 }

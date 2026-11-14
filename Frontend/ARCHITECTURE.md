@@ -118,7 +118,7 @@ Live in `src/components/` (outside `features/`, so no module owns them). No extr
 ## Withdrawal approvals (LEDGER-14, contract `ledger.md` section 6)
 - Route `/admin/withdrawals` (nav "Duyệt rút tiền", section "TÀI CHÍNH"), in the `ledger` feature: `WithdrawalsPage.tsx` with the tabs Chờ duyệt / Đã chi / Bị từ chối / Đã huỷ (`GET /admin/withdrawals?status=`), the worker's name and phone, the amount, the bank account (or "Chưa có tài khoản (sandbox)") and the request time.
 - **Approve:** a confirmation line ("Duyệt chi <số tiền> cho <thợ>? Sổ cái sẽ ghi bút toán rút tiền và không thể sửa.") before `POST /admin/withdrawals/{id}/approve`. **Reject:** a reason of 1-255 characters is required (`reasonError`) before `POST .../reject`. A ref guard sends one request per click.
-- **Errors:** `withdrawalActionError` translates the 409 codes `WITHDRAWAL_INSUFFICIENT` (the amount is no longer withdrawable: reject instead), `WITHDRAWAL_NOT_PENDING` and `LEDGER_BUSY`, and the 400 and 404 answers; after a 409 or 404 the list is loaded again (`shouldReloadAfter`).
+- **Errors:** `withdrawalActionError` translates the 409 codes `WITHDRAWAL_INSUFFICIENT` (the amount is no longer withdrawable: reject instead), `WITHDRAWAL_NOT_PENDING`, `WITHDRAWAL_SETTLING` (LEDGER-30, decision D31: the worker's previous month is not settled yet, approve again after the settlement) and `LEDGER_BUSY`, and the 400 and 404 answers; after a 409 or 404 the list is loaded again (`shouldReloadAfter`).
 - Tests: `tests/ledger-view.test.ts` (tabs, rows, confirmation text, reason rules, error codes).
 
 ## Approving payout account changes (LEDGER-29, contract `admin.md` 2.6, `workers.md` bank section)

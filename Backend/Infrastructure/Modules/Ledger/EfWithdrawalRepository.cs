@@ -1,6 +1,7 @@
 using System.Data;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Ledger;
+using CommonService.Application.Features.Payouts;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Persistence;
@@ -167,4 +168,15 @@ public class EfWithdrawalRepository(AppDbContext db) : IWithdrawalRepository
                 .SetProperty(w => w.ReviewedAt, atUtc), cancellationToken) == 1;
 
     public async Task SaveAsync(CancellationToken cancellationToken = default) => await db.SaveChangesAsync(cancellationToken);
+
+    public async Task<bool> IsSettledForAsync(int workerId, string periodMonth, CancellationToken cancellationToken = default)
+    {
+        // Read only (decision D31). The settlement writes the worker's item and SETTLEMENT entry under the same worker lock as this check.
+        var batch = await db.PayoutBatches.AsNoTracking().Where(b => b.PeriodMonth == periodMonth)
+            .Select(b => new { b.BatchId, b.BatchStatus }).FirstOrDefaultAsync(cancellationToken);
+        if (batch is null) return false;
+        if (batch.BatchStatus == PayoutConstants.BatchClosed) return true;
+        return await db.PayoutItems.AsNoTracking()
+            .AnyAsync(i => i.BatchId == batch.BatchId && i.PayeeType == PayeeType.Freelancer && i.WorkerId == workerId, cancellationToken);
+    }
 }

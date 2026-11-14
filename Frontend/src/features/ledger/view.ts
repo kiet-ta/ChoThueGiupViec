@@ -400,6 +400,8 @@ export function withdrawalActionError(e: FailedCall): string {
         return 'Số dư có thể rút không còn đủ cho yêu cầu này (có thể do khoản khấu trừ mới). Hãy từ chối yêu cầu.'
       case 'WITHDRAWAL_NOT_PENDING':
         return 'Yêu cầu đã được xử lý hoặc thợ đã huỷ. Danh sách đã được tải lại.'
+      case 'WITHDRAWAL_SETTLING':
+        return 'Đang tất toán lương tháng trước của thợ này. Hãy duyệt lại sau khi tất toán xong (thường trong khoảng 00:05 đến 01:05 ngày 1).'
       case 'LEDGER_BUSY':
         return 'Sổ cái đang bận, hãy thử lại sau ít giây.'
       default:

@@ -35,9 +35,15 @@ String? withdrawalAmountError(String text, int available) {
   return null;
 }
 
-/// The form is locked while a request waits for the Admin (the server allows only one).
+/// Shown instead of the form while last month's pay is being settled (decision D31).
+const String withdrawalsPausedText =
+    'Đang tất toán lương tháng trước nên tạm chưa rút được. Bạn rút lại được ngay khi tất toán xong, thường trong khoảng 00:05 đến 01:05 ngày 1.';
+
+/// The form is locked while a request waits for the Admin (the server allows only one) and while last month is being settled.
 bool canRequestWithdrawal(Wallet wallet) =>
-    wallet.pendingWithdrawal == null && wallet.available > 0;
+    wallet.pendingWithdrawal == null &&
+    wallet.available > 0 &&
+    !wallet.withdrawalsPaused;
 
 /// What the worker reads for the state of a request.
 String withdrawalStatusLabel(String status) {
@@ -80,6 +86,8 @@ String withdrawalFailureMessage(ApiException e) {
         return 'Yêu cầu này đã được xử lý nên không huỷ được nữa.';
       case 'WITHDRAWAL_INSUFFICIENT':
         return 'Số tiền có thể rút đã thay đổi. Hãy kiểm tra lại số dư.';
+      case 'WITHDRAWAL_SETTLING':
+        return withdrawalsPausedText;
       default:
         return e.message;
     }

@@ -9,12 +9,14 @@ Wallet wallet({
   int held = 100000,
   PendingWithdrawal? pending,
   DateTime? next,
+  bool paused = false,
 }) => Wallet(
   balance: balance,
   available: available,
   held: held,
   pendingWithdrawal: pending,
   nextAvailableAt: next,
+  withdrawalsPaused: paused,
 );
 
 const pendingRequest = PendingWithdrawal(
@@ -50,6 +52,18 @@ void main() {
       final w = Wallet.fromJson({});
       expect([w.balance, w.available, w.held], [0, 0, 0]);
       expect(w.pendingWithdrawal, isNull);
+      expect(w.withdrawalsPaused, isFalse);
+    });
+
+    test('LEDGER-30: read withdrawalsPaused', () {
+      expect(
+        Wallet.fromJson({'withdrawalsPaused': true}).withdrawalsPaused,
+        isTrue,
+      );
+      expect(
+        Wallet.fromJson({'withdrawalsPaused': false}).withdrawalsPaused,
+        isFalse,
+      );
     });
 
     test('read a withdrawal answer with its reject reason', () {
@@ -100,6 +114,10 @@ void main() {
         expect(canRequestWithdrawal(wallet()), isTrue);
         expect(canRequestWithdrawal(wallet(pending: pendingRequest)), isFalse);
         expect(canRequestWithdrawal(wallet(available: 0)), isFalse);
+        expect(
+          canRequestWithdrawal(wallet(paused: true)),
+          isFalse,
+        ); // LEDGER-30
       },
     );
 
@@ -145,6 +163,10 @@ void main() {
       expect(
         withdrawalFailureMessage(conflict('WITHDRAWAL_INSUFFICIENT')),
         contains('đã thay đổi'),
+      );
+      expect(
+        withdrawalFailureMessage(conflict('WITHDRAWAL_SETTLING')),
+        withdrawalsPausedText,
       );
       expect(withdrawalFailureMessage(conflict('OTHER')), 'raw');
       expect(withdrawalFailureMessage(conflict(null)), 'raw');
