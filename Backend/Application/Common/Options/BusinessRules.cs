@@ -32,6 +32,7 @@ public class BusinessRules
     public CustomerRules Customer { get; set; } = new();
     public AddressRules Address { get; set; } = new();
     public WorkerRules Worker { get; set; } = new();
+    public AcceptanceRules Acceptance { get; set; } = new();
 }
 
 public class ShiftRules
@@ -221,6 +222,22 @@ public class PrivacyRules
 }
 
 /// <summary>Rules of the freelancer's own account (LEDGER-28). The default is in the class, so appsettings.json needs no entry.</summary>
+/// <summary>
+/// The 24-hour acceptance window (decision D32, ACCEPT-01), counted from T = the moment the worker submits the AFTER photos: the customer can
+/// ask for a redo while the worker is still on site, is reminded, and the job is accepted automatically when the window runs out.
+/// </summary>
+public class AcceptanceRules
+{
+    /// <summary>The worker stays on site this long after T; a redo can only be asked inside it (BR-07: 15 to 30 minutes).</summary>
+    public int RedoMinutes { get; set; } = 30;
+
+    /// <summary>The customer is reminded this long after T.</summary>
+    public int ReminderHours { get; set; } = 20;
+
+    /// <summary>Without an open dispute the job is accepted automatically this long after T; the dispute window ends at the same moment.</summary>
+    public int AutoAcceptHours { get; set; } = 24;
+}
+
 public class WorkerRules
 {
     /// <summary>After a request to change the payout account is sent, no new request can be sent for this many days (decided with Duy: 15).</summary>

@@ -1,3 +1,4 @@
+using CommonService.Application.Common.Helpers;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Interfaces.Ports;
@@ -39,7 +40,8 @@ public class OrderQueryService(
     IWorkerProfileQuery workers,
     IClock clock,
     IOptions<BusinessRules> rules,
-    IWorkerFreeShiftQuery? freeShifts = null) : IOrderQueryService
+    IWorkerFreeShiftQuery? freeShifts = null,
+    IOpenDisputeQuery? disputes = null) : IOrderQueryService
 {
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
@@ -179,13 +181,18 @@ public class OrderQueryService(
             ? new Dictionary<int, WorkerProfileSummary>()
             : await workers.GetManyAsync(visible.Select(a => a.WorkerId).Distinct(), cancellationToken);
 
+        // Decision D32: the acceptance block of each job, from the server's clock and the order's open dispute.
+        var disputeOpen = disputes is not null && visible.Count > 0
+            && (await disputes.GetOpenOrderIdsAsync([orderId], cancellationToken)).Contains(orderId);
+        var now = clock.UtcNow;
         var assignments = visible
             .Select(a =>
             {
                 profiles.TryGetValue(a.WorkerId, out var profile);
                 return new ProgressAssignmentDto(
                     a.AssignmentId, a.AssignmentSeq, a.WorkerId, profile?.FullName, profile?.RatingAvg ?? 0m,
-                    DbEnum.ToDb(a.AssignmentStatus), a.AcceptedAt, a.CompletedAt);
+                    DbEnum.ToDb(a.AssignmentStatus), a.AcceptedAt, a.CompletedAt,
+                    AcceptanceWindow.Describe(a.AssignmentStatus, a.SubmittedAt, disputeOpen, a.CompletionSource, a.RedoCount, now, _rules.Acceptance));
             })
             .ToList();
 

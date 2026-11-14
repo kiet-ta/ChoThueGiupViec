@@ -9,7 +9,10 @@ public record AssignmentProgress(
     int WorkerId,
     JobAssignmentStatus AssignmentStatus,
     DateTime? AcceptedAt,
-    DateTime? CompletedAt);
+    DateTime? CompletedAt,
+    DateTime? SubmittedAt = null,
+    CompletionSource? CompletionSource = null,
+    int RedoCount = 0);
 
 /// <summary>One JOB_ASSIGNMENT row of a customer (BE-M2-10).</summary>
 public record CustomerAssignmentSummary(

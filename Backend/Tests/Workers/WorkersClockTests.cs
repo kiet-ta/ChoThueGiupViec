@@ -246,6 +246,7 @@ public class WorkersClockTests
     public async Task RequestRedoAsync_WritesThePinnedInstant()
     {
         var assignment = AssignmentIn(JobAssignmentStatus.AwaitingAcceptance);
+        assignment.SubmittedAt = PinnedUtc.AddMinutes(-5); // ACCEPT-01: a redo is asked while the worker is still on site
         var service = new JobCompletionService(new ClockRepository(assignment), new RecordingPublisher(), new User(CustomerId, UserRole.Customer), PinnedClock());
 
         var response = await service.RequestRedoAsync(AssignmentId, new RequestRedoRequest("Chua sach"));

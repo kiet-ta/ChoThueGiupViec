@@ -196,9 +196,33 @@ public class AdminDisputeService(IDisputeRepository disputes, IClock clock, IOpt
             Detail = $"Dispute filed by {ticket.RaisedBy}",
         });
 
+        // Decision D32: the submit (T), the redos the customer asked on site, and who accepted the job.
+        var acceptance = (data.Acceptance ?? []).ToDictionary(a => a.AssignmentId);
+        foreach (var a in acceptance.Values.Where(a => a.SubmittedAtUtc is not null))
+        {
+            entries.Add(new ShiftTimelineEntryDto { At = Utc(a.SubmittedAtUtc!.Value), Type = "SUBMITTED", Detail = "After photos submitted for acceptance" });
+            if (a.RedoCount > 0)
+            {
+                entries.Add(new ShiftTimelineEntryDto
+                {
+                    At = Utc(a.SubmittedAtUtc.Value),
+                    Type = "REDO_REQUESTED",
+                    Detail = string.Create(CultureInfo.InvariantCulture, $"Customer asked for a redo on site {a.RedoCount} time(s) before this submit"),
+                });
+            }
+        }
+
         foreach (var done in data.Completions)
         {
-            entries.Add(new ShiftTimelineEntryDto { At = Utc(done.CompletedAtUtc), Type = "CHECK_OUT", Detail = "Job completed" });
+            var source = acceptance.TryGetValue(done.AssignmentId, out var info) ? info.CompletionSource : null;
+            var detail = source switch
+            {
+                CompletionSource.Customer => "Job completed: accepted by the customer",
+                CompletionSource.Auto => "Job completed: accepted automatically after 24 hours",
+                CompletionSource.Verdict => "Job completed: closed by the dispute verdict",
+                _ => "Job completed",
+            };
+            entries.Add(new ShiftTimelineEntryDto { At = Utc(done.CompletedAtUtc), Type = "CHECK_OUT", Detail = detail });
         }
 
         return entries.OrderBy(e => e.At).ToList();

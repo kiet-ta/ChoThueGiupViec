@@ -569,6 +569,17 @@ Customer requests a 15–30 minute touch-up/redo if work is unsatisfied.
   "notes": "Yeu cau don lai: Chua lau sach bui duoi gam ban..."
 }
 ```
+A redo is done on site, so it is accepted only while the worker is still there: before `submittedAt + Acceptance.RedoMinutes` (30). Later it is refused with **409 `data.code = REDO_WINDOW_CLOSED`** (the customer can still accept or file a dispute). A redo increments `redoCount` and clears `submittedAt`; the next submit starts a new window (decision D32).
+
+#### 2.5.4 The 24-hour acceptance window (decision D32, ACCEPT-01)
+T = `submittedAt`, set by 2.5.1. T to T+30 min the worker is on site (`ON_SITE`: accept, redo or dispute); after that `REVIEW` (accept or dispute); at T+20 h the customer is reminded once (topic `acceptance.reminder`); at T+24 h, when the order has no OPEN or IN_REVIEW dispute, the job is accepted automatically (`completionSource = AUTO`, topic `acceptance.auto` to both sides). A verdict of any outcome completes a job still waiting (`completionSource = VERDICT`). Every completion uses the same conditional write and publishes `JobCompleted`. The customer may accept while a dispute is open.
+
+The detail of 2.3.4 and every assignment of the customer's `OrderProgress` (booking.md 3.6) carry the same block, computed by the server (the apps never count time):
+```json
+"acceptance": { "phase": "ON_SITE | REVIEW | DISPUTED | COMPLETED | IN_PROGRESS", "submittedAt": "...", "redoUntil": "...",
+                "autoAcceptAt": "... (null when DISPUTED or COMPLETED)", "disputeUntil": "...", "completionSource": "CUSTOMER | AUTO | VERDICT | null", "redoCount": 0 }
+```
+`acceptance` is null before the work starts and for jobs that ended without being done.
 
 ---
 

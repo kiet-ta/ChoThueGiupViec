@@ -59,7 +59,9 @@ public record ProgressAssignmentDto(
     decimal WorkerRatingAvg,
     string AssignmentStatus,
     DateTime? AcceptedAt,
-    DateTime? CompletedAt);
+    DateTime? CompletedAt,
+    // Decision D32 (ACCEPT-01): the acceptance phase and deadlines, the same block the worker reads; null outside the execution.
+    CommonService.Application.Common.Helpers.AcceptanceDto? Acceptance = null);
 
 /// <summary><c>OrderProgress</c> (contract booking.md section 2).</summary>
 public record OrderProgressDto(

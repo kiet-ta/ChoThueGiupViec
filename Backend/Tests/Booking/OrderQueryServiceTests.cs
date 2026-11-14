@@ -366,7 +366,8 @@ public class OrderQueryServiceTests
         Assert.Equal("ASSIGNED", progress.OrderStatus);
         Assert.Equal(2, progress.RequiredWorkers);
         Assert.Equal([100L, 101L], progress.Assignments.Select(a => a.AssignmentId));
-        Assert.Equal(new ProgressAssignmentDto(100, 1, 11, "Nguyen Van A", 4.8m, "IN_PROGRESS", Now.AddMinutes(-60), null), progress.Assignments[0]);
+        Assert.Equal(new ProgressAssignmentDto(100, 1, 11, "Nguyen Van A", 4.8m, "IN_PROGRESS", Now.AddMinutes(-60), null), progress.Assignments[0] with { Acceptance = null });
+        Assert.Equal("IN_PROGRESS", progress.Assignments[0].Acceptance!.Phase); // ACCEPT-01: the acceptance block of a running job
         Assert.Null(progress.Assignments[1].WorkerName); // unknown to the port: no name, rating 0
         Assert.Equal(0m, progress.Assignments[1].WorkerRatingAvg);
         Assert.Equal("ASSIGNED", progress.Assignments[1].AssignmentStatus);

@@ -12,6 +12,19 @@ public interface IJobCompletionService
     /// <summary>Customer confirms the job: computes the payout, frees the worker and publishes <c>JobCompleted</c> (contract §2.5.2).</summary>
     Task<ApiResponse<AssignmentCompletionResponse>> AcceptAsync(long assignmentId, AcceptAssignmentRequest? request, CancellationToken ct = default);
 
-    /// <summary>Customer asks for a touch-up; the assignment goes back to IN_PROGRESS (contract §2.5.3).</summary>
+    /// <summary>Customer asks for a touch-up; the assignment goes back to IN_PROGRESS (contract §2.5.3). Only within RedoMinutes of the submit (decision D32), else 409 REDO_WINDOW_CLOSED.</summary>
     Task<ApiResponse<AssignmentStatusResponse>> RequestRedoAsync(long assignmentId, RequestRedoRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// The system completes a job that is still AWAITING_ACCEPTANCE (decision D32): <see cref="CompletionSource.Auto"/> when the 24-hour window
+    /// ran out, <see cref="CompletionSource.Verdict"/> after a dispute verdict. The same conditional write and <c>JobCompleted</c> as the customer's
+    /// accept; no caller check. False when the job is not waiting any more (already completed, or another status), with nothing changed.
+    /// </summary>
+    Task<bool> CompleteBySystemAsync(long assignmentId, Domain.Enums.CompletionSource source, CancellationToken ct = default);
+}
+
+/// <summary>The business code of a redo asked after the worker left (decision D32).</summary>
+public static class AcceptanceErrorCodes
+{
+    public const string RedoWindowClosed = "REDO_WINDOW_CLOSED";
 }

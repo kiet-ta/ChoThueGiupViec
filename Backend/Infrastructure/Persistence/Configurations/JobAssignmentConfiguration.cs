@@ -116,6 +116,25 @@ public class JobAssignmentConfiguration : IEntityTypeConfiguration<JobAssignment
             .HasColumnName("customer_confirmed_at")
             .HasColumnType("DATETIME2");
 
+        // ACCEPT-01 (decision D32): the 24-hour acceptance window.
+        builder.Property(x => x.SubmittedAt)
+            .HasColumnName("submitted_at")
+            .HasColumnType("DATETIME2");
+
+        builder.Property(x => x.CompletionSource)
+            .HasColumnName("completion_source")
+            .HasMaxLength(10)
+            .IsUnicode(false);
+
+        builder.Property(x => x.AcceptanceRemindedAt)
+            .HasColumnName("acceptance_reminded_at")
+            .HasColumnType("DATETIME2");
+
+        builder.Property(x => x.RedoCount)
+            .HasColumnName("redo_count")
+            .HasDefaultValue((byte)0)
+            .IsRequired();
+
         builder.Property(x => x.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("DATETIME2")
@@ -131,6 +150,8 @@ public class JobAssignmentConfiguration : IEntityTypeConfiguration<JobAssignment
         builder.HasIndex(x => x.AgencyId);
         builder.HasIndex(x => x.CustomerId);
         builder.HasIndex(x => x.OrderId);
+        // The acceptance timer scans waiting jobs by T every minute.
+        builder.HasIndex(x => new { x.AssignmentStatus, x.SubmittedAt });
 
         // Filtered unique index on slot_id per decisions Q22 / D2 / SC-9
         // SQL Server filtered index syntax requires <> and AND (NOT IN is not allowed in index filter predicate)

@@ -82,6 +82,9 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
                 assignment.AssignmentStatus,
                 assignment.ServiceTier,
                 assignment.PayoutAmount,
+                assignment.SubmittedAt,
+                assignment.CompletionSource,
+                assignment.RedoCount,
             })
             .FirstOrDefaultAsync(cancellationToken);
         if (row is null)
@@ -122,6 +125,9 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
             row.PayoutAmount,
             pending?.ExtensionId,
             pending?.ExtraHours,
-            pending?.ExtraAmount);
+            pending?.ExtraAmount,
+            row.SubmittedAt,
+            row.CompletionSource,
+            row.RedoCount);
     }
 }

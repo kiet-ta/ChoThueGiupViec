@@ -49,8 +49,13 @@ public class DisputeFilingService(
         var now = clock.UtcNow;
         // Q10: the customer of an absence fee has Absence.CustomerDisputeHours to dispute it; every other dispute has FileWindowHours (PRD 4.3).
         var absenceFeeOnly = eligible.All(a => a.Status == JobAssignmentStatus.Absent);
-        var windowHours = absenceFeeOnly ? (rules?.Value ?? new BusinessRules()).Absence.CustomerDisputeHours : options.Value.FileWindowHours;
-        var windowEnd = eligible.Max(a => Later(a.CompletedAtUtc, clock.ToUtc(a.ShiftEndLocal))).AddHours(windowHours);
+        var businessRules = rules?.Value ?? new BusinessRules();
+        var windowHours = absenceFeeOnly ? businessRules.Absence.CustomerDisputeHours : options.Value.FileWindowHours;
+        // Decision D32: a job with a submit time T has one window, T + AutoAcceptHours (the automatic acceptance ends it); the others keep
+        // max(completed_at, shift end) + the window above.
+        var windowEnd = eligible.Max(a => a.SubmittedAtUtc is { } t && a.Status != JobAssignmentStatus.Absent
+            ? AcceptanceWindowEnd(t, businessRules)
+            : Later(a.CompletedAtUtc, clock.ToUtc(a.ShiftEndLocal)).AddHours(windowHours));
         if (now > windowEnd) throw new BusinessRuleViolationException("The time to file a dispute for this order has passed.");
 
         var ticket = new DisputeTicket
@@ -96,6 +101,9 @@ public class DisputeFilingService(
         side == DisputeSide.Customer ? order.CustomerId == callerId : order.Assignments.Any(a => a.WorkerId == callerId);
 
     private static DateTime Later(DateTime? a, DateTime b) => a is { } value && value > b ? value : b;
+
+    /// <summary>Decision D32: the end of the acceptance window, which is also the end of the dispute window (rules in BusinessRules.Acceptance).</summary>
+    private static DateTime AcceptanceWindowEnd(DateTime submittedAtUtc, BusinessRules rules) => submittedAtUtc.AddHours(rules.Acceptance.AutoAcceptHours);
 
     private static Dictionary<string, string[]> Validate(
         FileDisputeRequestDto request, out long orderId, out string category, out string description, out List<string> evidence)

@@ -83,7 +83,7 @@ ALTER TABLE PAYOUT_ITEM ADD advance_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
 
 ## 5. Balances
 
-Balance is the sum of entries to a party less entries from it, optionally before an exclusive UTC cutoff. Held is the amount of a worker's PENDING request. Available is eligible worker credits (available_at absent or no later than now, excluding orders with OPEN or IN_REVIEW disputes), minus all worker debits and held, floored at zero. JOB_EARNING and EXTENSION_EARNING become available 24 hours after completion; ABSENCE_FEE and REVERSAL are immediately available. Only freelancers may withdraw; query open disputes through `IOpenDisputeQuery`. Withdrawals are paused (decision D31) from 00:00 Asia/Ho_Chi_Minh on the 1st until the previous month is settled for the worker: its PAYOUT_BATCH is CLOSED or already holds the worker's PAYOUT_ITEM.
+Balance is the sum of entries to a party less entries from it, optionally before an exclusive UTC cutoff. Held is the amount of a worker's PENDING request. Available is eligible worker credits (available_at absent or no later than now, excluding orders with OPEN or IN_REVIEW disputes), minus all worker debits and held, floored at zero. JOB_EARNING and EXTENSION_EARNING become available 24 hours after the AFTER photos were submitted (T, decision D32: the dispute window has then closed), or 24 hours after completion for a job without T; ABSENCE_FEE and REVERSAL are immediately available. Only freelancers may withdraw; query open disputes through `IOpenDisputeQuery`. Withdrawals are paused (decision D31) from 00:00 Asia/Ho_Chi_Minh on the 1st until the previous month is settled for the worker: its PAYOUT_BATCH is CLOSED or already holds the worker's PAYOUT_ITEM.
 
 ## 6. Withdrawals
 

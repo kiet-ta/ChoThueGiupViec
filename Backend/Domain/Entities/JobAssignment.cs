@@ -68,6 +68,18 @@ public partial class JobAssignment
     /// <summary>job_assignment.customer_confirmed_at DATETIME2 NULL</summary>
     public DateTime? CustomerConfirmedAt { get; set; }
 
+    /// <summary>job_assignment.submitted_at DATETIME2 NULL: T, when the AFTER photos were submitted; cleared by a redo (decision D32).</summary>
+    public DateTime? SubmittedAt { get; set; }
+
+    /// <summary>job_assignment.completion_source VARCHAR(10) NULL: who accepted the job (decision D32).</summary>
+    public CompletionSource? CompletionSource { get; set; }
+
+    /// <summary>job_assignment.acceptance_reminded_at DATETIME2 NULL: when the customer was reminded at T+20 h (sent once).</summary>
+    public DateTime? AcceptanceRemindedAt { get; set; }
+
+    /// <summary>job_assignment.redo_count TINYINT: how many times the customer asked for a redo on site.</summary>
+    public byte RedoCount { get; set; }
+
     /// <summary>job_assignment.created_at DATETIME2</summary>
     public DateTime CreatedAt { get; set; }
 

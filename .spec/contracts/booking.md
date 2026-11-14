@@ -166,7 +166,7 @@ Caller's history from `JOB_ORDER WHERE customer_id = :me` (0 JOIN), newest `crea
 200 `data`: `Order`. 404 if not the caller's.
 
 ### 3.6 `GET /api/v1/booking/orders/{orderId}/progress` (BE-M2-10, MOB-M2-04)
-200 `data`: `OrderProgress`. 404 if not the caller's. Realtime: the app subscribes to SignalR topic `job.tracking` on `/hubs/notifications` (Q07); every order status change sends `NotificationMessage { RecipientRole = Customer, Topic = "job.tracking", Data = { orderId, orderStatus } }` and the app re-reads this endpoint. Polling this endpoint is the fallback. Overlap with `GET /api/v1/dispatch/orders/{orderId}/status`: **B9**.
+200 `data`: `OrderProgress`. Each assignment carries the `acceptance` block of workers.md 2.5.4 (decision D32). 404 if not the caller's. Realtime: the app subscribes to SignalR topic `job.tracking` on `/hubs/notifications` (Q07); every order status change sends `NotificationMessage { RecipientRole = Customer, Topic = "job.tracking", Data = { orderId, orderStatus } }` and the app re-reads this endpoint. Polling this endpoint is the fallback. Overlap with `GET /api/v1/dispatch/orders/{orderId}/status`: **B9**.
 
 ### 3.7 `POST /api/v1/booking/orders/{orderId}/cancel` (BE-M2-09, Q15)
 Request `{ "reason": "string (1-255)" }`. Response 200 `data`: `Order` (`CANCELLED`, `cancelReason` = reason).

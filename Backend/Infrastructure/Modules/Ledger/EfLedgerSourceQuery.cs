@@ -20,7 +20,7 @@ public class EfLedgerSourceQuery(AppDbContext db) : ILedgerSourceQuery
         await db.JobAssignments.AsNoTracking().Where(a => a.OrderId == orderId).OrderBy(a => a.AssignmentId)
             .Select(a => new LedgerAssignmentSource(
                 a.AssignmentId, a.OrderId, a.WorkerId, a.AgencyId, a.AssignmentSeq, a.GrossAmount, a.CommissionRate, a.CompletedAt,
-                a.AssignmentStatus == JobAssignmentStatus.Completed))
+                a.AssignmentStatus == JobAssignmentStatus.Completed, a.SubmittedAt))
             .ToListAsync(cancellationToken);
 
     public Task<LedgerExtensionSource?> GetExtensionAsync(int extensionId, CancellationToken cancellationToken = default) =>
@@ -71,7 +71,7 @@ public class EfLedgerSourceQuery(AppDbContext db) : ILedgerSourceQuery
             .Where(a => a.AssignmentStatus == JobAssignmentStatus.Completed && a.CompletedAt >= sinceUtc)
             .OrderBy(a => a.AssignmentId)
             .Select(a => new LedgerAssignmentSource(
-                a.AssignmentId, a.OrderId, a.WorkerId, a.AgencyId, a.AssignmentSeq, a.GrossAmount, a.CommissionRate, a.CompletedAt, true))
+                a.AssignmentId, a.OrderId, a.WorkerId, a.AgencyId, a.AssignmentSeq, a.GrossAmount, a.CommissionRate, a.CompletedAt, true, a.SubmittedAt))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<LedgerAbsenceSource>> GetAbsenceFeesSinceAsync(DateTime sinceUtc, CancellationToken cancellationToken = default)

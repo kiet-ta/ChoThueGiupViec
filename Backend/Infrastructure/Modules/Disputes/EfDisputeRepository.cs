@@ -25,11 +25,11 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
             from a in db.JobAssignments.AsNoTracking()
             join s in db.BookingSlots.AsNoTracking() on a.SlotId equals s.SlotId
             where a.OrderId == orderId
-            select new { a.AssignmentId, a.WorkerId, a.AssignmentStatus, a.CompletedAt, s.SlotDate, s.EndTime })
+            select new { a.AssignmentId, a.WorkerId, a.AssignmentStatus, a.CompletedAt, s.SlotDate, s.EndTime, a.SubmittedAt })
             .ToListAsync(cancellationToken);
 
         var assignments = rows
-            .Select(r => new DisputeAssignmentInfo(r.AssignmentId, r.WorkerId, r.AssignmentStatus, r.CompletedAt, r.SlotDate.ToDateTime(r.EndTime)))
+            .Select(r => new DisputeAssignmentInfo(r.AssignmentId, r.WorkerId, r.AssignmentStatus, r.CompletedAt, r.SlotDate.ToDateTime(r.EndTime), r.SubmittedAt))
             .ToList();
         return new DisputeOrderInfo(order.OrderId, order.OrderCode, order.CustomerId, assignments);
     }
@@ -200,6 +200,11 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
             .Select(c => (c.AssignmentId, c.CompletedAt))
             .ToList();
 
-        return new DisputeCaseData(checkIns, photos, completions);
+        var acceptance = await db.JobAssignments.AsNoTracking()
+            .Where(a => a.OrderId == orderId && (a.SubmittedAt != null || a.RedoCount > 0 || a.CompletionSource != null))
+            .Select(a => new DisputeAcceptanceData(a.AssignmentId, a.SubmittedAt, a.RedoCount, a.CompletionSource))
+            .ToListAsync(cancellationToken);
+
+        return new DisputeCaseData(checkIns, photos, completions, acceptance);
     }
 }
