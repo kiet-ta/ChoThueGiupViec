@@ -167,6 +167,10 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
             .Select(s => (int?)s.WorkerId)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<bool> IsAutoAcceptOnAsync(int workerId, CancellationToken cancellationToken = default) =>
+        await db.Workers.AsNoTracking()
+            .AnyAsync(w => w.WorkerId == workerId && w.WorkerType == WorkerType.Freelancer && w.AutoAcceptOffers, cancellationToken);
+
     public Task<JobAssignment> CreateAssignedAsync(JobAssignment assignment, CancellationToken cancellationToken = default) =>
         InTransactionAsync(async () =>
         {

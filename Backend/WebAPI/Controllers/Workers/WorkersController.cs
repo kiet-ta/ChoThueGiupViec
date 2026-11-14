@@ -21,6 +21,7 @@ public class WorkersController(
     IWorkerBookingSlotService slots,
     IWorkerAssignmentService assignments,
     IWorkerWorkAreaService workAreas,
+    IWorkerAutoAcceptService autoAccept,
     IJobPhotoService photos,
     IJobCompletionService completions,
     IWorkerExtensionService extensions) : ControllerBase
@@ -182,6 +183,33 @@ public class WorkersController(
     public async Task<IActionResult> SaveWorkArea([FromBody] UpdateWorkerWorkAreaRequest? request, CancellationToken ct)
     {
         var result = await workAreas.SaveAsync(request, ct);
+        return Ok(result);
+    }
+
+    /// <summary>Whether dispatch accepts the freelancer's Economy offers for them ("Tự động nhận đơn", contract §2.3C).</summary>
+    [HttpGet("me/auto-accept")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerAutoAcceptResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetAutoAccept(CancellationToken ct)
+    {
+        var result = await autoAccept.GetAsync(ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Turns "Tự động nhận đơn" on or off (contract §2.3C). 409 <c>NOT_FREELANCER</c> for agency staff, 409 <c>WORK_AREA_REQUIRED</c> when
+    /// turning it on without a registered work area.
+    /// </summary>
+    [HttpPut("me/auto-accept")]
+    [Authorize(Policy = "WorkerOnly")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerAutoAcceptResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SaveAutoAccept([FromBody] UpdateWorkerAutoAcceptRequest? request, CancellationToken ct)
+    {
+        var result = await autoAccept.SaveAsync(request, ct);
         return Ok(result);
     }
 
