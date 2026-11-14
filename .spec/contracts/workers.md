@@ -185,7 +185,7 @@ Submits CCCD photos and selfie for automated eKYC verification (`IEkycProvider`,
 
 | Status | Condition |
 |---|---|
-| 400 | Photo URLs missing or malformed |
+| 400 | Photo URLs missing (`errors.ekycPhotos`) or not acceptable (`errors.frontCccdUrl`, `errors.backCccdUrl`, `errors.selfieUrl`, every bad one at once): see the address rules below |
 | 409 | eKYC already approved |
 
 **Rules:**
@@ -193,6 +193,7 @@ Submits CCCD photos and selfie for automated eKYC verification (`IEkycProvider`,
 - `confidenceScore >= 85.00` (`Ekyc.AutoApproveConfidence`) -> `kycStatus = APPROVED`, `workStatus = IDLE` immediately.
 - `confidenceScore < 85.00` or fraud flag -> `kycStatus = MANUAL_REVIEW`, added to Admin review queue.
 - Freelancer cannot receive job assignments until `kycStatus == APPROVED`.
+- **Photo addresses (ADMIN-UAT-15):** each of the three is trimmed and must be an absolute `http` or `https` address (dev addresses such as `https://storage.local/...` and `https://storage.giupviec.local/...` included) or a root-relative path starting with a single `/`, at most 500 characters, with no space or control character. `javascript:`, `data:`, `file:`, `ftp:`, a protocol-relative `//host/...` and a bare name are refused with a 400 naming the field, because the Admin page shows the address in an `img` tag. The three trimmed addresses are stored on the worker (`WORKER.ekyc_front_cccd_url`, `ekyc_back_cccd_url`, `ekyc_selfie_url`, `NVARCHAR(500) NULL`) together with the result, whether the worker is approved or sent to manual review; a later submit replaces them. The provider receives the trimmed front and selfie addresses.
 
 ---
 
@@ -201,7 +202,7 @@ Lists pending manual eKYC reviews for Admin.
 
 **Query Parameters:** `page=1&pageSize=20&status=PENDING`. `status` (ADMIN-UAT-06) selects the list of the Admin audit page: `PENDING` (default: `MANUAL_REVIEW`, `PENDING`, `AUDIT_PENDING`), `APPROVED` (`kyc_status = APPROVED` and `kyc_reviewed_by` set, that is approved by an Admin; a worker the provider approved is not in it) or `REJECTED`; any other value is a 400 with `errors.status`. The Web page sends the tab it shows.
 
-**Known gap:** `frontCccdUrl`, `backCccdUrl` and `selfieUrl` are always null: the worker's photo addresses are validated and passed to the provider but not stored (no column), so the Admin review dialog has no photo to compare. Needs a schema decision of M1/M4.
+`frontCccdUrl`, `backCccdUrl` and `selfieUrl` are the addresses stored at the submit (2.2.1, ADMIN-UAT-15) so the Admin review dialog can show the photos. They are `null` for a worker whose row is older than the columns (it was submitted before the addresses were kept) and for an agency worker; the Web shows "Chưa có ảnh" for a `null` one.
 
 **Response 200 `data` (`PagedList<EkycQueueItemResponse>`):**
 ```json

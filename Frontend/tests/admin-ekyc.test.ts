@@ -12,6 +12,7 @@ import {
   TABS,
   ekycQueueRequest,
   ekycReviewRequest,
+  safeEkycPhotoUrl,
 } from '../src/features/workers/view.ts'
 import type { EkycQueueItemResponse } from '../src/features/workers/types.ts'
 
@@ -171,5 +172,28 @@ describe('the two calls of the audit page', () => {
     assert.equal(request.path, '/admin/workers/9/ekyc-review')
     assert.deepEqual(request.body, { approved: true, rejectionReason: null })
     assert.equal(JSON.stringify(request.body), '{"approved":true,"rejectionReason":null}')
+  })
+})
+
+describe('safeEkycPhotoUrl (ADMIN-UAT-15)', () => {
+  it('lets an http or https address and a root-relative path through, trimmed', () => {
+    assert.equal(safeEkycPhotoUrl('https://storage.giupviec.local/ekyc/102_front.jpg'), 'https://storage.giupviec.local/ekyc/102_front.jpg')
+    assert.equal(safeEkycPhotoUrl('http://localhost:5004/files/ekyc/1.jpg'), 'http://localhost:5004/files/ekyc/1.jpg')
+    assert.equal(safeEkycPhotoUrl('https://storage.local/a.png?x=1&y=2'), 'https://storage.local/a.png?x=1&y=2')
+    assert.equal(safeEkycPhotoUrl('/files/ekyc/1.jpg'), '/files/ekyc/1.jpg')
+    assert.equal(safeEkycPhotoUrl('  https://storage.local/a.jpg \n'), 'https://storage.local/a.jpg')
+    assert.equal(safeEkycPhotoUrl('https://s/f.jpg'), 'https://s/f.jpg') // the address the e2e script sends
+  })
+
+  it('gives null for nothing, blank, a script, a data address, another scheme, a protocol-relative path, a space or a bare name', () => {
+    for (const bad of [null, undefined, '', '   ', 'javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:image/png;base64,AAAA', 'ftp://storage.local/a.jpg', 'file:///etc/passwd', '//evil.example/a.jpg', '/a\b.jpg', 'https://', 'https://storage.local/a b.jpg', 'https://storage.local/a	b.jpg', 'a.jpg', 'storage.local/a.jpg']) {
+      assert.equal(safeEkycPhotoUrl(bad), null, String(bad))
+    }
+  })
+
+  it('an item with no stored address (a row older than the columns) has three nulls the page shows as "Chưa có ảnh"', () => {
+    const legacy = item({ frontCccdUrl: null, backCccdUrl: null, selfieUrl: null })
+    assert.deepEqual([legacy.frontCccdUrl, legacy.backCccdUrl, legacy.selfieUrl].map(safeEkycPhotoUrl), [null, null, null])
+    assert.equal(ekycQueueRow(legacy).workerId, 102) // the row of the table does not need the photos
   })
 })

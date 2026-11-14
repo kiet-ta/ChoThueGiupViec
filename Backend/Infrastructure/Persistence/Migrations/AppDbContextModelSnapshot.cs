@@ -2203,10 +2203,25 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("DECIMAL(9,6)")
                         .HasColumnName("current_lng");
 
+                    b.Property<string>("EkycBackCccdUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("ekyc_back_cccd_url");
+
                     b.Property<decimal?>("EkycConfidence")
                         .HasPrecision(18, 2)
                         .HasColumnType("DECIMAL(5,2)")
                         .HasColumnName("ekyc_confidence");
+
+                    b.Property<string>("EkycFrontCccdUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("ekyc_front_cccd_url");
+
+                    b.Property<string>("EkycSelfieUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("ekyc_selfie_url");
 
                     b.Property<string>("FullName")
                         .IsRequired()

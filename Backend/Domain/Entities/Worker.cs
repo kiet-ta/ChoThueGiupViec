@@ -35,6 +35,15 @@ public partial class Worker
     /// <summary>worker.kyc_status VARCHAR(15)</summary>
     public string KycStatus { get; set; } = string.Empty;
 
+    /// <summary>worker.ekyc_front_cccd_url NVARCHAR(500) NULL: the front of the CCCD the worker submitted; null for an agency worker and for a row older than the column.</summary>
+    public string? EkycFrontCccdUrl { get; set; }
+
+    /// <summary>worker.ekyc_back_cccd_url NVARCHAR(500) NULL</summary>
+    public string? EkycBackCccdUrl { get; set; }
+
+    /// <summary>worker.ekyc_selfie_url NVARCHAR(500) NULL</summary>
+    public string? EkycSelfieUrl { get; set; }
+
     /// <summary>worker.rating_avg DECIMAL(3,2)</summary>
     public decimal RatingAvg { get; set; }
 
