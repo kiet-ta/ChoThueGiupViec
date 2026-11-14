@@ -62,7 +62,7 @@ public class EkycTests
         var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new WorkerEkycService(repository, fakeEkyc, currentUser, rules);
+        var handler = new WorkerEkycService(repository, fakeEkyc, currentUser, rules, null!);
         var req = new SubmitEkycRequest(
             FrontCccdUrl: "https://storage.local/ekyc/front.jpg",
             BackCccdUrl: "https://storage.local/ekyc/back.jpg",
@@ -107,7 +107,7 @@ public class EkycTests
         var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new WorkerEkycService(repository, fakeEkyc, currentUser, rules);
+        var handler = new WorkerEkycService(repository, fakeEkyc, currentUser, rules, null!);
         var req = new SubmitEkycRequest(
             FrontCccdUrl: "https://storage.local/ekyc/front.jpg",
             BackCccdUrl: "https://storage.local/ekyc/back.jpg",
@@ -149,7 +149,7 @@ public class EkycTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
 
         // Act
         var result = await handler.GetStatusAsync(CancellationToken.None);

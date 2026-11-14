@@ -5,6 +5,7 @@ using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Fakes;
+using CommonService.Infrastructure.Modules.Admin;
 using CommonService.Infrastructure.Modules.Workers;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -81,7 +82,7 @@ public class EkycAuditTests
         rejected.ReviewKyc(approved: false, adminId: admin.AdminId);
         await db.SaveChangesAsync();
 
-        var handler = new WorkerEkycService(repository, null!, new TestCurrentUser { UserId = 1, Role = UserRole.Admin }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        var handler = new WorkerEkycService(repository, null!, new TestCurrentUser { UserId = 1, Role = UserRole.Admin }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
         async Task<List<int>> Ids(string? status) =>
             (await handler.GetQueueAsync(1, 200, status!, CancellationToken.None)).Data!.Items.Select(i => i.WorkerId).ToList();
 
@@ -126,7 +127,7 @@ public class EkycAuditTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = 1, Role = UserRole.Admin };
-        var queryHandler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        var queryHandler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
 
         // Act
         var result = await queryHandler.GetQueueAsync(1, 20, CommonService.Application.Features.Workers.EkycQueueStatus.Pending, CancellationToken.None);
@@ -164,7 +165,7 @@ public class EkycAuditTests
 
         int adminId = await CommonService.Tests.Persistence.SqlSeed.AdminAsync(db);
         var currentUser = new TestCurrentUser { UserId = adminId, Role = UserRole.Admin };
-        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new EfAuditLog(db, new FakeClock()));
         var req = new ReviewEkycRequest(Approved: true);
 
         // Act
@@ -204,7 +205,7 @@ public class EkycAuditTests
 
         int adminId = await CommonService.Tests.Persistence.SqlSeed.AdminAsync(db);
         var currentUser = new TestCurrentUser { UserId = adminId, Role = UserRole.Admin };
-        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new EfAuditLog(db, new FakeClock()));
         var req = new ReviewEkycRequest(Approved: false, RejectionReason: "ID photo does not match selfie.");
 
         // Act
@@ -221,6 +222,102 @@ public class EkycAuditTests
         Assert.Equal("REJECTED", updated.KycStatus);
         Assert.Equal(adminId, updated.KycReviewedBy);
         Assert.Equal(WorkStatus.Locked, updated.WorkStatus);
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task ReviewAsync_Approved_WritesTheAuditRowsInTheSameUnitOfWork()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+
+        var worker = Worker.CreateFreelancer($"094{Random.Shared.Next(1000000, 9999999)}", $"012{Random.Shared.Next(100000000, 999999999)}", "Audited Approval Worker");
+        worker.SetKycResult(80.00m, "MANUAL_REVIEW");
+        db.Workers.Add(worker);
+        await db.SaveChangesAsync();
+
+        int adminId = await CommonService.Tests.Persistence.SqlSeed.AdminAsync(db);
+        var handler = new WorkerEkycService(new EfWorkerRepository(db), null!, new TestCurrentUser { UserId = adminId, Role = UserRole.Admin },
+            Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new EfAuditLog(db, new FakeClock()));
+
+        await handler.ReviewAsync(worker.WorkerId, new ReviewEkycRequest(Approved: true, RejectionReason: "Khớp selfie"), CancellationToken.None);
+
+        var rows = await db.AdminAuditLogs.AsNoTracking()
+            .Where(a => a.EntityType == "WORKER" && a.EntityId == worker.WorkerId.ToString())
+            .OrderBy(a => a.LogId).ToListAsync();
+        Assert.Collection(rows,
+            kyc => Assert.Equal(("kyc_status", "MANUAL_REVIEW", "APPROVED", "Khớp selfie", adminId), (kyc.FieldName, kyc.OldValue, kyc.NewValue, kyc.Reason, kyc.AdminId)),
+            work => Assert.Equal(("work_status", "PENDING", "IDLE", "Khớp selfie", adminId), (work.FieldName, work.OldValue, work.NewValue, work.Reason, work.AdminId)));
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task ReviewAsync_Rejected_WritesTheAuditRowsWithTheReasonAndNothingWithoutOne()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+
+        var worker = Worker.CreateFreelancer($"093{Random.Shared.Next(1000000, 9999999)}", $"012{Random.Shared.Next(100000000, 999999999)}", "Audited Rejection Worker");
+        worker.SetKycResult(50.00m, "MANUAL_REVIEW");
+        db.Workers.Add(worker);
+        await db.SaveChangesAsync();
+
+        int adminId = await CommonService.Tests.Persistence.SqlSeed.AdminAsync(db);
+        var handler = new WorkerEkycService(new EfWorkerRepository(db), null!, new TestCurrentUser { UserId = adminId, Role = UserRole.Admin },
+            Microsoft.Extensions.Options.Options.Create(new BusinessRules()), new EfAuditLog(db, new FakeClock()));
+        string id = worker.WorkerId.ToString();
+
+        await Assert.ThrowsAsync<CommonService.Application.Exceptions.ValidationException>(() =>
+            handler.ReviewAsync(worker.WorkerId, new ReviewEkycRequest(Approved: false), CancellationToken.None));
+        Assert.False(await db.AdminAuditLogs.AnyAsync(a => a.EntityType == "WORKER" && a.EntityId == id));
+        Assert.Equal("MANUAL_REVIEW", (await db.Workers.AsNoTracking().SingleAsync(w => w.WorkerId == worker.WorkerId)).KycStatus);
+
+        await handler.ReviewAsync(worker.WorkerId, new ReviewEkycRequest(Approved: false, RejectionReason: "Ảnh mờ"), CancellationToken.None);
+
+        var rows = await db.AdminAuditLogs.AsNoTracking().Where(a => a.EntityType == "WORKER" && a.EntityId == id).OrderBy(a => a.LogId).ToListAsync();
+        Assert.Collection(rows,
+            kyc => Assert.Equal(("kyc_status", "MANUAL_REVIEW", "REJECTED", "Ảnh mờ"), (kyc.FieldName, kyc.OldValue, kyc.NewValue, kyc.Reason)),
+            work => Assert.Equal(("work_status", "PENDING", "LOCKED", "Ảnh mờ"), (work.FieldName, work.OldValue, work.NewValue, work.Reason)));
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task GetQueueAsync_Pending_ListsManualReviewAndAuditPendingButNotAWorkerThatHasNotSubmittedEkyc()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+
+        Worker NewWorker(string name, string? status)
+        {
+            var w = Worker.CreateFreelancer($"092{Random.Shared.Next(1000000, 9999999)}", $"012{Random.Shared.Next(100000000, 999999999)}", name);
+            w.KycStatus = "PENDING"; // as WorkerProfileService.RegisterAsync sets it
+            if (status is not null) w.SetKycResult(72.0m, status);
+            db.Workers.Add(w);
+            return w;
+        }
+
+        var unsubmitted = NewWorker("Queue Not Submitted", null); // registered, no eKYC submitted yet
+        var manual = NewWorker("Queue Manual Review", "MANUAL_REVIEW");
+        var audit = NewWorker("Queue Sample Audit", "AUDIT_PENDING");
+        await db.SaveChangesAsync();
+
+        Assert.Equal("PENDING", unsubmitted.KycStatus);
+        var handler = new WorkerEkycService(new EfWorkerRepository(db), null!, new TestCurrentUser { UserId = 1, Role = UserRole.Admin },
+            Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
+        var ids = (await handler.GetQueueAsync(1, 500, "PENDING", CancellationToken.None)).Data!.Items.Select(i => i.WorkerId).ToList();
+
+        Assert.Contains(manual.WorkerId, ids);
+        Assert.Contains(audit.WorkerId, ids);
+        Assert.DoesNotContain(unsubmitted.WorkerId, ids);
 
         await transaction.RollbackAsync();
     }

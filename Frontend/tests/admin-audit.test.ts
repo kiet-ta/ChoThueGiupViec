@@ -56,6 +56,18 @@ describe('the Q14 flag rows of ADMIN-UAT-10', () => {
     assert.equal(fieldLabel('dispute_status'), 'dispute_status')
   })
 
+  it('names the two fields an eKYC review writes (ADMIN-UAT-13)', () => {
+    assert.equal(fieldLabel('kyc_status'), 'Trạng thái eKYC')
+    assert.equal(fieldLabel('work_status'), 'Trạng thái làm việc')
+  })
+
+  it('an eKYC rejection row shows the field name and the change (and keeps the reason)', () => {
+    const row = auditRow(entry({ entityType: 'WORKER', entityId: '5', fieldName: 'kyc_status', oldValue: 'MANUAL_REVIEW', newValue: 'REJECTED', reason: 'Ảnh mờ' }))
+    assert.equal(row.field, 'Trạng thái eKYC')
+    assert.equal(row.change, 'MANUAL_REVIEW → REJECTED')
+    assert.equal(row.reason, 'Ảnh mờ')
+  })
+
   it('a system row about a customer reads "Hệ thống · Khách hàng · Cờ đánh giá thấp · false → true"', () => {
     const row = auditRow(entry({ actorType: 'SYSTEM', adminId: null, entityType: 'CUSTOMER', entityId: '9', fieldName: 'low_rating_flag', oldValue: 'false', newValue: 'true' }))
 

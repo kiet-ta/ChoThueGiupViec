@@ -62,7 +62,8 @@ public class EfWorkerRepository(AppDbContext dbContext) : IWorkerRepository
         {
             EkycQueueStatus.Approved => workers.Where(w => w.KycStatus == "APPROVED" && w.KycReviewedBy != null),
             EkycQueueStatus.Rejected => workers.Where(w => w.KycStatus == "REJECTED"),
-            _ => workers.Where(w => w.KycStatus == "MANUAL_REVIEW" || w.KycStatus == "PENDING" || w.KycStatus == "AUDIT_PENDING"),
+            // A worker still PENDING has not submitted eKYC yet: nothing to review, so it stays out of the queue.
+            _ => workers.Where(w => w.KycStatus == "MANUAL_REVIEW" || w.KycStatus == "AUDIT_PENDING"),
         };
 
         var totalCount = await query.CountAsync(cancellationToken);
