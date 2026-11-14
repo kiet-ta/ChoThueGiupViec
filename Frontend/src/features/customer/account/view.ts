@@ -1,6 +1,6 @@
 // Pure logic of the address, favorites and profile screens (no React, so `node --test` covers it).
 // Rules: .spec/contracts/customers.md 2.1/2.2 (validation), booking.md 1.3 (area bracket, workers), Address.RoomMaxAreaM2 30, Address.HouseMaxFloors 10.
-import type { Address, AddressBody, HousingType } from './types.ts'
+import type { Address, AddressBody, HousingType, ReverseGeocodeResult } from './types.ts'
 
 /** Match Vietnamese place names without case, accents or the đ/d distinction. */
 export function filterAdminUnits(items: string[], query: string): string[] {
@@ -131,6 +131,77 @@ export function formFromAddress(a: Address): AddressForm {
 
 /** The wards of a province, empty for an unknown province. */
 export const wardsOf = (units: Record<string, string[]>, city: string): string[] => units[city] ?? []
+
+// ---------- Address map (ADDR-MAP-02) ----------
+
+/**
+ * Map tiles of the address map: the Humanitarian OSM style served by OpenStreetMap France (free; street names in Vietnamese;
+ * the plain osmfr style shows French names). Not tile.openstreetmap.org: on 2026-11-14 it refused IPv4 connections from a
+ * Vietnamese network (IPv6 only), which left the map grey. A paid provider replaces this one constant.
+ */
+export const ADDRESS_MAP_TILES = {
+  url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+  attribution: '&copy; OpenStreetMap contributors, Humanitarian OSM Team, OpenStreetMap France',
+} as const
+
+const fold = (value: string) => value.toLocaleLowerCase('vi').normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').trim()
+const CITY_PREFIX = /^(thanh pho|tinh|tp\.?)\s*/
+const WARD_PREFIX = /^(phuong|xa|thi tran|dac khu|p\.|tt\.)\s*/
+/** A place name without case, accents, its administrative prefix and punctuation ("Phường Bến Thành" -> "benthanh"). */
+const bareName = (value: string, prefix: RegExp) => fold(value).replace(prefix, '').replace(/[^a-z0-9]/g, '')
+
+/** The catalogue province for a name read on the map ("Hồ Chí Minh", "TP. Hồ Chí Minh"...), or null. */
+export function matchCity(units: Record<string, string[]>, raw: string | null | undefined): string | null {
+  const name = raw?.trim()
+  if (!name) return null
+  if (name in units) return name
+  const wanted = bareName(name, CITY_PREFIX)
+  return wanted ? Object.keys(units).find((key) => bareName(key, CITY_PREFIX) === wanted) ?? null : null
+}
+
+/**
+ * The catalogue ward of [city] for a name read on the map: "Bến Thành" -> "Phường Bến Thành". When the ward name is missing or
+ * unknown, one part of the full address ("…, Bến Thành, Thành phố Hồ Chí Minh") may name it. Only an exact name matches: a ward
+ * that cannot be matched is null, never guessed.
+ */
+export function matchWard(units: Record<string, string[]>, city: string | null, raw: string | null | undefined, formattedAddress = ''): string | null {
+  const wards = city ? units[city] ?? [] : []
+  if (!wards.length) return null
+  const find = (name: string) => {
+    const wanted = bareName(name, WARD_PREFIX)
+    return wanted ? wards.find((w) => w === name.trim() || bareName(w, WARD_PREFIX) === wanted) ?? null : null
+  }
+  return (raw ? find(raw) : null) ?? formattedAddress.split(',').map(find).find((w) => w !== null) ?? null
+}
+
+export interface AddressFill {
+  /** The street line read there, or null to keep what the customer typed. */
+  addressLine: string | null
+  city: string
+  /** The matched ward, or '' so the customer chooses it. */
+  district: string
+}
+
+/** What the address form takes from the address read at the point clicked on the map. */
+export function fillFromGeocode(units: Record<string, string[]>, result: ReverseGeocodeResult, currentCity: string): AddressFill {
+  const line = result.addressLine.trim() || result.formattedAddress.trim()
+  const city = matchCity(units, result.city) ?? currentCity
+  return { addressLine: line || null, city, district: matchWard(units, city, result.district, result.formattedAddress) ?? '' }
+}
+
+/** One line under the map: the full address when the server sent it, else its parts. */
+export function placeText(result: ReverseGeocodeResult): string {
+  return result.formattedAddress.trim() || [result.addressLine, result.district, result.city].map((s) => s.trim()).filter(Boolean).join(', ')
+}
+
+/** Numbers each request so an answer that arrives late for an earlier click is dropped. */
+export function latestRequest() {
+  let last = 0
+  return { next: () => ++last, isLatest: (ticket: number) => ticket === last }
+}
+
+/** Six decimals, as the address table stores them. */
+export const roundCoordinate = (value: number) => Number(value.toFixed(6))
 
 // ---------- Profile ----------
 export interface ProfileErrors {
