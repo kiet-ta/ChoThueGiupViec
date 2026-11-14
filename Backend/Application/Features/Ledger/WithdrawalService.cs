@@ -12,6 +12,32 @@ public static class WithdrawalErrorCodes
     public const string Pending = "WITHDRAWAL_PENDING";
     public const string NotPending = "WITHDRAWAL_NOT_PENDING";
     public const string Insufficient = "WITHDRAWAL_INSUFFICIENT";
+
+    /// <summary>The previous month is not settled yet for this worker (decision D31): no withdrawal is created or approved meanwhile.</summary>
+    public const string Settling = "WITHDRAWAL_SETTLING";
+}
+
+/// <summary>
+/// Decision D31 (LEDGER-30): the monthly settlement pays the balance as it stood at 00:00 on the 1st (Asia/Ho_Chi_Minh) but runs later
+/// (from 00:05, hourly), so a withdrawal written in between would be paid twice. Withdrawals of a worker are therefore paused until the
+/// previous month is settled for that worker: its batch is CLOSED or already holds the worker's item. The check runs under the worker's
+/// lock, the same lock the settlement of that worker takes.
+/// </summary>
+public static class WithdrawalSettlementGate
+{
+    /// <summary>The month (<c>yyyy-MM</c>) that must be settled before the worker may withdraw: the month before the current Vietnam month.</summary>
+    public static string PreviousPeriod(IClock clock)
+    {
+        var local = clock.ToLocal(clock.UtcNow);
+        var previous = new DateTime(local.Year, local.Month, 1).AddMonths(-1);
+        return Payouts.PayoutConstants.FormatPeriod(previous.Year, previous.Month);
+    }
+
+    public static async Task<bool> IsPausedAsync(IWithdrawalRepository repository, IClock clock, int workerId, CancellationToken cancellationToken) =>
+        !await repository.IsSettledForAsync(workerId, PreviousPeriod(clock), cancellationToken);
+
+    public static BusinessRuleViolationException Conflict() =>
+        new("Đang tất toán lương tháng trước. Bạn có thể rút tiền lại ngay khi tất toán xong.", WithdrawalErrorCodes.Settling);
 }
 
 public record WithdrawalDto(int WithdrawalId, decimal Amount, string Status, DateTime RequestedAt, DateTime? ReviewedAt, string? RejectReason);
@@ -21,7 +47,8 @@ public record WithdrawalPageDto(IReadOnlyList<WithdrawalDto> Items, int Page, in
 public record PendingWithdrawalDto(int WithdrawalId, decimal Amount, string Status, DateTime RequestedAt);
 
 /// <summary>The worker's wallet: <c>Available</c> is what can be withdrawn now (24 hours after completion, no open dispute, minus held).</summary>
-public record WalletDto(decimal Balance, decimal Available, decimal Held, PendingWithdrawalDto? PendingWithdrawal, DateTime? NextAvailableAt);
+/// <remarks><c>WithdrawalsPaused</c> is true while the previous month is not settled for the worker (decision D31): no request can be sent or approved.</remarks>
+public record WalletDto(decimal Balance, decimal Available, decimal Held, PendingWithdrawalDto? PendingWithdrawal, DateTime? NextAvailableAt, bool WithdrawalsPaused = false);
 
 public record WithdrawalWorker(WorkerType Type, string? BankAccountNo, string? BankName);
 
@@ -66,6 +93,12 @@ public interface IWithdrawalRepository
 
     /// <summary>Flushes what is tracked (the audit row) inside the current transaction.</summary>
     Task SaveAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when the month <paramref name="periodMonth"/> (<c>yyyy-MM</c>) is settled for the worker: its PAYOUT_BATCH is CLOSED or already holds
+    /// the worker's PAYOUT_ITEM (read only; decision D31).
+    /// </summary>
+    Task<bool> IsSettledForAsync(int workerId, string periodMonth, CancellationToken cancellationToken = default);
 }
 
 public interface IWithdrawalService
@@ -91,10 +124,11 @@ public class WithdrawalService(IWithdrawalRepository repository, ILedgerBalanceS
         await RequireFreelancerAsync(workerId, cancellationToken);
         var balance = await balances.GetAsync(new LedgerParty(LedgerPartyType.Worker, workerId), cancellationToken);
         var pending = await repository.GetPendingAsync(workerId, cancellationToken);
+        var paused = await WithdrawalSettlementGate.IsPausedAsync(repository, clock, workerId, cancellationToken);
         return new WalletDto(
             balance.Balance, balance.Available ?? 0m, balance.Held,
             pending is null ? null : new PendingWithdrawalDto(pending.WithdrawalId, pending.Amount, DbEnum.ToDb(pending.RequestStatus), pending.RequestedAt),
-            balance.NextAvailableAt);
+            balance.NextAvailableAt, paused);
     }
 
     public async Task<WithdrawalDto> CreateAsync(int workerId, decimal amount, CancellationToken cancellationToken = default)
@@ -106,6 +140,7 @@ public class WithdrawalService(IWithdrawalRepository repository, ILedgerBalanceS
         return await repository.ExecuteLockedAsync(workerId, async () =>
         {
             if (await repository.GetPendingAsync(workerId, cancellationToken) is not null) throw PendingConflict();
+            if (await WithdrawalSettlementGate.IsPausedAsync(repository, clock, workerId, cancellationToken)) throw WithdrawalSettlementGate.Conflict();
 
             var balance = await balances.GetAsync(new LedgerParty(LedgerPartyType.Worker, workerId), cancellationToken);
             if (amount > (balance.Available ?? 0m))

@@ -49,12 +49,16 @@ class Wallet {
   /// When the next part of the balance becomes withdrawable; null when nothing is waiting.
   final DateTime? nextAvailableAt;
 
+  /// True while last month's pay is being settled (decision D31): no request can be sent until it is done.
+  final bool withdrawalsPaused;
+
   const Wallet({
     required this.balance,
     required this.available,
     required this.held,
     required this.pendingWithdrawal,
     required this.nextAvailableAt,
+    this.withdrawalsPaused = false,
   });
 
   factory Wallet.fromJson(Map<String, dynamic> json) {
@@ -69,6 +73,7 @@ class Wallet {
       nextAvailableAt: DateTime.tryParse(
         json['nextAvailableAt'] as String? ?? '',
       ),
+      withdrawalsPaused: json['withdrawalsPaused'] == true,
     );
   }
 }

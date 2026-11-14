@@ -352,7 +352,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   /// The warning (always shown), the amount field and the errors.
   Widget _form(Wallet wallet) {
-    final locked = wallet.pendingWithdrawal != null;
+    final locked = wallet.pendingWithdrawal != null || wallet.withdrawalsPaused;
     return ErrorShake(
       errors: _errors,
       child: NordicCard(
@@ -396,7 +396,18 @@ class _WalletScreenState extends State<WalletScreen> {
               _errorText(_fieldError!, const Key('wallet-field-error')),
             if (_actionError != null)
               _errorText(_actionError!, const Key('wallet-error')),
-            if (locked)
+            if (wallet.withdrawalsPaused)
+              Container(
+                key: const Key('wallet-paused'),
+                margin: const EdgeInsets.only(top: NordicSpace.xs),
+                padding: const EdgeInsets.all(NordicSpace.sm),
+                decoration: const BoxDecoration(
+                  color: NordicColors.amberSoft,
+                  borderRadius: NordicRadius.tileAll,
+                ),
+                child: Text(withdrawalsPausedText, style: _warningStyle),
+              )
+            else if (wallet.pendingWithdrawal != null)
               const Padding(
                 padding: EdgeInsets.only(top: NordicSpace.xs),
                 child: Text(

@@ -21500,6 +21500,9 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "withdrawalsPaused": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

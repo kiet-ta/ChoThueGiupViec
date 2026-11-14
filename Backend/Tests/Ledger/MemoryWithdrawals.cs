@@ -19,6 +19,16 @@ public class MemoryWithdrawals : IWithdrawalRepository
     public int Saves { get; private set; }
     public bool HoldsLock { get; private set; }
 
+    /// <summary>Months settled per worker (decision D31). Null means every month is settled, so the older tests are not paused.</summary>
+    public HashSet<(int WorkerId, string Period)>? Settled { get; set; }
+    public List<(int WorkerId, string Period, bool UnderLock)> SettledChecks { get; } = [];
+
+    public Task<bool> IsSettledForAsync(int workerId, string periodMonth, CancellationToken cancellationToken = default)
+    {
+        SettledChecks.Add((workerId, periodMonth, HoldsLock));
+        return Task.FromResult(Settled is null || Settled.Contains((workerId, periodMonth)));
+    }
+
     public Task<WithdrawalWorker?> GetWorkerAsync(int workerId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Workers.GetValueOrDefault(workerId));
 

@@ -344,6 +344,9 @@ describe('withdrawal requests', () => {
     assert.match(withdrawalActionError(conflict('WITHDRAWAL_INSUFFICIENT')), /không còn đủ.*từ chối yêu cầu/)
     assert.match(withdrawalActionError(conflict('WITHDRAWAL_NOT_PENDING')), /đã được xử lý/)
     assert.match(withdrawalActionError(conflict('LEDGER_BUSY')), /bận/)
+    // LEDGER-30 (decision D31): an approval before the worker's previous month is settled.
+    assert.match(withdrawalActionError(conflict('WITHDRAWAL_SETTLING')), /Đang tất toán lương tháng trước.*duyệt lại sau/)
+    assert.equal(shouldReloadAfter(conflict('WITHDRAWAL_SETTLING')), true)
     assert.equal(withdrawalActionError(conflict('SOMETHING_ELSE')), 'raw')
     assert.equal(withdrawalActionError(conflict(undefined)), 'raw')
     assert.match(withdrawalActionError({ status: 404, message: 'x', data: null }), /Không tìm thấy/)

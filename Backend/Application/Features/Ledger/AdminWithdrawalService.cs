@@ -125,6 +125,13 @@ public class AdminWithdrawalService(
             var request = await repository.GetByIdAsync(withdrawalId, cancellationToken) ?? throw new NotFoundException("Withdrawal request", withdrawalId);
             if (request.RequestStatus != WithdrawalStatus.Pending) throw NotPending();
 
+            // Decision D31: until the previous month is settled for this worker, an approval would be paid again by the settlement.
+            if (await WithdrawalSettlementGate.IsPausedAsync(repository, clock, request.WorkerId, cancellationToken))
+            {
+                throw new BusinessRuleViolationException(
+                    "Đang tất toán lương tháng trước của thợ này. Hãy duyệt lại sau khi tất toán xong.", WithdrawalErrorCodes.Settling);
+            }
+
             // The request holds its own amount, so what counts is the withdrawable amount before the hold: a later penalty can make it short.
             var balance = await balances.GetAsync(new LedgerParty(LedgerPartyType.Worker, request.WorkerId), cancellationToken);
             if ((balance.WithdrawableBeforeHold ?? 0m) < request.Amount)

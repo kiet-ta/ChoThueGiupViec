@@ -21,12 +21,14 @@ Wallet _wallet({
   int held = 0,
   PendingWithdrawal? pending,
   DateTime? next,
+  bool paused = false,
 }) => Wallet(
   balance: balance,
   available: available,
   held: held,
   pendingWithdrawal: pending,
   nextAvailableAt: next,
+  withdrawalsPaused: paused,
 );
 
 Withdrawal _withdrawal(String status, int amount) => Withdrawal(
@@ -186,6 +188,78 @@ void main() {
         expect(_text(tester, 'wallet-pending-amount'), '100.000 đ');
         expect(find.byKey(const Key('wallet-locked')), findsOneWidget);
         expect(find.byKey(const Key('wallet-cancel')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'LEDGER-30: while last month is being settled the form is locked and says why',
+      (tester) async {
+        final service = FakeWalletService(_wallet(paused: true));
+        await pumpWallet(tester, service);
+
+        expect(_submitEnabled(tester), isFalse);
+        expect(find.byKey(const Key('wallet-paused')), findsOneWidget);
+        expect(
+          find.textContaining('Đang tất toán lương tháng trước'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('wallet-locked')), findsNothing);
+        expect(find.byKey(const Key('wallet-nothing')), findsNothing);
+        expect(
+          _text(tester, 'wallet-available'),
+          '188.000 đ',
+        ); // the figures are still shown
+
+        await tester.enterText(
+          find.byKey(const Key('wallet-amount')),
+          '100.000',
+        );
+        await tester.pump();
+        expect(
+          service.requested,
+          isEmpty,
+        ); // the field is read-only and the button is off
+      },
+    );
+
+    testWidgets(
+      'LEDGER-30: a pending request during the settlement keeps its card and cancel',
+      (tester) async {
+        final service = FakeWalletService(
+          _wallet(held: 100000, pending: _pending, paused: true),
+        );
+        await pumpWallet(tester, service);
+
+        expect(find.byKey(const Key('wallet-paused')), findsOneWidget);
+        expect(find.byKey(const Key('wallet-pending-card')), findsOneWidget);
+        expect(find.byKey(const Key('wallet-cancel')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'LEDGER-30: a 409 WITHDRAWAL_SETTLING is explained and the wallet is reloaded',
+      (tester) async {
+        final service = FakeWalletService(_wallet())
+          ..requestError = const ApiException(
+            409,
+            'Đang tất toán',
+            code: 'WITHDRAWAL_SETTLING',
+          );
+        await pumpWallet(tester, service);
+        final loadsBefore = service.loads;
+
+        await tester.enterText(
+          find.byKey(const Key('wallet-amount')),
+          '100.000',
+        );
+        await tester.tap(find.byKey(const Key('wallet-submit')));
+        await tester.pumpAndSettle();
+
+        expect(
+          _text(tester, 'wallet-error'),
+          startsWith('Đang tất toán lương tháng trước'),
+        );
+        expect(service.loads, greaterThan(loadsBefore));
       },
     );
 

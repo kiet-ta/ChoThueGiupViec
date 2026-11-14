@@ -291,6 +291,12 @@ The customer sees the route, distance and travel time from the worker to the hou
 3. **Fallback:** empty `Valhalla:BaseUrl` -> Haversine (Fake); Valhalla down, HTTP error, timeout (`Valhalla:MatrixTimeoutSeconds`, default 3 s) or a worker without a route -> that candidate keeps its straight-line distance and a warning is logged. Dispatch never fails because routing does.
 4. **Scope:** Economy offers and next-candidate (`ScanCandidatesAsync`) and the customer's preferred worker (`FindWorkerCandidateAsync`). Premium (agency hold) and the BR-02 fallback are unchanged. `approximateDistanceKm` of the worker API stays straight-line.
 
+### D31 Withdrawals pause until the previous month is settled (LEDGER-30, #861; Duy 2026-11-14)
+1. **Why:** the monthly settlement pays a payee's balance as it stood at 00:00 on the 1st (Asia/Ho_Chi_Minh) but runs from 00:05 and then hourly (later when the service was down). A withdrawal written in between is dated in the new month, the settlement does not see it, and the same money is paid twice.
+2. **Rule:** a freelancer's withdrawals are paused from 00:00 on the 1st until the previous month is settled for that worker: its `PAYOUT_BATCH` is CLOSED or already holds the worker's `PAYOUT_ITEM`. While paused, creating a request and an Admin approval answer 409 `WITHDRAWAL_SETTLING`; cancel and reject stay allowed; a request pending at the cut-off stays held and can be approved once the worker is settled. The check runs under the worker lock `ledger-party:WORKER:{id}` that the settlement of that worker also takes.
+3. **Rejected alternative:** paying `min(balance at the cut-off, current balance)` at the settlement (harder to explain to workers).
+4. **Display:** the wallet carries `withdrawalsPaused`; the worker app locks the form and says why; the Admin web explains the 409.
+
 ### D26 CQRS Read-Join Convention (Architecture Refinement, 2026-11-09)
 1. **Write Side (Commands, State Transitions, Dispatch Matching):** Strictly 0-JOIN. All entity mutations, dispatch slot holds, and state machine transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned).
 2. **Read Side (Queries & Projections):** Explicit LINQ `join` is permitted under 4 mandatory constraints:
