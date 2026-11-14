@@ -1,4 +1,6 @@
 // Wire shapes of .spec/contracts/booking.md section 2 used by the order screens (camelCase, UTC ISO-8601).
+import type { AcceptanceBlock } from '../after-shift/acceptance'
+
 export interface ProgressAssignment {
   assignmentId: number
   assignmentSeq: number
@@ -8,6 +10,8 @@ export interface ProgressAssignment {
   assignmentStatus: string
   acceptedAt: string | null
   completedAt: string | null
+  /** ACCEPT-02: the server's acceptance phase and deadlines (absent on an older server, null outside the execution). */
+  acceptance?: AcceptanceBlock | null
 }
 
 export interface Extension {

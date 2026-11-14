@@ -6,6 +6,8 @@ import { ordersApi } from '../orders/api'
 import type { OrderProgress, ProgressAssignment } from '../orders/types'
 import { afterShiftApi } from './api'
 import type { JobPhoto } from './types'
+import { canAskRedo, customerAcceptanceView } from './acceptance'
+import { useNow } from './useNow'
 import { acceptedLine, afterShiftProblem, anglePairs, anglesSummary, redoReasonError, REDO_REASON_MAX, reviewAssignments } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
@@ -52,6 +54,7 @@ export function AcceptancePage() {
   const [reasonError, setReasonError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<string | null>(null)
+  const now = useNow()
 
   useEffect(() => {
     let cancelled = false
@@ -90,6 +93,9 @@ export function AcceptancePage() {
 
   const waiting = target?.assignmentStatus === 'AWAITING_ACCEPTANCE'
   const pairs = anglePairs(photos ?? [])
+  // ACCEPT-02: the phase and deadline come from the server; a redo only while the worker is still on site.
+  const phase = waiting ? customerAcceptanceView(target?.acceptance, now) : null
+  const redoOpen = canAskRedo(target?.acceptance, now)
 
   async function act(kind: 'accept' | 'redo') {
     if (!target || busy) return
@@ -132,15 +138,18 @@ export function AcceptancePage() {
         </div>
       </section>)}
       {waiting && !done && <section className={card}>
-        <p className="text-sm text-stone-500">Máy chủ chưa gửi hạn nghiệm thu cho ca này, nên trang không hiển thị đồng hồ đếm ngược.</p>
-        {redo && <div className="mt-4" role="group" aria-label="Yêu cầu dọn lại">
+        {phase && <div role="status" aria-label="Trạng thái nghiệm thu" className="rounded-lg bg-amber-50 p-3">
+          <p className="font-semibold text-amber-900">{phase.title}</p>
+          <p className="mt-1 text-sm text-amber-900">{phase.note}</p>
+        </div>}
+        {redo && redoOpen && <div className="mt-4" role="group" aria-label="Yêu cầu dọn lại">
           <label className="block text-sm font-medium">Cần dọn lại điều gì?
             <textarea value={reason} maxLength={REDO_REASON_MAX} onChange={(e) => setReason(e.target.value)} aria-invalid={reasonError !== null} className="mt-1 min-h-20 w-full rounded-lg border border-stone-300 p-3 text-sm" /></label>
           {reasonError && <p role="alert" className="mt-1 text-sm text-red-700">{reasonError}</p>}
         </div>}
         <div className="mt-4 flex flex-wrap justify-end gap-3">
-          {!redo ? <button type="button" onClick={() => setRedo(true)} className="h-10 rounded-lg border border-stone-300 px-4 font-semibold">Yêu cầu dọn lại</button>
-            : <button type="button" disabled={busy} onClick={() => void act('redo')} className="h-10 rounded-lg border border-stone-300 px-4 font-semibold disabled:opacity-50">Gửi yêu cầu dọn lại</button>}
+          {redoOpen && (!redo ? <button type="button" onClick={() => setRedo(true)} className="h-10 rounded-lg border border-amber-300 bg-amber-50 px-4 font-semibold text-amber-900">Chưa sạch? Nhờ dọn lại</button>
+            : <button type="button" disabled={busy} onClick={() => void act('redo')} className="h-10 rounded-lg border border-stone-300 px-4 font-semibold disabled:opacity-50">Gửi yêu cầu dọn lại</button>)}
           <button type="button" disabled={busy} onClick={() => void act('accept')} className="flex h-10 items-center gap-2 rounded-lg bg-[#1a2f25] px-4 font-semibold text-white disabled:opacity-50">{busy && <Loader size={16} className="animate-spin" />}Nghiệm thu ca này</button>
         </div>
       </section>}

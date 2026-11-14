@@ -7,6 +7,7 @@ import 'package:mobile/core/device/camera_wrapper.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/core/widgets/nordic_text_input.dart';
+import 'package:mobile/features/workers/logic/acceptance_logic.dart';
 import 'package:mobile/features/workers/models/job_photo_models.dart';
 import 'package:mobile/features/workers/screens/worker_photos_screen.dart';
 import 'package:mobile/features/workers/services/workers_photos_service.dart';
@@ -480,6 +481,35 @@ void main() {
           findsOneWidget,
         );
         expect(service.submitCompletionCalls, 0);
+      },
+    );
+
+    testWidgets(
+      'ACCEPT-02: a submitted job shows the acceptance phase the server sends',
+      (tester) async {
+        useDesignFrame(tester);
+        final service = RecordingPhotosService(initialPhotos: allFivePhotos());
+        final far = DateTime.now().toUtc().add(const Duration(days: 3));
+        await tester.pumpWidget(
+          screen(
+            service,
+            FakeCamera(jpeg),
+            assignments: FakeAssignmentsService(
+              status: 'AWAITING_ACCEPTANCE',
+              acceptance: AcceptanceBlock(
+                phase: AcceptancePhase.review,
+                redoUntil: far,
+                autoAcceptAt: far,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Đã bàn giao'), findsOneWidget);
+        expect(find.textContaining('Bạn có thể rời đi'), findsOneWidget);
+        expect(find.textContaining('chậm nhất'), findsOneWidget);
+        expect(find.textContaining('Đang chờ gia chủ xác nhận'), findsNothing);
       },
     );
 

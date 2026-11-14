@@ -1,3 +1,5 @@
+import '../../workers/logic/acceptance_logic.dart';
+
 // Models of the customer booking screens, hand-written from .spec/contracts/booking.md (sections 2, 3.1 to 3.8) until gate G4.
 // Every amount is whole VND computed by the server; the device never recomputes money.
 
@@ -355,6 +357,9 @@ class ProgressAssignment {
   final DateTime? acceptedAt;
   final DateTime? completedAt;
 
+  /// ACCEPT-02: the server's acceptance phase and deadlines (null on an older server or before the work).
+  final AcceptanceBlock? acceptance;
+
   const ProgressAssignment({
     required this.assignmentId,
     required this.assignmentSeq,
@@ -364,6 +369,7 @@ class ProgressAssignment {
     required this.assignmentStatus,
     required this.acceptedAt,
     required this.completedAt,
+    this.acceptance,
   });
 
   factory ProgressAssignment.fromJson(Map<String, dynamic> json) =>
@@ -376,6 +382,7 @@ class ProgressAssignment {
         assignmentStatus: json['assignmentStatus'] as String? ?? '',
         acceptedAt: _date(json['acceptedAt']),
         completedAt: _date(json['completedAt']),
+        acceptance: AcceptanceBlock.fromJson(json['acceptance']),
       );
 }
 

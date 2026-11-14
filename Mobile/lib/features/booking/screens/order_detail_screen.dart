@@ -1,3 +1,5 @@
+import '../../workers/logic/acceptance_logic.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -966,7 +968,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 label: 'Xác nhận nghiệm thu',
                 onPressed: () => _open(
                   WorkerRoutes.customerAcceptance,
-                  CustomerAcceptanceArgs(assignmentId: assignment.assignmentId),
+                  CustomerAcceptanceArgs(
+                    assignmentId: assignment.assignmentId,
+                    acceptance: assignment.acceptance,
+                  ),
                 ),
               ),
               NordicButton(
@@ -975,7 +980,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 variant: NordicButtonVariant.ghost,
                 onPressed: () => _open(
                   WorkerRoutes.customerAcceptance,
-                  CustomerAcceptanceArgs(assignmentId: assignment.assignmentId),
+                  CustomerAcceptanceArgs(
+                    assignmentId: assignment.assignmentId,
+                    acceptance: assignment.acceptance,
+                  ),
                 ),
               ),
             ],
@@ -1123,6 +1131,38 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ),
                 ],
               ),
+              // ACCEPT-02: the phase and the deadline of the 24-hour acceptance window, from the server.
+              if (customerAcceptanceView(a.acceptance, DateTime.now())
+                  case final view?
+                  when a.acceptance?.phase != AcceptancePhase.inProgress) ...[
+                const SizedBox(height: NordicSpace.sm),
+                Container(
+                  key: Key('acceptance-${a.assignmentId}'),
+                  padding: const EdgeInsets.all(NordicSpace.sm),
+                  decoration: BoxDecoration(
+                    color: a.acceptance?.phase == AcceptancePhase.completed
+                        ? NordicColors.primaryFixed
+                        : NordicColors.amberSoft,
+                    borderRadius: NordicRadius.tileAll,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        view.title,
+                        key: Key('acceptance-title-${a.assignmentId}'),
+                        style: NordicTypography.titleSmall,
+                      ),
+                      const SizedBox(height: 2.0),
+                      Text(
+                        view.note,
+                        key: Key('acceptance-note-${a.assignmentId}'),
+                        style: NordicTypography.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (a.assignmentStatus == AssignmentStatus.awaitingAcceptance &&
                   a.assignmentId != firstAcceptance?.assignmentId) ...[
                 const SizedBox(height: NordicSpace.sm),
@@ -1132,7 +1172,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   variant: NordicButtonVariant.secondary,
                   onPressed: () => _open(
                     WorkerRoutes.customerAcceptance,
-                    CustomerAcceptanceArgs(assignmentId: a.assignmentId),
+                    CustomerAcceptanceArgs(
+                      assignmentId: a.assignmentId,
+                      acceptance: a.acceptance,
+                    ),
                   ),
                 ),
               ],
