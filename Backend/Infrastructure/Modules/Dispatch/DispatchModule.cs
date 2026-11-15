@@ -22,6 +22,9 @@ public class DispatchModule : IModule
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IDispatchRepository, EfDispatchRepository>();
+        services.AddScoped<IPremiumStartRepository, EfPremiumStartRepository>();
+        services.AddScoped<PremiumShiftStartService>();
+        services.AddHostedService<PremiumStartSweepWorker>();
         services.AddScoped<EfDispatchRepository>();
         services.AddScoped<IMilestoneFailoverRepository>(sp => sp.GetRequiredService<EfDispatchRepository>());
         services.AddScoped<SteppedRadiusDispatchScanner>();

@@ -70,6 +70,9 @@ public class DatabaseSeederTests
         var existing = await context.Admins.Where(a => a.Email == "admin@dev.local").ToListAsync();
         if (existing.Count > 0)
         {
+            // Other tests of the suite leave audit rows of this dev admin (price rule and package edits): the FK would refuse the delete.
+            var adminIds = existing.Select(a => a.AdminId).ToList();
+            await context.AdminAuditLogs.Where(l => l.AdminId != null && adminIds.Contains(l.AdminId.Value)).ExecuteDeleteAsync();
             context.Admins.RemoveRange(existing);
             await context.SaveChangesAsync();
         }

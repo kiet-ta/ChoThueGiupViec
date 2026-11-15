@@ -255,7 +255,8 @@ public class EfDispatchRepository(AppDbContext db, IOptions<BusinessRules>? rule
         {
             var open = await db.JobAssignments.AsNoTracking()
                 .Where(a => a.OrderId == orderId
-                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned))
+                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned
+                        || a.AssignmentStatus == JobAssignmentStatus.CheckedIn)) // D38: a worker who arrived is cancelled with the order
                 .Select(a => new { a.AssignmentId, a.SlotId })
                 .ToListAsync(cancellationToken);
             if (open.Count == 0)
@@ -268,7 +269,8 @@ public class EfDispatchRepository(AppDbContext db, IOptions<BusinessRules>? rule
 
             var cancelled = await db.JobAssignments
                 .Where(a => ids.Contains(a.AssignmentId)
-                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned))
+                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned
+                        || a.AssignmentStatus == JobAssignmentStatus.CheckedIn))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(a => a.AssignmentStatus, JobAssignmentStatus.Cancelled)
                     .SetProperty(a => a.UpdatedAt, cancelledAtUtc), cancellationToken);

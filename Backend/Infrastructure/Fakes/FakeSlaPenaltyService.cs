@@ -21,6 +21,7 @@ public class FakeSlaPenaltyService : ISlaPenaltyService
         {
             SlaViolation.NoShow => -20m,
             SlaViolation.Shortage => -10m,
+            SlaViolation.NoShowAtStart => -30m,
             _ => -5m
         };
         var score = _scores.AddOrUpdate(request.AgencyId, 100m + delta, (_, current) => current + delta);
