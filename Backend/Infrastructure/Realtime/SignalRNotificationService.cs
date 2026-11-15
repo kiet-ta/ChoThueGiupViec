@@ -6,7 +6,8 @@ namespace CommonService.Infrastructure.Realtime;
 
 /// <summary>
 /// Production INotificationService implementation dispatching via SignalR and storing in the fallback store.
-/// Customer payment status and job tracking are dispatched to role:id groups in realtime (decisions Q07).
+/// Customer payment status and job tracking are dispatched to role:id groups in realtime (decisions Q07); a message reaches only its
+/// recipient's group (decisions D36).
 /// </summary>
 public class SignalRNotificationService : INotificationService
 {
@@ -47,14 +48,7 @@ public class SignalRNotificationService : INotificationService
             "Dispatching realtime notification {Topic} to group {UserGroup} for recipient {RecipientId}",
             dto.Topic, userGroup, dto.RecipientId);
 
-        // Send to targeted recipient user group
+        // Decisions D36 (#894): only the recipient's own group. There is no per-topic broadcast; clients read dto.Topic.
         await _hubContext.Clients.Group(userGroup).ReceiveNotification(dto);
-
-        // If topic is present, also broadcast to topic group subscribers
-        if (!string.IsNullOrWhiteSpace(dto.Topic))
-        {
-            var topicGroup = NotificationHub.FormatTopicGroup(dto.Topic);
-            await _hubContext.Clients.Group(topicGroup).ReceiveNotification(dto);
-        }
     }
 }

@@ -280,15 +280,15 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **SignalR Hub** (`Infrastructure/Realtime/NotificationHub.cs`): mapped at `/hubs/notifications` via `RealtimeModule : IModule`.
   - Strong-typed client: `INotificationClient.ReceiveNotification(NotificationMessageDto notification)`.
   - Group naming:
-    - User group: `{role}:{userId}` (e.g. `customer:101`, `worker:55`, `admin:1`). Connections automatically join their group on connect when authenticated via JWT claims (`sub`, `role`).
-    - Topic group: `topic:{topic}` (e.g. `topic:payment.status`, `topic:job.tracking`). Clients join via `JoinTopic(topic)`.
-  - Hub methods: `JoinUserGroup(role, userId)`, `LeaveUserGroup(role, userId)`, `JoinTopic(topic)`, `LeaveTopic(topic)`.
-- **Service** (`Infrastructure/Realtime/SignalRNotificationService.cs`): implements `INotificationService` (dispatches to user and topic groups, and records into `INotificationStore`). Registered via `RealtimeModule` and takes precedence over `FakeNotificationService`.
-- **Polling Fallback Contract** (`WebAPI/Controllers/NotificationsController.cs`):
-  - `GET /api/v1/notifications/poll`:
-    - Query params: `role` (optional if authenticated), `userId` (optional if authenticated), `since` (ISO-8601 UTC timestamp, optional), `limit` (1-100, default 50).
+    - User group only: `{role}:{userId}` (e.g. `customer:101`, `worker:55`, `admin:1`). A connection joins its own group on connect, from its JWT claims (`NotificationHub.ResolveUserGroup`: role + `nameidentifier`/`sub`/`userId`); an anonymous connection joins none.
+  - No client-callable hub methods (decisions D36, SEC-NOTIF-01 #894): `JoinUserGroup`, `LeaveUserGroup`, `JoinTopic`, `LeaveTopic` and the `topic:{topic}` groups were removed, because they let anyone listen to another user's notifications. Clients tell messages apart by `NotificationMessageDto.Topic`.
+- **Service** (`Infrastructure/Realtime/SignalRNotificationService.cs`): implements `INotificationService` (sends to the recipient's user group only, and records into `INotificationStore`). Registered via `RealtimeModule` and takes precedence over `FakeNotificationService`.
+- **Polling Fallback Contract** (`WebAPI/Controllers/NotificationsController.cs`, `[Authorize]`):
+  - `GET /api/v1/notifications`:
+    - Query params: `since` (ISO-8601 UTC timestamp, optional), `limit` (1-100, default 50). The recipient is always the caller (role and id from the token); there is no `role` / `userId` parameter.
     - Response 200: `ApiResponse<IReadOnlyList<NotificationMessageDto>>`.
-    - Response 400: missing `role`/`userId` when unauthenticated.
+    - Response 401: not signed in.
+- **Hub authentication:** the Bearer handler reads only the `Authorization` header today, so a websocket client (which sends `access_token` in the query string) connects anonymously and receives nothing; the query-string token for `/hubs/` is #893 (MOB-RT-01).
 - **FCM Push Notification**: DEFERRED per decision Q07b (not implemented in MVP).
 - Tests: `Tests/Infrastructure/SignalRNotificationTests.cs` (574 total tests passing).
 
