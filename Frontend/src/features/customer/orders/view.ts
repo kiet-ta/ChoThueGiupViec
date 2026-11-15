@@ -1,5 +1,6 @@
 // Pure logic of the order list, order detail and extension screens (no React, so `node --test` covers it).
 // Rules: .spec/contracts/booking.md 1.1 (order states), 3.7 (cancel), 3.8 (extension), decisions B5/B11; ratings 48 h, disputes 24 h.
+import { statusLabel } from '../booking/view.ts'
 import type { Extension, ProgressAssignment } from './types.ts'
 
 export const POLL_PROGRESS_MS = 5000
@@ -161,6 +162,16 @@ export function timeline(orderStatus: string, cancelledAfterPayment = false, ass
     const state: StepState = i < index ? 'done' : i === index ? 'current' : 'todo'
     return s.key === 'arrived' && state === 'current' ? { ...s, state, hint: ARRIVED_HINT } : { ...s, state }
   })
+}
+
+/**
+ * ORDER-STATUS-SYNC-01: the label of the header pill of the order detail. For an ASSIGNED order it is the label of the
+ * current step of `timeline`, so the pill and the timeline come from the same function and always say the same step;
+ * every other order status keeps `statusLabel`.
+ */
+export function headerStatusLabel(orderStatus: string, assignments: ProgressAssignment[]): string {
+  if (orderStatus !== 'ASSIGNED') return statusLabel(orderStatus)
+  return timeline(orderStatus, false, assignments).find((s) => s.state === 'current')?.label ?? statusLabel(orderStatus)
 }
 
 /** `GET /dispatch/assignments/{id}/check-in` (CUST-ARRIVAL-01). */

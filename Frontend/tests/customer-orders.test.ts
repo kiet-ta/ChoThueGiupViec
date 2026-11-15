@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  ARRIVED_HINT, arrivalCandidates, decodePolyline6, formatDistance, formatDuration, routeCandidates, routeProblem, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, routeMidpoint, orderActions, orderProblem, pageCount, STATUS_TABS, substituteSearchText, timeline, toggleSaved, vnDateTime, vnTime,
+  ARRIVED_HINT, arrivalCandidates, decodePolyline6, formatDistance, formatDuration, routeCandidates, routeProblem, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, headerStatusLabel, hoursText, newEndText, routeMidpoint, orderActions, orderProblem, pageCount, STATUS_TABS, substituteSearchText, timeline, toggleSaved, vnDateTime, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -259,5 +259,27 @@ describe('worker route (ROUTE-WEB-01)', () => {
     assert.equal(routeProblem({ status: 404 }), null)
     assert.equal(routeProblem({ status: 502 }), 'Chưa tính được lộ trình.')
     assert.equal(routeProblem({ status: 0 }), 'Chưa tính được lộ trình.')
+  })
+})
+
+describe('headerStatusLabel (ORDER-STATUS-SYNC-01)', () => {
+  it('an ASSIGNED order shows the current timeline step', () => {
+    assert.equal(headerStatusLabel('ASSIGNED', []), 'Đã có thợ')
+    assert.equal(headerStatusLabel('ASSIGNED', [worker('ASSIGNED')]), 'Đã có thợ')
+    assert.equal(headerStatusLabel('ASSIGNED', [worker('CHECKED_IN')]), 'Thợ đã đến')
+    assert.equal(headerStatusLabel('ASSIGNED', [worker('IN_PROGRESS')]), 'Thợ đang làm')
+    assert.equal(headerStatusLabel('ASSIGNED', [worker('AWAITING_ACCEPTANCE')]), 'Chờ nghiệm thu')
+    assert.equal(headerStatusLabel('ASSIGNED', [worker('COMPLETED')]), 'Chờ nghiệm thu')
+    assert.equal(headerStatusLabel('ASSIGNED', [worker('ASSIGNED'), worker('IN_PROGRESS')]), 'Thợ đang làm')
+  })
+  it('matches the current step of timeline', () => {
+    const assignments = [worker('AWAITING_ACCEPTANCE')]
+    assert.equal(headerStatusLabel('ASSIGNED', assignments), timeline('ASSIGNED', false, assignments).find((s) => s.state === 'current')?.label)
+  })
+  it('other order statuses keep the previous text', () => {
+    assert.equal(headerStatusLabel('DISPATCHING', [worker('IN_PROGRESS')]), 'Đang tìm thợ')
+    assert.equal(headerStatusLabel('COMPLETED', [worker('COMPLETED')]), 'Hoàn tất')
+    assert.equal(headerStatusLabel('PENDING_PAYMENT', []), 'Chờ thanh toán')
+    assert.equal(headerStatusLabel('CANCELLED', [worker('ASSIGNED')]), 'Đã hủy')
   })
 })
