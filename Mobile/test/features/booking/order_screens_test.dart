@@ -900,7 +900,7 @@ void main() {
       expect(textOf(tester, 'order-status-1'), 'Đã có người làm');
       expect(textOf(tester, 'order-status-2'), 'Đã huỷ');
       expect(find.text('Ca sáng · Cơ bản'), findsNWidgets(2));
-      expect(find.text('260.000 đ'), findsNWidgets(2));
+      expect(find.text('260.000 đ'), findsNWidgets(2));
       expect(find.text('Tháng 10/2026'), findsOneWidget);
       expect(textOf(tester, 'history-count'), '2 đơn');
       expect(find.byKey(const Key('history-more')), findsNothing);
@@ -958,6 +958,28 @@ void main() {
     );
 
     testWidgets(
+      'the Web status filters ask the server for their status (MOB-ORDERS-03)',
+      (tester) async {
+        final service = FakeOrderService()
+          ..all = [_summary(1, OrderStatus.completed)];
+        await pumpHistory(tester, service);
+
+        for (final status in [
+          OrderStatus.pendingPayment,
+          OrderStatus.dispatching,
+          OrderStatus.assigned,
+        ]) {
+          await tester.ensureVisible(find.byKey(Key('history-filter-$status')));
+          await tapKey(tester, 'history-filter-$status');
+          expect(service.statusesAsked.last, status);
+        }
+        // Nothing assigned: the empty state names the filter, it does not say there is no order at all.
+        expect(find.textContaining('Không có đơn'), findsOneWidget);
+        expect(find.text('Bạn chưa có đơn nào'), findsNothing);
+      },
+    );
+
+    testWidgets(
       'an open order that has not started is also shown as a dark card on "Tất cả" only',
       (tester) async {
         final service = FakeOrderService()
@@ -1003,7 +1025,7 @@ void main() {
           find.byKey(const Key('order-1')),
           findsOneWidget,
         ); // also in its month
-        expect(find.text('08:00–12:00 · 260.000 đ'), findsNWidgets(2));
+        expect(find.text('08:00–12:00 · 260.000 đ'), findsNWidgets(2));
 
         await tapKey(tester, 'history-filter-COMPLETED');
 
