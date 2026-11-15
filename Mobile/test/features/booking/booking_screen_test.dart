@@ -677,30 +677,29 @@ void main() {
       },
     );
 
-    testWidgets(
-      'a large Economy house cannot be booked in the evening shift',
-      (tester) async {
-        await pumpBooking(tester, FakeBookingService());
+    testWidgets('a large Economy house cannot be booked in the evening shift', (
+      tester,
+    ) async {
+      await pumpBooking(tester, FakeBookingService());
 
-        await tapKey(tester, 'tier-ECONOMY');
-        await tapKey(tester, 'address-2');
-        await tester.scrollUntilVisible(
-          find.byKey(const Key('day-2026-10-16')),
-          80.0,
-          scrollable: find.descendant(
-            of: find.byKey(const Key('day-list')),
-            matching: find.byType(Scrollable),
-          ),
-        );
-        await tapKey(tester, 'day-2026-10-16');
-        await tapKey(tester, 'shift-SHIFT_EVENING');
-        await tester.tap(find.byKey(const Key('submit-order')));
-        await tester.pump();
+      await tapKey(tester, 'tier-ECONOMY');
+      await tapKey(tester, 'address-2');
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('day-2026-10-16')),
+        80.0,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('day-list')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tapKey(tester, 'day-2026-10-16');
+      await tapKey(tester, 'shift-SHIFT_EVENING');
+      await tester.tap(find.byKey(const Key('submit-order')));
+      await tester.pump();
 
-        // The evening tile is disabled, so nothing was chosen and no agreement was asked.
-        expect(find.byKey(const Key('continuous-work-consent')), findsNothing);
-      },
-    );
+      // The evening tile is disabled, so nothing was chosen and no agreement was asked.
+      expect(find.byKey(const Key('continuous-work-consent')), findsNothing);
+    });
 
     testWidgets(
       'a large Economy house asks the customer to agree before the order is created, and sends the agreement (D35)',
@@ -722,8 +721,15 @@ void main() {
         await tapKey(tester, 'shift-SHIFT_MORNING');
         await tapKey(tester, 'submit-order');
 
-        expect(find.byKey(const Key('continuous-work-consent')), findsOneWidget);
-        expect(service.created, isEmpty, reason: 'nothing is sent before agreeing');
+        expect(
+          find.byKey(const Key('continuous-work-consent')),
+          findsOneWidget,
+        );
+        expect(
+          service.created,
+          isEmpty,
+          reason: 'nothing is sent before agreeing',
+        );
 
         await tapKey(tester, 'continuous-work-accept');
 
@@ -734,31 +740,28 @@ void main() {
       },
     );
 
-    testWidgets(
-      'declining the agreement creates nothing',
-      (tester) async {
-        final service = FakeBookingService();
-        await pumpBooking(tester, service);
+    testWidgets('declining the agreement creates nothing', (tester) async {
+      final service = FakeBookingService();
+      await pumpBooking(tester, service);
 
-        await tapKey(tester, 'tier-ECONOMY');
-        await tapKey(tester, 'address-2');
-        await tester.scrollUntilVisible(
-          find.byKey(const Key('day-2026-10-16')),
-          80.0,
-          scrollable: find.descendant(
-            of: find.byKey(const Key('day-list')),
-            matching: find.byType(Scrollable),
-          ),
-        );
-        await tapKey(tester, 'day-2026-10-16');
-        await tapKey(tester, 'shift-SHIFT_MORNING');
-        await tapKey(tester, 'submit-order');
-        await tapKey(tester, 'continuous-work-decline');
+      await tapKey(tester, 'tier-ECONOMY');
+      await tapKey(tester, 'address-2');
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('day-2026-10-16')),
+        80.0,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('day-list')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tapKey(tester, 'day-2026-10-16');
+      await tapKey(tester, 'shift-SHIFT_MORNING');
+      await tapKey(tester, 'submit-order');
+      await tapKey(tester, 'continuous-work-decline');
 
-        expect(service.created, isEmpty);
-        expect(find.byKey(const Key('continuous-work-consent')), findsNothing);
-      },
-    );
+      expect(service.created, isEmpty);
+      expect(find.byKey(const Key('continuous-work-consent')), findsNothing);
+    });
 
     testWidgets(
       'creates the order with the choices and opens the payment for it',

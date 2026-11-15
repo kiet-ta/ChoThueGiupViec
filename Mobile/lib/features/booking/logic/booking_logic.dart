@@ -233,8 +233,7 @@ CreateOrderFailure createOrderFailure(
           BookingErrorCode.premiumLeadTime =>
             'Gói Cao cấp cần đặt trước ít nhất $premiumMinLeadHours giờ. Chọn ca muộn hơn nhé.',
           BookingErrorCode.fullyBooked => 'Các doanh nghiệp đối tác đã kín lịch cho ca này. Hãy chọn ca hoặc ngày khác.',
-          BookingErrorCode.largeHouseEveningNotAllowed =>
-            'Nhà lớn không đặt được ca tối vì thợ cần thêm ca kế tiếp. Hãy chọn ca sáng hoặc ca chiều.',
+          BookingErrorCode.largeHouseEveningNotAllowed => 'Nhà lớn không đặt được ca tối vì thợ cần thêm ca kế tiếp. Hãy chọn ca sáng hoặc ca chiều.',
           _ => 'Không đặt được đơn lúc này. Vui lòng thử lại.',
         },
       );

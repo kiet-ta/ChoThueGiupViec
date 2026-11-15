@@ -173,7 +173,8 @@ class WorkerContinuationDto {
 
   const WorkerContinuationDto({required this.status, this.shiftCode});
 
-  static WorkerContinuationDto? fromJson(Object? json) => json is Map<String, dynamic>
+  static WorkerContinuationDto? fromJson(Object? json) =>
+      json is Map<String, dynamic>
       ? WorkerContinuationDto(
           status: json['status'] as String? ?? '',
           shiftCode: json['shiftCode'] as String?,

@@ -134,18 +134,18 @@ void main() {
       );
     });
 
-    test('a large Economy house is one worker with a possible 2nd job (D35)', () {
-      final large = quote(area: 90, continuous: true);
-      expect(workersNote(large, options), isNot(contains('cùng lúc')));
-      expect(workersNote(large, options), contains('2 đơn liên tiếp'));
-      expect(workersNote(large, options), contains('không phát sinh thêm'));
-      expect(large.totalAmount, 520000);
-      expect(quoteBreakdown(large), 'Giá nhà lớn · 1 người · Cơ bản');
-      expect(
-        quoteBreakdown(quote()),
-        '260.000 đ × 1 người · Cơ bản',
-      );
-    });
+    test(
+      'a large Economy house is one worker with a possible 2nd job (D35)',
+      () {
+        final large = quote(area: 90, continuous: true);
+        expect(workersNote(large, options), isNot(contains('cùng lúc')));
+        expect(workersNote(large, options), contains('2 đơn liên tiếp'));
+        expect(workersNote(large, options), contains('không phát sinh thêm'));
+        expect(large.totalAmount, 520000);
+        expect(quoteBreakdown(large), 'Giá nhà lớn · 1 người · Cơ bản');
+        expect(quoteBreakdown(quote()), '260.000 đ × 1 người · Cơ bản');
+      },
+    );
 
     test('the evening shift is refused for a large house only (D35)', () {
       final large = quote(area: 90, continuous: true);

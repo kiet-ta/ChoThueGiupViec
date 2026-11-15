@@ -459,7 +459,8 @@ class OrderContinuation {
     this.openedAt,
   });
 
-  static OrderContinuation? fromJson(Object? json) => json is Map<String, dynamic>
+  static OrderContinuation? fromJson(Object? json) =>
+      json is Map<String, dynamic>
       ? OrderContinuation(
           status: json['status'] as String? ?? '',
           shiftCode: json['shiftCode'] as String?,

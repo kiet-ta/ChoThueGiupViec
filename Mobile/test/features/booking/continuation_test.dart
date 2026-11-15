@@ -25,7 +25,10 @@ void main() {
 
       expect(progress.continuation?.status, OrderContinuation.reserved);
       expect(progress.continuation?.shiftCode, 'SHIFT_AFTERNOON');
-      expect(progress.continuation?.windowStartAt, DateTime.utc(2026, 11, 20, 6));
+      expect(
+        progress.continuation?.windowStartAt,
+        DateTime.utc(2026, 11, 20, 6),
+      );
     });
 
     test('an ordinary order has no continuation', () {
@@ -76,10 +79,7 @@ void main() {
       });
 
       expect(order.isContinuousWork, isTrue);
-      expect(
-        BookingOrder.fromJson({'orderId': 1}).isContinuousWork,
-        isFalse,
-      );
+      expect(BookingOrder.fromJson({'orderId': 1}).isContinuousWork, isFalse);
     });
   });
 
