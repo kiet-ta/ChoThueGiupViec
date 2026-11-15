@@ -248,7 +248,15 @@ public class OrderQueryService(
                 extension.ExtensionId, extension.OrderId, extension.WorkerId, extension.ExtraHours, extension.ExtraAmount,
                 extension.ExtStatus, extension.WorkerDecision, extension.RequestedAt, extension.DecidedAt);
 
-        return new OrderProgressDto(order.OrderId, DbEnum.ToDb(order.OrderStatus), order.RequiredWorkers, assignments, extensionDto);
+        // Decisions D35: a DISPATCHING order that lost a seat to a worker cancel shows until when a substitute is searched for.
+        DateTime? searchUntil = null;
+        if (order.OrderStatus == JobOrderStatus.Dispatching && visible.Any(a => a.AssignmentStatus == JobAssignmentStatus.CancelledByWorker)
+            && BookingWindowPolicy.GetJobStartUtc(order, clock) is { } start)
+        {
+            searchUntil = start.AddMinutes(-Math.Max(0, _rules.Cancel.RedispatchCutoffMinutes));
+        }
+
+        return new OrderProgressDto(order.OrderId, DbEnum.ToDb(order.OrderStatus), order.RequiredWorkers, assignments, extensionDto, searchUntil);
     }
 
     public async Task<IReadOnlyList<WorkerFreeShift>> GetRebookAvailabilityAsync(int customerId, long orderId, int workerId, CancellationToken cancellationToken = default)

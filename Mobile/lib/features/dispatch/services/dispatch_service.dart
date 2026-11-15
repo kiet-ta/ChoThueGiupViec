@@ -6,6 +6,7 @@ import '../models/check_in_result.dart';
 import '../models/customer_absent_report.dart';
 import '../models/incident_log.dart';
 import '../models/job_offer.dart';
+import '../models/worker_cancel.dart';
 
 /// Service managing worker job offers, check-in, absent, and incident protocols matching .spec/contracts/dispatch.md §3.1.
 class DispatchService {
@@ -320,6 +321,61 @@ class DispatchService {
       return CustomerAbsentReport.fromJson(data);
     }
     throw const ApiException(500, 'Không thể báo khách vắng mặt');
+  }
+
+  /// What cancelling the accepted job would do (decisions D35); changes nothing.
+  Future<WorkerCancelPreview> getCancelPreview(int assignmentId) async {
+    if (isMock) {
+      return WorkerCancelPreview(
+        assignmentId: assignmentId,
+        cancelCountInWindow: 0,
+        lockCount: 3,
+        windowDays: 30,
+        willLockAccount: false,
+        autoAcceptOn: false,
+        jobStartAt: DateTime.now().add(const Duration(hours: 5)),
+        substituteSearchPossible: true,
+      );
+    }
+
+    final response = await _apiClient.get(
+      '/api/v1/dispatch/assignments/$assignmentId/cancel-preview',
+      requiresAuth: true,
+    );
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return WorkerCancelPreview.fromJson(data);
+    }
+    throw const ApiException(500, 'Chưa tải được thông tin huỷ ca');
+  }
+
+  /// A freelancer cancels an accepted job before it starts (Q15, decisions D35).
+  Future<WorkerCancelResult> cancelAssignment(
+    int assignmentId,
+    String reason,
+  ) async {
+    if (isMock) {
+      return WorkerCancelResult(
+        assignmentId: assignmentId,
+        status: 'CANCELLED_BY_WORKER',
+        cancelCountInWindow: 1,
+        lockCount: 3,
+        windowDays: 30,
+        accountLocked: false,
+        orderOutcome: WorkerCancelResult.redispatching,
+      );
+    }
+
+    final response = await _apiClient.post(
+      '/api/v1/dispatch/assignments/$assignmentId/cancel',
+      body: {'reason': reason},
+      requiresAuth: true,
+    );
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return WorkerCancelResult.fromJson(data);
+    }
+    throw const ApiException(500, 'Chưa huỷ được ca');
   }
 
   /// Reports a force majeure incident with photo evidence and GPS (BR-10).

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  ARRIVED_HINT, arrivalCandidates, decodePolyline6, formatDistance, formatDuration, routeCandidates, routeProblem, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, routeMidpoint, orderActions, orderProblem, pageCount, STATUS_TABS, timeline, toggleSaved, vnDateTime, vnTime,
+  ARRIVED_HINT, arrivalCandidates, decodePolyline6, formatDistance, formatDuration, routeCandidates, routeProblem, arrivalProblem, arrivalText, cancelReasonError, cancelReasonText, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, extensionHourOptions, hasOrderRefund, hoursText, newEndText, routeMidpoint, orderActions, orderProblem, pageCount, STATUS_TABS, substituteSearchText, timeline, toggleSaved, vnDateTime, vnTime,
 } from '../src/features/customer/orders/view.ts'
 import type { Extension, ProgressAssignment } from '../src/features/customer/orders/types.ts'
 
@@ -35,10 +35,27 @@ describe('cancelReasonText', () => {
     assert.equal(cancelReasonText({ cancelReason: 'Quá bán kính 10 km không tìm được thợ phù hợp (BR-03).' }), expected)
     assert.equal(cancelReasonText({ cancelReason: 'Không tìm thấy thợ phù hợp cho đơn hàng.' }), expected)
   })
+  it('D35: explains a worker cancel without a substitute, without the internal code', () => {
+    const text = cancelReasonText({ cancelReason: 'WORKER_CANCELLED_NO_SUBSTITUTE' })
+    assert.match(text, /Thợ đã hủy ca/)
+    assert.match(text, /hoàn 100%/)
+    assert.doesNotMatch(text, /WORKER_/)
+  })
   it('preserves customer text and falls back for empty reasons', () => {
     assert.equal(cancelReasonText({ cancelReason: 'Đổi lịch' }), 'Đổi lịch')
     assert.equal(cancelReasonText({ cancelReason: '' }), 'Đơn đã được hủy.')
     assert.equal(cancelReasonText({ cancelReason: null }), 'Đơn đã được hủy.')
+  })
+})
+
+describe('substituteSearchText (D35)', () => {
+  it('says until when a substitute is searched for, in Vietnam time, only while dispatching', () => {
+    const text = substituteSearchText('DISPATCHING', '2026-11-20T00:30:00Z')
+    assert.match(text ?? '', /tới 07:30/)
+    assert.match(text ?? '', /hoàn tiền 100%/)
+    assert.equal(substituteSearchText('ASSIGNED', '2026-11-20T00:30:00Z'), null)
+    assert.equal(substituteSearchText('DISPATCHING', null), null)
+    assert.equal(substituteSearchText('DISPATCHING', undefined), null)
   })
 })
 

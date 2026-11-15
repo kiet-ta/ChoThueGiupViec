@@ -45,6 +45,8 @@ public class DispatchModule : IModule
         services.AddScoped<FieldCheckInService>();
         services.AddScoped<CustomerAbsentService>();
         services.AddScoped<WorkerDispatchService>();
+        services.AddScoped<IWorkerCancelRepository, EfWorkerCancelRepository>(); // freelancer cancel (Q15, D35)
+        services.AddScoped<WorkerCancelService>();
         services.AddScoped<ConsecutiveShiftFallbackService>();
         services.AddScoped<CustomerArrivalService>(); // customer confirms the arrival when the GPS is off (BR-04, #657)
         services.AddScoped<IAdminIncidentQuery, EfAdminIncidentQuery>(); // Admin incident monitor (read only)

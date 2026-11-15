@@ -11,10 +11,25 @@ export const DISPUTE_WINDOW_HOURS = 24
 export function cancelReasonText(order: { cancelReason: string | null }): string {
   const reason = order.cancelReason?.trim()
   if (!reason) return 'Đơn đã được hủy.'
+  // Decisions D35: the worker cancelled and no substitute took the job before the cutoff.
+  if (reason === 'WORKER_CANCELLED_NO_SUBSTITUTE') {
+    return 'Thợ đã hủy ca và hệ thống chưa tìm được thợ thay kịp giờ nên đơn đã được hủy. Bạn được hoàn 100% số tiền đã thanh toán.'
+  }
   if (reason.startsWith('Quá bán kính') || reason.startsWith('Không tìm thấy thợ')) {
     return 'Hiện chưa có thợ rảnh ở khu vực và ca bạn chọn nên hệ thống đã tự hủy đơn. Bạn không bị trừ tiền: khoản đã thanh toán được hoàn 100%. Hãy thử chọn ca hoặc ngày khác.'
   }
   return order.cancelReason as string
+}
+
+/**
+ * Decisions D35: the notice of an order whose worker cancelled, while a substitute is searched for; null when there is none
+ * (not DISPATCHING, or no worker cancelled).
+ */
+export function substituteSearchText(orderStatus: string, until: string | null | undefined): string | null {
+  if (orderStatus !== 'DISPATCHING' || !until) return null
+  const at = vnTime(until)
+  if (!at) return null
+  return `Thợ đã hủy ca. Hệ thống đang tìm thợ khác tới ${at}. Nếu không tìm được, đơn tự hủy và bạn được hoàn tiền 100%. Bạn cũng có thể hủy đơn ngay, vẫn được hoàn 100%.`
 }
 
 /** A refunded extension does not imply that the order payment itself was refunded. */

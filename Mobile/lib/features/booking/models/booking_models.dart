@@ -477,12 +477,16 @@ class OrderProgress {
   final List<ProgressAssignment> assignments;
   final OrderExtension? extension;
 
+  /// Decisions D35: while a seat a worker cancelled is re-dispatched, when the search stops (UTC); null otherwise.
+  final DateTime? substituteSearchUntil;
+
   const OrderProgress({
     required this.orderId,
     required this.orderStatus,
     required this.requiredWorkers,
     required this.assignments,
     required this.extension,
+    this.substituteSearchUntil,
   });
 
   factory OrderProgress.fromJson(Map<String, dynamic> json) => OrderProgress(
@@ -496,6 +500,7 @@ class OrderProgress {
     extension: json['extension'] is Map<String, dynamic>
         ? OrderExtension.fromJson(json['extension'] as Map<String, dynamic>)
         : null,
+    substituteSearchUntil: _date(json['substituteSearchUntil']),
   );
 }
 

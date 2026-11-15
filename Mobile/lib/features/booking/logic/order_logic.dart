@@ -235,6 +235,13 @@ CancelReasonView cancelReasonView(String raw) {
       suggestRebook: true,
     );
   }
+  if (r == 'WORKER_CANCELLED_NO_SUBSTITUTE') {
+    // Decisions D35: the helper cancelled and nobody could take the job in time.
+    return const CancelReasonView(
+      'Người giúp việc đã huỷ ca và hệ thống chưa tìm được người thay kịp giờ. Đơn đã huỷ, bạn được hoàn tiền 100 %.',
+      suggestRebook: true,
+    );
+  }
   if (lower.contains('br-03') ||
       lower.contains('không tìm thấy thợ') ||
       lower.contains('không tìm được thợ')) {

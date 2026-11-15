@@ -32,6 +32,8 @@ export interface OrderProgress {
   requiredWorkers: number
   assignments: ProgressAssignment[]
   extension: Extension | null
+  /** Decisions D35: while a seat a worker cancelled is re-dispatched, when the search stops (UTC); null otherwise. */
+  substituteSearchUntil?: string | null
 }
 
 export interface AddressDetail {

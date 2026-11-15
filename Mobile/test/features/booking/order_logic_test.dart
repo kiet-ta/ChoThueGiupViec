@@ -347,6 +347,17 @@ void main() {
       expect(view.suggestRebook, isTrue);
     });
 
+    test(
+      'D35: no substitute after a helper cancel says the money comes back',
+      () {
+        final view = cancelReasonView('WORKER_CANCELLED_NO_SUBSTITUTE');
+        expect(view.text, contains('đã huỷ ca'));
+        expect(view.text, contains('hoàn tiền 100 %'));
+        expect(view.text, isNot(contains('WORKER_')));
+        expect(view.suggestRebook, isTrue);
+      },
+    );
+
     test('a BR-10 rescue on a Premium order is not read as an agency gap', () {
       final view = cancelReasonView(
         'Cứu hộ khẩn cấp thất bại cho đơn Premium 12.',
