@@ -706,3 +706,10 @@ public interface IWorkerProfileQuery
 ### Listened by Workers (M4)
 - `ExtensionPaid` (from M2): Triggers extension prompt for worker.
 - `CustomerAbsentApproved` (from M6/M3): Updates worker `workStatus` to `IDLE` and sets `absence_fee_amount` (40% compensation).
+
+---
+
+## D35 addendum: the 2nd job of a large ECONOMY house (LARGE-1W-01, #900)
+- `GET /api/v1/workers/assignments/{assignmentId}` gains `continuation` (null for any other job): `{ "status": "RESERVED" | "OPEN" | "RELEASED", "shiftCode", "windowStartAt", "windowEndAt", "openedAt" }` (same shape as `booking.md` progress). The job's `grossAmount` / payout is the whole large-house price, whether the work ends in the first job or in the 2nd.
+- `POST /api/v1/customers/assignments/{assignmentId}/request-redo` (2.5.3): for an order with `isContinuousWork` whose 2nd job has not opened, the call opens the 2nd job instead of a redo: the assignment returns to `IN_PROGRESS`, `redo_count` is not raised, the D32 redo window does not apply and `message` is "The second job of this large house is open.". Afterwards the usual redo applies.
+- After the shift end plus `Dispatch.ContinuationConfirmMinutes` (15) a job still `IN_PROGRESS` opens its 2nd job by itself.

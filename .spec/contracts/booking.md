@@ -251,3 +251,10 @@ Records are those of `Backend/Domain/Events/*.cs` (BASE-04); this contract does 
 | **B10** | Q15 late cancel (<= 2 h, `ASSIGNED`): the 40 % goes to the worker, but `JOB_ASSIGNMENT` only has `absence_fee_amount` (BR-05), and refund of 60 % needs a partial refund record (`payments.md` P2). | Reuse no column for a different meaning; M1 adds `JOB_ASSIGNMENT.cancel_fee_amount DECIMAL(18,2) NULL`, M3 sets the assignment to `CANCELLED`. Not implemented until answered. |
 | **B11** | Allowed `extraHours` for "Làm lần 2" (column `DECIMAL(3,1)`). Also `ExtensionPaid.ExtraHours` is `int` and `ExtensionId` is `long` while the entity has `decimal` / `int`. | `extraHours` from 0.5 to `Shift.MaxHours` (4) in 0.5 steps; M1 changes `ExtensionPaid.ExtraHours` to `decimal` (BASE-04 Scope exception). |
 | **B12** | Q01 says "Admin can list the change log"; plan BE-M2-02a says "endpoint xem lịch sử". | Reuse M6's `GET /api/v1/admin/audit-logs?entityType=PRICE_RULE` (§4.3); no duplicate endpoint. |
+
+---
+
+## D35 addendum: large ECONOMY house (LARGE-1W-01, #900)
+- `GET /api/v1/booking/price-quote` and `Order` gain `isContinuousWork` (bool): true for an ECONOMY order of a house over `standardMaxAreaM2`. Such an order has `requiredWorkers = 1` and `totalAmount = unitPrice x 2` (one payment, decisions D35). PREMIUM keeps `requiredWorkers = 2`.
+- `POST /api/v1/booking/orders`: body gains `acceptsContinuousWork` (bool). For an `isContinuousWork` order it must be `true`, otherwise **400** with the field error `acceptsContinuousWork`. An evening-shift order for it is **409** `data.code = LARGE_HOUSE_EVENING_NOT_ALLOWED` (the 2nd job is the next shift of the same day).
+- `GET /api/v1/booking/orders/{orderId}/progress` gains `continuation` (null unless `isContinuousWork`): `{ "status": "RESERVED" | "OPEN" | "RELEASED", "shiftCode": "SHIFT_AFTERNOON" | null, "windowStartAt", "windowEndAt", "openedAt" }`. `RESERVED`: the worker's next-shift slot is held; `OPEN`: the 2nd job opened (same worker, next shift, no extra charge); `RELEASED`: the work ended in the first job.
