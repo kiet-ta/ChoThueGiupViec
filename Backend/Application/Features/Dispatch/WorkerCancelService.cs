@@ -16,7 +16,8 @@ namespace CommonService.Application.Features.Dispatch;
 /// <summary>What the cancel transaction did (decisions D35).</summary>
 /// <param name="CancelCount">The worker's <c>CANCELLED_BY_WORKER</c> assignments inside the window, this one included.</param>
 /// <param name="WorkerLocked">True when this cancel reached <c>Cancel.WorkerCancelLockCount</c> and the freelancer is now LOCKED.</param>
-public record WorkerCancelCommit(int CancelCount, bool WorkerLocked);
+/// <param name="AutoAcceptTurnedOff">True when the worker's "Tự động nhận đơn" switch was on and this cancel turned it off (D33 item 5).</param>
+public record WorkerCancelCommit(int CancelCount, bool WorkerLocked, bool AutoAcceptTurnedOff);
 
 /// <summary>Persistence of the freelancer cancel flow (decisions Q15, D35). Every write is conditional, inside one transaction.</summary>
 public interface IWorkerCancelRepository
@@ -144,6 +145,15 @@ public class WorkerCancelService(
         await mediator.Publish(new AssignmentCancelledByWorker(
             assignmentId, assignment.OrderId, workerId, assignment.AssignmentSeq, clean, commit.CancelCount, commit.WorkerLocked, now), cancellationToken);
 
+        if (commit.AutoAcceptTurnedOff)
+        {
+            // D33 item 5 (#891): tell the worker the switch is off, so new offers wait for their answer again.
+            await NotifyAsync(UserRole.Worker, workerId, assignment.OrderId, WorkerCancelNotificationTopics.AutoAcceptOff,
+                "Tự động nhận đơn đã tắt",
+                "Tự động nhận đơn đã tắt vì bạn vừa hủy ca. Bạn có thể bật lại khi sẵn sàng nhận đơn.",
+                cancellationToken, assignmentId);
+        }
+
         var searchUntil = start - Cutoff;
         string outcome;
         if (now >= searchUntil)
@@ -154,7 +164,7 @@ public class WorkerCancelService(
         }
         else
         {
-            await NotifyCustomerAsync(assignment.CustomerId, assignment.OrderId, WorkerCancelNotificationTopics.WorkerCancelled,
+            await NotifyAsync(UserRole.Customer, assignment.CustomerId, assignment.OrderId, WorkerCancelNotificationTopics.WorkerCancelled,
                 "Thợ đã hủy ca",
                 $"Thợ đã hủy ca của bạn. Hệ thống đang tìm thợ thay đến {Local(searchUntil)}; nếu không tìm được, đơn sẽ được hủy và hoàn tiền 100 %.",
                 cancellationToken);
@@ -236,22 +246,29 @@ public class WorkerCancelService(
 
     private string Local(DateTime utc) => clock.ToLocal(utc).ToString("HH:mm dd/MM", CultureInfo.InvariantCulture);
 
-    private async Task NotifyCustomerAsync(int customerId, long orderId, string topic, string title, string body, CancellationToken cancellationToken)
+    private async Task NotifyAsync(
+        UserRole role, int recipientId, long orderId, string topic, string title, string body, CancellationToken cancellationToken,
+        long? assignmentId = null)
     {
         if (notifications == null)
         {
             return;
         }
 
+        var data = new Dictionary<string, string> { ["orderId"] = orderId.ToString(CultureInfo.InvariantCulture) };
+        if (assignmentId != null)
+        {
+            data["assignmentId"] = assignmentId.Value.ToString(CultureInfo.InvariantCulture);
+        }
+
         try
         {
-            await notifications.SendAsync(new NotificationMessage(
-                UserRole.Customer, customerId, topic, title, body,
-                new Dictionary<string, string> { ["orderId"] = orderId.ToString(CultureInfo.InvariantCulture) }), cancellationToken);
+            await notifications.SendAsync(new NotificationMessage(role, recipientId, topic, title, body, data), cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Could not notify customer {CustomerId} about order {OrderId} ({Topic}).", customerId, orderId, topic);
+            // A failed notice never undoes the cancel.
+            _logger.LogWarning(ex, "Could not notify {Role} {RecipientId} about order {OrderId} ({Topic}).", role, recipientId, orderId, topic);
         }
     }
 }
@@ -261,6 +278,9 @@ public static class WorkerCancelNotificationTopics
     public const string WorkerCancelled = "dispatch.worker_cancelled";
     public const string SubstituteFound = "dispatch.substitute_found";
     public const string SubstituteNotFound = "dispatch.substitute_not_found";
+
+    /// <summary>To the worker: the cancel turned their "Tự động nhận đơn" switch off (D33 item 5, #891).</summary>
+    public const string AutoAcceptOff = "dispatch.auto_accept_off";
 }
 
 /// <summary>
