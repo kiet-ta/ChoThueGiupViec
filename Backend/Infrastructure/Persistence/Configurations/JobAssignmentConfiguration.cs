@@ -130,6 +130,10 @@ public class JobAssignmentConfiguration : IEntityTypeConfiguration<JobAssignment
             .HasColumnName("acceptance_reminded_at")
             .HasColumnType("DATETIME2");
 
+        builder.Property(x => x.CheckInRemindedAt)
+            .HasColumnName("checkin_reminded_at")
+            .HasColumnType("DATETIME2");
+
         builder.Property(x => x.RedoCount)
             .HasColumnName("redo_count")
             .HasDefaultValue((byte)0)

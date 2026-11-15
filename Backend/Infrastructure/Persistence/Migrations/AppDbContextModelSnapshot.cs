@@ -892,6 +892,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(20)")
                         .HasColumnName("assignment_status");
 
+                    b.Property<DateTime?>("CheckInRemindedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("checkin_reminded_at");
+
                     b.Property<decimal>("CommissionRate")
                         .HasPrecision(18, 2)
                         .HasColumnType("DECIMAL(4,3)")
