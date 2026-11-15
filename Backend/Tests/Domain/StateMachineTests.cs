@@ -38,6 +38,7 @@ public class StateMachineTests
         (JobAssignmentStatus.Assigned, JobAssignmentStatus.Incident),
         (JobAssignmentStatus.CheckedIn, JobAssignmentStatus.InProgress),
         (JobAssignmentStatus.CheckedIn, JobAssignmentStatus.Absent),
+        (JobAssignmentStatus.CheckedIn, JobAssignmentStatus.Cancelled), // D38: the order was cancelled while the worker had arrived
         (JobAssignmentStatus.InProgress, JobAssignmentStatus.AwaitingAcceptance),
         (JobAssignmentStatus.AwaitingAcceptance, JobAssignmentStatus.InProgress),
         (JobAssignmentStatus.AwaitingAcceptance, JobAssignmentStatus.Completed),
