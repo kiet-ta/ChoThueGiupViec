@@ -24,6 +24,7 @@ import '../customers/models/favorite_worker.dart';
 import '../customers/routes.dart';
 import '../customers/services/customer_profile_service.dart';
 import '../customers/services/favorite_worker_service.dart';
+import 'home_price.dart';
 
 /// The customer's Trang chủ tab (redesign 2026-10-30, `Mobile/DESIGN-SYSTEM.md` §5 "Home"):
 /// a deep-green header (date, greeting, default address, the next booking), a raised booking card
@@ -835,7 +836,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
             key: const Key('home-book'),
             label: selected == null
                 ? 'Đặt ca'
-                : 'Đặt ca · ${formatVnd(selected.unitPrice)}',
+                : 'Đặt ca · ${formatVnd(homeBookAmount(selected))}',
             icon: const Icon(Icons.arrow_forward, size: 20),
             onPressed: _openBooking,
           ),
@@ -909,12 +910,12 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                     const Spacer(),
                   const SizedBox(height: NordicSpace.sm),
                   Text(
-                    formatVnd(quote.unitPrice),
+                    formatVnd(homeCardAmount(quote)),
                     style: NordicTypography.numberSmall,
                   ),
                   const SizedBox(height: NordicSpace.xxs),
                   Text(
-                    'mỗi người, mỗi ca · cần ${quote.requiredWorkers} người',
+                    homeCardCaption(quote),
                     style: NordicTypography.bodySmall,
                   ),
                 ],

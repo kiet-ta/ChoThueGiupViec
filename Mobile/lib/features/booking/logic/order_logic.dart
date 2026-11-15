@@ -145,6 +145,19 @@ String? _timelineHint(int index) => switch (index) {
   _ => null,
 };
 
+/// The header pill of the order detail (ORDER-STATUS-SYNC-01): for an ASSIGNED order, the current step of [orderTimeline]
+/// ("Người làm đã đến", "Đang làm", "Chờ nghiệm thu"), so the pill and the timeline come from the same function and never
+/// disagree; the order status label otherwise.
+String orderHeaderLabel(String status, List<ProgressAssignment> assignments) {
+  if (status != OrderStatus.assigned) return orderStatusLabel(status);
+  final current = orderTimeline(status, assignments).where((s) => s.current);
+  final label = current.isEmpty ? null : current.first.label;
+  return switch (label) {
+    null || 'Có người làm' => orderStatusLabel(status),
+    _ => label,
+  };
+}
+
 /// Work has started once an assignment is in progress, waits for acceptance or is completed (same rule as the Web).
 bool workStarted(List<ProgressAssignment> assignments) => assignments.any(
   (a) =>

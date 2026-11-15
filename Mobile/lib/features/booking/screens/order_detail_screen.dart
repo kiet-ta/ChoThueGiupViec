@@ -698,7 +698,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     overlap: _overlap,
                     appBarTitle: 'Chi tiết đơn',
                     titleKey: const Key('order-title'),
-                    child: _headerContent(order, displayStatus),
+                    child: _headerContent(order, progress, displayStatus),
                   ),
                   Transform.translate(
                     offset: const Offset(0, -_overlap),
@@ -732,7 +732,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   /// In the dark header: the status, the start time as the big figure, the day and the shift.
-  Widget _headerContent(BookingOrder order, String displayStatus) {
+  Widget _headerContent(
+    BookingOrder order,
+    OrderProgress progress,
+    String displayStatus,
+  ) {
     final start = _localTime(order.shiftStartAt);
     final end = _localTime(order.shiftEndAt);
     final cancelled = order.orderStatus == OrderStatus.cancelled;
@@ -742,7 +746,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OrderStatusPill(displayStatus, textKey: const Key('order-status')),
+        OrderStatusPill(
+          displayStatus,
+          textKey: const Key('order-status'),
+          label: orderHeaderLabel(displayStatus, progress.assignments),
+        ),
         const SizedBox(height: NordicSpace.sm),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,

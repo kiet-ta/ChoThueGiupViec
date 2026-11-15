@@ -92,6 +92,10 @@ class _BookingScreenState extends State<BookingScreen> {
 
   BookingOptions? _options;
   List<BookingAddress>? _addresses;
+
+  /// MOB-BOOK-03: the address list shows [_addressesShown] cards until the customer opens the rest.
+  static const int _addressesShown = 3;
+  bool _allAddresses = false;
   String? _loadError;
   bool _loading = true;
 
@@ -603,7 +607,7 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         )
       else ...[
-        for (final address in addresses) ...[
+        for (final address in _visibleAddresses(addresses)) ...[
           _ChoiceCard(
             key: Key('address-${address.addressId}'),
             selected: _addressId == address.addressId,
@@ -614,13 +618,31 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           const SizedBox(height: NordicSpace.xs),
         ],
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _manageAddresses,
-            icon: const Icon(Icons.location_on_outlined, size: 18.0),
-            label: const Text('Quản lý địa chỉ'),
-          ),
+        Wrap(
+          spacing: NordicSpace.xs,
+          children: [
+            if (addresses.length > _addressesShown)
+              TextButton.icon(
+                key: const Key('address-more'),
+                onPressed: () => setState(() => _allAddresses = !_allAddresses),
+                icon: Icon(
+                  _allAddresses
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: 18.0,
+                ),
+                label: Text(
+                  _allAddresses
+                      ? 'Thu gọn'
+                      : 'Xem thêm ${addresses.length - _addressesShown} địa chỉ',
+                ),
+              ),
+            TextButton.icon(
+              onPressed: _manageAddresses,
+              icon: const Icon(Icons.location_on_outlined, size: 18.0),
+              label: const Text('Quản lý địa chỉ'),
+            ),
+          ],
         ),
       ],
       _fieldError('addressId'),
@@ -994,6 +1016,14 @@ class _BookingScreenState extends State<BookingScreen> {
       ],
       _fieldError('startTime'),
     ];
+  }
+
+  /// At most [_addressesShown] addresses until "Xem thêm"; the chosen one is always shown first (MOB-BOOK-03).
+  List<BookingAddress> _visibleAddresses(List<BookingAddress> all) {
+    if (_allAddresses || all.length <= _addressesShown) return all;
+    final chosen = all.where((a) => a.addressId == _addressId);
+    final others = all.where((a) => a.addressId != _addressId);
+    return [...chosen, ...others].take(_addressesShown).toList();
   }
 
   Widget _heading(String text, {double top = 0.0, String? trailing}) => Padding(

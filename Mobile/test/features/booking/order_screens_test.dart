@@ -383,6 +383,8 @@ void main() {
           scrollable: find.byType(Scrollable).first,
         );
         expect(find.text('Huỷ đơn'), findsNothing);
+        // ORDER-STATUS-SYNC-01: the header pill says the same step as the timeline.
+        expect(textOf(tester, 'order-status'), 'Chờ nghiệm thu');
         expect(
           textOf(tester, 'order-timeline-hint'),
           'Mời bạn kiểm tra rồi xác nhận nghiệm thu.',

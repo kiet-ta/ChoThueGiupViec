@@ -17,6 +17,7 @@ import '../services/disputes_service.dart';
 import '../services/api_evidence_uploader.dart';
 import '../services/evidence_uploader.dart';
 import 'dispute_create_screen.dart';
+import 'dispute_detail_screen.dart';
 
 /// Arguments of the dispute routes: who is signed in and, when a job is open, which order a new dispute is about.
 class DisputeScreenArgs {
@@ -170,10 +171,25 @@ class _DisputeScreenState extends State<DisputeScreen> {
     );
   }
 
+  /// Opens the whole dispute (DISPUTE-DETAIL-01).
+  void _openDetail(Dispute d) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DisputeDetailScreen(
+          dispute: d,
+          role: widget.role,
+          service: _service,
+        ),
+      ),
+    );
+  }
+
   Widget _tile(Dispute d) {
     return Padding(
       padding: const EdgeInsets.only(bottom: NordicSpace.sm),
       child: NordicCard(
+        key: Key('dispute-card-${d.disputeId}'),
+        onTap: () => _openDetail(d),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
