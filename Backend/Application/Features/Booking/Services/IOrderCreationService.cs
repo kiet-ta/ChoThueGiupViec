@@ -14,7 +14,9 @@ public record CreateOrderRequest(
     long? PreviousOrderId = null,
     // Decisions D34 (ECONOMY only): the local start and the length in hours of a timed job inside the shift; both or neither.
     TimeOnly? StartTime = null,
-    decimal? DurationHours = null);
+    decimal? DurationHours = null,
+    // Decision D36: the customer agreed that a large house is one worker who may need extra hours after the job.
+    bool AcceptsContinuousWork = false);
 
 /// <summary>The <c>Order</c> shape of contract booking.md section 2 (times in UTC).</summary>
 public record CreatedOrder(
@@ -38,7 +40,8 @@ public record CreatedOrder(
     DateTime UpdatedAt,
     // Decisions D34: the timed job's local start/end; both null = the whole shift.
     TimeOnly? StartTime = null,
-    TimeOnly? EndTime = null);
+    TimeOnly? EndTime = null,
+    bool IsContinuousWork = false);
 
 public interface IOrderCreationService
 {

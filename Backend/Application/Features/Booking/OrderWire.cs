@@ -32,14 +32,17 @@ public record OrderDto(
     // Decisions D34: the job's local start/end (HH:mm) and length when the customer picked them; null = the whole shift.
     string? StartTime = null,
     string? EndTime = null,
-    decimal? DurationHours = null)
+    decimal? DurationHours = null,
+    // Decision D36: a large ECONOMY house (one worker, a possible 2nd job of extra hours).
+    bool IsContinuousWork = false)
 {
     public static OrderDto From(CreatedOrder o) => new(
         o.OrderId, o.OrderCode, DbEnum.ToDb(o.ServiceTier), o.AddressId, o.ScheduledDate, o.ShiftCode, o.ShiftStartAt, o.ShiftEndAt,
         o.AreaSnapshotM2, o.RequiredWorkers, o.RequiredSkill, o.TotalAmount, DbEnum.ToDb(o.OrderStatus), o.CustomerNote, o.CancelReason,
         o.PaymentDeadlineAt, o.CreatedAt, o.UpdatedAt,
         o.StartTime?.ToString("HH:mm"), o.EndTime?.ToString("HH:mm"),
-        o.StartTime is { } s && o.EndTime is { } e ? JobWindow.Hours((s, e)) : null);
+        o.StartTime is { } s && o.EndTime is { } e ? JobWindow.Hours((s, e)) : null,
+        o.IsContinuousWork);
 }
 
 /// <summary><c>OrderSummary</c> of the history list (contract booking.md section 2).</summary>
@@ -72,7 +75,40 @@ public record ProgressAssignmentDto(
     // Decision D32 (ACCEPT-01): the acceptance phase and deadlines, the same block the worker reads; null outside the execution.
     CommonService.Application.Common.Helpers.AcceptanceDto? Acceptance = null);
 
-/// <summary><c>OrderProgress</c> (contract booking.md section 2).</summary>
+/// <summary>
+/// The 2nd job of a large ECONOMY house (decision D36): the same worker keeps working right after the shift, at most <c>Shift.MaxHours</c> more,
+/// with no extra charge. <c>Status</c>: <c>STANDBY</c> (not opened yet; it opens when the worker does not confirm in time or the customer says
+/// "not clean"), <c>OPEN</c> (opened) or <c>RELEASED</c> (the work ended in the first job). The window runs from the end of the job, in UTC.
+/// </summary>
+public record ContinuationDto(string Status, string? ShiftCode, DateTime? WindowStartAt, DateTime? WindowEndAt, DateTime? OpenedAt)
+{
+    public const string Standby = "STANDBY";
+    public const string Open = "OPEN";
+    public const string Released = "RELEASED";
+
+    /// <summary>Null when the order is not a large-house continuous order. <paramref name="finished"/>: the work ended (completed or cancelled).</summary>
+    public static ContinuationDto? Describe(
+        bool isContinuousWork, DateOnly scheduledDate, string shiftCode, TimeOnly? jobEnd, DateTime? openedAt, bool finished, int maxHours, IClock clock)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
+        if (!isContinuousWork)
+        {
+            return null;
+        }
+
+        var status = openedAt is not null ? Open : finished ? Released : Standby;
+        if (BookingShifts.GetLocalTimes(shiftCode) is not { } times)
+        {
+            return new ContinuationDto(status, shiftCode, null, null, openedAt);
+        }
+
+        // D36 on top of D34: the extra hours follow the end of the job (the timed job's own end, else the shift end).
+        var endUtc = clock.ToUtc(DateTime.SpecifyKind(scheduledDate.ToDateTime(jobEnd ?? times.End), DateTimeKind.Unspecified));
+        return new ContinuationDto(status, shiftCode, endUtc, endUtc.AddHours(maxHours), openedAt);
+    }
+}
+
+/// <summary><c>OrderProgress</c> (contract booking.md section 2). <c>Continuation</c> is null unless the order is a large ECONOMY house (D36).</summary>
 public record OrderProgressDto(
     long OrderId,
     string OrderStatus,
@@ -81,7 +117,8 @@ public record OrderProgressDto(
     ExtensionDto? Extension,
     // Decisions D35: while a seat lost to a worker cancel is being re-dispatched, the moment the search stops (job start -
     // Cancel.RedispatchCutoffMinutes); null otherwise.
-    DateTime? SubstituteSearchUntil = null);
+    DateTime? SubstituteSearchUntil = null,
+    ContinuationDto? Continuation = null);
 
 public record ShiftOptionDto(string ShiftCode, string StartLocal, string EndLocal);
 
@@ -112,7 +149,8 @@ public record PriceQuoteDto(
     string Currency,
     // Decisions D34: the hours priced (null = the whole shift) and the duration suggested for the address area.
     decimal? DurationHours = null,
-    decimal? SuggestedDurationHours = null);
+    decimal? SuggestedDurationHours = null,
+    bool IsContinuousWork = false);
 
 /// <summary>Body of POST /api/v1/booking/orders (contract booking.md 3.3). The optional preferred worker is a favorite or a worker from the caller's completed assignment (ECONOMY only).</summary>
 public record CreateOrderBody(
@@ -126,7 +164,8 @@ public record CreateOrderBody(
     long? PreviousOrderId = null,
     // Decisions D34 (ECONOMY only): local start "HH:mm" on a 30-minute step and the length in hours; both or neither.
     string? StartTime = null,
-    decimal? DurationHours = null);
+    decimal? DurationHours = null,
+    bool? AcceptsContinuousWork = null);
 
 /// <summary>JOB_ORDER -> the <c>Order</c> shape (shift times converted by IClock only, G-3).</summary>
 public static class OrderMapper
@@ -145,7 +184,8 @@ public static class OrderMapper
         return new CreatedOrder(
             order.OrderId, order.OrderCode, order.ServiceTier, order.AddressId, order.ScheduledDate, order.ShiftCode, start, end,
             order.AreaSnapshotM2, order.RequiredWorkers, order.RequiredSkill, order.TotalAmount, order.OrderStatus,
-            order.CustomerNote, order.CancelReason, deadline, order.CreatedAt, order.UpdatedAt, order.StartTime, order.EndTime);
+            order.CustomerNote, order.CancelReason, deadline, order.CreatedAt, order.UpdatedAt, order.StartTime, order.EndTime,
+            order.IsContinuousWork);
     }
 
     public static OrderSummaryDto ToSummary(JobOrder o) => new(

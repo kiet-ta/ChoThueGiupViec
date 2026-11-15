@@ -73,16 +73,18 @@ class FakeBookingService implements IBookingService {
     if (quoteError != null) return Future.error(quoteError!);
     final large = addressId == 2;
     final unit = serviceTier == ServiceTier.premium ? 390000 : 260000;
+    final continuous = large && serviceTier != ServiceTier.premium;
     return Future.value(
       PriceQuote(
         addressId: addressId,
         serviceTier: serviceTier,
         totalAreaM2: large ? 90 : 50,
         areaBracket: large ? 'OVER_80' : 'FROM_31_TO_80',
-        requiredWorkers: large ? 2 : 1,
+        requiredWorkers: large && !continuous ? 2 : 1,
         unitPrice: unit,
         totalAmount: unit * (large ? 2 : 1),
         currency: 'VND',
+        isContinuousWork: continuous,
       ),
     );
   }
@@ -659,6 +661,119 @@ void main() {
         expect(service.created, isEmpty);
       },
     );
+
+    testWidgets(
+      'a large Economy house shows the one-worker notice and the single large-house price (D36)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'address-2');
+
+        expect(textOf(tester, 'quote-total'), '520.000 đ');
+        expect(
+          textOf(tester, 'quote-breakdown'),
+          'Giá nhà lớn · 1 người · Cơ bản',
+        );
+        expect(
+          textOf(tester, 'quote-workers-note'),
+          contains('thợ có thể cần làm 2 đơn liên tiếp'),
+        );
+      },
+    );
+
+    testWidgets(
+      'a large Economy house can be booked in the evening shift too: the 2nd job is extra hours (D36)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'address-2');
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('day-2026-10-16')),
+          80.0,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('day-list')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tapKey(tester, 'day-2026-10-16');
+        await tapKey(tester, 'shift-SHIFT_EVENING');
+        await tapKey(tester, 'start-17:30');
+        await tapKey(tester, 'submit-order');
+
+        expect(
+          find.byKey(const Key('continuous-work-consent')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'a large Economy house asks the customer to agree before the order is created, and sends the agreement (D36)',
+      (tester) async {
+        final service = FakeBookingService();
+        final opened = await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'address-2');
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('day-2026-10-16')),
+          80.0,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('day-list')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tapKey(tester, 'day-2026-10-16');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-09:00');
+        await tapKey(tester, 'submit-order');
+
+        expect(
+          find.byKey(const Key('continuous-work-consent')),
+          findsOneWidget,
+        );
+        expect(
+          service.created,
+          isEmpty,
+          reason: 'nothing is sent before agreeing',
+        );
+
+        await tapKey(tester, 'continuous-work-accept');
+
+        final input = service.created.single;
+        expect(input.acceptsContinuousWork, isTrue);
+        expect(input.toJson()['acceptsContinuousWork'], isTrue);
+        expect(opened.single.orderId, 100);
+      },
+    );
+
+    testWidgets('declining the agreement creates nothing', (tester) async {
+      final service = FakeBookingService();
+      await pumpBooking(tester, service);
+
+      await tapKey(tester, 'tier-ECONOMY');
+      await tapKey(tester, 'address-2');
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('day-2026-10-16')),
+        80.0,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('day-list')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tapKey(tester, 'day-2026-10-16');
+      await tapKey(tester, 'shift-SHIFT_MORNING');
+      await tapKey(tester, 'start-09:00');
+      await tapKey(tester, 'submit-order');
+      await tapKey(tester, 'continuous-work-decline');
+
+      expect(service.created, isEmpty);
+      expect(find.byKey(const Key('continuous-work-consent')), findsNothing);
+    });
 
     testWidgets(
       'creates the order with the choices and opens the payment for it',

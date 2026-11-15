@@ -75,8 +75,19 @@ public class OrderCreationService(
                 $"The job must start at least {_rules.Booking.EconomyMinLeadMinutes} minutes from now.", BookingErrorCodes.LeadTimeTooShort);
         }
 
-        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules);
-        var quote = await pricing.QuoteAsync(request.ServiceTier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken);
+        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules, request.ServiceTier);
+        if (plan.IsContinuousWork && !request.AcceptsContinuousWork)
+        {
+            // D36: one worker who may need extra hours after the job; the customer must agree first.
+            throw new ValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["acceptsContinuousWork"] =
+                    ["acceptsContinuousWork must be true: a large house is done by one worker who may need extra hours after the job."],
+            });
+        }
+
+        var quote = await pricing.QuoteAsync(
+            request.ServiceTier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken, plan.PriceUnits, plan.IsContinuousWork);
         if (window is not null)
         {
             quote = PriceCalculator.ForHours(quote, request.DurationHours!.Value, _rules.Shift.MaxHours);
@@ -104,6 +115,7 @@ public class OrderCreationService(
                     TotalAmount = quote.TotalAmount,
                     CustomerNote = request.CustomerNote,
                     PreferredWorkerId = request.PreferredWorkerId,
+                    IsContinuousWork = plan.IsContinuousWork,
                     StartTime = window?.Start,
                     EndTime = window?.End,
                     CreatedAt = nowUtc,
@@ -127,7 +139,8 @@ public class OrderCreationService(
                     order.OrderId, order.OrderCode, order.ServiceTier, order.AddressId, order.ScheduledDate, order.ShiftCode,
                     shiftStartUtc, shiftEndUtc, order.AreaSnapshotM2, order.RequiredWorkers, order.RequiredSkill, order.TotalAmount,
                     order.OrderStatus, order.CustomerNote, order.CancelReason,
-                    nowUtc.AddMinutes(_rules.Payments.QrExpiryMinutes), order.CreatedAt, order.UpdatedAt, order.StartTime, order.EndTime);
+                    nowUtc.AddMinutes(_rules.Payments.QrExpiryMinutes), order.CreatedAt, order.UpdatedAt, order.StartTime, order.EndTime,
+                    plan.IsContinuousWork);
             }, cancellationToken);
         }
         catch

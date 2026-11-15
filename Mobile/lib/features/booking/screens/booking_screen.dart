@@ -423,6 +423,11 @@ class _BookingScreenState extends State<BookingScreen> {
       return;
     }
 
+    // D36: a large house is one worker who may work two consecutive jobs; the customer must agree first.
+    final continuous = _quote?.isContinuousWork ?? false;
+    if (continuous && await _askContinuousWorkConsent() != true) return;
+    if (!mounted) return;
+
     final note = _noteController.text.trim();
     final input = CreateOrderInput(
       addressId: _addressId!,
@@ -436,6 +441,7 @@ class _BookingScreenState extends State<BookingScreen> {
       previousOrderId: _preferredWorkerId == _previousWorkerId
           ? _previousOrderId
           : null,
+      acceptsContinuousWork: continuous,
       startTime: _timed ? _startTime : null,
       durationHours: _timed ? _durationHours : null,
     );
@@ -521,7 +527,11 @@ class _BookingScreenState extends State<BookingScreen> {
                           needsTime: _timed,
                           startTime: _startTime,
                         ) ??
-                        (_timed && _startTime != null && _durationHours != null
+                        (quote != null && quote.isContinuousWork
+                            ? quoteBreakdown(quote)
+                            : _timed &&
+                                  _startTime != null &&
+                                  _durationHours != null
                             ? '${jobTimeText(_startTime!, _durationHours!)} · ${quote?.requiredWorkers ?? 0} người'
                             : '${quote?.requiredWorkers ?? 0} người × ${formatVnd(quote?.unitPrice ?? 0)}'),
                     style: NordicTypography.bodySmall,
@@ -756,7 +766,9 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           const SizedBox(height: NordicSpace.xs),
           Text(
-            quote.durationHours != null
+            quote.isContinuousWork
+                ? quoteBreakdown(quote)
+                : quote.durationHours != null
                 ? '${hoursLabel(quote.durationHours!)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}'
                 : '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}',
             key: const Key('quote-breakdown'),
@@ -840,6 +852,42 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
       ],
     ];
+  }
+
+  /// D36: asks the customer to agree that a large house is done by one worker who may work two consecutive jobs.
+  Future<bool?> _askContinuousWorkConsent() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('continuous-work-consent'),
+        title: const Text('Nhà bạn khá lớn'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final paragraph in continuousWorkConsent)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+                  child: Text(paragraph, style: NordicTypography.bodyRegular),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('continuous-work-decline'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Chọn lại'),
+          ),
+          TextButton(
+            key: const Key('continuous-work-accept'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Đồng ý đặt'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// The long text of a package in a popup (MOB-BOOK-01): what the card used to show in full.

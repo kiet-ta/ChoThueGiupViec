@@ -1,7 +1,7 @@
 // Pure logic of the booking and home screens (no React, so `node --test` covers it).
 // Time zone rule (decision G-3): shifts are local Asia/Ho_Chi_Minh (UTC+7, no daylight saving).
 import { formatVnd } from '../../../lib/format.ts'
-import type { BookingOptions, FreeShift, OrderSummary, ServiceTier, ShiftOption } from './types.ts'
+import type { BookingOptions, FreeShift, OrderSummary, PriceQuote, ServiceTier, ShiftOption } from './types.ts'
 
 export function firstName(fullName: string): string {
   return fullName.trim().split(/\s+/).at(-1) ?? ''
@@ -132,6 +132,15 @@ export function startTimeChoices(date: string, shift: ShiftOption, hours: number
   }
   return list
 }
+
+/** D36: what the summary says about the workers; a large ECONOMY house is one worker at the single large-house price (no "x N" to confuse). */
+export const quoteWorkersLabel = (quote: Pick<PriceQuote, 'requiredWorkers' | 'unitPrice' | 'totalAmount' | 'isContinuousWork'>) =>
+  quote.isContinuousWork ? `1 thợ · giá nhà lớn ${formatVnd(quote.totalAmount)}` : workersPrice(quote.requiredWorkers, quote.unitPrice)
+
+/** D36: the notice and the agreement for a large ECONOMY house. */
+export const CONTINUOUS_WORK_NOTICE = 'Nhà bạn lớn nên thợ có thể cần làm 2 đơn liên tiếp: đơn 2 là làm thêm giờ ngay sau ca (tối đa 4 giờ). Bạn chỉ trả một lần, không phát sinh thêm.'
+export const CONTINUOUS_WORK_AGREEMENT = 'Tôi đồng ý: nhà tôi do một thợ làm và có thể làm 2 đơn liên tiếp.'
+
 
 interface ProblemInput {
   status?: number

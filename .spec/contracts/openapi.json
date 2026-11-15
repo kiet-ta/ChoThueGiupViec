@@ -17606,6 +17606,35 @@
         },
         "additionalProperties": false
       },
+      "ContinuationDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "shiftCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "windowStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "windowEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateBankChangeRequest": {
         "type": "object",
         "properties": {
@@ -17679,6 +17708,10 @@
           "durationHours": {
             "type": "number",
             "format": "double",
+            "nullable": true
+          },
+          "acceptsContinuousWork": {
+            "type": "boolean",
             "nullable": true
           }
         },
@@ -19813,6 +19846,9 @@
             "type": "number",
             "format": "double",
             "nullable": true
+          },
+          "isContinuousWork": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -19903,6 +19939,9 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "continuation": {
+            "$ref": "#/components/schemas/ContinuationDto"
           }
         },
         "additionalProperties": false
@@ -20615,6 +20654,9 @@
             "type": "number",
             "format": "double",
             "nullable": true
+          },
+          "isContinuousWork": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -22191,6 +22233,9 @@
           },
           "acceptance": {
             "$ref": "#/components/schemas/AcceptanceDto"
+          },
+          "continuation": {
+            "$ref": "#/components/schemas/ContinuationDto"
           }
         },
         "additionalProperties": false

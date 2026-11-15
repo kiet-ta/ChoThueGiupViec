@@ -114,8 +114,8 @@ public class OrderQueryService(
 
         var address = await addresses.GetOwnedAsync(customerId, addressId, cancellationToken)
             ?? throw new NotFoundException("Address", addressId);
-        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules);
-        var quote = await pricing.QuoteAsync(tier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken);
+        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules, tier);
+        var quote = await pricing.QuoteAsync(tier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken, plan.PriceUnits, plan.IsContinuousWork);
         if (durationHours is { } hours)
         {
             quote = PriceCalculator.ForHours(quote, hours, _rules.Shift.MaxHours);
@@ -124,7 +124,8 @@ public class OrderQueryService(
         return new PriceQuoteDto(
             addressId, DbEnum.ToDb(tier), quote.TotalAreaM2, quote.AreaBracket, quote.RequiredWorkers, quote.UnitPrice, quote.TotalAmount, Currency,
             durationHours,
-            tier == ServiceTier.Economy ? JobWindow.SuggestedHours(address.TotalAreaM2, plan.RequiredWorkers, _rules) : null);
+            tier == ServiceTier.Economy ? JobWindow.SuggestedHours(address.TotalAreaM2, plan.RequiredWorkers, _rules) : null,
+            quote.IsContinuousWork);
     }
 
     public async Task<OrderDto> CreateAsync(int customerId, CreateOrderBody body, CancellationToken cancellationToken = default)
@@ -163,7 +164,7 @@ public class OrderQueryService(
         var created = await creation.CreateAsync(
             new CreateOrderRequest(
                 customerId, body.AddressId, tier, body.ScheduledDate!.Value, body.ShiftCode ?? string.Empty, body.CustomerNote, body.RequiredSkill,
-                body.PreferredWorkerId, body.PreviousOrderId, startTime, body.DurationHours),
+                body.PreferredWorkerId, body.PreviousOrderId, startTime, body.DurationHours, body.AcceptsContinuousWork == true),
             cancellationToken);
         return OrderDto.From(created);
     }
@@ -256,7 +257,11 @@ public class OrderQueryService(
             searchUntil = start.AddMinutes(-Math.Max(0, _rules.Cancel.RedispatchCutoffMinutes));
         }
 
-        return new OrderProgressDto(order.OrderId, DbEnum.ToDb(order.OrderStatus), order.RequiredWorkers, assignments, extensionDto, searchUntil);
+        var continuation = ContinuationDto.Describe(
+            order.IsContinuousWork, order.ScheduledDate, order.ShiftCode, order.EndTime, order.ContinuationOpenedAt,
+            order.OrderStatus is JobOrderStatus.Completed or JobOrderStatus.Cancelled, _rules.Shift.MaxHours, clock);
+        return new OrderProgressDto(
+            order.OrderId, DbEnum.ToDb(order.OrderStatus), order.RequiredWorkers, assignments, extensionDto, searchUntil, continuation);
     }
 
     public async Task<IReadOnlyList<WorkerFreeShift>> GetRebookAvailabilityAsync(int customerId, long orderId, int workerId, CancellationToken cancellationToken = default)

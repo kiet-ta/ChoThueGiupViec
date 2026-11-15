@@ -424,3 +424,9 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 ### Events (decisions D35)
 - **Publishes** `AssignmentCancelledByWorker { AssignmentId, OrderId, WorkerId, AssignmentSeq, Reason, CancelCount, WorkerLocked, CancelledAtUtc }` sau commit hủy ca của thợ.
 - **Publishes** `AssignmentFailed { OrderId, "WORKER_CANCELLED_NO_SUBSTITUTE", FailedAtUtc }` khi chỗ bị hủy chưa có thợ thay lúc `T - Cancel.RedispatchCutoffMinutes` (sweep 5 s của `OfferExpiryWorker`).
+
+---
+
+## D36 addendum: the offer of a large ECONOMY house (LARGE-1W-01, #900)
+- An order with `isContinuousWork` is one seat (`requiredWorkers = 1`) offered exactly like any ECONOMY order (30 s, auto-accept D33); the dispatch changes nothing and holds no slot of another shift. Its single assignment has `grossAmount` = the whole total.
+- The 2nd job (extra hours right after the shift) opens after `Dispatch.ContinuationConfirmMinutes` (15) past the shift end if the assignment is still `IN_PROGRESS` (sweep every minute), or on the customer's first "not clean" (`workers.md` 2.5.3).

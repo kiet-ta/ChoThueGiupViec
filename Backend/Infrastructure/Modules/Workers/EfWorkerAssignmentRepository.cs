@@ -95,6 +95,8 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
                 assignment.SubmittedAt,
                 assignment.CompletionSource,
                 assignment.RedoCount,
+                order.IsContinuousWork,
+                order.ContinuationOpenedAt,
             })
             .FirstOrDefaultAsync(cancellationToken);
         if (row is null)
@@ -139,6 +141,8 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
             pending?.ExtraAmount,
             row.SubmittedAt,
             row.CompletionSource,
-            row.RedoCount);
+            row.RedoCount,
+            row.IsContinuousWork,
+            row.ContinuationOpenedAt);
     }
 }

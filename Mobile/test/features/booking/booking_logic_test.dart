@@ -29,17 +29,22 @@ const options = BookingOptions(
   sandbox: true,
 );
 
-PriceQuote quote({int workers = 1, double area = 50, int unit = 260000}) =>
-    PriceQuote(
-      addressId: 3,
-      serviceTier: 'ECONOMY',
-      totalAreaM2: area,
-      areaBracket: workers == 2 ? 'OVER_80' : 'FROM_31_TO_80',
-      requiredWorkers: workers,
-      unitPrice: unit,
-      totalAmount: unit * workers,
-      currency: 'VND',
-    );
+PriceQuote quote({
+  int workers = 1,
+  double area = 50,
+  int unit = 260000,
+  bool continuous = false,
+}) => PriceQuote(
+  addressId: 3,
+  serviceTier: 'ECONOMY',
+  totalAreaM2: area,
+  areaBracket: workers == 2 || continuous ? 'OVER_80' : 'FROM_31_TO_80',
+  requiredWorkers: workers,
+  unitPrice: unit,
+  totalAmount: unit * (continuous ? 2 : workers),
+  currency: 'VND',
+  isContinuousWork: continuous,
+);
 
 void main() {
   group('money and area', () {
@@ -127,6 +132,38 @@ void main() {
         workersNote(quote(workers: 2, area: 90), options),
         contains('lớn hơn 80 m²'),
       );
+    });
+
+    test(
+      'a large Economy house is one worker with a possible 2nd job (D36)',
+      () {
+        final large = quote(area: 90, continuous: true);
+        expect(workersNote(large, options), isNot(contains('cùng lúc')));
+        expect(workersNote(large, options), contains('2 đơn liên tiếp'));
+        expect(workersNote(large, options), contains('thêm giờ ngay sau ca'));
+        expect(workersNote(large, options), contains('không phát sinh thêm'));
+        expect(large.totalAmount, 520000);
+        expect(quoteBreakdown(large), 'Giá nhà lớn · 1 người · Cơ bản');
+        expect(quoteBreakdown(quote()), '260.000 đ × 1 người · Cơ bản');
+      },
+    );
+
+    test('the agreement is sent only when given', () {
+      const base = CreateOrderInput(
+        addressId: 1,
+        serviceTier: 'ECONOMY',
+        scheduledDate: '2026-10-16',
+        shiftCode: 'SHIFT_MORNING',
+      );
+      expect(base.toJson().containsKey('acceptsContinuousWork'), isFalse);
+      const agreed = CreateOrderInput(
+        addressId: 1,
+        serviceTier: 'ECONOMY',
+        scheduledDate: '2026-10-16',
+        shiftCode: 'SHIFT_MORNING',
+        acceptsContinuousWork: true,
+      );
+      expect(agreed.toJson()['acceptsContinuousWork'], isTrue);
     });
   });
 

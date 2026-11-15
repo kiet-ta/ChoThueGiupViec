@@ -465,6 +465,14 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   ),
                   const SizedBox(height: NordicSpace.xxs),
                   Text(detail.fullAddress, style: NordicTypography.bodySmall),
+                  if (detail.continuation?.note case final note?) ...[
+                    const SizedBox(height: NordicSpace.xs),
+                    Text(
+                      note,
+                      key: const Key('continuation-note'),
+                      style: NordicTypography.bodySmall,
+                    ),
+                  ],
                 ],
               ),
             ),

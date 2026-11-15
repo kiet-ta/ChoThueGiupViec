@@ -38,7 +38,9 @@ public record WorkerAssignmentDetailRow(
     decimal? PendingExtraAmount,
     DateTime? SubmittedAt = null,
     CompletionSource? CompletionSource = null,
-    int RedoCount = 0);
+    int RedoCount = 0,
+    bool IsContinuousWork = false,
+    DateTime? ContinuationOpenedAt = null);
 
 /// <summary>Read of the jobs booked for a worker (contract workers.md 2.3.3 and 2.3.4).</summary>
 public interface IWorkerAssignmentRepository

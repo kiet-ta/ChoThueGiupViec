@@ -37,6 +37,9 @@ public class WorkersModule : IModule
         // DISPATCH-AUTO-01 (#890): the freelancer's "Tự động nhận đơn" switch, read by Dispatch.
         services.AddScoped<IWorkerAutoAcceptService, WorkerAutoAcceptService>();
         services.AddScoped<IJobCompletionService, JobCompletionService>();
+        services.AddScoped<IContinuationRepository, EfContinuationRepository>();
+        services.AddScoped<IContinuationService, ContinuationService>();
+        services.AddHostedService<ContinuationSweepWorker>();
         // ACCEPT-01 (decision D32): the 24-hour acceptance window.
         services.AddScoped<IAcceptanceTimerRepository, EfAcceptanceTimerRepository>();
         services.AddScoped<IAcceptanceTimerService, AcceptanceTimerService>();

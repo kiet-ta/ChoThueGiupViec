@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { bookingProblem, dayText, durationChoices, endTimeOf, firstName, hoursLabel, jobRange, nextOrder, shiftBlockedReason, shiftStart, startTimeChoices, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
+import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, dayText, durationChoices, endTimeOf, firstName, hoursLabel, jobRange, nextOrder, quoteWorkersLabel, shiftBlockedReason, shiftStart, startTimeChoices, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
 import type { OrderSummary } from '../src/features/customer/booking/types.ts'
 
 const morning = { shiftCode: 'SHIFT_MORNING', startLocal: '08:00', endLocal: '12:00' }
@@ -103,4 +103,21 @@ describe('timed Economy job (decisions D34)', () => {
   })
   it('explains LEAD_TIME_TOO_SHORT from its code', () =>
     assert.match(bookingProblem({ status: 409, data: { code: 'LEAD_TIME_TOO_SHORT' } }), /muộn hơn/))
+})
+
+describe('large house: one worker, a possible 2nd job (decision D36)', () => {
+  const small = { requiredWorkers: 1, unitPrice: 260000, totalAmount: 260000 }
+  const large = { requiredWorkers: 1, unitPrice: 260000, totalAmount: 520000, isContinuousWork: true }
+  const premiumLarge = { requiredWorkers: 2, unitPrice: 390000, totalAmount: 780000, isContinuousWork: false }
+  it('says the single large-house price instead of "x N workers"', () => {
+    assert.equal(quoteWorkersLabel(large), '1 thợ · giá nhà lớn 520.000 đ')
+    assert.equal(quoteWorkersLabel(small), '1 × 260.000 đ')
+    assert.equal(quoteWorkersLabel(premiumLarge), '2 × 390.000 đ')
+  })
+  it('words the notice and the agreement the customer must give', () => {
+    assert.match(CONTINUOUS_WORK_NOTICE, /2 đơn liên tiếp/)
+    assert.match(CONTINUOUS_WORK_NOTICE, /thêm giờ ngay sau ca/)
+    assert.match(CONTINUOUS_WORK_NOTICE, /chỉ trả một lần/)
+    assert.match(CONTINUOUS_WORK_AGREEMENT, /đồng ý/)
+  })
 })

@@ -90,8 +90,8 @@ public class OrderCreationServiceTests
     /// <summary>260,000 per worker per shift, like the Q01 default of a mid bracket; the real lookup is covered by BE-M2-02 tests.</summary>
     private class StubPricing : IPricingService
     {
-        public Task<PriceQuote> QuoteAsync(ServiceTier serviceTier, decimal totalAreaM2, int requiredWorkers, CancellationToken cancellationToken = default) =>
-            Task.FromResult(PriceCalculator.Calculate(serviceTier, totalAreaM2, requiredWorkers, 260000m));
+        public Task<PriceQuote> QuoteAsync(ServiceTier serviceTier, decimal totalAreaM2, int requiredWorkers, CancellationToken cancellationToken = default, int? priceUnits = null, bool isContinuousWork = false) =>
+            Task.FromResult(PriceCalculator.Calculate(serviceTier, totalAreaM2, requiredWorkers, 260000m, priceUnits, isContinuousWork));
     }
 
     private class Fixture
@@ -169,8 +169,8 @@ public class OrderCreationServiceTests
 
     private static CreateOrderRequest Request(
         ServiceTier tier = ServiceTier.Economy, DateOnly? date = null, string shift = BookingShifts.Morning,
-        string? note = null, string? skill = null, int addressId = AddressId, int? preferredWorkerId = null) =>
-        new(CustomerId, addressId, tier, date ?? ShiftDate, shift, note, skill, preferredWorkerId);
+        string? note = null, string? skill = null, int addressId = AddressId, int? preferredWorkerId = null, bool acceptsContinuousWork = false) =>
+        new(CustomerId, addressId, tier, date ?? ShiftDate, shift, note, skill, preferredWorkerId, AcceptsContinuousWork: acceptsContinuousWork);
 
     private static async Task<BusinessRuleViolationException> ConflictAsync(Task task) =>
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() => task);
@@ -188,14 +188,66 @@ public class OrderCreationServiceTests
     }
 
     [Fact]
-    public async Task Economy_AllowsOrderCreation_ForTwoWorkerOrder()
+    public async Task EconomyLargeHouse_IsOneWorkerPricedAsTwoUnits_WhenTheCustomerAgrees_D36()
     {
         var f = new Fixture(90m);
 
-        var order = await f.Service().CreateAsync(Request());
+        var order = await f.Service().CreateAsync(Request(acceptsContinuousWork: true));
 
-        Assert.Equal(2, order.RequiredWorkers);
+        Assert.Equal(1, order.RequiredWorkers);
+        Assert.Equal(520000, order.TotalAmount);
+        Assert.True(order.IsContinuousWork);
         Assert.Single(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task EconomyLargeHouse_WithoutTheCustomersAgreement_IsA400_AndNothingIsWritten()
+    {
+        var f = new Fixture(90m);
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() => f.Service().CreateAsync(Request()));
+
+        Assert.Contains("acceptsContinuousWork", error.Errors.Keys);
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task EconomyLargeHouse_CanBeBookedInTheEveningShift_BecauseTheSecondJobIsExtraHours_D36()
+    {
+        var f = new Fixture(90m);
+
+        var order = await f.Service().CreateAsync(Request(shift: BookingShifts.Evening, acceptsContinuousWork: true));
+
+        Assert.True(order.IsContinuousWork);
+        Assert.Single(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task EconomyLargeHouse_TimedJob_IsPricedPerHourAsTwoUnits_D34D36()
+    {
+        var f = new Fixture(90m);
+        f.NowUtc = new DateTime(2026, 10, 14, 0, 0, 0, DateTimeKind.Utc);
+
+        // 3 hours of a 4 h shift: 260000 / 4 x 3 = 195000 per unit, 2 units = 390000 (before D36 it was 2 workers x 195000).
+        var order = await f.Service().CreateAsync(
+            Request(acceptsContinuousWork: true) with { StartTime = new TimeOnly(8, 30), DurationHours = 3m });
+
+        Assert.Equal(1, order.RequiredWorkers);
+        Assert.Equal(390000, order.TotalAmount);
+        Assert.True(order.IsContinuousWork);
+        Assert.Equal(new TimeOnly(8, 30), order.StartTime);
+        Assert.Equal(new TimeOnly(11, 30), order.EndTime);
+    }
+
+    [Fact]
+    public async Task EconomySmallHouse_NeedsNoAgreement_AndIsNotContinuous()
+    {
+        var f = new Fixture(50m);
+
+        var order = await f.Service().CreateAsync(Request(shift: BookingShifts.Evening));
+
+        Assert.Equal(1, order.RequiredWorkers);
+        Assert.False(order.IsContinuousWork);
     }
 
     [Fact]
@@ -252,12 +304,12 @@ public class OrderCreationServiceTests
 
     [Theory]
     [InlineData(80, 1, 260000)]
-    [InlineData(80.01, 2, 520000)]
-    public async Task AreaOver80_NeedsTwoWorkers_AndThePriceIsPerWorker(double area, int workers, int total)
+    [InlineData(80.01, 1, 520000)]
+    public async Task AreaOver80_EconomyIsOneWorkerAndTheLargeHousePrice(double area, int workers, int total)
     {
         var f = new Fixture((decimal)area);
 
-        var order = await f.Service().CreateAsync(Request());
+        var order = await f.Service().CreateAsync(Request(acceptsContinuousWork: true));
 
         Assert.Equal(workers, order.RequiredWorkers);
         Assert.Equal(total, order.TotalAmount);
@@ -493,13 +545,25 @@ public class OrderCreationServiceTests
     }
 
     [Fact]
-    public async Task TimedJob_TwoWorkers_PayEachWorkerForTheHours()
+    public async Task TimedJob_LargeEconomyHouse_IsOneWorkerPaidTwoUnitsOfTheHours_D36()
     {
         var f = new Fixture(90m);
 
-        var order = await f.Service().CreateAsync(Timed("13:00", 2m, shift: BookingShifts.Afternoon));
+        var order = await f.Service().CreateAsync(Timed("13:00", 2m, shift: BookingShifts.Afternoon) with { AcceptsContinuousWork = true });
 
-        Assert.Equal(260000m, order.TotalAmount); // 130,000 x 2 workers
+        Assert.Equal(1, order.RequiredWorkers);
+        Assert.Equal(260000m, order.TotalAmount); // 130,000 x 2 units: the same price as the 2 workers of D34
+    }
+
+    [Fact]
+    public async Task TimedJob_PremiumLargeHouse_StaysTwoWorkers()
+    {
+        var f = new Fixture(90m);
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() =>
+            f.Service().CreateAsync(Timed("13:00", 2m, ServiceTier.Premium, BookingShifts.Afternoon)));
+
+        Assert.Contains("startTime", error.Errors.Keys); // PREMIUM + a time is a 400 (D34), unchanged
     }
 
     [Theory]

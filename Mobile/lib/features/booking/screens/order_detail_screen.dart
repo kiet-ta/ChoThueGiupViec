@@ -876,6 +876,26 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       ],
       const SectionTitle('Tiến trình'),
       NordicCard(child: _timeline(displayStatus, progress.assignments)),
+      if (continuationText(progress.continuation) case final note?) ...[
+        const SizedBox(height: NordicSpace.sm),
+        NordicCard(
+          key: const Key('continuation-card'),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.more_time_outlined, color: NordicColors.primary),
+              const SizedBox(width: NordicSpace.xs),
+              Expanded(
+                child: Text(
+                  note,
+                  key: const Key('continuation-note'),
+                  style: NordicTypography.bodyRegular,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
       if (!(cancelled && progress.assignments.isEmpty)) ...[
         SectionTitle(
           'Người làm',

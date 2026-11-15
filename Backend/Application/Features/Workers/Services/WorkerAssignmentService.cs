@@ -112,7 +112,10 @@ public class WorkerAssignmentService(
             row.Longitude,
             row.PayoutAmount,
             pending,
-            await AcceptanceOfAsync(row, ct));
+            await AcceptanceOfAsync(row, ct),
+            Booking.ContinuationDto.Describe(
+                row.IsContinuousWork, row.SlotDate, row.ShiftCode, row.EndTime, row.ContinuationOpenedAt,
+                row.Status is JobAssignmentStatus.Completed or JobAssignmentStatus.Cancelled, rules?.Value.Shift.MaxHours ?? new Common.Options.ShiftRules().MaxHours, clock));
 
         return ApiResponse<WorkerAssignmentDetailResponse>.Ok(detail, "Retrieved the job successfully.");
     }

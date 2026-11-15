@@ -120,6 +120,9 @@ class PriceQuote {
   final double? durationHours;
   final double? suggestedDurationHours;
 
+  /// D36: an ECONOMY large house is done by ONE worker who may need a 2nd consecutive job (the next shift of the day).
+  final bool isContinuousWork;
+
   const PriceQuote({
     required this.addressId,
     required this.serviceTier,
@@ -131,6 +134,7 @@ class PriceQuote {
     required this.currency,
     this.durationHours,
     this.suggestedDurationHours,
+    this.isContinuousWork = false,
   });
 
   factory PriceQuote.fromJson(Map<String, dynamic> json) => PriceQuote(
@@ -144,6 +148,7 @@ class PriceQuote {
     currency: json['currency'] as String? ?? 'VND',
     durationHours: _doubleOrNull(json['durationHours']),
     suggestedDurationHours: _doubleOrNull(json['suggestedDurationHours']),
+    isContinuousWork: json['isContinuousWork'] as bool? ?? false,
   );
 }
 
@@ -173,6 +178,9 @@ class BookingOrder {
   final String? endTime;
   final double? durationHours;
 
+  /// D36: a large ECONOMY house (one worker, a possible 2nd consecutive job).
+  final bool isContinuousWork;
+
   const BookingOrder({
     required this.orderId,
     required this.orderCode,
@@ -193,6 +201,7 @@ class BookingOrder {
     this.startTime,
     this.endTime,
     this.durationHours,
+    this.isContinuousWork = false,
   });
 
   factory BookingOrder.fromJson(Map<String, dynamic> json) => BookingOrder(
@@ -215,6 +224,7 @@ class BookingOrder {
     startTime: json['startTime'] as String?,
     endTime: json['endTime'] as String?,
     durationHours: _doubleOrNull(json['durationHours']),
+    isContinuousWork: json['isContinuousWork'] as bool? ?? false,
   );
 }
 
@@ -236,6 +246,9 @@ class CreateOrderInput {
   final String? startTime;
   final double? durationHours;
 
+  /// D36: the customer agreed that a large house is done by one worker who may work two consecutive jobs.
+  final bool acceptsContinuousWork;
+
   const CreateOrderInput({
     required this.addressId,
     required this.serviceTier,
@@ -246,6 +259,7 @@ class CreateOrderInput {
     this.previousOrderId,
     this.startTime,
     this.durationHours,
+    this.acceptsContinuousWork = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -258,6 +272,7 @@ class CreateOrderInput {
     'previousOrderId': ?previousOrderId,
     'startTime': ?startTime,
     'durationHours': ?durationHours,
+    if (acceptsContinuousWork) 'acceptsContinuousWork': true,
   };
 }
 
@@ -469,6 +484,39 @@ class OrderExtension {
   );
 }
 
+/// The 2nd job of a large ECONOMY house (decision D36): extra hours right after the shift, no extra charge. `STANDBY` (not opened yet), `OPEN`
+/// (opened) or `RELEASED` (the work ended in the first job). The window runs from the shift end.
+class OrderContinuation {
+  static const standby = 'STANDBY';
+  static const open = 'OPEN';
+  static const released = 'RELEASED';
+
+  final String status;
+  final String? shiftCode;
+  final DateTime? windowStartAt;
+  final DateTime? windowEndAt;
+  final DateTime? openedAt;
+
+  const OrderContinuation({
+    required this.status,
+    this.shiftCode,
+    this.windowStartAt,
+    this.windowEndAt,
+    this.openedAt,
+  });
+
+  static OrderContinuation? fromJson(Object? json) =>
+      json is Map<String, dynamic>
+      ? OrderContinuation(
+          status: json['status'] as String? ?? '',
+          shiftCode: json['shiftCode'] as String?,
+          windowStartAt: _date(json['windowStartAt']),
+          windowEndAt: _date(json['windowEndAt']),
+          openedAt: _date(json['openedAt']),
+        )
+      : null;
+}
+
 /// `OrderProgress` (booking.md 3.6).
 class OrderProgress {
   final int orderId;
@@ -480,6 +528,9 @@ class OrderProgress {
   /// Decisions D35: while a seat a worker cancelled is re-dispatched, when the search stops (UTC); null otherwise.
   final DateTime? substituteSearchUntil;
 
+  /// D36: null unless the order is a large ECONOMY house.
+  final OrderContinuation? continuation;
+
   const OrderProgress({
     required this.orderId,
     required this.orderStatus,
@@ -487,6 +538,7 @@ class OrderProgress {
     required this.assignments,
     required this.extension,
     this.substituteSearchUntil,
+    this.continuation,
   });
 
   factory OrderProgress.fromJson(Map<String, dynamic> json) => OrderProgress(
@@ -501,6 +553,7 @@ class OrderProgress {
         ? OrderExtension.fromJson(json['extension'] as Map<String, dynamic>)
         : null,
     substituteSearchUntil: _date(json['substituteSearchUntil']),
+    continuation: OrderContinuation.fromJson(json['continuation']),
   );
 }
 

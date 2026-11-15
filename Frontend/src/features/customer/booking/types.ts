@@ -39,6 +39,8 @@ export interface PriceQuote {
   /** Decisions D34: the hours this price is for (null = the whole shift) and the length suggested for the home's area. */
   durationHours?: number | null
   suggestedDurationHours?: number | null
+  /** D36: an ECONOMY large house is done by ONE worker who may need a 2nd consecutive job (the next shift of the day). */
+  isContinuousWork?: boolean
 }
 
 export interface CustomerAddress {
@@ -107,4 +109,6 @@ export interface CreateOrderBody {
   /** Decisions D34 (ECONOMY only): local start `HH:mm` and length in hours; both or neither. */
   startTime?: string | null
   durationHours?: number | null
+  /** D36: the customer agreed that a large house is one worker who may work two consecutive jobs (required for it). */
+  acceptsContinuousWork?: boolean
 }
