@@ -42,6 +42,7 @@ import '../models/booking_models.dart';
 import '../routes.dart';
 import 'booking_screen.dart';
 import '../services/fallback_service.dart';
+import '../services/worker_route_service.dart';
 import '../services/order_service.dart';
 import 'arrival_prompt_card.dart';
 import 'fallback_prompt_card.dart';
@@ -77,6 +78,9 @@ class OrderDetailScreen extends StatefulWidget {
   /// The address of the order, for the "Địa điểm" card; by default read from the customer's address book.
   final Future<CustomerAddress?> Function(int addressId)? addressLookup;
 
+  /// The worker's way to the house for the "đang trên đường tới" card (MOB-ORDER-03).
+  final IWorkerRouteService? routeService;
+
   const OrderDetailScreen({
     super.key,
     this.args,
@@ -88,6 +92,7 @@ class OrderDetailScreen extends StatefulWidget {
     this.onPay,
     this.onOpen,
     this.addressLookup,
+    this.routeService,
   });
 
   @override
@@ -134,6 +139,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   // Worker check-in arrival confirmation (CUST-ARRIVAL-01)
   int _arrivalRequest = 0;
   Map<int, CustomerArrivalStatus> _pendingArrivals = {};
+
+  // MOB-ORDER-03: the "on the way" cards (assignment id -> card) and the customer's favourite workers.
+  late final IWorkerRouteService _routeService =
+      widget.routeService ?? WorkerRouteService();
+  late final FavoriteWorkerService _favoriteService =
+      widget.favorites ?? FavoriteWorkerService();
+  Map<int, WorkerRouteView> _routes = {};
+  int _routeRequest = 0;
+  Set<int>? _favoriteIds;
+  final Set<int> _favoriteBusy = {};
+  String? _favoriteError;
 
   @override
   void initState() {
@@ -189,6 +205,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       unawaited(_loadRatingEligibility(order, progress));
       unawaited(_loadArrivals(order, progress));
       unawaited(_loadAddress(order.addressId));
+      unawaited(_loadRoutes(order, progress));
+      unawaited(_loadFavorites());
       _watch();
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -259,6 +277,131 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     });
   }
 
+  /// The way of each worker still on the road (an ASSIGNED order, assignment ASSIGNED): the Web's `routeCandidates`.
+  Future<void> _loadRoutes(BookingOrder order, OrderProgress progress) async {
+    final request = ++_routeRequest;
+    final onTheWay = order.orderStatus == OrderStatus.assigned
+        ? [
+            for (final a in progress.assignments)
+              if (a.assignmentStatus == AssignmentStatus.assigned)
+                a.assignmentId,
+          ]
+        : const <int>[];
+    final results = await Future.wait(
+      onTheWay.map((id) async {
+        try {
+          return (id, await _routeService.getRoute(id));
+        } catch (_) {
+          return (id, const WorkerRouteView.message(routeUnavailableText));
+        }
+      }),
+    );
+    if (!mounted || request != _routeRequest) return;
+    setState(() {
+      _routes = {for (final (id, view) in results) id: ?view};
+    });
+  }
+
+  /// Which workers are already favourites, for the hearts; a failure leaves the hearts out.
+  Future<void> _loadFavorites() async {
+    try {
+      final list = await _favoriteService.getFavoriteWorkers();
+      if (mounted) {
+        setState(() => _favoriteIds = {for (final w in list) w.workerId});
+      }
+    } catch (_) {}
+  }
+
+  /// Adds or removes the worker at once; a failure puts the heart back and says so.
+  Future<void> _toggleFavorite(int workerId) async {
+    final ids = _favoriteIds;
+    if (ids == null || _favoriteBusy.contains(workerId)) return;
+    final wasFavorite = ids.contains(workerId);
+    setState(() {
+      _favoriteBusy.add(workerId);
+      _favoriteError = null;
+      wasFavorite ? ids.remove(workerId) : ids.add(workerId);
+    });
+    try {
+      if (wasFavorite) {
+        await _favoriteService.removeFavoriteWorker(workerId);
+      } else {
+        await _favoriteService.addFavoriteWorker(workerId);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        wasFavorite ? ids.add(workerId) : ids.remove(workerId);
+        _favoriteError = wasFavorite
+            ? 'Chưa bỏ yêu thích được. Thử lại nhé.'
+            : 'Chưa thêm vào yêu thích được. Thử lại nhé.';
+      });
+    } finally {
+      if (mounted) setState(() => _favoriteBusy.remove(workerId));
+    }
+  }
+
+  Widget _routeCard(ProgressAssignment a, WorkerRouteView view) {
+    final route = view.route;
+    return NordicCard(
+      key: Key('route-${a.assignmentId}'),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: NordicColors.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.two_wheeler_rounded,
+              size: 22,
+              color: NordicColors.primary,
+            ),
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${workerName(a)} đang trên đường tới',
+                  style: NordicTypography.titleSmall,
+                ),
+                const SizedBox(height: NordicSpace.xxs),
+                Text(
+                  route == null
+                      ? view.message!
+                      : 'Cách ${formatRouteDistance(route.distanceMeters)} · ${formatRouteDuration(route.durationSeconds)}',
+                  key: Key('route-text-${a.assignmentId}'),
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _favoriteHeart(ProgressAssignment a) {
+    final favorite = _favoriteIds!.contains(a.workerId);
+    return IconButton(
+      key: Key('favorite-${a.assignmentId}'),
+      tooltip: favorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích',
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+      onPressed: _favoriteBusy.contains(a.workerId)
+          ? null
+          : () => _toggleFavorite(a.workerId),
+      icon: Icon(
+        favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+        color: favorite ? NordicColors.error : NordicColors.textSecondary,
+      ),
+    );
+  }
+
   Future<void> _loadArrivals(BookingOrder order, OrderProgress progress) async {
     final request = ++_arrivalRequest;
     if (order.orderStatus != OrderStatus.assigned) {
@@ -321,6 +464,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       });
       unawaited(_loadRatingEligibility(order, progress));
       unawaited(_loadArrivals(order, progress));
+      unawaited(_loadRoutes(order, progress));
       if (!shouldPollOrder(order.orderStatus)) {
         _pollTimer?.cancel();
         _pollTimer = null;
@@ -874,6 +1018,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           const SizedBox(height: NordicSpace.sm),
         ],
       ],
+      for (final a in progress.assignments)
+        if (_routes[a.assignmentId] case final view?) ...[
+          _routeCard(a, view),
+          const SizedBox(height: NordicSpace.sm),
+        ],
       const SectionTitle('Tiến trình'),
       NordicCard(child: _timeline(displayStatus, progress.assignments)),
       if (!(cancelled && progress.assignments.isEmpty)) ...[
@@ -882,6 +1031,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           trailing:
               '${progress.assignments.length}/${progress.requiredWorkers}',
         ),
+        if (_favoriteError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+            child: Text(
+              _favoriteError!,
+              key: const Key('favorite-error'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
+            ),
+          ),
         ..._assignments(order, progress),
       ],
       if (extension != null) ...[
@@ -1276,6 +1436,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ],
                     ),
                   ),
+                  if (_favoriteIds != null) _favoriteHeart(a),
                   const SizedBox(width: NordicSpace.xs),
                   // Full label width ("Chờ bạn nghiệm thu"); the name column gives way first.
                   ConstrainedBox(
