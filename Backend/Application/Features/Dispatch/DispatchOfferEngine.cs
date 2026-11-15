@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -98,6 +99,18 @@ public interface IDispatchRepository
 
     /// <summary>Orders in <c>AWAITING_FALLBACK</c> (the customer or the worker has not answered yet).</summary>
     Task<IReadOnlyList<DispatchOrderContext>> GetAwaitingFallbackOrdersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when the worker is a freelancer who turned on "Tự động nhận đơn" (<c>WORKER.auto_accept_offers</c>, DISPATCH-AUTO-01);
+    /// false for an unknown worker or agency staff.
+    /// </summary>
+    Task<bool> IsAutoAcceptOnAsync(int workerId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Realtime topic of the "your job was accepted for you" notification (DISPATCH-AUTO-01).</summary>
+public static class DispatchNotificationTopics
+{
+    public const string AutoAccepted = "dispatch.auto_accepted";
 }
 
 /// <summary>
@@ -116,6 +129,7 @@ public class DispatchOfferEngine
     private readonly IMediator _mediator;
     private readonly BusinessRules _businessRules;
     private readonly IAgencyCapacityService? _agencyCapacityService;
+    private readonly INotificationService? _notifications;
     private readonly ILogger<DispatchOfferEngine> _logger;
 
     public DispatchOfferEngine(
@@ -125,8 +139,10 @@ public class DispatchOfferEngine
         IMediator mediator,
         IOptions<BusinessRules> businessRules,
         IAgencyCapacityService? agencyCapacityService = null,
-        ILogger<DispatchOfferEngine>? logger = null)
+        ILogger<DispatchOfferEngine>? logger = null,
+        INotificationService? notifications = null)
     {
+        _notifications = notifications;
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _dispatchRepository = dispatchRepository ?? throw new ArgumentNullException(nameof(dispatchRepository));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -257,8 +273,8 @@ public class DispatchOfferEngine
             var match = await _scanner.FindWorkerCandidateAsync(serviceTier, date, shiftCode, location, preferred, cancellationToken);
             if (match is { } found)
             {
-                var preferredOffer = await TryOfferAsync(orderId, customerId, serviceTier, assignmentSeq, grossAmount, found.Candidate,
-                    found.ScoreResult, found.RadiusKm, cancellationToken);
+                var preferredOffer = await TryOfferAsync(orderId, customerId, serviceTier, date, shiftCode, assignmentSeq, grossAmount,
+                    found.Candidate, found.ScoreResult, found.RadiusKm, cancellationToken);
                 if (preferredOffer != null)
                 {
                     _logger.LogInformation("Order {OrderId} seat {Seq} offered first to the customer's preferred worker {WorkerId}.",
@@ -305,8 +321,8 @@ public class DispatchOfferEngine
             foreach (var (candidate, scoreResult) in matchedStep.RankedCandidates)
             {
                 excluded.Add(candidate.WorkerId);
-                var offer = await TryOfferAsync(orderId, customerId, serviceTier, assignmentSeq, grossAmount, candidate, scoreResult,
-                    matchedStep.RadiusKm, cancellationToken);
+                var offer = await TryOfferAsync(orderId, customerId, serviceTier, date, shiftCode, assignmentSeq, grossAmount, candidate,
+                    scoreResult, matchedStep.RadiusKm, cancellationToken);
                 if (offer != null)
                 {
                     return offer;
@@ -370,6 +386,8 @@ public class DispatchOfferEngine
         long orderId,
         int customerId,
         ServiceTier serviceTier,
+        DateOnly date,
+        string shiftCode,
         byte assignmentSeq,
         decimal grossAmount,
         DispatchCandidate candidate,
@@ -416,8 +434,87 @@ public class DispatchOfferEngine
             "Created offer {AssignmentId} for Worker {WorkerId} (Score: {Score}, Timeout: {Timeout}s).",
             saved.AssignmentId, saved.WorkerId, saved.MatchingScore, OfferTimeoutSeconds);
 
+        if (serviceTier == ServiceTier.Economy && await TryAutoAcceptAsync(saved, date, shiftCode, cancellationToken))
+        {
+            return ToOffer(saved, radiusKm) with { IsAccepted = true, IsAutoAccepted = true };
+        }
+
         return ToOffer(saved, radiusKm);
     }
+
+    /// <summary>
+    /// DISPATCH-AUTO-01: a freelancer who turned on "Tự động nhận đơn" gets the offer accepted for them through the normal accept path
+    /// (<see cref="AcceptOfferAsync"/>: conditional <c>OFFERED -&gt; ASSIGNED</c>, slot <c>HELD -&gt; BOOKED</c>, order sync, <see cref="JobAssigned"/>),
+    /// so the offer row stays as the record of who was asked (D1). Only Economy offers made by the scan come here; the BR-02 second-shift
+    /// offer is created by <see cref="ConsecutiveShiftFallbackService"/> and always waits for the worker. A failed accept (race, order no
+    /// longer dispatching) leaves the offer open for the usual window. Never throws: dispatch must not fail because of this step.
+    /// </summary>
+    private async Task<bool> TryAutoAcceptAsync(JobAssignment offer, DateOnly date, string shiftCode, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await _dispatchRepository.IsAutoAcceptOnAsync(offer.WorkerId, cancellationToken))
+            {
+                return false;
+            }
+
+            var result = await AcceptOfferAsync(offer.AssignmentId, offer.WorkerId, cancellationToken);
+            if (!result.Success)
+            {
+                _logger.LogInformation(
+                    "Auto-accept of offer {AssignmentId} for worker {WorkerId} failed ({Error}); the offer stays open.",
+                    offer.AssignmentId, offer.WorkerId, result.Error);
+                return false;
+            }
+
+            _logger.LogInformation("Offer {AssignmentId} of order {OrderId} was auto-accepted for worker {WorkerId}.",
+                offer.AssignmentId, offer.OrderId, offer.WorkerId);
+            await NotifyAutoAcceptedAsync(offer, date, shiftCode, cancellationToken);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Auto-accept of offer {AssignmentId} for worker {WorkerId} failed; the offer stays open.",
+                offer.AssignmentId, offer.WorkerId);
+            return false;
+        }
+    }
+
+    private async Task NotifyAutoAcceptedAsync(JobAssignment offer, DateOnly date, string shiftCode, CancellationToken cancellationToken)
+    {
+        if (_notifications == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var when = $"{ShiftLabel(shiftCode)} ngày {date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}";
+            await _notifications.SendAsync(new NotificationMessage(
+                UserRole.Worker,
+                offer.WorkerId,
+                DispatchNotificationTopics.AutoAccepted,
+                "Bạn đã được nhận ca tự động",
+                $"Đã nhận {when} cho bạn. Mở ứng dụng để xem địa chỉ và chi tiết.",
+                new Dictionary<string, string>
+                {
+                    ["assignmentId"] = offer.AssignmentId.ToString(CultureInfo.InvariantCulture),
+                    ["orderId"] = offer.OrderId.ToString(CultureInfo.InvariantCulture),
+                }), cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not notify worker {WorkerId} of auto-accepted offer {AssignmentId}.", offer.WorkerId, offer.AssignmentId);
+        }
+    }
+
+    private static string ShiftLabel(string shiftCode) => shiftCode switch
+    {
+        "SHIFT_MORNING" => "ca sáng",
+        "SHIFT_AFTERNOON" => "ca chiều",
+        "SHIFT_EVENING" => "ca tối",
+        _ => "ca",
+    };
 
     /// <summary>
     /// Premium (PRD §2.1, §4.1): turns the agency hold Booking made at order creation (booking.md B8) into assignments. One seat per held

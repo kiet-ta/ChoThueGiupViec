@@ -126,6 +126,10 @@ public class WorkerConfiguration : IEntityTypeConfiguration<Worker>
         builder.Property(x => x.WorkAreaSetAt)
             .HasColumnName("work_area_set_at");
 
+        builder.Property(x => x.AutoAcceptOffers)
+            .HasColumnName("auto_accept_offers")
+            .IsRequired();
+
         builder.Property(x => x.BankAccountNo)
             .HasColumnName("bank_account_no")
             .HasMaxLength(30)
