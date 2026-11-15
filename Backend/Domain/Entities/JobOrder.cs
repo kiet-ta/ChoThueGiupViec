@@ -58,4 +58,16 @@ public partial class JobOrder
 
     /// <summary>job_order.updated_at DATETIME2</summary>
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>
+    /// job_order.continuous_work BIT (decision D35): an ECONOMY large house done by ONE worker who may need a 2nd consecutive job
+    /// (the next shift of the same day). False for every older order.
+    /// </summary>
+    public bool IsContinuousWork { get; set; }
+
+    /// <summary>job_order.continuation_slot_id INT NULL: the worker's slot of the next shift, held while the order is open (D35); null when none is held.</summary>
+    public int? ContinuationSlotId { get; set; }
+
+    /// <summary>job_order.continuation_opened_at DATETIME2 NULL: when the 2nd job opened (the worker did not confirm in time, or the customer said "not clean").</summary>
+    public DateTime? ContinuationOpenedAt { get; set; }
 }

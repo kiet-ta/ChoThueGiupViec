@@ -112,7 +112,9 @@ public class WorkerAssignmentService(
             row.Longitude,
             row.PayoutAmount,
             pending,
-            await AcceptanceOfAsync(row, ct));
+            await AcceptanceOfAsync(row, ct),
+            Booking.ContinuationDto.Describe(
+                row.IsContinuousWork, row.SlotDate, row.ShiftCode, row.ContinuationSlotId, row.ContinuationOpenedAt, clock));
 
         return ApiResponse<WorkerAssignmentDetailResponse>.Ok(detail, "Retrieved the job successfully.");
     }

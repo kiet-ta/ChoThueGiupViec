@@ -110,6 +110,7 @@ public class OrderCreationService(
                     TotalAmount = quote.TotalAmount,
                     CustomerNote = request.CustomerNote,
                     PreferredWorkerId = request.PreferredWorkerId,
+                    IsContinuousWork = plan.IsContinuousWork,
                     CreatedAt = nowUtc,
                     UpdatedAt = nowUtc,
                 };

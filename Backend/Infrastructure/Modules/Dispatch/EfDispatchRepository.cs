@@ -1,3 +1,4 @@
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Features.Dispatch;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -52,6 +53,12 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
             if (held != 1)
             {
                 return null;
+            }
+
+            // D35: a large ECONOMY house also needs the worker's slot of the NEXT shift (the 2nd job); without it the offer is not made.
+            if (!await TryHoldContinuationSlotAsync(offer.OrderId, offer.WorkerId, offer.CreatedAt, cancellationToken))
+            {
+                return null; // rolls the first hold back
             }
 
             db.JobAssignments.Add(offer);
@@ -121,6 +128,23 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
                 throw new SlotNotHeldException(); // rolls the acceptance back
             }
 
+            var continuationSlotId = await db.JobAssignments.AsNoTracking()
+                .Where(a => a.AssignmentId == assignmentId)
+                .Join(db.JobOrders.AsNoTracking(), a => a.OrderId, o => o.OrderId, (a, o) => o.ContinuationSlotId)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (continuationSlotId is int heldNext)
+            {
+                var bookedNext = await db.BookingSlots
+                    .Where(s => s.SlotId == heldNext && s.SlotStatus == DispatchSlotStatuses.Held)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Booked)
+                        .SetProperty(x => x.UpdatedAt, acceptedAtUtc), cancellationToken);
+                if (bookedNext != 1)
+                {
+                    throw new SlotNotHeldException(); // rolls the acceptance back
+                }
+            }
+
             return true;
         }, cancellationToken, rollbackOn: typeof(SlotNotHeldException));
 
@@ -129,7 +153,7 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
         {
             var offer = await db.JobAssignments.AsNoTracking()
                 .Where(a => a.AssignmentId == assignmentId)
-                .Select(a => new { a.SlotId })
+                .Select(a => new { a.SlotId, a.OrderId })
                 .FirstOrDefaultAsync(cancellationToken);
             if (offer == null)
             {
@@ -152,6 +176,7 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Available)
                     .SetProperty(x => x.UpdatedAt, nowUtc), cancellationToken);
+            await ReleaseContinuationSlotAsync(offer.OrderId, nowUtc, cancellationToken);
             return true;
         }, cancellationToken);
 
@@ -239,6 +264,7 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Available)
                     .SetProperty(x => x.UpdatedAt, cancelledAtUtc), cancellationToken);
+            await ReleaseContinuationSlotAsync(orderId, cancelledAtUtc, cancellationToken);
 
             return cancelled;
         }, cancellationToken);
@@ -322,6 +348,74 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
                 throw;
             }
         });
+    }
+
+    /// <summary>
+    /// D35: for a continuous order, holds the worker's <c>AVAILABLE</c> slot of the next shift of the same day (AVAILABLE to HELD) and records
+    /// it on the order. True when the order is not continuous (nothing to hold) or the slot was held; false when the worker has no such slot.
+    /// </summary>
+    private async Task<bool> TryHoldContinuationSlotAsync(long orderId, int workerId, DateTime atUtc, CancellationToken cancellationToken)
+    {
+        var order = await db.JobOrders.AsNoTracking()
+            .Where(o => o.OrderId == orderId)
+            .Select(o => new { o.IsContinuousWork, o.ScheduledDate, o.ShiftCode })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (order is not { IsContinuousWork: true })
+        {
+            return true;
+        }
+
+        var nextShift = ContinuousWork.NextShift(order.ShiftCode);
+        if (nextShift is null)
+        {
+            return false;
+        }
+
+        var nextSlotId = await db.BookingSlots.AsNoTracking()
+            .Where(s => s.WorkerId == workerId && s.SlotDate == order.ScheduledDate && s.ShiftCode == nextShift
+                && s.SlotStatus == DispatchSlotStatuses.Available)
+            .Select(s => (int?)s.SlotId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (nextSlotId is not int slotId)
+        {
+            return false;
+        }
+
+        var held = await db.BookingSlots
+            .Where(s => s.SlotId == slotId && s.SlotStatus == DispatchSlotStatuses.Available)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Held)
+                .SetProperty(x => x.UpdatedAt, atUtc), cancellationToken);
+        if (held != 1)
+        {
+            return false;
+        }
+
+        await db.JobOrders.Where(o => o.OrderId == orderId)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.ContinuationSlotId, (int?)slotId), cancellationToken);
+        return true;
+    }
+
+    /// <summary>D35: gives the next-shift slot held for the order back to the worker (HELD or BOOKED to AVAILABLE) and clears it on the order.</summary>
+    private async Task ReleaseContinuationSlotAsync(long orderId, DateTime atUtc, CancellationToken cancellationToken)
+    {
+        var slotId = await db.JobOrders.AsNoTracking()
+            .Where(o => o.OrderId == orderId)
+            .Select(o => o.ContinuationSlotId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (slotId is not int heldSlotId)
+        {
+            return;
+        }
+
+        await db.BookingSlots
+            .Where(s => s.SlotId == heldSlotId
+                && (s.SlotStatus == DispatchSlotStatuses.Held || s.SlotStatus == DispatchSlotStatuses.Booked))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Available)
+                .SetProperty(x => x.UpdatedAt, atUtc), cancellationToken);
+        await db.JobOrders.Where(o => o.OrderId == orderId)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.ContinuationSlotId, (int?)null), cancellationToken);
     }
 
     private class SlotNotHeldException : Exception;

@@ -75,6 +75,12 @@ public class DispatchRules
     public int OfferTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
+    /// D35: after the end of the shift of a large ECONOMY house (one worker), the worker has this many minutes to run
+    /// <c>submit-completion</c>; if the job is still <c>IN_PROGRESS</c> then, the 2nd job opens by itself (owner decision 2026-11-15).
+    /// </summary>
+    public int ContinuationConfirmMinutes { get; set; } = 15;
+
+    /// <summary>
     /// BR-02 fallback: how long the seat-1 worker has to confirm the second consecutive shift after the customer agreed (leader decision
     /// 2026-10-14, 2 minutes). Longer than <see cref="OfferTimeoutSeconds"/> because a worker must read a different question.
     /// </summary>

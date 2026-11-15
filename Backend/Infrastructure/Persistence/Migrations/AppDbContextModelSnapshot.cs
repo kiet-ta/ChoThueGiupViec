@@ -1030,6 +1030,14 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("cancel_reason");
 
+                    b.Property<DateTime?>("ContinuationOpenedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("continuation_opened_at");
+
+                    b.Property<int?>("ContinuationSlotId")
+                        .HasColumnType("int")
+                        .HasColumnName("continuation_slot_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("DATETIME2")
                         .HasColumnName("created_at");
@@ -1043,6 +1051,12 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("customer_note");
+
+                    b.Property<bool>("IsContinuousWork")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("continuous_work");
 
                     b.Property<string>("OrderCode")
                         .IsRequired()

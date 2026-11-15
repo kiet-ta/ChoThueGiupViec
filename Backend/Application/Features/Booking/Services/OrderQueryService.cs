@@ -204,7 +204,9 @@ public class OrderQueryService(
                 extension.ExtensionId, extension.OrderId, extension.WorkerId, extension.ExtraHours, extension.ExtraAmount,
                 extension.ExtStatus, extension.WorkerDecision, extension.RequestedAt, extension.DecidedAt);
 
-        return new OrderProgressDto(order.OrderId, DbEnum.ToDb(order.OrderStatus), order.RequiredWorkers, assignments, extensionDto);
+        var continuation = ContinuationDto.Describe(
+            order.IsContinuousWork, order.ScheduledDate, order.ShiftCode, order.ContinuationSlotId, order.ContinuationOpenedAt, clock);
+        return new OrderProgressDto(order.OrderId, DbEnum.ToDb(order.OrderStatus), order.RequiredWorkers, assignments, extensionDto, continuation);
     }
 
     public async Task<IReadOnlyList<WorkerFreeShift>> GetRebookAvailabilityAsync(int customerId, long orderId, int workerId, CancellationToken cancellationToken = default)

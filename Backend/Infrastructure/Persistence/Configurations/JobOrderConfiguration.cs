@@ -64,6 +64,18 @@ public class JobOrderConfiguration : IEntityTypeConfiguration<JobOrder>
         // Plain id, no foreign key: WORKER belongs to M4 and a removed worker must not block the order row.
         builder.Property(x => x.PreferredWorkerId).HasColumnName("preferred_worker_id");
 
+        builder.Property(x => x.IsContinuousWork)
+            .HasColumnName("continuous_work")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        // Plain id, no foreign key: the slot belongs to the Workers module (same as preferred_worker_id).
+        builder.Property(x => x.ContinuationSlotId).HasColumnName("continuation_slot_id");
+
+        builder.Property(x => x.ContinuationOpenedAt)
+            .HasColumnName("continuation_opened_at")
+            .HasColumnType("DATETIME2");
+
         builder.Property(x => x.RequiredSkill)
             .HasColumnName("required_skill")
             .HasMaxLength(100)

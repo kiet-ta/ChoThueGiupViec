@@ -17058,6 +17058,15 @@
           },
           "isNewUser": {
             "type": "boolean"
+          },
+          "workerType": {
+            "type": "string",
+            "nullable": true
+          },
+          "agencyId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17347,6 +17356,35 @@
         },
         "additionalProperties": false
       },
+      "ContinuationDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "shiftCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "windowStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "windowEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateBankChangeRequest": {
         "type": "object",
         "properties": {
@@ -17411,6 +17449,10 @@
           "previousOrderId": {
             "type": "integer",
             "format": "int64",
+            "nullable": true
+          },
+          "acceptsContinuousWork": {
+            "type": "boolean",
             "nullable": true
           }
         },
@@ -19532,6 +19574,9 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "isContinuousWork": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -19617,6 +19662,9 @@
           },
           "extension": {
             "$ref": "#/components/schemas/ExtensionDto"
+          },
+          "continuation": {
+            "$ref": "#/components/schemas/ContinuationDto"
           }
         },
         "additionalProperties": false
@@ -20311,6 +20359,9 @@
           "currency": {
             "type": "string",
             "nullable": true
+          },
+          "isContinuousWork": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -21887,6 +21938,9 @@
           },
           "acceptance": {
             "$ref": "#/components/schemas/AcceptanceDto"
+          },
+          "continuation": {
+            "$ref": "#/components/schemas/ContinuationDto"
           }
         },
         "additionalProperties": false
