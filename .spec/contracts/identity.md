@@ -70,9 +70,11 @@ Response 200 `data` (`AuthResult`, also used by 2.3 and 2.4)
   "accessToken": "string",
   "accessTokenExpiresInSeconds": 0,
   "refreshToken": "string",
-  "user": { "id": 0, "role": "Customer | Worker", "isNewUser": false }
+  "user": { "id": 0, "role": "Customer | Worker", "isNewUser": false, "workerType": "Freelancer | AgencyStaff | null", "agencyId": null }
 }
 ```
+
+`user.workerType` and `user.agencyId` (PR #899): set for a Worker (`workerType` = `Freelancer` or `AgencyStaff`, the `WorkerType` enum name; `agencyId` = the agency of an `AgencyStaff` worker, else null); both null for a Customer, Admin or Partner. The access token carries the same values as the `worker_type` and `agency_id` claims.
 
 | Status | Condition |
 |---|---|
