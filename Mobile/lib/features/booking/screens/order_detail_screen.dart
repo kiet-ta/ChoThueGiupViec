@@ -22,7 +22,8 @@ import '../../../core/widgets/raised_panel.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
-import '../../../core/widgets/step_dots.dart';
+import '../../customers/models/customer_address.dart';
+import '../../customers/services/customer_address_service.dart';
 import '../../customers/services/favorite_worker_service.dart';
 import '../../disputes/models/dispute_models.dart';
 import '../../disputes/routes.dart';
@@ -73,6 +74,9 @@ class OrderDetailScreen extends StatefulWidget {
   /// and reloads the order when the customer comes back.
   final void Function(String route, Object args)? onOpen;
 
+  /// The address of the order, for the "Địa điểm" card; by default read from the customer's address book.
+  final Future<CustomerAddress?> Function(int addressId)? addressLookup;
+
   const OrderDetailScreen({
     super.key,
     this.args,
@@ -83,6 +87,7 @@ class OrderDetailScreen extends StatefulWidget {
     this.pollInterval = defaultProgressPollInterval,
     this.onPay,
     this.onOpen,
+    this.addressLookup,
   });
 
   @override
@@ -100,6 +105,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   bool _started = false;
 
   BookingOrder? _order;
+
+  /// The order's address (MOB-ORDER-02); null until read, or when it is no longer in the address book.
+  CustomerAddress? _address;
+  int? _addressAsked;
   OrderProgress? _progress;
   String? _error;
   bool _loading = false;
@@ -179,6 +188,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       });
       unawaited(_loadRatingEligibility(order, progress));
       unawaited(_loadArrivals(order, progress));
+      unawaited(_loadAddress(order.addressId));
       _watch();
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -187,6 +197,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// Reads the order's address once per address id; any failure just leaves the card out.
+  Future<void> _loadAddress(int addressId) async {
+    if (_addressAsked == addressId) return;
+    _addressAsked = addressId;
+    try {
+      final lookup = widget.addressLookup ?? _addressFromBook;
+      final address = await lookup(addressId);
+      if (mounted) setState(() => _address = address);
+    } catch (_) {}
+  }
+
+  static Future<CustomerAddress?> _addressFromBook(int addressId) async {
+    final list = await CustomerAddressService().getAddresses();
+    for (final a in list) {
+      if (a.addressId == addressId) return a;
+    }
+    return null;
   }
 
   Future<void> _loadRatingEligibility(
@@ -846,7 +875,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ],
       ],
       const SectionTitle('Tiến trình'),
-      NordicCard(child: _timeline(displayStatus)),
+      NordicCard(child: _timeline(displayStatus, progress.assignments)),
       if (continuationText(progress.continuation) case final note?) ...[
         const SizedBox(height: NordicSpace.sm),
         NordicCard(
@@ -879,6 +908,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         const SizedBox(height: NordicSpace.md),
         _extensionCard(extension),
       ],
+      if (_address != null) ...[
+        const SectionTitle('Địa điểm'),
+        _addressCard(_address!),
+      ],
       if (actions.isNotEmpty) ...[
         const SectionTitle('Việc khác'),
         GroupedListCard(items: actions),
@@ -889,7 +922,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         const SizedBox(height: NordicSpace.md),
         _extensionForm(workers),
       ],
-      if (canCancel(order.orderStatus)) ...[
+      if (canCancel(order.orderStatus, progress.assignments)) ...[
         const SizedBox(height: NordicSpace.lg),
         _cancelSection(),
       ],
@@ -1033,8 +1066,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return null;
   }
 
-  Widget _timeline(String status) {
-    final steps = orderTimeline(status);
+  /// The 7 steps as a vertical list (MOB-ORDER-02): 7 labels do not fit side by side on a phone. Done steps are ticked;
+  /// the current one is bold with its hint. "Có người làm", "đã đến" and "đang làm" are milestones already reached when
+  /// they are current, so they are ticked too; the waiting steps (pay, find, acceptance) are a highlighted ring.
+  Widget _timeline(String status, List<ProgressAssignment> assignments) {
+    final steps = orderTimeline(status, assignments);
     if (steps.length == 1 && steps.single.cancelled) {
       return Row(
         key: const Key('order-timeline'),
@@ -1062,19 +1098,141 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ],
       );
     }
-    return StepDots(
+    return Column(
       key: const Key('order-timeline'),
-      steps: [
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         for (var i = 0; i < steps.length; i++)
-          StepItem(
-            steps[i].label,
-            // "Có thợ" (and after) is a milestone already reached when it is the current step: show it ticked.
-            // The waiting steps (pay, find a worker) stay an open ring while the order sits on them.
-            steps[i].done || (steps[i].current && i >= 2)
-                ? DotState.done
-                : (steps[i].current ? DotState.current : DotState.todo),
+          _timelineRow(
+            steps[i],
+            reached: steps[i].done || (steps[i].current && i >= 2 && i <= 4),
+            last: i == steps.length - 1,
+            nextReached: i + 1 < steps.length && steps[i + 1].done,
           ),
       ],
+    );
+  }
+
+  Widget _timelineRow(
+    TimelineStep step, {
+    required bool reached,
+    required bool last,
+    required bool nextReached,
+  }) {
+    final waiting = step.current && !reached;
+    final Widget dot = reached
+        ? Container(
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(
+              color: NordicColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check,
+              size: 16,
+              color: NordicColors.textInverse,
+            ),
+          )
+        : Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: waiting
+                  ? NordicColors.primaryContainer
+                  : NordicColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: waiting ? NordicColors.primary : NordicColors.border,
+                width: waiting ? 2 : 1.5,
+              ),
+            ),
+          );
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Column(
+            children: [
+              dot,
+              if (!last)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    color: nextReached
+                        ? NordicColors.primary
+                        : NordicColors.border,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: 2,
+                bottom: last ? 0 : NordicSpace.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    step.label,
+                    style: step.current
+                        ? NordicTypography.titleSmall
+                        : NordicTypography.bodyRegular.copyWith(
+                            color: step.done
+                                ? NordicColors.textTitle
+                                : NordicColors.textSecondary,
+                          ),
+                  ),
+                  if (step.hint != null) ...[
+                    const SizedBox(height: NordicSpace.xxs),
+                    Text(
+                      step.hint!,
+                      key: const Key('order-timeline-hint'),
+                      style: NordicTypography.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Where the job is (MOB-ORDER-02, like the Web "Địa điểm" card): label, street and ward, total area.
+  Widget _addressCard(CustomerAddress a) {
+    return NordicCard(
+      key: const Key('order-address'),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.location_on_outlined,
+            size: 20,
+            color: NordicColors.primary,
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(a.label, style: NordicTypography.titleSmall),
+                const SizedBox(height: NordicSpace.xxs),
+                Text(
+                  '${a.addressLine} · ${a.district} · ${formatArea(a.totalAreaM2)}',
+                  key: const Key('order-address-line'),
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

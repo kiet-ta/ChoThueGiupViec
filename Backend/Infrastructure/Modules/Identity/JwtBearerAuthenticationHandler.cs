@@ -24,21 +24,38 @@ public class JwtBearerAuthenticationHandler : AuthenticationHandler<Authenticati
         _tokenService = tokenService;
     }
 
+    /// <summary>Path prefix of the SignalR hubs, where a websocket client can only send its token in the query string.</summary>
+    public const string HubPathPrefix = "/hubs/";
+
+    /// <summary>Query-string key the SignalR client uses for <c>accessTokenFactory</c>.</summary>
+    public const string HubAccessTokenQueryKey = "access_token";
+
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue("Authorization", out var authHeader) ||
-            string.IsNullOrWhiteSpace(authHeader))
+        string? token;
+        if (Request.Headers.TryGetValue("Authorization", out var authHeader) && !string.IsNullOrWhiteSpace(authHeader))
+        {
+            var headerValue = authHeader.ToString().Trim();
+            if (!headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(AuthenticateResult.NoResult());
+            }
+
+            token = headerValue["Bearer ".Length..].Trim();
+        }
+        else if (Request.Path.StartsWithSegments(HubPathPrefix.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+            && Request.Query.TryGetValue(HubAccessTokenQueryKey, out var queryToken)
+            && !string.IsNullOrWhiteSpace(queryToken))
+        {
+            // Decisions D37 (MOB-RT-01, #893): a SignalR websocket cannot set headers, so under /hubs/ only the token may come
+            // from ?access_token=. Every other path ignores the query string (a token in a URL ends up in logs and history).
+            token = queryToken.ToString().Trim();
+        }
+        else
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var headerValue = authHeader.ToString().Trim();
-        if (!headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-        {
-            return Task.FromResult(AuthenticateResult.NoResult());
-        }
-
-        var token = headerValue["Bearer ".Length..].Trim();
         if (string.IsNullOrWhiteSpace(token))
         {
             return Task.FromResult(AuthenticateResult.Fail("Empty bearer token."));

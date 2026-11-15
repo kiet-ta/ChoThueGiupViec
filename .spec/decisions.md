@@ -339,6 +339,12 @@ Before this, anyone (even without signing in) could read other users' notificati
 3. **Poll:** `GET /api/v1/notifications` requires authentication (anonymous -> 401) and returns only the caller's notifications; the `role` / `userId` query parameters are removed.
 4. **Not in this decision:** the `access_token` query-string token for hub connections and the Mobile client (#893, MOB-RT-01). Until then no client receives realtime messages, as before (no client used the removed methods: grep 2026-11-15).
 
+### D37 Mobile realtime client (MOB-RT-01, #893; owner request 2026-11-15)
+1. **Package:** `signalr_netcore` (pub.dev, ASP.NET Core SignalR client for Dart), pinned at `1.4.4` in `Mobile/pubspec.yaml`. Any other realtime package needs a new decision.
+2. **Hub token (B1):** a websocket cannot set headers, so the Bearer handler (`JwtBearerAuthenticationHandler`) also reads `?access_token=`, **only** for paths under `/hubs/`; everywhere else the query string is ignored (a token in a URL ends up in logs and history). The `Authorization` header works as before on every path. With D36 the connection then joins only its own `role:id` group.
+3. **Mobile:** `lib/core/realtime/realtime_service.dart` connects to `<api base>/hubs/notifications` with the stored access token (read at every reconnect) while the worker app is open (`WorkerShell` connects on open, disconnects on close / sign-out). The package retries a lost connection at 0, 2, 10 and 30 s; after that, and after a failed start, the service tries again every 30 s. Failure never breaks a screen: they keep polling as before.
+4. **Shown:** only `dispatch.auto_accepted` (D33) for now: the server's title and body in a snackbar with "Xem việc" (opens the job, `/dispatch/check-in` with `data.assignmentId`), and the Hôm nay / Lịch tabs reload. Other topics are ignored. Not in scope: the customer app, FCM push when the app is closed (Q07b).
+
 ### D26 CQRS Read-Join Convention (Architecture Refinement, 2026-11-09)
 1. **Write Side (Commands, State Transitions, Dispatch Matching):** Strictly 0-JOIN. All entity mutations, dispatch slot holds, and state machine transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned).
 2. **Read Side (Queries & Projections):** Explicit LINQ `join` is permitted under 4 mandatory constraints:
