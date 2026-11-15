@@ -270,7 +270,7 @@ public class DispatchOfferEngine
         {
             // Not free, too far or not eligible: the scan below would not find them either.
             excluded.Add(preferred);
-            var match = await _scanner.FindWorkerCandidateAsync(serviceTier, date, shiftCode, location, preferred, cancellationToken);
+            var match = await _scanner.FindWorkerCandidateAsync(serviceTier, date, shiftCode, location, preferred, cancellationToken, orderId);
             if (match is { } found)
             {
                 var preferredOffer = await TryOfferAsync(orderId, customerId, serviceTier, date, shiftCode, assignmentSeq, grossAmount,
@@ -292,7 +292,8 @@ public class DispatchOfferEngine
                 shiftCode,
                 location,
                 cancellationToken: cancellationToken,
-                excludedWorkerIds: excluded);
+                excludedWorkerIds: excluded,
+                orderId: orderId); // decisions D34: a worker busy at the order's time is not a candidate
 
             var matchedStep = scanResult.StepsExecuted.LastOrDefault(step => step.HasCandidates);
             if (matchedStep == null)

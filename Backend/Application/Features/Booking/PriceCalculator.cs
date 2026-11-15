@@ -35,4 +35,20 @@ public static class PriceCalculator
         var bracket = AreaBrackets.Classify(totalAreaM2);
         return new PriceQuote(serviceTier, totalAreaM2, bracket, requiredWorkers, unitPrice, Vnd.Round(unitPrice * requiredWorkers));
     }
+
+    /// <summary>
+    /// Decisions D34: a timed job is priced per hour from the same per-shift row, as the BR-08 extension:
+    /// <c>Vnd.Round(unitPrice / maxHours x hours) x requiredWorkers</c>.
+    /// </summary>
+    public static PriceQuote ForHours(PriceQuote shiftQuote, decimal hours, int maxHours)
+    {
+        ArgumentNullException.ThrowIfNull(shiftQuote);
+        if (hours <= 0 || maxHours <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(hours), hours, "Hours and max hours must be strictly positive.");
+        }
+
+        var perWorker = Vnd.Round(shiftQuote.UnitPrice / maxHours * hours);
+        return shiftQuote with { TotalAmount = perWorker * shiftQuote.RequiredWorkers };
+    }
 }

@@ -114,6 +114,8 @@ Báo cáo sự cố bất khả kháng trên đường hoặc tại nơi làm (B
 
 > **Tự động nhận đơn (DISPATCH-AUTO-01, #890, decisions D33):** thợ tự do bật `PUT /api/v1/workers/me/auto-accept` (workers.md 2.3C) thì offer Economy vẫn được tạo (`OFFERED`) rồi được nhận ngay qua đúng luồng `accept` (`ASSIGNED`, slot `BOOKED`, `JobAssigned`); thợ nhận thông báo realtime topic `dispatch.auto_accepted` (`data.assignmentId`, `data.orderId`) và không có gì trong `offers/current`. Nhận tự động thất bại thì offer vẫn mở 30s như thường. Không áp dụng cho offer ca liên tiếp BR-02 và cho Premium. Thứ tự ứng viên không đổi (D30).
 
+> **Đơn có giờ cụ thể (BOOK-TIME-01, #895, decisions D34):** đơn Economy có `startTime` + `durationHours` là một khoảng giờ nằm trong ca. Offer và accept của đơn này **không** đổi slot (slot vẫn `AVAILABLE`, ca vẫn nhận đơn khác). Thợ chỉ là ứng viên khi không có job sống nào cùng ngày chồng lên khoảng giờ của đơn (mỗi bên nới `Booking.TravelBufferMinutes` = 30 phút) và tổng giờ job trong ngày <= `Worker.MaxJobHoursPerDay` (8); kiểm tra lặp lại trong transaction tạo offer sau khi khoá dòng `WORKER`. `JobOfferDto` hiện giờ của chính đơn (không phải giờ ca). Đơn cả ca (không có giờ), Premium, offer ca liên tiếp BR-02 và cứu hộ khẩn cấp giữ nguyên `HELD -> BOOKED`.
+
 #### `GET /api/v1/dispatch/offers/current`
 Lấy job offer đang chờ thợ phản hồi (nếu có). Trả về `data = null` nếu thợ không có offer nào đang active.
 

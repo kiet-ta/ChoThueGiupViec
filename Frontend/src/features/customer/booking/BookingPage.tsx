@@ -6,7 +6,7 @@ import { formatVnd } from '@/lib/format'
 import { accountApi } from '../account/api'
 import { bookingApi } from './api'
 import type { BookingOptions, CustomerAddress, FreeShift, PriceQuote, ServiceTier } from './types'
-import { bookingProblem, dayText, NOTE_MAX_LENGTH, shiftBlockedReason, shiftLabel, shiftRange, tierLabel, upcomingDays, workersPrice } from './view'
+import { bookingProblem, dayText, durationChoices, hoursLabel, jobRange, NOTE_MAX_LENGTH, shiftBlockedReason, shiftLabel, shiftRange, startTimeChoices, tierLabel, upcomingDays, workersPrice } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const choice = (on: boolean, disabled = false) =>
@@ -29,6 +29,10 @@ export function BookingPage() {
   const [quoteError, setQuoteError] = useState<string | null>(null)
   const [date, setDate] = useState<string | null>(null)
   const [shiftCode, setShiftCode] = useState<string | null>(null)
+  // Decisions D34 (Economy only): the length (the area's suggestion until the customer picks), the start, and the price for those hours.
+  const [pickedHours, setPickedHours] = useState<number | null>(null)
+  const [startTime, setStartTime] = useState<string | null>(null)
+  const [timedQuote, setTimedQuote] = useState<{ addressId: number; hours: number; quote: PriceQuote } | null>(null)
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [banner, setBanner] = useState<string | null>(null)
@@ -80,16 +84,46 @@ export function BookingPage() {
     }
   }, [addressId])
 
+  // D34: until the customer picks a length, the job lasts what the home's area suggests.
+  const suggested = quotes.ECONOMY?.suggestedDurationHours ?? null
+  const durationHours = pickedHours ?? (quotes.ECONOMY ? suggested ?? options?.minDurationHours ?? 2 : null)
+
+  // D34: the Economy price is for the chosen hours (a quote for another address or length is never shown).
+  useEffect(() => {
+    if (addressId === null || durationHours === null) return
+    let cancelled = false
+    bookingApi
+      .quote(addressId, 'ECONOMY', durationHours)
+      .then((q) => !cancelled && setTimedQuote({ addressId, hours: durationHours, quote: q }))
+      .catch((e: unknown) => !cancelled && setQuoteError(bookingProblem(e as ApiError)))
+    return () => {
+      cancelled = true
+    }
+  }, [addressId, durationHours])
+
   const workerAvailability = availability?.workerId === workerParam ? availability : null
   const address = addresses.find((a) => a.addressId === addressId) ?? null
-  const quote = quotes[tier] ?? null
+  const timed = tier === 'ECONOMY'
+  const timedFresh = timedQuote && timedQuote.addressId === addressId && timedQuote.hours === durationHours ? timedQuote.quote : null
+  const quote = timed ? timedFresh : quotes[tier] ?? null
   const shift = options?.shifts.find((s) => s.shiftCode === shiftCode) ?? null
+  const startsFor = (d: string, code: string) => {
+    const s = options?.shifts.find((x) => x.shiftCode === code)
+    return options && s && durationHours !== null ? startTimeChoices(d, s, durationHours, options, now) : []
+  }
   const blocked = (d: string, code: string) => {
     const s = options?.shifts.find((x) => x.shiftCode === code)
-    return options && s ? shiftBlockedReason(d, s, tier, options, now, workerAvailability?.shifts ?? null) : null
+    if (!options || !s) return null
+    const reason = shiftBlockedReason(d, s, tier, options, now, workerAvailability?.shifts ?? null)
+    if (!timed || durationHours === null) return reason
+    // D34: a shift that already started may still have a later start time; it is closed only when no start time fits.
+    if (reason !== null && reason !== 'Đã qua') return reason
+    return startsFor(d, code).length > 0 ? null : reason ?? `Không đủ ${hoursLabel(durationHours)}`
   }
+  const starts = date !== null && shiftCode !== null ? startsFor(date, shiftCode) : []
+  const startValid = !timed || (startTime !== null && starts.includes(startTime))
   // A choice made for Economy may be invalid for Premium: drop it instead of sending it.
-  const selectionValid = date !== null && shiftCode !== null && blocked(date, shiftCode) === null
+  const selectionValid = date !== null && shiftCode !== null && blocked(date, shiftCode) === null && startValid
   const canSubmit = !submitting && addressId !== null && quote !== null && selectionValid
   const returnParams = new URLSearchParams(params)
   returnParams.set('tier', tier)
@@ -100,7 +134,10 @@ export function BookingPage() {
     setSubmitting(true)
     setBanner(null)
     try {
-      const order = await bookingApi.createOrder({ addressId, serviceTier: tier, scheduledDate: date, shiftCode, customerNote: note.trim() || null, preferredWorkerId: tier === 'ECONOMY' ? workerParam : null })
+      const order = await bookingApi.createOrder({
+        addressId, serviceTier: tier, scheduledDate: date, shiftCode, customerNote: note.trim() || null, preferredWorkerId: tier === 'ECONOMY' ? workerParam : null,
+        ...(timed ? { startTime, durationHours } : {}),
+      })
       navigate(`/app/payments/${order.orderId}`)
     } catch (e) {
       setBanner(bookingProblem(e as ApiError))
@@ -135,7 +172,7 @@ export function BookingPage() {
           <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">2. Địa chỉ</h2><div className="flex gap-4 text-sm font-semibold text-emerald-900"><Link to={addAddressUrl}>+ Thêm địa chỉ</Link><Link to="/app/addresses">Quản lý</Link></div></div>
           {addresses.length === 0
             ? <div className="mt-4"><p className="text-sm text-stone-500">Bạn chưa có địa chỉ nào.</p><Link to={addAddressUrl} className="mt-3 inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 text-sm font-semibold text-white">Thêm địa chỉ</Link></div>
-            : <div className="mt-4 space-y-3">{addresses.map((a) => <button key={a.addressId} type="button" aria-pressed={addressId === a.addressId} className={choice(addressId === a.addressId)} onClick={() => { if (addressId !== a.addressId) { setQuotes({}); setQuoteError(null); setAddressId(a.addressId) } }}>
+            : <div className="mt-4 space-y-3">{addresses.map((a) => <button key={a.addressId} type="button" aria-pressed={addressId === a.addressId} className={choice(addressId === a.addressId)} onClick={() => { if (addressId !== a.addressId) { setQuotes({}); setQuoteError(null); setPickedHours(null); setAddressId(a.addressId) } }}>
               {radio(addressId === a.addressId)}<Home size={18} className="mt-0.5 text-[#1a2f25]" />
               <span><b>{a.label}</b><span className="block text-sm text-stone-500">{a.addressLine} · {a.district} · {a.totalAreaM2} m²</span></span>
             </button>)}</div>}
@@ -156,6 +193,24 @@ export function BookingPage() {
             })}
           </div>
           {!date && <p className="mt-3 text-sm text-stone-500">Chọn ngày trước để xem các ca còn đặt được.</p>}
+          {timed && <>
+            <h3 className="mt-6 font-semibold">Thời lượng</h3>
+            <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Chọn thời lượng">
+              {durationChoices(options).map((h) => <button key={h} type="button" aria-pressed={durationHours === h} onClick={() => setPickedHours(h)}
+                className={`h-10 rounded-full border px-4 text-sm font-semibold ${durationHours === h ? 'border-[#1a2f25] bg-[#1a2f25] text-white' : 'border-stone-200 bg-white'}`}>
+                {hoursLabel(h)}{h === suggested && <span className={`ml-1 font-normal ${durationHours === h ? 'text-emerald-100' : 'text-emerald-800'}`}>· Gợi ý</span>}</button>)}
+            </div>
+            {suggested !== null && <p className="mt-2 text-sm text-stone-500">Gợi ý theo diện tích nhà bạn: {hoursLabel(suggested)}.</p>}
+            <h3 className="mt-6 font-semibold">Giờ bắt đầu</h3>
+            {!date || !shiftCode
+              ? <p className="mt-2 text-sm text-stone-500">Chọn ngày và ca để xem giờ bắt đầu.</p>
+              : starts.length === 0
+                ? <p className="mt-2 text-sm text-stone-500">Ca này không còn giờ đủ cho thời lượng đã chọn. Chọn ca khác hoặc giảm thời lượng.</p>
+                : <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Chọn giờ bắt đầu">
+                  {starts.map((t) => <button key={t} type="button" aria-pressed={startTime === t} onClick={() => setStartTime(t)}
+                    className={`h-10 min-w-20 rounded-full border px-4 text-sm font-semibold ${startTime === t ? 'border-[#1a2f25] bg-[#1a2f25] text-white' : 'border-stone-200 bg-white'}`}>{t}</button>)}
+                </div>}
+          </>}
         </section>
         <section className={card}>
           <h2 className="text-lg font-semibold">4. Ghi chú cho thợ</h2>
@@ -168,14 +223,14 @@ export function BookingPage() {
         <h2 className="text-lg font-semibold">Tóm tắt đơn</h2>
         <dl className="mt-4 space-y-3 text-sm">
           <div className="flex justify-between gap-4"><dt className="text-stone-500">Gói</dt><dd className="font-semibold">{tierLabel(tier)}</dd></div>
-          <div className="flex justify-between gap-4"><dt className="text-stone-500">Thời gian</dt><dd className="text-right font-semibold">{date && shift && selectionValid ? `${dayText(date)} · ${shiftRange(shift)}` : '—'}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-stone-500">Thời gian</dt><dd className="text-right font-semibold">{date && shift && selectionValid ? `${dayText(date)} · ${timed && startTime && durationHours ? jobRange(startTime, durationHours) : shiftRange(shift)}` : '—'}</dd></div>
           <div className="flex justify-between gap-4"><dt className="text-stone-500">Địa chỉ</dt><dd className="text-right font-semibold">{address?.label ?? '—'}</dd></div>
-          <div className="flex justify-between gap-4"><dt className="text-stone-500">Số thợ</dt><dd className="font-semibold">{quote ? workersPrice(quote.requiredWorkers, quote.unitPrice) : '—'}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-stone-500">Số thợ</dt><dd className="font-semibold">{quote ? (quote.durationHours ? `${quote.requiredWorkers} × ${hoursLabel(quote.durationHours)}` : workersPrice(quote.requiredWorkers, quote.unitPrice)) : '—'}</dd></div>
         </dl>
         <hr className="my-4 border-stone-200" />
         <div className="flex items-baseline justify-between"><b>Tổng cộng</b><b className="text-2xl">{quote ? formatVnd(quote.totalAmount) : '—'}</b></div>
         {banner && <p role="alert" className="mt-4 flex gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{banner}</p>}
-        {!canSubmit && !submitting && <p className="mt-4 text-sm text-stone-500">{addressId === null ? 'Chọn địa chỉ để xem giá.' : !selectionValid ? 'Chọn ngày và ca để tiếp tục.' : 'Đang tính giá…'}</p>}
+        {!canSubmit && !submitting && <p className="mt-4 text-sm text-stone-500">{addressId === null ? 'Chọn địa chỉ để xem giá.' : !selectionValid ? (timed && date && shiftCode && blocked(date, shiftCode) === null ? 'Chọn giờ bắt đầu để tiếp tục.' : 'Chọn ngày và ca để tiếp tục.') : 'Đang tính giá…'}</p>}
         <button type="button" disabled={!canSubmit} onClick={() => void submit()}
           className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#1a2f25] font-semibold text-white disabled:opacity-50">
           {submitting && <Loader className="animate-spin" size={16} />}Đặt và thanh toán</button>

@@ -431,7 +431,7 @@ public class OrderQueryServiceTests
         var body = new CreateOrderBody(AddressId, "ECONOMY", new DateOnly(2026, 10, 15), "SHIFT_MORNING", null, null);
 
         Assert.Equal(200, ((ObjectResult)controller.Options()).StatusCode);
-        Assert.Equal(200, ((ObjectResult)await controller.PriceQuote(AddressId, "ECONOMY", default)).StatusCode);
+        Assert.Equal(200, ((ObjectResult)await controller.PriceQuote(AddressId, "ECONOMY", null, default)).StatusCode);
         Assert.Equal(201, ((ObjectResult)await controller.Create(body, default)).StatusCode);
         Assert.Equal(200, ((ObjectResult)await controller.List(null, null, null, default)).StatusCode);
         Assert.Equal(200, ((ObjectResult)await controller.Get(1, default)).StatusCode);

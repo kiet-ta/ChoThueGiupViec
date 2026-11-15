@@ -63,7 +63,7 @@ export function OrdersPage() {
           <th className="px-5 py-3">Mã đơn</th><th className="px-5 py-3">Thời gian</th><th className="px-5 py-3">Gói</th><th className="px-5 py-3">Tổng</th><th className="px-5 py-3">Trạng thái</th><th className="px-5 py-3"><span className="sr-only">Chi tiết</span></th></tr></thead>
         <tbody>{data.items.map((o) => <tr key={o.orderId} className="border-b border-stone-100 last:border-0">
           <td className="px-5 py-4 font-semibold">{o.orderCode}</td>
-          <td className="px-5 py-4">{dayText(o.scheduledDate)} · {shiftLabel(o.shiftCode)}</td>
+          <td className="px-5 py-4">{dayText(o.scheduledDate)} · {o.startTime && o.endTime ? `${o.startTime} → ${o.endTime}` : shiftLabel(o.shiftCode)}</td>
           <td className="px-5 py-4">{tierLabel(o.serviceTier)} · {o.requiredWorkers} thợ</td>
           <td className="px-5 py-4 tabular-nums">{formatVnd(o.totalAmount)}</td>
           <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${pill[o.orderStatus] ?? 'bg-stone-200'}`}>{statusLabel(o.orderStatus)}</span>

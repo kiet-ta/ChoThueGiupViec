@@ -1,7 +1,9 @@
+using CommonService.Application.Common.Options;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace CommonService.Infrastructure.Modules.Workers;
 
@@ -9,9 +11,13 @@ namespace CommonService.Infrastructure.Modules.Workers;
 /// Real implementation of <see cref="IWorkerAvailabilityQuery"/> querying WORKER and BOOKING_SLOT tables via EF Core (BE-M4-07).
 /// Used by Dispatch (M3) candidate scanner to find available Freelancers.
 /// Decisions D24: the search matches on the work area the freelancer registered (base point + radius), not on the last GPS point.
+/// Decisions D34: a shift slot stays AVAILABLE after a timed job, so with <see cref="AvailabilityQuery.OrderId"/> the worker's live jobs
+/// that day are also checked (no overlap with the travel buffer, daily hour cap).
 /// </summary>
-public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoService) : IWorkerAvailabilityQuery
+public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoService, IOptions<BusinessRules>? rules = null) : IWorkerAvailabilityQuery
 {
+    private readonly BusinessRules _rules = rules?.Value ?? new BusinessRules();
+
     public async Task<IReadOnlyList<AvailableWorker>> FindAvailableFreelancersAsync(
         AvailabilityQuery query,
         CancellationToken cancellationToken = default)
@@ -60,12 +66,26 @@ public class WorkerAvailabilityQuery(AppDbContext dbContext, IGeoService geoServ
             {
                 worker.WorkerId,
                 slot.SlotId,
+                slot.StartTime,
+                slot.EndTime,
                 Lat = (double)worker.WorkLat!.Value,
                 Lng = (double)worker.WorkLng!.Value,
 
                 worker.RatingAvg
             }
         ).ToListAsync(cancellationToken);
+
+        // Decisions D34: leave out a worker whose live jobs that day clash with this order's window.
+        if (query.OrderId is long orderId && candidateRows.Count > 0)
+        {
+            var first = candidateRows[0];
+            var window = await WorkerJobTimes.OrderWindowAsync(dbContext, orderId, query.ShiftCode, first.StartTime, first.EndTime, cancellationToken);
+            if (window is { } wanted)
+            {
+                var jobs = await WorkerJobTimes.LoadAsync(dbContext, candidateRows.Select(c => c.WorkerId).Distinct().ToList(), query.Date, cancellationToken);
+                candidateRows = candidateRows.Where(c => WorkerJobTimes.Fits(jobs.GetValueOrDefault(c.WorkerId), wanted, _rules)).ToList();
+            }
+        }
 
         // Compute exact Haversine distance and keep the workers inside the search radius step
         var availableWorkers = new List<AvailableWorker>();

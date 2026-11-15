@@ -2,7 +2,11 @@ namespace CommonService.Application.Interfaces.Ports;
 
 /// <param name="Location">Order location; candidates are searched around it.</param>
 /// <param name="RadiusKm">Current dispatch radius step (5, 7 or 10 km, decisions section 4).</param>
-public record AvailabilityQuery(DateOnly Date, string ShiftCode, GeoPoint Location, double RadiusKm, int Limit);
+/// <param name="OrderId">
+/// The order being dispatched (decisions D34): when set, a worker whose live jobs that day overlap the order's window (with the travel
+/// buffer) or would pass the daily hour cap is left out. Null = only the slot status is checked.
+/// </param>
+public record AvailabilityQuery(DateOnly Date, string ShiftCode, GeoPoint Location, double RadiusKm, int Limit, long? OrderId = null);
 
 /// <summary>
 /// A freelancer who is IDLE, KYC-approved, has a free slot and is inside the radius. <paramref name="DistanceKm"/> is the straight-line

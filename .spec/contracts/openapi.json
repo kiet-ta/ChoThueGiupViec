@@ -7227,6 +7227,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "durationHours",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
           }
         ],
         "responses": {
@@ -17142,6 +17150,22 @@
           },
           "sandbox": {
             "type": "boolean"
+          },
+          "startStepMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minDurationHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "durationStepHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "economyMinLeadMinutes": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -17411,6 +17435,15 @@
           "previousOrderId": {
             "type": "integer",
             "format": "int64",
+            "nullable": true
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationHours": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         },
@@ -19532,6 +19565,19 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "endTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationHours": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19675,6 +19721,14 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "endTime": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20310,6 +20364,16 @@
           },
           "currency": {
             "type": "string",
+            "nullable": true
+          },
+          "durationHours": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "suggestedDurationHours": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         },
