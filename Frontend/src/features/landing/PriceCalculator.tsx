@@ -91,12 +91,12 @@ export function PriceCalculator() {
               )}
               <div>
                 <p className="font-semibold">
-                  {workers === 1 ? '1 chuyên viên lành nghề' : '2 chuyên viên làm đồng thời'}
+                  {workers === 1 ? '1 chuyên viên lành nghề' : '1 chuyên viên, có thể làm thêm giờ'}
                 </p>
                 <p className="mt-1 text-sm text-white/70">
                   {workers === 1
                     ? 'Đạt thời lượng tối ưu cho diện tích 80 m² trở xuống.'
-                    : 'Tổ đội 2 người được kích hoạt cho nhà trên 80 m² hoặc nhà phố, rút ngắn thời gian hoàn thành.'}
+                    : 'Nhà trên 80 m² hoặc nhà phố do một chuyên viên nhận. Nếu chưa xong, bạn làm tiếp thêm giờ ngay sau ca (tối đa 4 giờ), chỉ trả một lần và không phát sinh thêm. Gói Premium vẫn có đội 2 người.'}
                 </p>
               </div>
             </div>
