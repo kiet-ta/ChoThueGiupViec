@@ -332,6 +332,13 @@ Market reference: Grab (cancellation rate = cancelled / accepted, temporary lock
 5. **Customer:** realtime notices `dispatch.worker_cancelled` (with the time the search stops), `dispatch.substitute_found`, `dispatch.substitute_not_found`. `OrderProgress.substituteSearchUntil` is set while the order is `DISPATCHING` after a worker cancel. The customer may cancel meanwhile for a 100 % refund (the order is not `ASSIGNED`, so the late fee never applies).
 6. **Not in scope:** rescheduling, money penalties, Premium / agency seats (Q09 failover).
 
+### D36 Notifications reach only their recipient (SEC-NOTIF-01, #894; owner request 2026-11-15)
+Before this, anyone (even without signing in) could read other users' notifications: the hub let a connection join any `role:id` group (`JoinUserGroup`) or a topic group (`JoinTopic`, which received every message of that topic), and `GET /api/v1/notifications` took `role` / `userId` from the query string with no authentication.
+1. **Hub:** a connection joins only its own `role:id` group, taken from its token on connect; an anonymous connection joins none. The hub has no client-callable methods (`JoinUserGroup`, `LeaveUserGroup`, `JoinTopic`, `LeaveTopic` removed).
+2. **Delivery:** a message goes to its recipient's group only; there is no per-topic broadcast. Clients tell messages apart by `topic` in `NotificationMessageDto` (contracts `booking.md` job.tracking, `payments.md` payment.status).
+3. **Poll:** `GET /api/v1/notifications` requires authentication (anonymous -> 401) and returns only the caller's notifications; the `role` / `userId` query parameters are removed.
+4. **Not in this decision:** the `access_token` query-string token for hub connections and the Mobile client (#893, MOB-RT-01). Until then no client receives realtime messages, as before (no client used the removed methods: grep 2026-11-15).
+
 ### D26 CQRS Read-Join Convention (Architecture Refinement, 2026-11-09)
 1. **Write Side (Commands, State Transitions, Dispatch Matching):** Strictly 0-JOIN. All entity mutations, dispatch slot holds, and state machine transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned).
 2. **Read Side (Queries & Projections):** Explicit LINQ `join` is permitted under 4 mandatory constraints:
