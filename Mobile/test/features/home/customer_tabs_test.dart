@@ -5,6 +5,7 @@ import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/screens/booking_screen.dart';
 import 'package:mobile/features/booking/services/booking_service.dart';
 import 'package:mobile/features/booking/services/order_service.dart';
+import 'package:mobile/features/customers/routes.dart';
 import 'package:mobile/features/customers/services/customer_address_service.dart';
 import 'package:mobile/features/customers/services/customer_profile_service.dart';
 import 'package:mobile/features/customers/services/favorite_worker_service.dart';
@@ -302,6 +303,75 @@ void main() {
         expect(find.byKey(const Key('home-no-order')), findsOneWidget);
       },
     );
+
+    group('address dropdown (MOB-HOME-ADDR-01)', () {
+      const mom = BookingAddress(
+        addressId: 2,
+        label: 'Căn hộ mẹ',
+        addressLine: 'Vinhomes Central Park',
+        totalAreaM2: 96,
+      );
+
+      testWidgets(
+        'lists the saved addresses and a picked one is used for "Đặt ca"',
+        (tester) async {
+          useDesignFrame(tester);
+          Object? args;
+          await tester.pumpWidget(
+            MaterialApp(
+              home: _homeTab(_Orders(const []), addresses: [_home, mom]),
+              onGenerateRoute: (settings) {
+                args = settings.arguments;
+                return MaterialPageRoute(
+                  settings: settings,
+                  builder: (_) => const Scaffold(body: Text('booking')),
+                );
+              },
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.textContaining('12 Lê Lợi'), findsOneWidget);
+
+          await tester.tap(find.byKey(const Key('home-address')));
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const Key('home-address-option-1')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('home-address-option-2')),
+            findsOneWidget,
+          );
+          expect(find.byKey(const Key('home-address-manage')), findsOneWidget);
+
+          await tester.tap(find.byKey(const Key('home-address-option-2')));
+          await tester.pumpAndSettle();
+          expect(
+            tester
+                .widget<Text>(find.byKey(const Key('quick-quote-address')))
+                .data,
+            startsWith('Vinhomes Central Park'),
+          );
+
+          await tapVisible(tester, find.byKey(const Key('home-book')));
+          expect((args as BookingScreenArgs).addressId, mom.addressId);
+        },
+      );
+
+      testWidgets('"Xem chi tiết" opens the address book', (tester) async {
+        useDesignFrame(tester);
+        final opened = <String>[];
+        await tester.pumpWidget(
+          _app(_homeTab(_Orders(const []), addresses: [_home, mom]), opened),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('home-address-details')));
+        await tester.pumpAndSettle();
+
+        expect(opened, [CustomerRoutes.addressList]);
+      });
+    });
   });
 
   group('CustomerAccountTab (ui-templates customer/account.html)', () {
