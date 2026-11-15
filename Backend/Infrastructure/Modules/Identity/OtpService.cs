@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using CommonService.Application.Common.Options;
@@ -352,8 +354,18 @@ public class OtpService : IOtpService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        var additionalClaims = new List<Claim>
+        {
+            new("worker_type", worker.WorkerType.ToString())
+        };
+        if (worker.WorkerType == WorkerType.AgencyStaff && worker.AgencyId.HasValue)
+        {
+            additionalClaims.Add(new Claim("agency_id", worker.AgencyId.Value.ToString()));
+        }
+
         var (authResult, _) = SessionTokenIssuer.IssueSession(
-            _db, _tokenService, _rules, worker.WorkerId, UserRole.Worker, now, isNewUser: false);
+            _db, _tokenService, _rules, worker.WorkerId, UserRole.Worker, now, isNewUser: false, additionalClaims: additionalClaims);
         await _db.SaveChangesAsync(ct);
 
         return OtpVerifyResult.Ok(authResult);
@@ -403,8 +415,23 @@ public class OtpService : IOtpService
         }
 
         // Valid rotation: issue new access token and new refresh token with same family_id
+        // Preserve worker_type and agency_id claims from current token
+        var additionalClaims = new List<Claim>();
+        if (tokenRecord.SubjectRole == UserRole.Worker)
+        {
+            var worker = await _db.Workers.FirstOrDefaultAsync(w => w.WorkerId == tokenRecord.SubjectId, ct);
+            if (worker != null)
+            {
+                additionalClaims.Add(new Claim("worker_type", worker.WorkerType.ToString()));
+                if (worker.WorkerType == WorkerType.AgencyStaff && worker.AgencyId.HasValue)
+                {
+                    additionalClaims.Add(new Claim("agency_id", worker.AgencyId.Value.ToString()));
+                }
+            }
+        }
+
         var (authResult, newTokenRecord) = SessionTokenIssuer.IssueSession(
-            _db, _tokenService, _rules, tokenRecord.SubjectId, tokenRecord.SubjectRole, now, familyId: tokenRecord.FamilyId);
+            _db, _tokenService, _rules, tokenRecord.SubjectId, tokenRecord.SubjectRole, now, familyId: tokenRecord.FamilyId, additionalClaims: additionalClaims);
         await _db.SaveChangesAsync(ct);
 
         // Mark current token replaced and revoked

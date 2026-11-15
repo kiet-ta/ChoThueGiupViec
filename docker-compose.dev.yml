@@ -8,7 +8,7 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-123456}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Admin@123}
       MSSQL_PID: Developer
       MSSQL_MEMORY_LIMIT_MB: 768    # Giới hạn buffer pool của SQL Server tối đa 768MB
     ports:
@@ -35,7 +35,7 @@ services:
       context: ./Backend
       target: migrate
     environment:
-      CONNECTION: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-123456};TrustServerCertificate=True;"
+      CONNECTION: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Admin@123};TrustServerCertificate=True;"
     deploy:
       resources:
         limits:
@@ -85,7 +85,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Valhalla__BaseUrl: "http://valhalla:8002"
-      ConnectionStrings__DefaultConnection: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-123456};TrustServerCertificate=True;"
+      ConnectionStrings__DefaultConnection: "Server=db;Database=ChoThueGiupViec;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Admin@123};TrustServerCertificate=True;"
       # OpenTelemetry gửi traces về Jaeger qua cổng OTLP HTTP 4318
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318"
       OTEL_SERVICE_NAME: "ChoThueGiupViec.Backend"
