@@ -86,6 +86,9 @@ public class AgencyStaffLoginTests
         return (service, db, clock, sender);
     }
 
+    /// <summary>A tax code of its own per test: PARTNER_AGENCY.tax_code is unique and a fixed value made every second test (and every re-run) fail.</summary>
+    private static string UniqueTaxCode() => Random.Shared.NextInt64(1_000_000_000, 9_999_999_999).ToString();
+
     private static string GenerateTestPhone() => $"091{Random.Shared.Next(1000000, 9999999)}";
     private static string GenerateTestIp() => $"10.{Random.Shared.Next(1, 254)}.{Random.Shared.Next(1, 254)}.{Random.Shared.Next(1, 254)}";
 
@@ -117,6 +120,7 @@ public class AgencyStaffLoginTests
 
         var (service, db, _, sender) = CreateService();
         await using var _ = db;
+        await using var transaction = await db.Database.BeginTransactionAsync(); // rolled back on dispose: nothing stays in the database
 
         var phone = GenerateTestPhone();
         var nationalId = Random.Shared.NextInt64(100000000000, 999999999999).ToString();
@@ -150,6 +154,7 @@ public class AgencyStaffLoginTests
 
         var (service, db, _, sender) = CreateService();
         await using var _ = db;
+        await using var transaction = await db.Database.BeginTransactionAsync(); // rolled back on dispose: nothing stays in the database
 
         var phone = GenerateTestPhone();
         var nationalId = Random.Shared.NextInt64(100000000000, 999999999999).ToString();
@@ -157,7 +162,7 @@ public class AgencyStaffLoginTests
         // Create agency first
         var agency = new PartnerAgency
         {
-            TaxCode = "0123456789",
+            TaxCode = UniqueTaxCode(),
             LegalName = "Test Agency",
             LegalRepresentative = "Test Rep",
             ContactPhone = "0901234567",
@@ -204,6 +209,7 @@ public class AgencyStaffLoginTests
 
         var (service, db, _, sender) = CreateService();
         await using var _ = db;
+        await using var transaction = await db.Database.BeginTransactionAsync(); // rolled back on dispose: nothing stays in the database
 
         var phone = GenerateTestPhone();
         var nationalId = Random.Shared.NextInt64(100000000000, 999999999999).ToString();
@@ -211,7 +217,7 @@ public class AgencyStaffLoginTests
         // Create agency and Agency Staff worker
         var agency = new PartnerAgency
         {
-            TaxCode = "0123456789",
+            TaxCode = UniqueTaxCode(),
             LegalName = "Test Agency",
             LegalRepresentative = "Test Rep",
             ContactPhone = "0901234567",
@@ -268,6 +274,7 @@ public class AgencyStaffLoginTests
 
         var (service, db, _, sender) = CreateService();
         await using var _ = db;
+        await using var transaction = await db.Database.BeginTransactionAsync(); // rolled back on dispose: nothing stays in the database
 
         var phone = GenerateTestPhone();
         var nationalId = Random.Shared.NextInt64(100000000000, 999999999999).ToString();

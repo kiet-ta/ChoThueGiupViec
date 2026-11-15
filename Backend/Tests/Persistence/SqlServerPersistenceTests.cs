@@ -3,6 +3,7 @@ using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
 
 namespace CommonService.Tests.Persistence;
@@ -140,11 +141,12 @@ public class SqlServerPersistenceTests
     }
 
     [Fact]
-    public async Task JobAssignment_Filtered_Unique_Slot_Index_Rejects_Duplicate_Active_And_Allows_Reassignment_After_Cancel()
+    public async Task JobAssignment_Slot_Index_Is_Plain_And_A_Slot_Can_Carry_Several_Jobs_D34()
     {
         if (!IsSqlServerAvailable()) return;
 
         using var context = CreateContext();
+        await using var transaction = await context.Database.BeginTransactionAsync(); // nothing of this test stays in the database
 
         // Setup customer, address, order, worker, slot
         var customerPhone = "091" + Random.Shared.Next(1000000, 9999999);
@@ -241,7 +243,8 @@ public class SqlServerPersistenceTests
         context.JobAssignments.Add(assign1);
         await context.SaveChangesAsync();
 
-        // 2. Attempting a second active assignment on the same slot must fail
+        // 2. Decision D34 (BOOK-TIME-01, #895): a slot says "this worker takes jobs in this shift", so a second job may share the slot.
+        // (Before D34 the index was a filtered UNIQUE one and this insert was rejected.)
         var assign2 = new JobAssignment
         {
             OrderId = order.OrderId,
@@ -259,37 +262,18 @@ public class SqlServerPersistenceTests
         };
         assign2.TransitionTo(JobAssignmentStatus.Assigned);
         context.JobAssignments.Add(assign2);
-
-        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
-        Assert.NotNull(ex.InnerException);
-        Assert.Contains("IX_JOB_ASSIGNMENT_slot_id", ex.InnerException.Message);
-
-        // 3. Mark the first assignment as CANCELLED_BY_WORKER
-        context.Entry(assign2).State = EntityState.Detached;
-        assign1.TransitionTo(JobAssignmentStatus.CancelledByWorker);
         await context.SaveChangesAsync();
 
-        // 4. Now a new active assignment on that same slot succeeds!
-        var assign3 = new JobAssignment
-        {
-            OrderId = order.OrderId,
-            CustomerId = customer.CustomerId,
-            WorkerId = worker.WorkerId,
-            SlotId = slot.SlotId,
-            ServiceTier = ServiceTier.Economy,
-            AssignmentSeq = 2,
-            DispatchRadiusKm = 5,
-            GrossAmount = 260000m,
-            CommissionRate = 0.200m,
-            PayoutAmount = 208000m,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-        assign3.TransitionTo(JobAssignmentStatus.Assigned);
-        context.JobAssignments.Add(assign3);
-        await context.SaveChangesAsync();
+        Assert.True(assign2.AssignmentId > 0);
+        Assert.NotEqual(assign1.AssignmentId, assign2.AssignmentId);
 
-        Assert.True(assign3.AssignmentId > 0);
+        // 3. The index exists, on slot_id, and is not unique any more.
+        using var command = context.Database.GetDbConnection().CreateCommand();
+        command.Transaction = transaction.GetDbTransaction();
+        command.CommandText = "SELECT is_unique FROM sys.indexes WHERE name = 'IX_JOB_ASSIGNMENT_slot_id' AND object_id = OBJECT_ID('JOB_ASSIGNMENT')";
+        var isUnique = await command.ExecuteScalarAsync();
+        Assert.NotNull(isUnique);
+        Assert.False(Convert.ToBoolean(isUnique));
     }
 
     [Fact]
