@@ -77,6 +77,9 @@ public partial class JobAssignment
     /// <summary>job_assignment.acceptance_reminded_at DATETIME2 NULL: when the customer was reminded at T+20 h (sent once).</summary>
     public DateTime? AcceptanceRemindedAt { get; set; }
 
+    /// <summary>job_assignment.checkin_reminded_at DATETIME2 NULL: when the worker was reminded to move before the check-in time (decision D38, sent once).</summary>
+    public DateTime? CheckInRemindedAt { get; set; }
+
     /// <summary>job_assignment.redo_count TINYINT: how many times the customer asked for a redo on site.</summary>
     public byte RedoCount { get; set; }
 

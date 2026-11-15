@@ -713,3 +713,8 @@ public interface IWorkerProfileQuery
 - `GET /api/v1/workers/assignments/{assignmentId}` gains `continuation` (null for any other job): `{ "status": "STANDBY" | "OPEN" | "RELEASED", "shiftCode", "windowStartAt", "windowEndAt", "openedAt" }` (same shape as `booking.md` progress; the window is the extra hours after the shift end). The job's `grossAmount` / payout is the whole large-house price, whether the work ends in the first job or in the 2nd.
 - `POST /api/v1/customers/assignments/{assignmentId}/request-redo` (2.5.3): for an order with `isContinuousWork` whose 2nd job has not opened, the call opens the 2nd job instead of a redo: the assignment returns to `IN_PROGRESS`, `redo_count` is not raised, the D32 redo window does not apply and `message` is "The second job of this large house is open.". Afterwards, and for every other order, the usual redo applies.
 - After the shift end plus `Dispatch.ContinuationConfirmMinutes` (15) a job still `IN_PROGRESS` opens its 2nd job by itself.
+
+---
+
+## D38 addendum: the work of a Premium order starts when every seat is present (PREM-START-02, #952)
+- `POST /api/v1/workers/assignments/{assignmentId}/photos` (and the file variant), first `BEFORE` photo of a `CHECKED_IN` assignment of a PREMIUM order: **409** `data.code = PARTNER_NOT_CHECKED_IN`, message "Cho dong nghiep check-in: ca chi bat dau khi du nguoi co mat." while another seat of the order has no live assignment that is `CHECKED_IN` or later. Nothing is stored and the assignment stays `CHECKED_IN`. ECONOMY orders and a Premium order with one seat are never held.

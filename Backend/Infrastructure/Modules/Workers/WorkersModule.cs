@@ -44,6 +44,7 @@ public class WorkersModule : IModule
         services.AddScoped<IAcceptanceTimerRepository, EfAcceptanceTimerRepository>();
         services.AddScoped<IAcceptanceTimerService, AcceptanceTimerService>();
         services.AddHostedService<AcceptanceTimerWorker>();
+        services.AddScoped<IOrderSeatQuery, EfOrderSeatQuery>();
         services.AddScoped<IJobPhotoService, JobPhotoService>();
         services.AddScoped<IWorkerExtensionRepository, EfWorkerExtensionRepository>();
         services.AddScoped<IWorkerExtensionService, WorkerExtensionService>();

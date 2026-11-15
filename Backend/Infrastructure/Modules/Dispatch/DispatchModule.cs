@@ -24,6 +24,8 @@ public class DispatchModule : IModule
         services.AddScoped<IDispatchRepository, EfDispatchRepository>();
         services.AddScoped<IPremiumStartRepository, EfPremiumStartRepository>();
         services.AddScoped<PremiumShiftStartService>();
+        services.AddScoped<IPremiumReminderRepository, EfPremiumReminderRepository>();
+        services.AddScoped<PremiumCheckInReminderService>();
         services.AddHostedService<PremiumStartSweepWorker>();
         services.AddScoped<EfDispatchRepository>();
         services.AddScoped<IMilestoneFailoverRepository>(sp => sp.GetRequiredService<EfDispatchRepository>());
