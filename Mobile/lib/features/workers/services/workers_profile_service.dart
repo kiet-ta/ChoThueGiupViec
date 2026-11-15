@@ -42,6 +42,18 @@ class WorkersProfileService {
     return response.data ?? name;
   }
 
+  /// When the worker registered (`createdAt`), or null when the profile has none. A failed call throws like [getFullName].
+  Future<DateTime?> getJoinedAt() async {
+    final response = await _apiClient.get<DateTime?>(
+      '/api/v1/workers/me',
+      fromJson: (json) {
+        final value = json is Map<String, dynamic> ? json['createdAt'] : null;
+        return value is String ? DateTime.tryParse(value) : null;
+      },
+    );
+    return response.data;
+  }
+
   /// The name and the agency flag (`agencyId` is set for an agency worker) from one read of the profile.
   /// A call that fails throws, like [getFullName].
   Future<WorkerSummary> getSummary() async {

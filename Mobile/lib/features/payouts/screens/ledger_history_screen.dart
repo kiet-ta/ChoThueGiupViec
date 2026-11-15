@@ -10,6 +10,7 @@ import '../../../core/widgets/nordic_dropdown.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../workers/services/workers_profile_service.dart';
 import '../logic/ledger_logic.dart';
 import '../logic/payout_logic.dart';
 import '../models/ledger_models.dart';
@@ -25,7 +26,11 @@ class LedgerHistoryScreen extends StatefulWidget {
   /// The clock, so the default month can be tested; the real screen uses the device time.
   final DateTime Function()? now;
 
-  const LedgerHistoryScreen({super.key, this.service, this.now});
+  /// When the worker registered: the first month that can be shown. By default read from the profile
+  /// (`GET /api/v1/workers/me`, `createdAt`).
+  final Future<DateTime?> Function()? joinedAt;
+
+  const LedgerHistoryScreen({super.key, this.service, this.now, this.joinedAt});
 
   @override
   State<LedgerHistoryScreen> createState() => _LedgerHistoryScreenState();
@@ -62,6 +67,21 @@ class _LedgerHistoryScreenState extends State<LedgerHistoryScreen> {
     _currentMonth = monthKeyOf((widget.now ?? DateTime.now)());
     _month = _currentMonth;
     _load();
+    _loadFirstMonth();
+  }
+
+  /// The month the worker registered in; the previous button stays off until it is known.
+  String? _firstMonth;
+
+  Future<void> _loadFirstMonth() async {
+    try {
+      final joined =
+          await (widget.joinedAt ?? WorkersProfileService().getJoinedAt)();
+      if (!mounted || joined == null) return;
+      setState(() => _firstMonth = monthKeyOf(joined));
+    } catch (_) {
+      // Unknown join month: going back stays off rather than showing months before the worker joined.
+    }
   }
 
   Future<void> _load() async {
@@ -165,7 +185,7 @@ class _LedgerHistoryScreenState extends State<LedgerHistoryScreen> {
         IconButton.outlined(
           key: const Key('ledger-prev'),
           tooltip: 'Tháng trước',
-          onPressed: canGoPrevious(_month) ? () => _go(-1) : null,
+          onPressed: canGoPrevious(_month, _firstMonth) ? () => _go(-1) : null,
           icon: const Icon(Icons.chevron_left_rounded),
         ),
         Text(

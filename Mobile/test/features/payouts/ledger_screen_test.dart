@@ -99,8 +99,9 @@ void _tallView(WidgetTester tester) {
 
 Future<void> _pumpHistory(
   WidgetTester tester,
-  FakeLedgerService service,
-) async {
+  FakeLedgerService service, {
+  DateTime? joined,
+}) async {
   _tallView(tester);
   await tester.pumpWidget(
     MaterialApp(
@@ -108,6 +109,7 @@ Future<void> _pumpHistory(
       home: LedgerHistoryScreen(
         service: service,
         now: () => DateTime.utc(2026, 11, 15, 3),
+        joinedAt: () async => joined ?? DateTime.utc(2024, 1, 1),
       ),
     ),
   );
@@ -180,6 +182,21 @@ void main() {
       await _chooseType(tester, 'Tất cả');
       expect(service.calls.last.type, isNull);
     });
+
+    testWidgets(
+      'cannot go back before the month the worker registered (MOB-PAYOUT-02)',
+      (tester) async {
+        final service = FakeLedgerService()..pages.add(_page([_entry(5)]));
+        await _pumpHistory(tester, service, joined: DateTime.utc(2026, 11, 2));
+
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(const Key('ledger-prev')))
+              .onPressed,
+          isNull,
+        );
+      },
+    );
 
     testWidgets('goes back a month and cannot go past the current one', (
       tester,

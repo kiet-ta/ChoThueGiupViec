@@ -83,6 +83,7 @@ Future<void> pumpEarnings(
   WidgetTester tester,
   FakePayoutsService service, {
   DateTime? now,
+  DateTime? joined,
 }) async {
   tester.view.physicalSize = const Size(390, 2400);
   tester.view.devicePixelRatio = 1.0;
@@ -96,6 +97,7 @@ Future<void> pumpEarnings(
       home: PayoutScreen(
         service: service,
         now: () => now ?? DateTime.utc(2026, 10, 15, 3),
+        joinedAt: () async => joined ?? DateTime.utc(2024, 1, 1),
       ),
     ),
   );
@@ -233,6 +235,75 @@ void main() {
               .widget<Text>(find.byKey(const Key('earnings-status-hint')))
               .data,
           'Thu nhập được giải ngân theo tháng, sau khi tháng kết thúc.',
+        );
+      },
+    );
+
+    testWidgets(
+      'a worker who registered this month cannot go back (MOB-PAYOUT-02)',
+      (tester) async {
+        final service = FakePayoutsService();
+        // 2026-10-01 00:30 in Ho Chi Minh time is still September in UTC: the month is the Vietnamese one.
+        await pumpEarnings(
+          tester,
+          service,
+          joined: DateTime.utc(2026, 9, 30, 17, 30),
+        );
+
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(const Key('earnings-prev')))
+              .onPressed,
+          isNull,
+        );
+        expect(service.requestedMonths, ['2026-10']);
+      },
+    );
+
+    testWidgets(
+      'a worker who registered two months ago goes back twice, then stops (MOB-PAYOUT-02)',
+      (tester) async {
+        final service = FakePayoutsService();
+        await pumpEarnings(tester, service, joined: DateTime.utc(2026, 8, 20));
+
+        await tester.tap(find.byKey(const Key('earnings-prev')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('earnings-prev')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Tháng 8/2026'), findsOneWidget);
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(const Key('earnings-prev')))
+              .onPressed,
+          isNull,
+        );
+      },
+    );
+
+    testWidgets(
+      'no going back while the registration month cannot be read (MOB-PAYOUT-02)',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: PayoutScreen(
+              service: FakePayoutsService(),
+              now: () => DateTime.utc(2026, 10, 15, 3),
+              joinedAt: () async => throw Exception('offline'),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(const Key('earnings-prev')))
+              .onPressed,
+          isNull,
         );
       },
     );

@@ -30,10 +30,20 @@ void main() {
       expect(canGoNext('2025-12', '2026-01'), isTrue);
     });
 
-    test('stops at January of the first selectable year', () {
-      expect(canGoPrevious('2024-02'), isTrue);
-      expect(canGoPrevious('2024-01'), isFalse);
-      expect(canGoPrevious('2026-01'), isTrue);
+    test('stops at the month the worker registered (MOB-PAYOUT-02)', () {
+      expect(canGoPrevious('2026-10', '2026-08'), isTrue);
+      expect(canGoPrevious('2026-09', '2026-08'), isTrue);
+      expect(canGoPrevious('2026-08', '2026-08'), isFalse);
+      expect(canGoPrevious('2026-10', '2026-10'), isFalse);
+    });
+
+    test('no going back while the registration month is unknown', () {
+      expect(canGoPrevious('2026-10', null), isFalse);
+    });
+
+    test('never before January of the first selectable year', () {
+      expect(canGoPrevious('2024-02', '2020-05'), isTrue);
+      expect(canGoPrevious('2024-01', '2020-05'), isFalse);
     });
 
     test('labels the month in Vietnamese without a leading zero', () {
