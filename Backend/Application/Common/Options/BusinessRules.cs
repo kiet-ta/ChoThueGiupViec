@@ -215,6 +215,12 @@ public class CancelRules
     public decimal LateFeeRate { get; set; } = 0.40m;
     public int WorkerCancelLockCount { get; set; } = 3;
     public int WorkerCancelWindowDays { get; set; } = 30;
+
+    /// <summary>
+    /// Decisions D35: after a freelancer cancels, the lost seat is re-dispatched until this many minutes before the job start; a seat
+    /// still open then fails the order (automatic 100 % refund). A cancel inside this window fails the order at once.
+    /// </summary>
+    public int RedispatchCutoffMinutes { get; set; } = 30;
 }
 
 public class AuthRules

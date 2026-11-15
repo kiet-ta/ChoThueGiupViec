@@ -78,7 +78,10 @@ public record OrderProgressDto(
     string OrderStatus,
     int RequiredWorkers,
     IReadOnlyList<ProgressAssignmentDto> Assignments,
-    ExtensionDto? Extension);
+    ExtensionDto? Extension,
+    // Decisions D35: while a seat lost to a worker cancel is being re-dispatched, the moment the search stops (job start -
+    // Cancel.RedispatchCutoffMinutes); null otherwise.
+    DateTime? SubstituteSearchUntil = null);
 
 public record ShiftOptionDto(string ShiftCode, string StartLocal, string EndLocal);
 

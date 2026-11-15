@@ -19,7 +19,10 @@ import '../../../core/widgets/status_state_widget.dart';
 import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../models/check_in_result.dart';
+import '../models/worker_cancel.dart';
+import '../routes.dart';
 import '../services/dispatch_service.dart';
+import '../widgets/worker_cancel_section.dart';
 import '../../workers/models/worker_assignment_models.dart';
 import '../../workers/routes.dart';
 import '../../workers/services/workers_assignments_service.dart';
@@ -78,6 +81,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
   /// Bumped on every failure so the message shakes.
   int _errors = 0;
+
+  /// Set once the worker cancelled this accepted job (decisions D35); the screen then only says what happens next.
+  WorkerCancelResult? _cancelResult;
 
   @override
   void initState() {
@@ -312,6 +318,15 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
   /// The one main button of the state on screen, above the home indicator.
   List<Widget>? _buildActions() {
+    if (_cancelResult != null) {
+      return [
+        NordicButton(
+          key: const Key('worker-cancel-done'),
+          label: 'Xong',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+      ];
+    }
     if (_detail == null || _isLoading) return null;
     if (_awaitingCustomer) {
       return [
@@ -367,6 +382,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
         SizedBox(height: NordicSpace.xl),
         LoadingStateWidget(message: 'Đang tải địa chỉ ca làm...'),
       ];
+    }
+    if (_cancelResult != null) {
+      return _buildCancelledView(_cancelResult!);
     }
     if (_isLoading) {
       return const [
@@ -456,6 +474,66 @@ class _CheckInScreenState extends State<CheckInScreen> {
       if (_errorMessage != null) ...[
         const SizedBox(height: NordicSpace.md),
         _errorBanner(),
+      ],
+      // Decisions D35: an accepted job that has not started can still be cancelled (never after the check-in).
+      if (detail.status == 'ASSIGNED') ...[
+        const SizedBox(height: NordicSpace.section),
+        WorkerCancelSection(
+          assignmentId: widget.assignmentId,
+          service: _dispatchService,
+          onCancelled: (result) => setState(() => _cancelResult = result),
+          onReportIncident: () => Navigator.of(context).pushNamed(
+            DispatchRoutes.incidentReport,
+            arguments: widget.assignmentId,
+          ),
+        ),
+      ],
+    ];
+  }
+
+  /// After the worker cancelled: what happens to the order and to their account (decisions D35).
+  List<Widget> _buildCancelledView(WorkerCancelResult result) {
+    final refunded =
+        result.orderOutcome == WorkerCancelResult.cancelledRefunded;
+    return [
+      const SizedBox(height: NordicSpace.xl),
+      const Icon(
+        Icons.event_busy_rounded,
+        size: 64.0,
+        color: NordicColors.primary,
+      ),
+      const SizedBox(height: NordicSpace.md),
+      Text(
+        'Đã huỷ ca',
+        key: const Key('worker-cancelled-title'),
+        textAlign: TextAlign.center,
+        style: NordicTypography.h2.copyWith(color: NordicColors.primary),
+      ),
+      const SizedBox(height: NordicSpace.xs),
+      Text(
+        refunded
+            ? 'Ca bắt đầu quá gần nên đơn đã được huỷ và gia chủ được hoàn tiền.'
+            : 'Hệ thống đã báo gia chủ và đang tìm thợ khác thay bạn.',
+        textAlign: TextAlign.center,
+        style: NordicTypography.bodyRegular,
+      ),
+      const SizedBox(height: NordicSpace.sm),
+      Center(
+        child: StatusPill(
+          result.accountLocked
+              ? 'Tài khoản đã bị khoá'
+              : 'Lần huỷ thứ ${result.cancelCountInWindow}/${result.lockCount} trong ${result.windowDays} ngày',
+          tone: result.accountLocked ? PillTone.bad : PillTone.warn,
+          dot: true,
+        ),
+      ),
+      if (result.accountLocked) ...[
+        const SizedBox(height: NordicSpace.sm),
+        const Text(
+          'Bạn đã huỷ đủ số lần cho phép. Liên hệ quản trị viên để được mở lại tài khoản.',
+          textAlign: TextAlign.center,
+          style: NordicTypography.bodySmall,
+        ),
       ],
     ];
   }

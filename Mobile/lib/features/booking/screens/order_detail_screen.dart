@@ -412,6 +412,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           requiredWorkers: progress.requiredWorkers,
           assignments: progress.assignments,
           extension: extension,
+          substituteSearchUntil: progress.substituteSearchUntil,
         );
         _extOpen = false;
       });
@@ -808,6 +809,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           service: _fallbackService,
           onAnswered: _refresh,
         ),
+        const SizedBox(height: NordicSpace.sm),
+      ],
+      if (order.orderStatus == OrderStatus.dispatching &&
+          progress.substituteSearchUntil != null) ...[
+        _substituteSearchCard(progress.substituteSearchUntil!),
         const SizedBox(height: NordicSpace.sm),
       ],
       if (_pendingArrivals.isNotEmpty) ...[
@@ -1393,6 +1399,39 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               variant: NordicButtonVariant.secondary,
               onPressed: _openExtension,
             ),
+        ],
+      ),
+    );
+  }
+
+  /// Decisions D35: the helper cancelled; a substitute is searched for until [until], then the order is refunded 100 %.
+  Widget _substituteSearchCard(DateTime until) {
+    return Container(
+      key: const Key('substitute-search'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(NordicSpace.md),
+      decoration: const BoxDecoration(
+        color: NordicColors.amberSoft,
+        borderRadius: NordicRadius.cardAll,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Đang tìm người làm thay',
+            style: NordicTypography.titleSmall.copyWith(
+              color: NordicColors.onAmberSoft,
+            ),
+          ),
+          const SizedBox(height: NordicSpace.xxs),
+          Text(
+            'Người giúp việc đã huỷ ca. Hệ thống đang tìm người khác tới ${_localTime(until)}. '
+            'Nếu không tìm được, đơn tự huỷ và bạn được hoàn tiền 100 %. '
+            'Bạn cũng có thể huỷ đơn ngay, vẫn được hoàn 100 %.',
+            style: NordicTypography.bodySmall.copyWith(
+              color: NordicColors.onAmberSoft,
+            ),
+          ),
         ],
       ),
     );

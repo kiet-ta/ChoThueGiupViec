@@ -96,6 +96,7 @@ class FakeOrderService implements IOrderService {
   String? cancelReason;
   List<ProgressAssignment> workers = [];
   OrderExtension? extension;
+  DateTime? substituteSearchUntil;
 
   Object? loadError;
   Object? optionsError;
@@ -146,6 +147,7 @@ class FakeOrderService implements IOrderService {
             requiredWorkers: 1,
             assignments: workers,
             extension: extension,
+            substituteSearchUntil: substituteSearchUntil,
           ),
         );
 
@@ -368,6 +370,29 @@ void main() {
 
         expect(find.byKey(const Key('arrival-title-7')), findsOneWidget);
         expect(find.byKey(const Key('arrival-btn-start-7')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'D35: after the helper cancelled it says until when a substitute is searched for, and the order can still be cancelled',
+      (tester) async {
+        final service = FakeOrderService()
+          ..substituteSearchUntil = DateTime.utc(2026, 11, 20, 0, 30);
+        await pumpDetail(tester, service);
+
+        expect(find.byKey(const Key('substitute-search')), findsOneWidget);
+        expect(find.text('Đang tìm người làm thay'), findsOneWidget);
+        expect(find.textContaining('tới 07:30'), findsOneWidget);
+        expect(find.byKey(const Key('open-cancel')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a dispatching order without a cancelled helper has no such card',
+      (tester) async {
+        await pumpDetail(tester, FakeOrderService());
+
+        expect(find.byKey(const Key('substitute-search')), findsNothing);
       },
     );
 

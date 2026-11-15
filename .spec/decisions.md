@@ -117,7 +117,7 @@ This is a **platform**. The parties that pay are the priority: **Customers** (pa
 ### Q15 Cancellation
 - Customer cancels before the job is `ASSIGNED`, or more than `Cancel.FullRefundHoursBefore` (2) hours before the shift start: **100% refund**.
 - Customer cancels within 2 hours of the shift start: charged `Cancel.LateFeeRate` (0.40) of `gross_amount` (paid to the worker as compensation), 60% refunded.
-- Freelancer cancels: customer gets a 100% refund and the order is re-dispatched; the worker gets a violation. `Cancel.WorkerCancelLockCount` (3) worker-initiated cancellations within `Cancel.WorkerCancelWindowDays` (30) lock the account (Admin can unlock). Count is derived from assignment status (a distinct "cancelled by worker" status must exist). No new column.
+- Freelancer cancels (an accepted job, before it starts; D35): the lost seat is re-dispatched until `Cancel.RedispatchCutoffMinutes` (30) before the job start; the customer gets a 100% refund only when no substitute is found by then or when they cancel while waiting (no late fee: the order is no longer `ASSIGNED`). The worker gets a violation (every cancel counts 1, no money penalty). `Cancel.WorkerCancelLockCount` (3) worker-initiated cancellations within `Cancel.WorkerCancelWindowDays` (30) lock the account (Admin can unlock). Count is derived from assignment status (a distinct "cancelled by worker" status must exist). No new column.
 - Exempt from all penalties: incidents handled under BR-10 (`INCIDENT_LOG.penalty_waived = 1`). Agency workers are governed by the SLA rules (Q09), not by the app lock.
 
 ### Q16 Authentication
@@ -309,7 +309,7 @@ The customer sees the route, distance and travel time from the worker to the hou
 2. **Guards:** only freelancers (agency staff: 409 `NOT_FREELANCER`); turning it on needs a registered work area (409 `WORK_AREA_REQUIRED`, D24). A failed accept (race, order no longer dispatching) leaves the offer open for the usual 30 s; an error in this step never fails dispatch.
 3. **Not applied:** the BR-02 second-shift offer (D7 option b: a second shift is never given without asking) and Premium / agency seats.
 4. **Ranking unchanged:** the flag is not a score input; the nearest worker by road (D30) is still asked first.
-5. **Open:** the owner asked that the switch turn itself off when the worker cancels a job, but no flow moves an assignment to `CANCELLED_BY_WORKER` yet (no freelancer cancel endpoint). That part waits for the freelancer-cancel ticket.
+5. **Switch off on cancel:** the switch turns itself off when the worker cancels an accepted job (D35, #902).
 
 ### D34 Timed jobs: the customer picks the start and the length; a shift keeps taking jobs (BOOK-TIME-01, #895; owner request 2026-11-15)
 Owner accepted the recommended defaults (market reference: bTaskee packages of 2/3/4 h by area, JupViec worker shifts with customer-picked times, a 20-30 min travel gap between jobs).
@@ -322,6 +322,15 @@ Owner accepted the recommended defaults (market reference: bTaskee packages of 2
 7. **Extension (BR-08):** a worker cannot accept extra hours that would run into their next job that day plus the buffer: 409 `EXTENSION_OVERLAPS_NEXT_JOB`.
 8. **Worker switch:** a shift that carries timed jobs can still be switched off; the jobs stay, only new offers stop.
 9. **Known limits:** the daily cap is checked under the worker-row lock, so it holds across shifts too; the rescue (`MilestoneFailoverService`) and agency swap still reason per shift. Web booking (`Frontend/`) sends no time yet, so its orders stay whole-shift.
+
+### D35 A freelancer cancels an accepted job (DISPATCH-CANCEL-01, #902; owner request and answers 2026-11-15)
+Market reference: Grab (cancellation rate = cancelled / accepted, temporary lock when too high, the customer pays nothing when the driver is at fault), TaskRabbit (no customer fee when the Tasker caused the cancel). Owner answers: the time marks are config keys; no money penalty; re-dispatch until T - 30 min; automatic refund; a cancel close to T counts 1 like any other; no reschedule.
+1. **Who and when:** a freelancer, on their own assignment, while it is `ASSIGNED` and before the job start T (`BookingWindowPolicy.GetJobStartUtc`: the job's own start, D34, or the shift start). `POST /api/v1/dispatch/assignments/{id}/cancel` with a reason (1-255). Agency staff: 403 (SLA flow, Q09). After T it is the absent flow (Q10): 409 `JOB_ALREADY_STARTED`. Not `ASSIGNED`: 409 `ASSIGNMENT_STATE_INVALID`. `GET .../cancel-preview` shows the count, the lock warning and the auto-accept switch first.
+2. **One transaction:** assignment `ASSIGNED -> CANCELLED_BY_WORKER`, the slot `BOOKED -> AVAILABLE` (D2; a timed job's slot was never booked), the order `ASSIGNED | AWAITING_FALLBACK -> DISPATCHING` (D7), the worker's auto-accept switch off (D33), and the freelancer `LOCKED` when their `CANCELLED_BY_WORKER` assignments with `updated_at` inside `Cancel.WorkerCancelWindowDays` (30) reach `Cancel.WorkerCancelLockCount` (3). No new column: the reason is in the log and in the event `AssignmentCancelledByWorker`, the count is derived from status (Q15).
+3. **Substitute:** only the lost seat is offered again, at once, through the normal scan (5 -> 7 -> 10 km, auto-accept included); the cancelling worker is never asked again (they already had the order). The 5 s dispatch sweep re-offers it if that step fails.
+4. **Cutoff:** a cancel at or after `T - Cancel.RedispatchCutoffMinutes` (30) fails the order at once; the dispatch sweep fails any order still `DISPATCHING` with a worker-cancelled seat when it reaches the cutoff. Failing = `AssignmentFailed` (reason `WORKER_CANCELLED_NO_SUBSTITUTE`): Booking cancels the order and refunds 100 % automatically, no Admin step. A scan that finds nobody fails the order the same way (BR-03).
+5. **Customer:** realtime notices `dispatch.worker_cancelled` (with the time the search stops), `dispatch.substitute_found`, `dispatch.substitute_not_found`. `OrderProgress.substituteSearchUntil` is set while the order is `DISPATCHING` after a worker cancel. The customer may cancel meanwhile for a 100 % refund (the order is not `ASSIGNED`, so the late fee never applies).
+6. **Not in scope:** rescheduling, money penalties, Premium / agency seats (Q09 failover).
 
 ### D26 CQRS Read-Join Convention (Architecture Refinement, 2026-11-09)
 1. **Write Side (Commands, State Transitions, Dispatch Matching):** Strictly 0-JOIN. All entity mutations, dispatch slot holds, and state machine transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned).
@@ -390,6 +399,7 @@ SePay Test mode bank-transfer QR is in scope for the demo (owner request 2026-10
 | `Worker.MaxJobHoursPerDay` | 8 | D34 |
 | `Rating.WindowHours` / `LowStarThreshold` / `ConsecutiveLowToFlag` / `MinAvgAfterJobs.Rating` / `MinAvgAfterJobs.Jobs` | 48 / 2 / 3 / 4.00 / 10 | Q14 |
 | `Cancel.FullRefundHoursBefore` / `LateFeeRate` / `WorkerCancelLockCount` / `WorkerCancelWindowDays` | 2 / 0.40 / 3 / 30 | Q15 |
+| `Cancel.RedispatchCutoffMinutes` | 30 | D35 |
 | `Auth.MinPasswordLength` / `LockoutFailures` / `LockoutMinutes` | 10 / 5 / 15 | Q16 |
 | `Privacy.PhoneVisibleBeforeMinutes` / `PhoneVisibleAfterMinutes` | 60 / 60 | Q17 |
 | `Auth.AccessTokenMinutes` / `Auth.RefreshTokenDays` | 15 / 30 | Q20 (leader accepted the default) |

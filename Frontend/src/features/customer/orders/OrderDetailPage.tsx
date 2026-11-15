@@ -11,7 +11,7 @@ import { ordersApi } from './api'
 import type { AddressDetail, OrderProgress } from './types'
 import { WorkerRouteCard } from './WorkerRouteCard'
 import { customerAcceptanceView } from '../after-shift/acceptance'
-import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, routeCandidates, timeline, toggleSaved, vnTime, type ArrivalStatus, type FallbackStatus } from './view'
+import { arrivalCandidates, arrivalProblem, arrivalText, assignmentLabel, cancelReasonError, cancelReasonText, CANCEL_REASON_MAX, extensionLabel, fallbackDeadlineText, fallbackOutcomeText, fallbackProblem, fallbackQuestion, hasFallback, hasOrderRefund, hoursText, orderActions, orderProblem, POLL_PROGRESS_MS, routeCandidates, substituteSearchText, timeline, toggleSaved, vnTime, type ArrivalStatus, type FallbackStatus } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const dot = { done: <Check size={14} />, current: <Loader size={14} className="animate-spin" />, todo: <Circle size={14} />, cancelled: <X size={14} /> }
@@ -151,6 +151,7 @@ export function OrderDetailPage() {
   const actions = orderActions(order.orderStatus, progress.assignments, progress.extension, now)
   const steps = timeline(order.orderStatus, order.orderStatus === 'CANCELLED' && progress.assignments.length > 0, progress.assignments)
   const ext = progress.extension
+  const substituteText = substituteSearchText(order.orderStatus, progress.substituteSearchUntil)
 
   async function confirmCancel() {
     const problem = cancelReasonError(reason)
@@ -198,6 +199,10 @@ export function OrderDetailPage() {
           {fallback.state === 'AWAITING_CUSTOMER' && (askDecline
             ? <div className="mt-4 flex flex-wrap gap-3"><span className="w-full text-sm font-semibold">Hủy đơn và hoàn tiền 100 %?</span><button type="button" disabled={fallbackBusy} onClick={() => void answerFallback(false)} className="inline-flex h-10 items-center rounded-lg bg-red-700 px-4 font-semibold text-white disabled:opacity-60">{fallbackBusy ? 'Đang gửi…' : 'Hủy đơn'}</button><button type="button" disabled={fallbackBusy} onClick={() => setAskDecline(false)} className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 font-semibold">Quay lại</button></div>
             : <div className="mt-4 flex flex-wrap gap-3"><button type="button" disabled={fallbackBusy} onClick={() => void answerFallback(true)} className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white disabled:opacity-60">{fallbackBusy ? 'Đang gửi…' : 'Đồng ý 1 thợ làm 2 ca'}</button><button type="button" disabled={fallbackBusy} onClick={() => { setFallbackError(null); setAskDecline(true) }} className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 font-semibold">Hủy đơn, hoàn 100 %</button></div>)}
+        </section>}
+        {substituteText && <section className="rounded-xl border border-amber-300 bg-amber-50 p-6" aria-label="Đang tìm thợ thay">
+          <h2 className="flex items-center gap-2 text-lg font-semibold"><Users size={18} />Đang tìm thợ thay</h2>
+          <p className="mt-2 text-sm text-stone-700">{substituteText}</p>
         </section>}
         {routeCandidates(order.orderStatus, progress.assignments).map((id) => <WorkerRouteCard key={id} assignmentId={id} workerName={progress.assignments.find((a) => a.assignmentId === id)?.workerName ?? null} />)}
         {arrivals.map((arrival) => {

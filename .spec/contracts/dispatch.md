@@ -204,6 +204,45 @@ Báo "Khách vắng mặt" (BR-05, Q10).
 - Mã lỗi:
   - `409`: Chưa đủ 15 phút hoặc chưa thực hiện đủ 2 cuộc gọi hệ thống (`CHECK_IN_LOG.call_attempts < 2`).
 
+#### `GET /api/v1/dispatch/assignments/{assignmentId}/cancel-preview`
+Thợ tự do xem hậu quả trước khi hủy ca đã nhận (decisions D35). Không thay đổi gì.
+
+- Response 200: `ApiResponse<WorkerCancelPreviewDto>`
+```json
+{
+  "assignmentId": 1001,
+  "cancelCountInWindow": 2,
+  "lockCount": 3,
+  "windowDays": 30,
+  "willLockAccount": true,
+  "autoAcceptOn": true,
+  "jobStartAt": "2026-11-20T01:00:00Z",
+  "substituteSearchPossible": true
+}
+```
+- Lỗi giống endpoint hủy bên dưới (403 / 404 / 409).
+
+#### `POST /api/v1/dispatch/assignments/{assignmentId}/cancel`
+Thợ tự do hủy ca đã nhận, trước giờ bắt đầu T (Q15, decisions D35).
+
+- Request body: `{ "reason": "string (1-255)" }`
+- Hiệu ứng (một transaction): ca -> `CANCELLED_BY_WORKER`, slot trả lại (`BOOKED -> AVAILABLE`), đơn -> `DISPATCHING`, tắt "Tự động nhận đơn"; vi phạm thứ `Cancel.WorkerCancelLockCount` (3) trong `Cancel.WorkerCancelWindowDays` (30) ngày khóa tài khoản (`LOCKED`, Admin mở khóa). Mỗi lần hủy tính 1, không phạt tiền.
+- Sau commit: phát `AssignmentCancelledByWorker`; nếu còn trước `T - Cancel.RedispatchCutoffMinutes` (30) thì tìm thợ thay ngay cho đúng chỗ đó (không mời lại thợ vừa hủy) và báo khách `dispatch.worker_cancelled`; nếu đã qua mốc thì phát `AssignmentFailed` (`WORKER_CANCELLED_NO_SUBSTITUTE`) -> Booking hủy đơn, hoàn 100 % tự động.
+- Response 200: `ApiResponse<WorkerCancelResultDto>`
+```json
+{
+  "assignmentId": 1001,
+  "status": "CANCELLED_BY_WORKER",
+  "cancelCountInWindow": 1,
+  "lockCount": 3,
+  "windowDays": 30,
+  "accountLocked": false,
+  "orderOutcome": "REDISPATCHING | CANCELLED_REFUNDED",
+  "substituteSearchUntil": "2026-11-20T00:30:00Z | null"
+}
+```
+- Mã lỗi: `400` lý do rỗng / quá 255 ký tự; `403` thợ doanh nghiệp (SLA, Q09); `404` không phải ca của thợ; `409` `ASSIGNMENT_STATE_INVALID` (không còn `ASSIGNED`) hoặc `JOB_ALREADY_STARTED` (đã tới T: luồng vắng mặt Q10).
+
 #### `POST /api/v1/dispatch/assignments/{assignmentId}/incidents`
 Báo sự cố bất khả kháng trên đường hoặc hiện trường (BR-10).
 
@@ -380,3 +419,8 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 - `WorkerCheckedIn(CheckInResultDto result)`: Thợ đã có mặt tại nhà.
 - `IncidentAlert(IncidentSummaryDto alert)`: Thông báo thợ gặp sự cố + thời gian dự kiến đổi thợ.
 - `DispatchTimeoutCancelled(double refundAmount)`: Quá 10km không có thợ -> tự động hủy đơn và hoàn tiền 100%.
+- Thông báo (`INotificationService`, decisions D35) khi thợ hủy ca: `dispatch.worker_cancelled` (đang tìm thợ thay, kèm giờ dừng tìm), `dispatch.substitute_found`, `dispatch.substitute_not_found` (đơn đã hủy, hoàn 100 %). `data.orderId` luôn có.
+
+### Events (decisions D35)
+- **Publishes** `AssignmentCancelledByWorker { AssignmentId, OrderId, WorkerId, AssignmentSeq, Reason, CancelCount, WorkerLocked, CancelledAtUtc }` sau commit hủy ca của thợ.
+- **Publishes** `AssignmentFailed { OrderId, "WORKER_CANCELLED_NO_SUBSTITUTE", FailedAtUtc }` khi chỗ bị hủy chưa có thợ thay lúc `T - Cancel.RedispatchCutoffMinutes` (sweep 5 s của `OfferExpiryWorker`).
