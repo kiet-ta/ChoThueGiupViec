@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -30,23 +31,31 @@ public class TokenService : ITokenService
         _hmacKey = Encoding.UTF8.GetBytes(secret);
     }
 
-    public (string AccessToken, int ExpiresInSeconds) GenerateAccessToken(int userId, string role)
+    public (string AccessToken, int ExpiresInSeconds) GenerateAccessToken(int userId, string role, IEnumerable<Claim>? additionalClaims = null)
     {
         var expiresInSeconds = _rules.Auth.AccessTokenMinutes * 60;
         var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var expiresAt = nowUnix + expiresInSeconds;
         var jti = Guid.NewGuid().ToString("N");
 
-        var payload = new
+        var payloadDict = new Dictionary<string, object>
         {
-            sub = userId.ToString(),
-            role,
-            jti,
-            iat = nowUnix,
-            exp = expiresAt
+            { "sub", userId.ToString() },
+            { "role", role },
+            { "jti", jti },
+            { "iat", nowUnix },
+            { "exp", expiresAt }
         };
 
-        var token = CreateSignedJwt(payload);
+        if (additionalClaims != null)
+        {
+            foreach (var claim in additionalClaims)
+            {
+                payloadDict[claim.Type] = claim.Value;
+            }
+        }
+
+        var token = CreateSignedJwt(payloadDict);
         return (token, expiresInSeconds);
     }
 
