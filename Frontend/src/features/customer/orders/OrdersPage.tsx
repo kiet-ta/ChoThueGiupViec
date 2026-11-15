@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { CircleAlert, Loader, Plus } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
@@ -7,6 +7,7 @@ import type { OrderPage } from '../booking/types'
 import { dayText, shiftLabel, statusLabel, tierLabel } from '../booking/view'
 import { ORDERS_PAGE_SIZE, ordersApi } from './api'
 import { cancelReasonText, pageCount, STATUS_TABS } from './view'
+import { statusFromSearch } from '../shell/nav'
 
 const pill: Record<string, string> = {
   PENDING_PAYMENT: 'bg-amber-100 text-amber-900', PAID: 'bg-emerald-100 text-emerald-900', DISPATCHING: 'bg-amber-100 text-amber-900',
@@ -26,8 +27,16 @@ function timeOf(o: { startTime?: string | null; endTime?: string | null; shiftCo
 }
 
 export function OrdersPage() {
-  const [status, setStatus] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
+  // The filter lives in the URL (`?status=`), so the navbar dropdown and the footer open a filter directly (WEB-CUST-UI-01).
+  const [params, setParams] = useSearchParams()
+  const status = statusFromSearch(params)
+  const [paging, setPaging] = useState<{ status: string | null; page: number }>({ status, page: 1 })
+  const page = paging.status === status ? paging.page : 1
+  const setPage = (next: number) => setPaging({ status, page: next })
+  const setStatus = (next: string | null) => {
+    setPaging({ status: next, page: 1 })
+    setParams(next ? { status: next } : {})
+  }
   const [data, setData] = useState<OrderPage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [reasons, setReasons] = useState<{ page: number; status: string | null; values: Record<number, string> } | null>(null)
@@ -63,7 +72,7 @@ export function OrdersPage() {
         <Link to="/app/booking" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#1a2f25] px-4 font-semibold text-white"><Plus size={16} />Đặt ca mới</Link></div>
     </div>
     <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Lọc theo trạng thái">
-      {STATUS_TABS.map((t) => <button key={t.label} type="button" role="tab" aria-selected={status === t.status} onClick={() => { setStatus(t.status); setPage(1) }}
+      {STATUS_TABS.map((t) => <button key={t.label} type="button" role="tab" aria-selected={status === t.status} onClick={() => setStatus(t.status)}
         className={`h-9 rounded-full border px-4 text-sm font-medium ${status === t.status ? 'border-[#1a2f25] bg-[#1a2f25] text-white' : 'border-stone-300 bg-white'}`}>{t.label}</button>)}
     </div>
     {error && <p role="alert" className="mt-6 flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p>}
