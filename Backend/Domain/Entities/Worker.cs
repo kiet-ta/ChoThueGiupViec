@@ -65,6 +65,12 @@ public partial class Worker
     /// <summary>worker.work_area_set_at DATETIME2 NULL</summary>
     public DateTime? WorkAreaSetAt { get; set; }
 
+    /// <summary>
+    /// worker.auto_accept_offers BIT NOT NULL DEFAULT 0: a freelancer who turned on "Tự động nhận đơn" gets an Economy offer accepted
+    /// for them as soon as dispatch makes it (DISPATCH-AUTO-01, #890).
+    /// </summary>
+    public bool AutoAcceptOffers { get; set; }
+
     /// <summary>worker.bank_account_no VARCHAR(30) NULL</summary>
     public string? BankAccountNo { get; set; }
 

@@ -195,6 +195,8 @@ public class JobAcceptanceTests
             ServiceTier = ServiceTier.Economy,
             GrossAmount = 260000m,
             CommissionRate = 0.20m,
+            // ACCEPT-01 (D32): a redo is only possible while the worker is still on site (RedoMinutes = 30 after the submit).
+            SubmittedAt = DateTime.UtcNow.AddMinutes(-5),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

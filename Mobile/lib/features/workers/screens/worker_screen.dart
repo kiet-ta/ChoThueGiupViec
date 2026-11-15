@@ -16,6 +16,7 @@ import '../../disputes/routes.dart';
 import '../../disputes/screens/dispute_screen.dart';
 import '../models/worker_work_area_models.dart';
 import '../routes.dart';
+import '../services/workers_auto_accept_service.dart';
 import '../services/workers_profile_service.dart';
 import '../services/workers_work_area_service.dart';
 
@@ -26,6 +27,8 @@ import '../services/workers_work_area_service.dart';
 /// MOB-UI-26: an agency worker is verified by the agency, so the eKYC row is not shown to them; the company roster row is
 /// shown to agency workers only (a freelancer sets the shifts in the Lịch tab).
 /// MOB-WORKER-AREA-01 (#556): a freelancer also has the row "Nơi làm việc" (where they work, decisions D24).
+/// DISPATCH-AUTO-01 (#890, decisions D33): a freelancer also has the "Tự động nhận đơn" switch; it is shown once the server
+/// value is read (a failed read hides it), and it cannot be turned on before a work area is registered.
 class WorkerScreen extends StatefulWidget {
   /// The worker's id from the login; there is no profile endpoint to read a name from.
   final int? workerId;
@@ -39,12 +42,16 @@ class WorkerScreen extends StatefulWidget {
   /// Reads the registered work area for the subtitle of its row; replaceable in tests.
   final WorkersWorkAreaService? workArea;
 
+  /// Reads and saves the "Tự động nhận đơn" switch; replaceable in tests.
+  final WorkersAutoAcceptService? autoAccept;
+
   const WorkerScreen({
     super.key,
     this.workerId,
     this.onSignOut,
     this.profile,
     this.workArea,
+    this.autoAccept,
   });
 
   @override
@@ -62,6 +69,14 @@ class _WorkerScreenState extends State<WorkerScreen> {
   /// The registered work area, or null while it loads or when it cannot be read.
   WorkerWorkArea? _area;
 
+  /// The server's "Tự động nhận đơn" value, or null while it loads or when it cannot be read (the card is then hidden).
+  bool? _autoAccept;
+  bool _autoAcceptSaving = false;
+  String? _autoAcceptError;
+
+  late final WorkersAutoAcceptService _autoAcceptService =
+      widget.autoAccept ?? WorkersAutoAcceptService();
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +91,103 @@ class _WorkerScreenState extends State<WorkerScreen> {
         })
         .catchError((_) {});
     _loadArea();
+    _loadAutoAccept();
+  }
+
+  void _loadAutoAccept() {
+    _autoAcceptService
+        .isEnabled()
+        .then((enabled) {
+          if (mounted) setState(() => _autoAccept = enabled);
+        })
+        .catchError((_) {});
+  }
+
+  /// Turning it on needs a work area; until the area is read the server decides (409 `WORK_AREA_REQUIRED`).
+  bool get _autoAcceptNeedsArea => _area != null && !_area!.isSet;
+
+  /// Saves the switch and shows what the server kept; a refusal shows the server's own sentence.
+  Future<void> _setAutoAccept(bool enabled) async {
+    setState(() {
+      _autoAcceptSaving = true;
+      _autoAcceptError = null;
+    });
+    String? error;
+    bool? kept;
+    try {
+      kept = await _autoAcceptService.setEnabled(enabled);
+    } on ApiException catch (e) {
+      error = e.message;
+    } catch (_) {
+      error = 'Chưa lưu được. Bạn thử lại sau nhé.';
+    }
+    if (!mounted) return;
+    setState(() {
+      _autoAcceptSaving = false;
+      _autoAcceptError = error;
+      if (kept != null) _autoAccept = kept;
+    });
+    if (error != null) _loadArea();
+  }
+
+  Widget _autoAcceptCard(bool enabled) {
+    final needsArea = _autoAcceptNeedsArea && !enabled;
+    final canChange = !_autoAcceptSaving && !needsArea;
+    final note =
+        _autoAcceptError ??
+        (needsArea ? 'Đăng ký nơi làm việc trước để bật.' : null);
+    return NordicCard(
+      key: const Key('worker-auto-accept'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tự động nhận đơn',
+                      style: NordicTypography.titleSmall,
+                    ),
+                    Text(
+                      enabled
+                          ? 'Đang bật. Việc mới hợp lịch rảnh được nhận ngay cho bạn.'
+                          : 'Đang tắt. Bật để nhận ngay việc hợp lịch rảnh, không cần bấm nhận.',
+                      key: const Key('worker-auto-accept-state'),
+                      style: NordicTypography.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: NordicSpace.sm),
+              Semantics(
+                label: 'Tự động nhận đơn',
+                child: Switch.adaptive(
+                  key: const Key('worker-auto-accept-switch'),
+                  value: enabled,
+                  activeTrackColor: NordicColors.primary,
+                  onChanged: canChange ? _setAutoAccept : null,
+                ),
+              ),
+            ],
+          ),
+          if (note != null) ...[
+            const SizedBox(height: NordicSpace.xs),
+            Text(
+              note,
+              key: const Key('worker-auto-accept-note'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: _autoAcceptError != null
+                    ? NordicColors.error
+                    : NordicColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   void _loadArea() {
@@ -147,6 +259,10 @@ class _WorkerScreenState extends State<WorkerScreen> {
           ],
         ),
       ),
+      if (!_agencyWorker && _autoAccept != null) ...[
+        const SizedBox(height: NordicSpace.lg),
+        _autoAcceptCard(_autoAccept!),
+      ],
       const SizedBox(height: NordicSpace.lg),
       GroupedListCard(
         items: [
