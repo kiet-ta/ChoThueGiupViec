@@ -151,6 +151,18 @@ export function disputeOutcomeLines(d: Pick<Dispute, 'disputeStatus' | 'faultPar
   return due ? [`Hạn xử lý: ${due}`] : []
 }
 
+/** Where a dispute is (DISPUTE-DETAIL-01): sent, being reviewed, resolved. */
+export function disputeSteps(status: string): { label: string; state: 'done' | 'current' | 'todo' }[] {
+  const at = status === 'RESOLVED' ? 3 : status === 'IN_REVIEW' ? 1 : 0
+  return ['Đã gửi', 'Đang xem xét', 'Đã giải quyết'].map((label, i) => ({ label, state: i < at || (at === 3) ? 'done' : i === at ? 'current' : 'todo' }))
+}
+
+/** The message of a dispute that cannot be shown. */
+export function disputeDetailProblem(error: { status?: number }): string {
+  if (error.status === 404) return 'Không tìm thấy khiếu nại này.'
+  return 'Không tải được khiếu nại. Vui lòng thử lại.'
+}
+
 export interface DisputeForm {
   category: string
   description: string

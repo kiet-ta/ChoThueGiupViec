@@ -8,6 +8,7 @@ import { FavoritesPage } from './account/FavoritesPage'
 import { ProfilePage } from './account/ProfilePage'
 import { AcceptancePage } from './after-shift/AcceptancePage'
 import { DisputeCreatePage } from './after-shift/DisputeCreatePage'
+import { DisputeDetailPage } from './after-shift/DisputeDetailPage'
 import { DisputesPage } from './after-shift/DisputesPage'
 import { RatingPage } from './after-shift/RatingPage'
 import { BookingPage } from './booking/BookingPage'
@@ -37,6 +38,7 @@ const customerRoutes: RouteObject[] = [
   { path: 'addresses/:addressId', element: <AddressFormPage /> },
   { path: 'disputes', element: <DisputesPage /> },
   { path: 'disputes/new', element: <DisputeCreatePage /> },
+  { path: 'disputes/:disputeId', element: <DisputeDetailPage /> },
 ]
 
 function Placeholder() {

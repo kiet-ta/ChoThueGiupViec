@@ -10,6 +10,8 @@ export const afterShiftApi = {
   ratingWindow: (assignmentId: number) => apiClient.get<RatingWindow>(`/customers/me/assignments/${assignmentId}/rating-window`),
   rate: (assignmentId: number, body: RatingBody) => apiClient.post<unknown>(`/customers/me/assignments/${assignmentId}/rating`, body),
   disputes: () => apiClient.get<Dispute[]>('/customers/me/disputes'),
+  /** One dispute of the customer (disputes.md 2.1); 404 when it is not theirs. */
+  dispute: (disputeId: number) => apiClient.get<Dispute>(`/customers/me/disputes/${disputeId}`),
   fileDispute: (body: FileDisputeBody) => apiClient.post<Dispute>('/customers/me/disputes', body),
   uploadEvidence: (fileName: string, contentType: string, contentBase64: string) =>
     apiClient.post<EvidenceFile>('/customers/me/disputes/evidence', { fileName, contentType, contentBase64 }),
