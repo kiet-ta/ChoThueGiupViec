@@ -6,6 +6,9 @@ abstract class IDisputesService {
   Future<Dispute> create(DisputeRole role, DisputeSubmission submission);
 
   Future<List<Dispute>> listMine(DisputeRole role);
+
+  /// One dispute of the caller (`GET .../disputes/{id}`, DISPUTE-DETAIL-01); 404 when it is not theirs.
+  Future<Dispute> getMine(DisputeRole role, int disputeId);
 }
 
 /// The endpoints of disputes.md 2.1 over the shared [ApiClient]. Failures are thrown as [ApiException].
@@ -38,5 +41,18 @@ class DisputesService implements IDisputesService {
           .toList(growable: false),
     );
     return response.data ?? const [];
+  }
+
+  @override
+  Future<Dispute> getMine(DisputeRole role, int disputeId) async {
+    final response = await _client.get<Dispute>(
+      '${role.pathPrefix}/disputes/$disputeId',
+      fromJson: (json) => Dispute.fromJson(json as Map<String, dynamic>),
+    );
+    final data = response.data;
+    if (data == null) {
+      throw const ApiException(0, 'Máy chủ không trả khiếu nại.');
+    }
+    return data;
   }
 }
