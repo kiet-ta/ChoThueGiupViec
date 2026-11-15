@@ -122,8 +122,17 @@ class _LedgerHistoryScreenState extends State<LedgerHistoryScreen> {
     }
   }
 
+  /// The next page, asked by the list when it is scrolled near its end (MOB-PAGING-01).
+  VoidCallback? get _onEndReached =>
+      !_loading &&
+          !_loadingMore &&
+          _moreError == null &&
+          _entries.length < _total
+      ? _loadMore
+      : null;
+
   Future<void> _loadMore() async {
-    if (_loadingMore) return;
+    if (_loadingMore || _entries.length >= _total) return;
     final id = _requestId;
     final range = monthDayRange(_month);
     setState(() {
@@ -168,6 +177,7 @@ class _LedgerHistoryScreenState extends State<LedgerHistoryScreen> {
     return NordicPage.pushed(
       title: 'Lịch sử giao dịch',
       onRefresh: _load,
+      onEndReached: _onEndReached,
       children: [
         _monthSelector(),
         const SizedBox(height: NordicSpace.sm),
@@ -256,12 +266,26 @@ class _LedgerHistoryScreenState extends State<LedgerHistoryScreen> {
             ),
           ),
         ),
-      if (_entries.length < _total)
+      if (_loadingMore)
+        Padding(
+          key: const Key('ledger-more-loading'),
+          padding: const EdgeInsets.symmetric(vertical: NordicSpace.md),
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: NordicColors.primary,
+              ),
+            ),
+          ),
+        )
+      else if (_moreError != null)
         NordicButton(
           key: const Key('ledger-more'),
-          label: 'Xem thêm',
+          label: 'Thử lại',
           variant: NordicButtonVariant.secondary,
-          isLoading: _loadingMore,
           onPressed: _loadMore,
         ),
       const SizedBox(height: NordicSpace.md),

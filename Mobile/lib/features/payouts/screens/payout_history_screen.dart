@@ -44,8 +44,26 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
 
   bool get _hasMore => _page == 0 || _items.length < _total;
 
+  /// Pull to refresh: page 1 again, replacing the list.
+  Future<void> _refresh() async {
+    if (_loading) return;
+    setState(() {
+      _items.clear();
+      _page = 0;
+      _total = 0;
+      _error = null;
+    });
+    await _loadNext();
+  }
+
+  /// The next page, asked by the list when it is scrolled near its end (MOB-PAGING-01). A failed page waits for
+  /// "Thử lại".
+  VoidCallback? get _onEndReached =>
+      !_loading && _error == null && _hasMore ? _loadNext : null;
+
   Future<void> _loadNext() async {
-    if (_loading) return; // one request at a time
+    // One request at a time, none past the end.
+    if (_loading || !_hasMore) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -73,7 +91,12 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return NordicPage.pushed(title: 'Lịch sử giải ngân', children: _body());
+    return NordicPage.pushed(
+      title: 'Lịch sử giải ngân',
+      onRefresh: _refresh,
+      onEndReached: _onEndReached,
+      children: _body(),
+    );
   }
 
   List<Widget> _body() {
@@ -110,13 +133,27 @@ class _PayoutHistoryScreenState extends State<PayoutHistoryScreen> {
             ),
           ),
         ),
-      if (_hasMore)
+      if (_loading)
+        Padding(
+          key: const Key('history-more-loading'),
+          padding: const EdgeInsets.symmetric(vertical: NordicSpace.md),
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: NordicColors.primary,
+              ),
+            ),
+          ),
+        )
+      else if (_error != null && _hasMore)
         NordicButton(
           key: const Key('history-more'),
-          label: 'Xem thêm',
+          label: 'Thử lại',
           variant: NordicButtonVariant.secondary,
-          isLoading: _loading,
-          onPressed: _loading ? null : _loadNext,
+          onPressed: _loadNext,
         ),
     ];
   }

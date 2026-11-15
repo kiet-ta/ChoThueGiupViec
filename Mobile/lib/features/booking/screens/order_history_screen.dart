@@ -111,8 +111,17 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     _load();
   }
 
+  /// The next page, asked by the list when it is scrolled near its end (MOB-PAGING-01).
+  VoidCallback? get _onEndReached =>
+      !_loading &&
+          !_loadingMore &&
+          _moreError == null &&
+          hasMoreOrders(_items.length, _total)
+      ? _more
+      : null;
+
   Future<void> _more() async {
-    if (_loadingMore) return;
+    if (_loadingMore || !hasMoreOrders(_items.length, _total)) return;
     _loadingMore = true;
     setState(() => _moreError = null);
     final filter = _filter;
@@ -182,6 +191,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       return NordicPage.pushed(
         title: 'Đơn đã đặt',
         onRefresh: _load,
+        onEndReached: _onEndReached,
         children: [
           if (count != null)
             Padding(
@@ -196,6 +206,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       title: 'Đơn',
       headerAction: count,
       onRefresh: _load,
+      onEndReached: _onEndReached,
       children: children,
     );
   }
@@ -619,13 +630,27 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           key: const Key('history-more-error'),
           style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
         ),
-      if (hasMoreOrders(_items.length, _total))
+      if (_loadingMore)
+        Padding(
+          key: const Key('history-more-loading'),
+          padding: const EdgeInsets.symmetric(vertical: NordicSpace.md),
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: NordicColors.primary,
+              ),
+            ),
+          ),
+        )
+      else if (_moreError != null)
         NordicButton(
           key: const Key('history-more'),
-          label: 'Xem thêm',
+          label: 'Thử lại',
           width: double.infinity,
           variant: NordicButtonVariant.secondary,
-          isLoading: _loadingMore,
           onPressed: _more,
         ),
     ];
