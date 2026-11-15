@@ -430,3 +430,10 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 ## D36 addendum: the offer of a large ECONOMY house (LARGE-1W-01, #900)
 - An order with `isContinuousWork` is one seat (`requiredWorkers = 1`) offered exactly like any ECONOMY order (30 s, auto-accept D33); the dispatch changes nothing and holds no slot of another shift. Its single assignment has `grossAmount` = the whole total.
 - The 2nd job (extra hours right after the shift) opens after `Dispatch.ContinuationConfirmMinutes` (15) past the shift end if the assignment is still `IN_PROGRESS` (sweep every minute), or on the customer's first "not clean" (`workers.md` 2.5.3).
+
+---
+
+## D38 addendum: every seat present at the shift start (PREM-START-01, #951)
+- A background sweep (every 30 s) cancels a PREMIUM order (any size) whose seats are not all present at the check-in time + 5 minutes. "Present" is `CHECKED_IN` or later; a worker whose GPS check-in failed and who waits for the customer's confirmation counts as present for 10 minutes after the attempt; a replacement seat has `max(assigned + 30 min, T + 5 min)`.
+- The cancel: `orderStatus = CANCELLED` with `cancelReason` "Đối tác chưa đủ người làm đúng giờ (đơn Premium <orderId>).", `AssignmentFailed` (100 % refund, hold released), every assignment `CANCELLED` (a `CHECKED_IN` one included), and the customer gets the notification `topic = premium.order_cancelled`, `data.orderId`, with the apology and the refunded amount (`GET /api/v1/notifications`, SignalR).
+- The agency of each absent seat gets `NO_SHOW_AT_START`: -30 SLA points per order and the gross amount of each absent seat from its escrow (an escrow ledger row `PENALTY` with the reason `NOSHOWATSTART: ...`).

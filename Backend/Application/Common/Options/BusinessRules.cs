@@ -159,6 +159,9 @@ public class SlaPenaltyRules
     public decimal NoShow { get; set; } = 20m;
     public decimal Shortage { get; set; } = 10m;
     public decimal QualityComplaint { get; set; } = 5m;
+
+    /// <summary>D38: a Premium order cancelled because a seat was not present at the shift start (heavier than <see cref="NoShow"/>).</summary>
+    public decimal NoShowAtStart { get; set; } = 30m;
 }
 
 public class SlaRules
@@ -181,6 +184,18 @@ public class SuperFreelancerRules
 public class PremiumRules
 {
     public int MinLeadHours { get; set; } = 4;
+
+    /// <summary>D38: a Premium seat that is not present (checked in) this many minutes after the shift start cancels the order.</summary>
+    public int CheckInGraceMinutes { get; set; } = 5;
+
+    /// <summary>D38: a worker whose GPS check-in failed and who waits for the customer's confirmation counts as present this long after the attempt.</summary>
+    public int FallbackConfirmGraceMinutes { get; set; } = 10;
+
+    /// <summary>D38: a replacement seat (rescue) must be present within this many minutes of being assigned (never before the usual grace).</summary>
+    public int ReplacementCheckInMinutes { get; set; } = 30;
+
+    /// <summary>D38: both workers are reminded to move this many minutes before the check-in time (PREM-START-02).</summary>
+    public int ReminderMinutes { get; set; } = 30;
 }
 
 public class BookingRules
