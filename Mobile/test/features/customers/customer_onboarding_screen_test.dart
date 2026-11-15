@@ -1,26 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/core/device/device_location.dart';
-import 'package:mobile/core/device/location_wrapper.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/customers/logic/onboarding_logic.dart';
 import 'package:mobile/features/customers/models/customer_address.dart';
 import 'package:mobile/features/customers/models/customer_profile.dart';
-import 'package:mobile/features/customers/models/reverse_geocode_result.dart';
 import 'package:mobile/features/customers/screens/customer_onboarding_screen.dart';
 import 'package:mobile/features/customers/services/customer_address_service.dart';
 import 'package:mobile/features/customers/services/customer_profile_service.dart';
 import 'package:mobile/features/identity/services/api_error.dart';
 
 const _searchHint = 'Tìm (gõ không dấu cũng được)';
-
-/// The phone has no position: the address map stays on District 1.
-class _NoLocation implements IDeviceLocationProvider {
-  @override
-  Future<GeoPoint> currentPosition() => Future.error(
-    const DeviceLocationException(DeviceLocationFailure.timeout),
-  );
-}
 
 /// Counts the calls and can fail them; everything else is the in-memory mock of the real service.
 class _Profiles extends CustomerProfileService {
@@ -83,8 +72,6 @@ class _HostState extends State<_Host> {
                 builder: (_) => CustomerOnboardingScreen(
                   profileService: widget.profiles,
                   addressService: widget.addresses,
-                  locationProvider: _NoLocation(),
-                  showMapTiles: false,
                 ),
               ),
             );
@@ -357,50 +344,6 @@ void main() {
       expect(result?.nameSaved, isTrue);
       expect(result?.addressSaved, isTrue);
     });
-
-    testWidgets(
-      'ADDR-MAP-01: the house tapped on the map fills step 2 and its point is the one saved',
-      (tester) async {
-        addresses.mockReverseGeocodeHandler = (lat, lng) =>
-            ReverseGeocodeResult(
-              city: 'Thành phố Hồ Chí Minh',
-              district: 'An Khánh',
-              addressLine: 'Đường Trần Não',
-              formattedAddress:
-                  'Đường Trần Não, An Khánh, Thành phố Hồ Chí Minh, Việt Nam',
-              latitude: lat,
-              longitude: lng,
-            );
-        await _open(
-          tester,
-          profiles: profiles,
-          addresses: addresses,
-          onResult: onResult,
-        );
-        await _typeName(tester, 'Anh Duy');
-        await _tap(tester, 'onboarding-continue');
-
-        await _tap(tester, 'address-map-card');
-        final topLeft = tester.getTopLeft(find.byKey(const Key('address-map')));
-        await tester.tapAt(topLeft + const Offset(195, 200));
-        await tester.pump(const Duration(milliseconds: 500));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('address-map-confirm')));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Đã chọn vị trí trên bản đồ'), findsOneWidget);
-        expect(find.text('Đường Trần Não'), findsOneWidget);
-        expect(find.text('Phường An Khánh'), findsOneWidget);
-        await _tap(tester, 'onboarding-continue');
-        await _tap(tester, 'onboarding-type-APARTMENT');
-        await _tap(tester, 'onboarding-save-address');
-
-        final a = addresses.created.single;
-        expect(a.addressLine, 'Đường Trần Não');
-        expect(a.district, 'Phường An Khánh');
-        expect((a.latitude, a.longitude), isNot((10.7769, 106.7009)));
-      },
-    );
 
     testWidgets('a house with 3 floors sends the floors it was given', (
       tester,

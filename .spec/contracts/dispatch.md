@@ -112,6 +112,8 @@ Báo cáo sự cố bất khả kháng trên đường hoặc tại nơi làm (B
 
 > Served by `WorkerDispatchController` (DISPATCH-WIRE-02, #311), except `incidents` (DISPATCH-WIRE-03). Ca không tồn tại hoặc không phải của thợ gọi -> `404`; trạng thái không cho phép -> `409` với `data.code` (decisions Q26 D6): `OFFER_EXPIRED`, `OFFER_NOT_OPEN`, `ORDER_NOT_DISPATCHING`, `ASSIGNMENT_STATE_INVALID`, `ABSENT_CONDITIONS_NOT_MET`, `ABSENT_ALREADY_REPORTED`. `decline` trả `"status": "DECLINED"` (nhãn của phản hồi); dòng `JOB_ASSIGNMENT` chuyển `CANCELLED` và chỗ đó được mời cho thợ kế tiếp.
 
+> **Tự động nhận đơn (DISPATCH-AUTO-01, #890, decisions D33):** thợ tự do bật `PUT /api/v1/workers/me/auto-accept` (workers.md 2.3C) thì offer Economy vẫn được tạo (`OFFERED`) rồi được nhận ngay qua đúng luồng `accept` (`ASSIGNED`, slot `BOOKED`, `JobAssigned`); thợ nhận thông báo realtime topic `dispatch.auto_accepted` (`data.assignmentId`, `data.orderId`) và không có gì trong `offers/current`. Nhận tự động thất bại thì offer vẫn mở 30s như thường. Không áp dụng cho offer ca liên tiếp BR-02 và cho Premium. Thứ tự ứng viên không đổi (D30).
+
 #### `GET /api/v1/dispatch/offers/current`
 Lấy job offer đang chờ thợ phản hồi (nếu có). Trả về `data = null` nếu thợ không có offer nào đang active.
 

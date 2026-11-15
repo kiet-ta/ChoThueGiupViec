@@ -275,6 +275,17 @@ internal class InMemoryDispatchRepository : IDispatchRepository
         }
     }
 
+    /// <summary>Freelancers who turned on "Tự động nhận đơn" (DISPATCH-AUTO-01).</summary>
+    public HashSet<int> AutoAcceptWorkerIds { get; } = new();
+
+    public Task<bool> IsAutoAcceptOnAsync(int workerId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult(AutoAcceptWorkerIds.Contains(workerId));
+        }
+    }
+
     /// <summary>Set the order's status, as Booking would (e.g. CANCELLED).</summary>
     public void SetOrderStatus(long orderId, JobOrderStatus status)
     {

@@ -304,6 +304,13 @@ The customer sees the route, distance and travel time from the worker to the hou
 3. **Rejected alternative:** paying `min(balance at the cut-off, current balance)` at the settlement (harder to explain to workers).
 4. **Display:** the wallet carries `withdrawalsPaused`; the worker app locks the form and says why; the Admin web explains the 409.
 
+### D33 Freelancer auto-accept (DISPATCH-AUTO-01, #890; owner request 2026-11-15)
+1. **Rule:** a freelancer may turn on "Tự động nhận đơn" (`WORKER.auto_accept_offers`, default off; `GET/PUT /api/v1/workers/me/auto-accept`, workers.md 2.3C). When the dispatch scan offers that worker an Economy seat (first offer, preferred worker, or next candidate after a decline/expiry), the offer row is still created (`OFFERED`, slot `HELD`, D1) and then accepted at once through the normal accept path (`OFFERED -> ASSIGNED`, slot `BOOKED`, order sync, `JobAssigned`). The worker gets the realtime notification `dispatch.auto_accepted` with `assignmentId` and `orderId`.
+2. **Guards:** only freelancers (agency staff: 409 `NOT_FREELANCER`); turning it on needs a registered work area (409 `WORK_AREA_REQUIRED`, D24). A failed accept (race, order no longer dispatching) leaves the offer open for the usual 30 s; an error in this step never fails dispatch.
+3. **Not applied:** the BR-02 second-shift offer (D7 option b: a second shift is never given without asking) and Premium / agency seats.
+4. **Ranking unchanged:** the flag is not a score input; the nearest worker by road (D30) is still asked first.
+5. **Open:** the owner asked that the switch turn itself off when the worker cancels a job, but no flow moves an assignment to `CANCELLED_BY_WORKER` yet (no freelancer cancel endpoint). That part waits for the freelancer-cancel ticket.
+
 ### D26 CQRS Read-Join Convention (Architecture Refinement, 2026-11-09)
 1. **Write Side (Commands, State Transitions, Dispatch Matching):** Strictly 0-JOIN. All entity mutations, dispatch slot holds, and state machine transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned).
 2. **Read Side (Queries & Projections):** Explicit LINQ `join` is permitted under 4 mandatory constraints:
