@@ -98,6 +98,7 @@ class _Booking implements IBookingService {
   Future<PriceQuote> getQuote({
     required int addressId,
     required String serviceTier,
+    double? durationHours,
   }) => Future.value(
     PriceQuote(
       addressId: addressId,

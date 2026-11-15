@@ -6,8 +6,10 @@ export const bookingApi = {
   availability: (workerId: number, from: string, to: string) =>
     apiClient.get<FreeShift[]>(`/customers/me/favorite-workers/${workerId}/availability`, { query: { from, to } }),
   addresses: () => apiClient.get<CustomerAddress[]>('/customers/me/addresses'),
-  quote: (addressId: number, serviceTier: ServiceTier) =>
-    apiClient.get<PriceQuote>('/booking/price-quote', { query: { addressId, serviceTier } }),
+  quote: (addressId: number, serviceTier: ServiceTier, durationHours?: number) =>
+    apiClient.get<PriceQuote>('/booking/price-quote', {
+      query: durationHours === undefined ? { addressId, serviceTier } : { addressId, serviceTier, durationHours },
+    }),
   createOrder: (body: CreateOrderBody) => apiClient.post<Order>('/booking/orders', body),
   order: (orderId: number) => apiClient.get<Order>(`/booking/orders/${orderId}`),
   orders: (pageSize = 20) => apiClient.get<OrderPage>('/booking/orders', { query: { page: 1, pageSize } }),

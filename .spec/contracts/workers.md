@@ -295,7 +295,7 @@ Sets an availability slot for a date (`yyyy-MM-dd`) and shift (`SHIFT_MORNING`, 
 **Rules:**
 - Table `BOOKING_SLOT` has `UNIQUE(worker_id, slot_date, shift_code)`.
 - `enabled: true` -> `AVAILABLE`, `enabled: false` -> `BLOCKED`. Operation is idempotent (double clicks / concurrent requests return existing slot state safely without duplicate row errors).
-- The toggle only moves `AVAILABLE <-> BLOCKED`. A slot owned by Dispatch (`HELD` by an offer or agency hold, `BOOKED` by an assignment) is refused with **409 `SLOT_IN_USE`** and keeps its status (#398). A shift of **today** whose start time has already passed (Vietnam local time) is refused with **409 `SHIFT_ALREADY_STARTED`** for both on and off; a past date stays `400` (`slotDate`) (MOB-SLOTS-ERR-01, #814).
+- The toggle only moves `AVAILABLE <-> BLOCKED`. Decisions D34: a timed job (customer-picked start + length) leaves its shift slot `AVAILABLE`, so the worker can still switch that shift off; the accepted jobs stay, only new offers stop. The job list (2.3.3) and detail (2.3.4) show each job's own `startTime` / `endTime` and several jobs can share one shift. A slot owned by Dispatch (`HELD` by an offer or agency hold, `BOOKED` by an assignment) is refused with **409 `SLOT_IN_USE`** and keeps its status (#398). A shift of **today** whose start time has already passed (Vietnam local time) is refused with **409 `SHIFT_ALREADY_STARTED`** for both on and off; a past date stays `400` (`slotDate`) (MOB-SLOTS-ERR-01, #814).
 
 #### 2.3.3 `GET /api/v1/workers/me/assignments` (WorkerOnly)
 The jobs booked for the signed-in worker, so the app can show them in the schedule next to the slots (#550). Reads `JOB_ASSIGNMENT` -> `BOOKING_SLOT` (date, shift, times) -> `JOB_ORDER` -> `CUSTOMER_ADDRESS` (district only). No table change.
@@ -626,7 +626,7 @@ Worker accepts or declines an extension request paid by the customer (`Extension
 ```
 
 **Rules:**
-- If `accept == true`: extension is activated, shift extended, worker remains `BUSY`.
+- If `accept == true`: extension is activated, shift extended, worker remains `BUSY`. Decisions D34: refused with **409 `EXTENSION_OVERLAPS_NEXT_JOB`** (nothing changes) when the extra hours, counted from the job's end, would overlap another live job of the worker that day plus the 30-minute travel buffer. `newEndTime` is the job's own end (its picked time for a timed order) plus the extra hours.
 - If `accept == false`: extension status set to `DECLINED`, emits `ExtensionDeclined` domain event (M2 triggers 100% refund of extension fee to customer).
 
 **Implemented by WORKERS-EXT-01 (BE-M4-09):**

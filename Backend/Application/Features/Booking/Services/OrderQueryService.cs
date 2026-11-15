@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommonService.Application.Common.Helpers;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
@@ -14,6 +15,10 @@ public interface IOrderQueryService
 
     /// <summary>ValidationException (400), NotFoundException (404 address not the customer's). Creates nothing.</summary>
     Task<PriceQuoteDto> QuoteAsync(int customerId, int addressId, string? serviceTier, CancellationToken cancellationToken = default);
+
+    /// <summary>Decisions D34: with <paramref name="durationHours"/> (ECONOMY only) the price is for that many hours.</summary>
+    Task<PriceQuoteDto> QuoteAsync(
+        int customerId, int addressId, string? serviceTier, decimal? durationHours, CancellationToken cancellationToken = default);
 
     /// <summary>Checks the body, then <see cref="IOrderCreationService"/> (its 400 / 404 / 409 are unchanged).</summary>
     Task<OrderDto> CreateAsync(int customerId, CreateOrderBody body, CancellationToken cancellationToken = default);
@@ -66,9 +71,17 @@ public class OrderQueryService(
         _rules.Shift.MaxHours,
         _rules.Area.StandardMaxM2,
         _rules.Payments.QrExpiryMinutes,
-        Sandbox: true);
+        Sandbox: true,
+        JobWindow.StartStepMinutes,
+        _rules.Booking.MinDurationHours,
+        JobWindow.DurationStepHours,
+        _rules.Booking.EconomyMinLeadMinutes);
 
-    public async Task<PriceQuoteDto> QuoteAsync(int customerId, int addressId, string? serviceTier, CancellationToken cancellationToken = default)
+    public Task<PriceQuoteDto> QuoteAsync(int customerId, int addressId, string? serviceTier, CancellationToken cancellationToken = default) =>
+        QuoteAsync(customerId, addressId, serviceTier, null, cancellationToken);
+
+    public async Task<PriceQuoteDto> QuoteAsync(
+        int customerId, int addressId, string? serviceTier, decimal? durationHours, CancellationToken cancellationToken = default)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         if (addressId <= 0)
@@ -80,6 +93,19 @@ public class OrderQueryService(
         {
             errors["serviceTier"] = ["serviceTier must be ECONOMY or PREMIUM."];
         }
+        else if (durationHours is not null)
+        {
+            var min = _rules.Booking.MinDurationHours;
+            var max = (decimal)_rules.Shift.MaxHours;
+            if (tier != ServiceTier.Economy)
+            {
+                errors["durationHours"] = ["durationHours is only allowed for ECONOMY orders."];
+            }
+            else if (durationHours < min || durationHours > max || durationHours.Value % JobWindow.DurationStepHours != 0)
+            {
+                errors["durationHours"] = [$"durationHours must be from {min} to {max} in steps of {JobWindow.DurationStepHours}."];
+            }
+        }
 
         if (errors.Count > 0)
         {
@@ -90,9 +116,15 @@ public class OrderQueryService(
             ?? throw new NotFoundException("Address", addressId);
         var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules);
         var quote = await pricing.QuoteAsync(tier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken);
+        if (durationHours is { } hours)
+        {
+            quote = PriceCalculator.ForHours(quote, hours, _rules.Shift.MaxHours);
+        }
 
         return new PriceQuoteDto(
-            addressId, DbEnum.ToDb(tier), quote.TotalAreaM2, quote.AreaBracket, quote.RequiredWorkers, quote.UnitPrice, quote.TotalAmount, Currency);
+            addressId, DbEnum.ToDb(tier), quote.TotalAreaM2, quote.AreaBracket, quote.RequiredWorkers, quote.UnitPrice, quote.TotalAmount, Currency,
+            durationHours,
+            tier == ServiceTier.Economy ? JobWindow.SuggestedHours(address.TotalAreaM2, plan.RequiredWorkers, _rules) : null);
     }
 
     public async Task<OrderDto> CreateAsync(int customerId, CreateOrderBody body, CancellationToken cancellationToken = default)
@@ -110,6 +142,19 @@ public class OrderQueryService(
             errors["scheduledDate"] = ["scheduledDate is required (yyyy-MM-dd)."];
         }
 
+        TimeOnly? startTime = null;
+        if (!string.IsNullOrEmpty(body.StartTime))
+        {
+            if (TimeOnly.TryParseExact(body.StartTime, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+            {
+                startTime = parsed;
+            }
+            else
+            {
+                errors["startTime"] = ["startTime must be HH:mm (local time)."];
+            }
+        }
+
         if (errors.Count > 0)
         {
             throw new ValidationException(errors);
@@ -118,7 +163,7 @@ public class OrderQueryService(
         var created = await creation.CreateAsync(
             new CreateOrderRequest(
                 customerId, body.AddressId, tier, body.ScheduledDate!.Value, body.ShiftCode ?? string.Empty, body.CustomerNote, body.RequiredSkill,
-                body.PreferredWorkerId, body.PreviousOrderId),
+                body.PreferredWorkerId, body.PreviousOrderId, startTime, body.DurationHours),
             cancellationToken);
         return OrderDto.From(created);
     }

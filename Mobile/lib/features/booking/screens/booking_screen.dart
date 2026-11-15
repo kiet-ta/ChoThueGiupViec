@@ -100,6 +100,10 @@ class _BookingScreenState extends State<BookingScreen> {
   DateTime? _day;
   String? _shiftCode;
 
+  /// Decisions D34 (Cơ bản only): how long the job lasts (the area's suggestion until the customer picks) and when it starts.
+  double? _durationHours;
+  String? _startTime;
+
   PriceQuote? _quote;
   String? _quoteError;
   bool _quoteLoading = false;
@@ -222,14 +226,30 @@ class _BookingScreenState extends State<BookingScreen> {
       _quoteError = null;
     });
     try {
+      final timed = tier == ServiceTier.economy;
       final quote = await _service.getQuote(
         addressId: addressId,
         serviceTier: tier,
+        durationHours: timed ? _durationHours : null,
       );
       if (!mounted || id != _quoteRequest) return;
+      // Decisions D34: until the customer picks a length, the job lasts what the home's area suggests; the price follows it.
+      final suggested = quote.suggestedDurationHours;
+      if (timed && _durationHours == null && suggested != null) {
+        setState(() {
+          _durationHours = suggested;
+          _dropStartIfItNoLongerFits();
+        });
+        _refreshQuote();
+        return;
+      }
       setState(() {
         _quote = quote;
         _quoteLoading = false;
+        // No suggestion from the server: start from the shortest length the server allows.
+        if (timed && _durationHours == null) {
+          _durationHours = _options?.minDurationHours;
+        }
       });
     } on ApiException catch (e) {
       if (!mounted || id != _quoteRequest) return;
@@ -248,6 +268,46 @@ class _BookingScreenState extends State<BookingScreen> {
       _hint = null;
       // PREMIUM workers come from the partner agency, not from the favorites.
       if (tier != ServiceTier.economy) _clearPreferred();
+    });
+    _refreshQuote();
+  }
+
+  /// Decisions D34: a timed job is Cơ bản only; Cao cấp keeps the whole shift.
+  bool get _timed => _tier == ServiceTier.economy;
+
+  /// The start times the chosen shift, day and length allow (empty until all three are known).
+  List<String> _startChoices() {
+    final options = _options;
+    final day = _day;
+    final hours = _durationHours;
+    final shift = options?.shifts
+        .where((s) => s.shiftCode == _shiftCode)
+        .firstOrNull;
+    if (options == null || day == null || hours == null || shift == null) {
+      return const [];
+    }
+    return startTimeChoices(
+      shift: shift,
+      hours: hours,
+      day: day,
+      now: (widget.now ?? DateTime.now)(),
+      options: options,
+    );
+  }
+
+  /// A start time that does not fit the new shift, day or length any more is forgotten (call inside setState).
+  void _dropStartIfItNoLongerFits() {
+    if (_startTime != null && !_startChoices().contains(_startTime)) {
+      _startTime = null;
+    }
+  }
+
+  void _chooseDuration(double hours) {
+    setState(() {
+      _durationHours = hours;
+      _failure = null;
+      _hint = null;
+      _dropStartIfItNoLongerFits();
     });
     _refreshQuote();
   }
@@ -338,6 +398,7 @@ class _BookingScreenState extends State<BookingScreen> {
       _addressId = addressId;
       _failure = null;
       _hint = null;
+      _durationHours = null; // a new home: its own suggested length (D34)
     });
     _refreshQuote();
   }
@@ -351,6 +412,8 @@ class _BookingScreenState extends State<BookingScreen> {
       day: _day,
       shiftCode: _shiftCode,
       hasQuote: _quote != null,
+      needsTime: _timed,
+      startTime: _startTime,
     );
     if (missing != null || noteError != null) {
       setState(() {
@@ -373,6 +436,8 @@ class _BookingScreenState extends State<BookingScreen> {
       previousOrderId: _preferredWorkerId == _previousWorkerId
           ? _previousOrderId
           : null,
+      startTime: _timed ? _startTime : null,
+      durationHours: _timed ? _durationHours : null,
     );
 
     setState(() {
@@ -453,8 +518,12 @@ class _BookingScreenState extends State<BookingScreen> {
                           day: _day,
                           shiftCode: _shiftCode,
                           hasQuote: quote != null,
+                          needsTime: _timed,
+                          startTime: _startTime,
                         ) ??
-                        '${quote?.requiredWorkers ?? 0} người × ${formatVnd(quote?.unitPrice ?? 0)}',
+                        (_timed && _startTime != null && _durationHours != null
+                            ? '${jobTimeText(_startTime!, _durationHours!)} · ${quote?.requiredWorkers ?? 0} người'
+                            : '${quote?.requiredWorkers ?? 0} người × ${formatVnd(quote?.unitPrice ?? 0)}'),
                     style: NordicTypography.bodySmall,
                   ),
                   NordicButton(
@@ -568,6 +637,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 if (_shiftCode != null && !_shiftFree(_shiftCode!)) {
                   _shiftCode = null;
                 }
+                _dropStartIfItNoLongerFits();
               }),
             );
           },
@@ -591,6 +661,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   _shiftCode = options.shifts[i].shiftCode;
                   _failure = null;
                   _hint = null;
+                  _dropStartIfItNoLongerFits();
                 }),
               ),
             ),
@@ -598,6 +669,7 @@ class _BookingScreenState extends State<BookingScreen> {
         ],
       ),
       _fieldError('shiftCode'),
+      if (_timed) ..._timeSection(options),
 
       _heading('Ghi chú (không bắt buộc)', top: NordicSpace.lg),
       NordicTextInput(
@@ -684,7 +756,9 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           const SizedBox(height: NordicSpace.xs),
           Text(
-            '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}',
+            quote.durationHours != null
+                ? '${hoursLabel(quote.durationHours!)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}'
+                : '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}',
             key: const Key('quote-breakdown'),
             style: NordicTypography.bodyRegular,
           ),
@@ -797,6 +871,81 @@ class _BookingScreenState extends State<BookingScreen> {
         ],
       ),
     );
+  }
+
+  /// Decisions D34: "Thời lượng" (the suggested length marked "Gợi ý") and "Giờ bắt đầu" inside the chosen shift.
+  List<Widget> _timeSection(BookingOptions options) {
+    final suggested = _quote?.suggestedDurationHours;
+    final starts = _startChoices();
+    return [
+      _heading('Thời lượng', top: NordicSpace.lg),
+      Wrap(
+        key: const Key('duration-list'),
+        spacing: NordicSpace.xs,
+        runSpacing: NordicSpace.xs,
+        children: [
+          for (final hours in durationChoices(options))
+            _TimeChip(
+              key: Key('duration-$hours'),
+              label: hoursLabel(hours),
+              note: hours == suggested ? 'Gợi ý' : null,
+              selected: _durationHours == hours,
+              onTap: () => _chooseDuration(hours),
+            ),
+        ],
+      ),
+      if (suggested != null) ...[
+        const SizedBox(height: NordicSpace.xxs),
+        Text(
+          'Gợi ý theo diện tích nhà bạn: ${hoursLabel(suggested)}.',
+          key: const Key('duration-hint'),
+          style: NordicTypography.bodySmall,
+        ),
+      ],
+      _fieldError('durationHours'),
+
+      _heading('Giờ bắt đầu', top: NordicSpace.lg),
+      if (_day == null || _shiftCode == null)
+        const Text(
+          'Chọn ngày và ca để xem giờ bắt đầu.',
+          key: Key('start-empty'),
+          style: NordicTypography.bodySmall,
+        )
+      else if (starts.isEmpty)
+        const Text(
+          'Ca này không còn giờ đủ cho thời lượng đã chọn. Chọn ca khác hoặc giảm thời lượng.',
+          key: Key('start-none'),
+          style: NordicTypography.bodySmall,
+        )
+      else
+        Wrap(
+          key: const Key('start-list'),
+          spacing: NordicSpace.xs,
+          runSpacing: NordicSpace.xs,
+          children: [
+            for (final start in starts)
+              _TimeChip(
+                key: Key('start-$start'),
+                label: start,
+                selected: _startTime == start,
+                onTap: () => setState(() {
+                  _startTime = start;
+                  _failure = null;
+                  _hint = null;
+                }),
+              ),
+          ],
+        ),
+      if (_startTime != null && _durationHours != null) ...[
+        const SizedBox(height: NordicSpace.xs),
+        Text(
+          jobTimeText(_startTime!, _durationHours!),
+          key: const Key('job-time'),
+          style: NordicTypography.titleSmall,
+        ),
+      ],
+      _fieldError('startTime'),
+    ];
   }
 
   Widget _heading(String text, {double top = 0.0, String? trailing}) => Padding(
@@ -1162,6 +1311,80 @@ class _ShiftTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Decisions D34: a pill to pick a length or a start time; the chosen one has the accent border and a check.
+class _TimeChip extends StatelessWidget {
+  final String label;
+  final String? note;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TimeChip({
+    super.key,
+    required this.label,
+    this.note,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Pressable(
+    child: Semantics(
+      selected: selected,
+      button: true,
+      label: note == null ? label : '$label, $note',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: NordicRadius.pill,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44.0),
+          padding: const EdgeInsets.symmetric(horizontal: NordicSpace.md),
+          decoration: BoxDecoration(
+            color: selected ? NordicColors.primaryFixed : NordicColors.surface,
+            borderRadius: NordicRadius.pill,
+            border: Border.all(
+              color: selected
+                  ? NordicColors.primaryContainer
+                  : NordicColors.border,
+              width: selected ? 2.0 : 1.0,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                const Icon(
+                  Icons.check_rounded,
+                  size: 16.0,
+                  color: NordicColors.primaryContainer,
+                ),
+                const SizedBox(width: NordicSpace.xxs),
+              ],
+              Text(
+                label,
+                style: NordicTypography.titleSmall.copyWith(
+                  color: selected
+                      ? NordicColors.primary
+                      : NordicColors.textTitle,
+                ),
+              ),
+              if (note != null) ...[
+                const SizedBox(width: NordicSpace.xxs),
+                Text(
+                  note!,
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.secondaryAccent,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// A selectable card: one of the customer's addresses.

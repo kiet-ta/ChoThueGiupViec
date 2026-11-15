@@ -470,4 +470,97 @@ public class OrderCreationServiceTests
 
         Assert.Null(Assert.Single(f.Orders.Saved).PreferredWorkerId);
     }
+
+    // ---- Decisions D34 (BOOK-TIME-01): a timed Economy job inside the shift ----
+
+    private static CreateOrderRequest Timed(string start, decimal hours, ServiceTier tier = ServiceTier.Economy, string shift = BookingShifts.Morning) =>
+        Request(tier, shift: shift) with { StartTime = TimeOnly.Parse(start, System.Globalization.CultureInfo.InvariantCulture), DurationHours = hours };
+
+    [Fact]
+    public async Task TimedJob_SavesItsWindow_AndIsPricedPerHour()
+    {
+        var f = new Fixture(50m);
+
+        var order = await f.Service().CreateAsync(Timed("08:30", 3m));
+
+        var saved = Assert.Single(f.Orders.Saved);
+        Assert.Equal(new TimeOnly(8, 30), saved.StartTime);
+        Assert.Equal(new TimeOnly(11, 30), saved.EndTime);
+        Assert.Equal(195000m, order.TotalAmount); // 260,000 / 4 h x 3 h
+        Assert.Equal(new DateTime(2026, 10, 15, 1, 30, 0, DateTimeKind.Utc), order.ShiftStartAt);
+        Assert.Equal(new DateTime(2026, 10, 15, 4, 30, 0, DateTimeKind.Utc), order.ShiftEndAt);
+        Assert.Equal(new TimeOnly(8, 30), order.StartTime);
+    }
+
+    [Fact]
+    public async Task TimedJob_TwoWorkers_PayEachWorkerForTheHours()
+    {
+        var f = new Fixture(90m);
+
+        var order = await f.Service().CreateAsync(Timed("13:00", 2m, shift: BookingShifts.Afternoon));
+
+        Assert.Equal(260000m, order.TotalAmount); // 130,000 x 2 workers
+    }
+
+    [Theory]
+    [InlineData("08:15", 2, "startTime")]   // not on a 30-minute step
+    [InlineData("10:30", 2, "startTime")]   // ends 12:30, after the morning shift
+    [InlineData("07:30", 2, "startTime")]   // before the shift
+    [InlineData("08:00", 1.5, "durationHours")] // shorter than 2 h
+    [InlineData("08:00", 2.25, "durationHours")] // not on a 0.5 h step
+    public async Task TimedJob_OutsideTheRules_IsAValidationError(string start, double hours, string field)
+    {
+        var f = new Fixture();
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() => f.Service().CreateAsync(Timed(start, (decimal)hours)));
+
+        Assert.Contains(field, error.Errors.Keys);
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task TimedJob_IsEconomyOnly()
+    {
+        var f = new Fixture();
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() => f.Service().CreateAsync(Timed("08:00", 2m, ServiceTier.Premium)));
+
+        Assert.Contains("startTime", error.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task TimedJob_StartTimeWithoutDuration_IsAValidationError()
+    {
+        var f = new Fixture();
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            f.Service().CreateAsync(Request() with { StartTime = new TimeOnly(9, 0) }));
+    }
+
+    [Fact]
+    public async Task TimedJob_LessThanAnHourAhead_IsLeadTimeTooShort()
+    {
+        // 07:30 local on the shift day; 08:00 is only 30 minutes away.
+        var f = new Fixture { NowUtc = new DateTime(2026, 10, 15, 0, 30, 0, DateTimeKind.Utc) };
+
+        var error = await ConflictAsync(f.Service().CreateAsync(Timed("08:00", 2m)));
+
+        Assert.Equal(BookingErrorCodes.LeadTimeTooShort, error.Code);
+        Assert.Empty(f.Orders.Saved);
+        var later = await f.Service().CreateAsync(Timed("09:00", 2m)); // 90 minutes ahead is fine
+        Assert.Equal(new TimeOnly(9, 0), later.StartTime);
+    }
+
+    [Fact]
+    public async Task WithoutATime_TheOrderStaysAWholeShift()
+    {
+        var f = new Fixture(50m);
+
+        var order = await f.Service().CreateAsync(Request());
+
+        var saved = Assert.Single(f.Orders.Saved);
+        Assert.Null(saved.StartTime);
+        Assert.Null(saved.EndTime);
+        Assert.Equal(260000m, order.TotalAmount);
+    }
 }

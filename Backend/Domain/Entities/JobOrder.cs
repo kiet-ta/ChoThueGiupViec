@@ -26,6 +26,15 @@ public partial class JobOrder
     /// <summary>job_order.shift_code VARCHAR(10)</summary>
     public string ShiftCode { get; set; } = string.Empty;
 
+    /// <summary>
+    /// job_order.start_time TIME(0) NULL: local start of a timed job inside the shift (decisions D34). Null together with
+    /// <see cref="EndTime"/> = the whole shift (older orders, Premium).
+    /// </summary>
+    public TimeOnly? StartTime { get; set; }
+
+    /// <summary>job_order.end_time TIME(0) NULL: local end of a timed job (decisions D34).</summary>
+    public TimeOnly? EndTime { get; set; }
+
     /// <summary>job_order.area_snapshot_m2 DECIMAL(8,2)</summary>
     public decimal AreaSnapshotM2 { get; set; }
 

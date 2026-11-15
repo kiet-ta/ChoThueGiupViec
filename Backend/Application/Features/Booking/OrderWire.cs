@@ -28,12 +28,18 @@ public record OrderDto(
     string? CancelReason,
     DateTime? PaymentDeadlineAt,
     DateTime CreatedAt,
-    DateTime UpdatedAt)
+    DateTime UpdatedAt,
+    // Decisions D34: the job's local start/end (HH:mm) and length when the customer picked them; null = the whole shift.
+    string? StartTime = null,
+    string? EndTime = null,
+    decimal? DurationHours = null)
 {
     public static OrderDto From(CreatedOrder o) => new(
         o.OrderId, o.OrderCode, DbEnum.ToDb(o.ServiceTier), o.AddressId, o.ScheduledDate, o.ShiftCode, o.ShiftStartAt, o.ShiftEndAt,
         o.AreaSnapshotM2, o.RequiredWorkers, o.RequiredSkill, o.TotalAmount, DbEnum.ToDb(o.OrderStatus), o.CustomerNote, o.CancelReason,
-        o.PaymentDeadlineAt, o.CreatedAt, o.UpdatedAt);
+        o.PaymentDeadlineAt, o.CreatedAt, o.UpdatedAt,
+        o.StartTime?.ToString("HH:mm"), o.EndTime?.ToString("HH:mm"),
+        o.StartTime is { } s && o.EndTime is { } e ? JobWindow.Hours((s, e)) : null);
 }
 
 /// <summary><c>OrderSummary</c> of the history list (contract booking.md section 2).</summary>
@@ -46,7 +52,10 @@ public record OrderSummaryDto(
     int RequiredWorkers,
     decimal TotalAmount,
     string OrderStatus,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    // Decisions D34: the job's local start/end (HH:mm) when the customer picked them; null = the whole shift.
+    string? StartTime = null,
+    string? EndTime = null);
 
 public record OrderPageDto(IReadOnlyList<OrderSummaryDto> Items, int Page, int PageSize, int Total);
 
@@ -81,7 +90,12 @@ public record BookingOptionsDto(
     int ShiftMaxHours,
     decimal StandardMaxAreaM2,
     int PaymentQrExpiryMinutes,
-    bool Sandbox);
+    bool Sandbox,
+    // Decisions D34: the timed-job rules the app shows (start step, duration range and step, Economy lead time).
+    int StartStepMinutes = JobWindow.StartStepMinutes,
+    decimal MinDurationHours = 2m,
+    decimal DurationStepHours = JobWindow.DurationStepHours,
+    int EconomyMinLeadMinutes = 60);
 
 /// <summary><c>PriceQuote</c> on the wire (contract booking.md section 2).</summary>
 public record PriceQuoteDto(
@@ -92,7 +106,10 @@ public record PriceQuoteDto(
     int RequiredWorkers,
     decimal UnitPrice,
     decimal TotalAmount,
-    string Currency);
+    string Currency,
+    // Decisions D34: the hours priced (null = the whole shift) and the duration suggested for the address area.
+    decimal? DurationHours = null,
+    decimal? SuggestedDurationHours = null);
 
 /// <summary>Body of POST /api/v1/booking/orders (contract booking.md 3.3). The optional preferred worker is a favorite or a worker from the caller's completed assignment (ECONOMY only).</summary>
 public record CreateOrderBody(
@@ -103,18 +120,19 @@ public record CreateOrderBody(
     string? CustomerNote,
     string? RequiredSkill,
     int? PreferredWorkerId = null,
-    long? PreviousOrderId = null);
+    long? PreviousOrderId = null,
+    // Decisions D34 (ECONOMY only): local start "HH:mm" on a 30-minute step and the length in hours; both or neither.
+    string? StartTime = null,
+    decimal? DurationHours = null);
 
 /// <summary>JOB_ORDER -> the <c>Order</c> shape (shift times converted by IClock only, G-3).</summary>
 public static class OrderMapper
 {
     public static CreatedOrder ToOrder(JobOrder order, IClock clock, BusinessRules rules)
     {
-        var start = BookingWindowPolicy.GetShiftStartUtc(order.ScheduledDate, order.ShiftCode, clock)
+        var start = BookingWindowPolicy.GetJobStartUtc(order, clock)
             ?? clock.ToUtc(DateTime.SpecifyKind(order.ScheduledDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified));
-        var end = BookingShifts.GetLocalTimes(order.ShiftCode) is { } times
-            ? clock.ToUtc(DateTime.SpecifyKind(order.ScheduledDate.ToDateTime(times.End), DateTimeKind.Unspecified))
-            : start;
+        var end = BookingWindowPolicy.GetJobEndUtc(order, clock) ?? start;
 
         // paymentDeadlineAt = createdAt + Payments.QrExpiryMinutes while PENDING_PAYMENT, otherwise null (contract section 2).
         DateTime? deadline = order.OrderStatus == JobOrderStatus.PendingPayment
@@ -124,10 +142,10 @@ public static class OrderMapper
         return new CreatedOrder(
             order.OrderId, order.OrderCode, order.ServiceTier, order.AddressId, order.ScheduledDate, order.ShiftCode, start, end,
             order.AreaSnapshotM2, order.RequiredWorkers, order.RequiredSkill, order.TotalAmount, order.OrderStatus,
-            order.CustomerNote, order.CancelReason, deadline, order.CreatedAt, order.UpdatedAt);
+            order.CustomerNote, order.CancelReason, deadline, order.CreatedAt, order.UpdatedAt, order.StartTime, order.EndTime);
     }
 
     public static OrderSummaryDto ToSummary(JobOrder o) => new(
         o.OrderId, o.OrderCode, DbEnum.ToDb(o.ServiceTier), o.ScheduledDate, o.ShiftCode, o.RequiredWorkers, o.TotalAmount,
-        DbEnum.ToDb(o.OrderStatus), o.CreatedAt);
+        DbEnum.ToDb(o.OrderStatus), o.CreatedAt, o.StartTime?.ToString("HH:mm"), o.EndTime?.ToString("HH:mm"));
 }

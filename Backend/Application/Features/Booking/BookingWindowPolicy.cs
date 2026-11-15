@@ -1,4 +1,5 @@
 using CommonService.Application.Interfaces.Ports;
+using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 
 namespace CommonService.Application.Features.Booking;
@@ -9,6 +10,9 @@ public static class BookingErrorCodes
     public const string ShiftInPast = "SHIFT_IN_PAST";
     public const string PremiumLeadTime = "PREMIUM_LEAD_TIME";
     public const string FullyBooked = "FULLY_BOOKED";
+
+    /// <summary>Decisions D34: a timed Economy job starts sooner than <c>Booking.EconomyMinLeadMinutes</c> from now.</summary>
+    public const string LeadTimeTooShort = "LEAD_TIME_TOO_SHORT";
 }
 
 /// <summary>
@@ -29,6 +33,25 @@ public static class BookingWindowPolicy
         }
 
         var local = DateTime.SpecifyKind(scheduledDate.ToDateTime(times.Value.Start), DateTimeKind.Unspecified);
+        return clock.ToUtc(local);
+    }
+
+    /// <summary>Start of the job in UTC: the order's own start time (decisions D34) or the shift start; null for an unknown shift.</summary>
+    public static DateTime? GetJobStartUtc(JobOrder order, IClock clock) => JobToUtc(order, clock, end: false);
+
+    /// <summary>End of the job in UTC: the order's own end time (decisions D34) or the shift end; null for an unknown shift.</summary>
+    public static DateTime? GetJobEndUtc(JobOrder order, IClock clock) => JobToUtc(order, clock, end: true);
+
+    private static DateTime? JobToUtc(JobOrder order, IClock clock, bool end)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(clock);
+        if (JobWindow.OfOrder(order.ShiftCode, order.StartTime, order.EndTime) is not { } window)
+        {
+            return null;
+        }
+
+        var local = DateTime.SpecifyKind(order.ScheduledDate.ToDateTime(end ? window.End : window.Start), DateTimeKind.Unspecified);
         return clock.ToUtc(local);
     }
 

@@ -394,6 +394,7 @@ class PreviewBooking implements IBookingService {
   Future<PriceQuote> getQuote({
     required int addressId,
     required String serviceTier,
+    double? durationHours,
   }) async => PriceQuote(
     addressId: addressId,
     serviceTier: serviceTier,
