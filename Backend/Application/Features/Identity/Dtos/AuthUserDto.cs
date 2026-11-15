@@ -8,4 +8,6 @@ public class AuthUserDto
     public int Id { get; set; }
     public string Role { get; set; } = string.Empty;
     public bool IsNewUser { get; set; }
+    public string? WorkerType { get; set; }
+    public int? AgencyId { get; set; }
 }
