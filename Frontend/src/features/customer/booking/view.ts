@@ -11,7 +11,8 @@ export const NOTE_MAX_LENGTH = 500
 const VN_OFFSET_MS = 7 * 3600_000
 const OPEN_STATUSES = ['PENDING_PAYMENT', 'PAID', 'DISPATCHING', 'ASSIGNED']
 
-const TIER_LABELS: Record<ServiceTier, string> = { ECONOMY: 'Economy', PREMIUM: 'Premium' }
+// The same names as the Mobile app (WEB-ORDERS-02): one package has one name everywhere the customer looks.
+const TIER_LABELS: Record<ServiceTier, string> = { ECONOMY: 'Cơ bản', PREMIUM: 'Cao cấp' }
 const SHIFT_LABELS: Record<string, string> = {
   SHIFT_MORNING: 'Buổi sáng',
   SHIFT_AFTERNOON: 'Buổi chiều',
