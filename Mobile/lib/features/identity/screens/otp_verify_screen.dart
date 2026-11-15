@@ -54,6 +54,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   }
 
   Future<void> _handleVerify([String? code]) async {
+    if (_isLoading) return; // one check at a time
     final effectiveCode = (code ?? _otpController.text).trim();
     if (effectiveCode.length != 6) {
       setState(() {

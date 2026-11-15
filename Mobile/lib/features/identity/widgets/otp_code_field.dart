@@ -59,10 +59,15 @@ class _OtpCodeFieldState extends State<OtpCodeField> {
           child: TextField(
             controller: widget.controller,
             focusNode: _focusNode,
-            enabled: widget.enabled,
+            // Never `enabled: false`: a disabled field drops the focus and the keyboard, so after
+            // a wrong code backspace went nowhere (#901). While [enabled] is false the typing is
+            // ignored instead, and the focus stays.
             autofocus: true,
             keyboardType: TextInputType.number,
             inputFormatters: [
+              TextInputFormatter.withFunction(
+                (oldValue, newValue) => widget.enabled ? newValue : oldValue,
+              ),
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(6),
             ],
@@ -72,7 +77,11 @@ class _OtpCodeFieldState extends State<OtpCodeField> {
         // 6 styled digits cells
         GestureDetector(
           onTap: () {
-            if (widget.enabled) {
+            if (!widget.enabled) return;
+            if (_focusNode.hasFocus) {
+              // Already focused but the keyboard was closed (e.g. the back key): open it again.
+              SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+            } else {
               _focusNode.requestFocus();
             }
           },
