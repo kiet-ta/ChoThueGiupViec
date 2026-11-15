@@ -236,6 +236,18 @@ void main() {
       expect(canCancel('CANCELLED'), isFalse);
     });
 
+    test('the header says the step of the timeline (ORDER-STATUS-SYNC-01)', () {
+      String at(String status) =>
+          orderHeaderLabel('ASSIGNED', [_assignment(1, status)]);
+      expect(at('ASSIGNED'), 'Đã có người làm');
+      expect(at('CHECKED_IN'), 'Người làm đã đến');
+      expect(at('IN_PROGRESS'), 'Đang làm');
+      expect(at('AWAITING_ACCEPTANCE'), 'Chờ nghiệm thu');
+      expect(orderHeaderLabel('ASSIGNED', const []), 'Đã có người làm');
+      expect(orderHeaderLabel('DISPATCHING', const []), 'Đang tìm người làm');
+      expect(orderHeaderLabel('COMPLETED', const []), 'Hoàn thành');
+    });
+
     test('no cancel once the work started, like the Web (MOB-ORDER-02)', () {
       expect(canCancel('ASSIGNED', [_assignment(1, 'ASSIGNED')]), isTrue);
       expect(canCancel('ASSIGNED', [_assignment(1, 'CHECKED_IN')]), isTrue);
