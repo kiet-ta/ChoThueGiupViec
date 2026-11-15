@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
-import { House, ShieldCheck } from 'lucide-react'
+import { Check, Copy, FlaskConical, House, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { OtpInput } from '@/components/ui/otp-input'
 import { safeNext } from '@/auth/access'
 import { authController } from '@/auth'
 import { describeLoginError, describeOtpError, type LoginErrorView } from '@/auth/login-errors'
+import { extractSandboxOtp, type OtpRequestResponse } from '@/auth/sandbox-otp'
 import { useAuth } from '@/auth/useAuth'
 import { apiClient, ApiError } from '@/services/api'
 import type { AuthResult } from '@/auth/session'
@@ -17,6 +18,8 @@ export function LoginPage({ admin = false }: { admin?: boolean }) {
   const [tab, setTab] = useState<'customer' | 'partner'>('customer')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
+  const [sandboxOtp, setSandboxOtp] = useState<string | null>(null)
+  const [copiedSandboxOtp, setCopiedSandboxOtp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [step, setStep] = useState<'phone' | 'code'>('phone')
@@ -30,14 +33,28 @@ export function LoginPage({ admin = false }: { admin?: boolean }) {
     const timer = window.setInterval(() => setClock(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [resendAt])
+  useEffect(() => {
+    if (!copiedSandboxOtp) return
+    const timer = window.setTimeout(() => setCopiedSandboxOtp(false), 2000)
+    return () => window.clearTimeout(timer)
+  }, [copiedSandboxOtp])
   if (status === 'authenticated' && session) return <Navigate to={safeNext(params.get('next'), session.user.role)} replace />
   function countdown(seconds: number) {
     const end = Date.now() + seconds * 1000
     setResendAt(end); setClock(Date.now())
   }
   async function requestOtp() {
-    const result = await apiClient.post<{ expiresInSeconds: number; resendAvailableInSeconds: number }>('/auth/otp/request', { phoneNumber: phone.trim(), role: 'Customer' })
-    countdown(result.resendAvailableInSeconds); setStep('code'); setCode('')
+    const result = await apiClient.post<OtpRequestResponse>('/auth/otp/request', { phoneNumber: phone.trim(), role: 'Customer' })
+    countdown(result.resendAvailableInSeconds); setSandboxOtp(extractSandboxOtp(result)); setCopiedSandboxOtp(false); setStep('code'); setCode('')
+  }
+  async function copySandboxOtp() {
+    if (!sandboxOtp) return
+    try {
+      await navigator.clipboard.writeText(sandboxOtp)
+      setCopiedSandboxOtp(true)
+    } catch {
+      setCopiedSandboxOtp(false)
+    }
   }
   async function submit(e: FormEvent) {
     e.preventDefault(); setBusy(true); setError(null)
@@ -77,12 +94,38 @@ export function LoginPage({ admin = false }: { admin?: boolean }) {
                 className="font-medium text-[#1a2f25] underline hover:text-[#284b39]"
                 onClick={() => {
                   setStep('phone')
+                  setSandboxOtp(null)
+                  setCopiedSandboxOtp(false)
                   setError(null)
                 }}
               >
                 Thay đổi
               </button>
             </p>
+            {sandboxOtp && (
+              <div
+                data-testid="sandbox-otp-box"
+                className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-900"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <FlaskConical size={16} className="shrink-0 text-amber-800" />
+                  <span className="truncate">
+                    Sandbox OTP:{' '}
+                    <strong className="font-mono text-base font-bold tracking-widest tabular-nums select-all">
+                      {sandboxOtp}
+                    </strong>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void copySandboxOtp()}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                >
+                  {copiedSandboxOtp ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedSandboxOtp ? 'Đã sao chép' : 'Sao chép'}
+                </button>
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-stone-800">Mã xác nhận</label>
               <OtpInput

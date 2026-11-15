@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
+import '../../../core/theme/nordic_radius.dart';
+import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/bottom_action_bar.dart';
 import '../../../core/widgets/nordic_button.dart';
@@ -18,6 +20,7 @@ class OtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
   final AppRole role;
   final int resendCooldownSeconds;
+  final String? sandboxOtp;
   final AuthService? authService;
 
   const OtpVerifyScreen({
@@ -25,6 +28,7 @@ class OtpVerifyScreen extends StatefulWidget {
     required this.phoneNumber,
     this.role = AppRole.customer,
     this.resendCooldownSeconds = 60,
+    this.sandboxOtp,
     this.authService,
   });
 
@@ -37,14 +41,21 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   late final AuthService _authService;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _sandboxOtp;
 
   /// Wrong or incomplete codes so far: each one shakes the cells ([ErrorShake]).
   int _errors = 0;
+
+  static String? _cleanSandboxOtp(String? raw) {
+    final trimmed = raw?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
 
   @override
   void initState() {
     super.initState();
     _authService = widget.authService ?? AuthService();
+    _sandboxOtp = _cleanSandboxOtp(widget.sandboxOtp);
   }
 
   @override
@@ -113,12 +124,13 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     });
 
     try {
-      await _authService.requestOtp(
+      final result = await _authService.requestOtp(
         phoneNumber: widget.phoneNumber,
         role: widget.role,
       );
 
       if (!mounted) return;
+      setState(() => _sandboxOtp = _cleanSandboxOtp(result.sandboxOtp));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Mã OTP mới đã được gửi đến số điện thoại của bạn.'),
@@ -134,6 +146,19 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
             .replaceAll('HttpException: ', '');
       });
     }
+  }
+
+  Future<void> _copySandboxOtp() async {
+    final otp = _sandboxOtp;
+    if (otp == null || otp.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: otp));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã sao chép mã OTP'),
+        backgroundColor: NordicColors.secondaryAccent,
+      ),
+    );
   }
 
   @override
@@ -176,6 +201,10 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
   List<Widget> _form() {
     return [
+      if (_sandboxOtp != null) ...[
+        _SandboxOtpBanner(otp: _sandboxOtp!, onCopy: _copySandboxOtp),
+        const SizedBox(height: NordicSpace.md),
+      ],
       ErrorShake(
         key: const Key('otp-shake'),
         errors: _errors,
@@ -224,5 +253,71 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
         onResend: _handleResend,
       ),
     ];
+  }
+}
+
+class _SandboxOtpBanner extends StatelessWidget {
+  final String otp;
+  final VoidCallback onCopy;
+
+  const _SandboxOtpBanner({required this.otp, required this.onCopy});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('sandbox-otp-box'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: NordicSpace.sm,
+        vertical: NordicSpace.xs,
+      ),
+      decoration: BoxDecoration(
+        color: NordicColors.amberSoft,
+        borderRadius: NordicRadius.tileAll,
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.science_outlined,
+            color: NordicColors.onAmberSoft,
+            size: 18.0,
+          ),
+          const SizedBox(width: NordicSpace.xs),
+          Expanded(
+            child: SelectableText.rich(
+              TextSpan(
+                style: NordicTypography.bodySmall.copyWith(
+                  color: NordicColors.onAmberSoft,
+                  fontWeight: FontWeight.w600,
+                ),
+                children: [
+                  const TextSpan(text: 'Sandbox OTP: '),
+                  TextSpan(
+                    text: otp,
+                    style: NordicTypography.titleSmall.copyWith(
+                      color: NordicColors.onAmberSoft,
+                      letterSpacing: 1.5,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: NordicSpace.xs),
+          NordicButton(
+            key: const Key('copy-sandbox-otp'),
+            label: 'Sao chép',
+            variant: NordicButtonVariant.ghost,
+            icon: const Icon(
+              Icons.content_copy_outlined,
+              size: 16.0,
+              color: NordicColors.onAmberSoft,
+            ),
+            onPressed: onCopy,
+          ),
+        ],
+      ),
+    );
   }
 }
