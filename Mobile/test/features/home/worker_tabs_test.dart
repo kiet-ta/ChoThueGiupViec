@@ -10,6 +10,7 @@ import 'package:mobile/features/workers/models/booking_slot_models.dart';
 import 'package:mobile/features/workers/models/worker_work_area_models.dart';
 import 'package:mobile/features/workers/routes.dart';
 import 'package:mobile/features/workers/screens/worker_screen.dart';
+import 'package:mobile/features/workers/services/workers_auto_accept_service.dart';
 import 'package:mobile/features/workers/services/workers_profile_service.dart';
 import 'package:mobile/features/workers/services/workers_slots_service.dart';
 import 'package:mobile/features/workers/services/workers_work_area_service.dart';
@@ -112,6 +113,28 @@ const _areaSet = WorkerWorkArea(
   radiusKm: 10,
   districts: ['Phường Bến Nghé', 'Phường Bến Thành'],
 );
+
+/// The "Tự động nhận đơn" switch (decisions D33): [value] null = the read fails; [refuse] makes the save fail.
+class _AutoAccept extends WorkersAutoAcceptService {
+  bool? value;
+  Object? refuse;
+  final saved = <bool>[];
+
+  _AutoAccept(this.value);
+
+  @override
+  Future<bool> isEnabled() async {
+    if (value == null) throw Exception('offline');
+    return value!;
+  }
+
+  @override
+  Future<bool> setEnabled(bool enabled) async {
+    if (refuse != null) throw refuse!;
+    saved.add(enabled);
+    return value = enabled;
+  }
+}
 
 class _FailingProfile extends WorkersProfileService {
   @override
@@ -581,6 +604,109 @@ void main() {
         );
       },
     );
+  });
+
+  group('auto-accept (decisions D33)', () {
+    final switchFinder = find.byKey(const Key('worker-auto-accept-switch'));
+
+    Future<void> pump(
+      WidgetTester tester, {
+      required _AutoAccept auto,
+      WorkerWorkArea area = _areaSet,
+      bool agency = false,
+    }) async {
+      useDesignFrame(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: WorkerScreen(
+            workerId: 12,
+            profile: _SummaryProfile(agency: agency),
+            workArea: _Area(area),
+            autoAccept: auto,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    bool switchValue(WidgetTester tester) =>
+        tester.widget<Switch>(switchFinder).value;
+
+    testWidgets('a freelancer turns it on and the card says so', (
+      tester,
+    ) async {
+      final auto = _AutoAccept(false);
+      await pump(tester, auto: auto);
+
+      expect(find.textContaining('Đang tắt'), findsOneWidget);
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(auto.saved, [true]);
+      expect(switchValue(tester), isTrue);
+      expect(find.textContaining('Đang bật'), findsOneWidget);
+    });
+
+    testWidgets('it cannot be turned on before a work area is registered', (
+      tester,
+    ) async {
+      final auto = _AutoAccept(false);
+      await pump(tester, auto: auto, area: const WorkerWorkArea.empty());
+
+      expect(
+        tester.widget<Switch>(switchFinder).onChanged,
+        isNull,
+        reason: 'disabled until a work area exists',
+      );
+      expect(find.text('Đăng ký nơi làm việc trước để bật.'), findsOneWidget);
+      expect(auto.saved, isEmpty);
+    });
+
+    testWidgets('a server refusal shows its sentence and keeps the value', (
+      tester,
+    ) async {
+      final auto = _AutoAccept(false)
+        ..refuse = const ApiException(
+          409,
+          'Bạn cần đăng ký khu vực làm việc trước khi bật tự động nhận đơn.',
+          code: 'WORK_AREA_REQUIRED',
+        );
+      await pump(tester, auto: auto);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(switchValue(tester), isFalse);
+      expect(
+        find.text(
+          'Bạn cần đăng ký khu vực làm việc trước khi bật tự động nhận đơn.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('it shows the server value, so a switch turned off elsewhere '
+        'reads off', (tester) async {
+      await pump(tester, auto: _AutoAccept(true));
+
+      expect(switchValue(tester), isTrue);
+      expect(find.textContaining('Đang bật'), findsOneWidget);
+    });
+
+    testWidgets('an agency worker never sees it', (tester) async {
+      await pump(tester, auto: _AutoAccept(false), agency: true);
+
+      expect(find.byKey(const Key('worker-auto-accept')), findsNothing);
+    });
+
+    testWidgets('a failed read hides the card and nothing else', (
+      tester,
+    ) async {
+      await pump(tester, auto: _AutoAccept(null));
+
+      expect(find.byKey(const Key('worker-auto-accept')), findsNothing);
+      expect(find.byKey(const Key('worker-account-work-area')), findsOneWidget);
+    });
   });
 
   testWidgets('Account tab shows the worker and the links, sign-out last', (
