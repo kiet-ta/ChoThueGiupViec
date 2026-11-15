@@ -106,18 +106,61 @@ class TimelineStep {
   /// The order stopped here as cancelled: drawn as a red cross, never as a tick.
   final bool cancelled;
 
+  /// One line under the current step: what happens next (null for most steps).
+  final String? hint;
+
   const TimelineStep({
     required this.label,
     required this.done,
     required this.current,
     this.cancelled = false,
+    this.hint,
   });
 }
 
-/// The steps a customer follows: pay, find a worker, worker assigned, done. A cancelled order is a single cancelled step.
-/// `PAID` exists only for a moment on the server (decision Q24 / B4), so it is shown as "finding a worker".
-List<TimelineStep> orderTimeline(String status) {
-  const labels = ['Thanh toán', 'Tìm người', 'Có người làm', 'Hoàn thành'];
+/// The 7 steps of the customer timeline, the same as the Web (`Frontend/src/features/customer/orders/view.ts`, MOB-ORDER-02).
+const List<String> orderTimelineLabels = [
+  'Thanh toán',
+  'Tìm người',
+  'Có người làm',
+  'Người làm đã đến',
+  'Đang làm',
+  'Chờ nghiệm thu',
+  'Hoàn thành',
+];
+
+/// How far an assignment moved an ASSIGNED order on the timeline (index in [orderTimelineLabels]); same map as the Web.
+const Map<String, int> _assignmentStep = {
+  AssignmentStatus.assigned: 2,
+  AssignmentStatus.checkedIn: 3,
+  AssignmentStatus.inProgress: 4,
+  AssignmentStatus.awaitingAcceptance: 5,
+  AssignmentStatus.completed: 5,
+};
+
+/// The hint of the current step, when there is something to say.
+String? _timelineHint(int index) => switch (index) {
+  2 => 'Ca bắt đầu khi người làm chụp ảnh trước khi dọn.',
+  5 => 'Mời bạn kiểm tra rồi xác nhận nghiệm thu.',
+  _ => null,
+};
+
+/// Work has started once an assignment is in progress, waits for acceptance or is completed (same rule as the Web).
+bool workStarted(List<ProgressAssignment> assignments) => assignments.any(
+  (a) =>
+      a.assignmentStatus == AssignmentStatus.inProgress ||
+      a.assignmentStatus == AssignmentStatus.awaitingAcceptance ||
+      a.assignmentStatus == AssignmentStatus.completed,
+);
+
+/// The steps a customer follows (MOB-ORDER-02, same 7 steps as the Web): pay, find a worker, worker assigned, worker
+/// arrived, working, waiting for acceptance, done. An ASSIGNED order stands at the step of its most advanced assignment.
+/// A cancelled order is a single cancelled step. `PAID` exists only for a moment on the server (decision Q24 / B4), so it
+/// is shown as "finding a worker".
+List<TimelineStep> orderTimeline(
+  String status, [
+  List<ProgressAssignment> assignments = const [],
+]) {
   if (status == OrderStatus.cancelled) {
     // The order carries no time or step of the cancel, so only one line is shown: no guess where it stopped.
     return const [
@@ -129,22 +172,28 @@ List<TimelineStep> orderTimeline(String status) {
       ),
     ];
   }
-  final index = switch (status) {
+  var index = switch (status) {
     OrderStatus.pendingPayment => 0,
     OrderStatus.paid ||
     OrderStatus.dispatching ||
     OrderStatus.awaitingFallback => 1,
     OrderStatus.assigned => 2,
-    OrderStatus.completed => 3,
+    OrderStatus.completed => orderTimelineLabels.length,
     _ => 0,
   };
-  final finished = status == OrderStatus.completed;
+  if (status == OrderStatus.assigned) {
+    for (final a in assignments) {
+      final step = _assignmentStep[a.assignmentStatus] ?? 2;
+      if (step > index) index = step;
+    }
+  }
   return [
-    for (var i = 0; i < labels.length; i++)
+    for (var i = 0; i < orderTimelineLabels.length; i++)
       TimelineStep(
-        label: labels[i],
-        done: finished || i < index,
-        current: !finished && i == index,
+        label: orderTimelineLabels[i],
+        done: i < index,
+        current: i == index,
+        hint: i == index ? _timelineHint(i) : null,
       ),
   ];
 }
@@ -156,8 +205,14 @@ bool shouldPollOrder(String status) =>
 bool canPay(String status) => status == OrderStatus.pendingPayment;
 
 /// Offered whenever the server might accept it (booking.md 3.7); the server decides, e.g. it refuses an assigned order close to its shift.
-bool canCancel(String status) =>
-    status != OrderStatus.completed && status != OrderStatus.cancelled;
+/// Never once the work started (MOB-ORDER-02, same rule as the Web): the job is being done or waits for acceptance.
+bool canCancel(
+  String status, [
+  List<ProgressAssignment> assignments = const [],
+]) =>
+    status != OrderStatus.completed &&
+    status != OrderStatus.cancelled &&
+    !workStarted(assignments);
 
 /// The workers who are on site and can be asked to stay longer (booking.md 3.8).
 List<ProgressAssignment> extendableAssignments(OrderProgress progress) => [
