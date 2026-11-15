@@ -224,25 +224,31 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   // ---------------------------------------------------------------- filters
 
+  /// The Web's status filters (MOB-ORDERS-03), in one row that scrolls sideways.
+  static const List<(String, String?)> _filterChoices = [
+    ('Tất cả', null),
+    ('Chờ thanh toán', OrderStatus.pendingPayment),
+    ('Đang tìm người', OrderStatus.dispatching),
+    ('Có người làm', OrderStatus.assigned),
+    ('Hoàn thành', OrderStatus.completed),
+    ('Đã huỷ', OrderStatus.cancelled),
+  ];
+
   Widget _filters() {
     return Padding(
       padding: const EdgeInsets.only(bottom: NordicSpace.md),
-      child: Wrap(
-        spacing: NordicSpace.xs,
-        runSpacing: NordicSpace.xs,
-        children: [
-          _chip('history-filter-all', 'Tất cả', null),
-          _chip(
-            'history-filter-${OrderStatus.completed}',
-            'Hoàn thành',
-            OrderStatus.completed,
-          ),
-          _chip(
-            'history-filter-${OrderStatus.cancelled}',
-            'Đã huỷ',
-            OrderStatus.cancelled,
-          ),
-        ],
+      child: SingleChildScrollView(
+        key: const Key('history-filters'),
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        child: Row(
+          children: [
+            for (final (label, status) in _filterChoices) ...[
+              if (status != null) const SizedBox(width: NordicSpace.xs),
+              _chip('history-filter-${status ?? 'all'}', label, status),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -485,10 +491,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     final day = DateTime.tryParse(order.scheduledDate);
     final cancelled = order.orderStatus == OrderStatus.cancelled;
     final shift = _shift(order.shiftCode);
+    // Non-breaking spaces keep "260.000 đ" together and the "·" with the time: when the line is too narrow the amount
+    // moves to the next line as a whole, never "đ" alone (MOB-ORDERS-03).
     final meta = [
       if (shift != null) '${shift.startLocal}–${shift.endLocal}',
-      formatVnd(order.totalAmount),
-    ].join(' · ');
+      formatVnd(order.totalAmount).replaceAll(' ', ' '),
+    ].join(' · ');
     return InkWell(
       key: Key('order-${order.orderId}'),
       onTap: () => _open(order),
@@ -611,6 +619,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           OrderStatus.cancelled => const EmptyStateWidget(
             title: 'Không có đơn đã huỷ',
             subtitle: 'Đơn bạn huỷ sẽ hiện ở đây.',
+          ),
+          // The other status filters (MOB-ORDERS-03): nothing in that state, not "no order at all".
+          final String status => EmptyStateWidget(
+            title: 'Không có đơn ${orderStatusLabel(status).toLowerCase()}',
+            subtitle: 'Chọn "Tất cả" để xem mọi đơn của bạn.',
           ),
           _ => EmptyStateWidget(
             title: 'Bạn chưa có đơn nào',
