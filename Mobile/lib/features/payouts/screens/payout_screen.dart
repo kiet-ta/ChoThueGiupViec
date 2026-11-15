@@ -16,6 +16,7 @@ import '../../disputes/screens/dispute_screen.dart';
 import '../../ratings/models/rating_models.dart';
 import '../../ratings/routes.dart';
 import '../../ratings/screens/rating_screen.dart';
+import '../../workers/services/workers_profile_service.dart';
 import '../logic/payout_logic.dart';
 import '../models/payout_models.dart';
 import '../services/payouts_service.dart';
@@ -32,6 +33,10 @@ class PayoutScreen extends StatefulWidget {
   /// The clock, so the default month can be tested; the real screen uses the device time.
   final DateTime Function()? now;
 
+  /// When the worker registered: the first month that can be shown. By default read from the profile
+  /// (`GET /api/v1/workers/me`, `createdAt`).
+  final Future<DateTime?> Function()? joinedAt;
+
   /// What the two buttons of a job do; by default they open the rating and dispute screens of the Ratings and Disputes features
   /// (nothing else in the app opens them yet: the booking and tracking screens belong to other slots).
   final void Function(EarningsJob job)? onRate;
@@ -41,6 +46,7 @@ class PayoutScreen extends StatefulWidget {
     super.key,
     this.service,
     this.now,
+    this.joinedAt,
     this.onRate,
     this.onDispute,
   });
@@ -69,6 +75,21 @@ class _PayoutScreenState extends State<PayoutScreen> {
     _currentMonth = monthKeyOf((widget.now ?? DateTime.now)());
     _month = _currentMonth;
     _load();
+    _loadFirstMonth();
+  }
+
+  /// The month the worker registered in; the previous button stays off until it is known.
+  String? _firstMonth;
+
+  Future<void> _loadFirstMonth() async {
+    try {
+      final joined =
+          await (widget.joinedAt ?? WorkersProfileService().getJoinedAt)();
+      if (!mounted || joined == null) return;
+      setState(() => _firstMonth = monthKeyOf(joined));
+    } catch (_) {
+      // Unknown join month: going back stays off rather than showing months before the worker joined.
+    }
   }
 
   Future<void> _load() async {
@@ -151,7 +172,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
         IconButton.outlined(
           key: const Key('earnings-prev'),
           tooltip: 'Tháng trước',
-          onPressed: canGoPrevious(_month) ? () => _go(-1) : null,
+          onPressed: canGoPrevious(_month, _firstMonth) ? () => _go(-1) : null,
           icon: const Icon(Icons.chevron_left_rounded),
         ),
         Text(
