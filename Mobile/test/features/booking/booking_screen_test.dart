@@ -1047,4 +1047,68 @@ void main() {
       expect(addresses.calls, 2);
     });
   });
+
+  group('address list (MOB-BOOK-03)', () {
+    List<BookingAddress> six() => [
+      for (var i = 1; i <= 6; i++)
+        BookingAddress(
+          addressId: i,
+          label: 'Địa chỉ $i',
+          addressLine: '$i Lê Lợi',
+          totalAreaM2: 50,
+          isDefault: i == 1,
+        ),
+    ];
+    bool shown(int id) => find.byKey(Key('address-$id')).evaluate().isNotEmpty;
+
+    testWidgets('shows 3 addresses and opens the rest with Xem thêm', (
+      tester,
+    ) async {
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        addresses: FakeAddresses(six()),
+      );
+
+      expect(
+        [for (var i = 1; i <= 6; i++) shown(i)],
+        [true, true, true, false, false, false],
+      );
+      expect(find.text('Xem thêm 3 địa chỉ'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('address-more')));
+      await tester.pumpAndSettle();
+      expect([for (var i = 1; i <= 6; i++) shown(i)], everyElement(isTrue));
+      expect(find.text('Thu gọn'), findsOneWidget);
+    });
+
+    testWidgets('the chosen address stays visible after Thu gọn', (
+      tester,
+    ) async {
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        addresses: FakeAddresses(six()),
+      );
+      await tester.tap(find.byKey(const Key('address-more')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('address-5')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('address-more')));
+      await tester.pumpAndSettle();
+
+      expect(shown(5), isTrue);
+      expect([for (var i = 1; i <= 6; i++) shown(i)].where((v) => v).length, 3);
+    });
+
+    testWidgets('3 addresses or fewer have no Xem thêm', (tester) async {
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        addresses: FakeAddresses(six().take(3).toList()),
+      );
+
+      expect(find.byKey(const Key('address-more')), findsNothing);
+    });
+  });
 }
