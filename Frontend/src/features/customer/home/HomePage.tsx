@@ -10,6 +10,7 @@ import type { CustomerAddress, OrderSummary, PriceQuote, ServiceTier, ShiftOptio
 import { dayText, firstName, nextOrder, shiftLabel, shiftRange, statusLabel, tierLabel } from '../booking/view'
 import { monthStats, topFavorites } from './view'
 import { homeApi } from './api'
+import './jade-card.css'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 
@@ -68,7 +69,7 @@ export function HomePage() {
       ].map((item) => <section key={item.label} className={card}><h2 className="text-sm text-stone-500">{item.label}</h2>{statsLoading ? <div className="mt-3 h-8 w-20 animate-pulse rounded bg-stone-200" aria-label="Đang tải" /> : <p className="mt-2 text-2xl font-bold">{item.value ?? '—'}</p>}{item.hint && <p className="mt-1 text-xs text-stone-500">{item.hint}</p>}</section>)}
     </div>
     <div className="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-      <section className="rounded-xl bg-[#1a2f25] p-6 text-white" aria-label="Ca sắp tới">
+      <section className="jade-card rounded-2xl p-6 text-white" aria-label="Ca sắp tới">
         {orders === null && !error && <p className="flex items-center gap-2 text-white/70"><Loader className="animate-spin" size={18} />Đang tải…</p>}
         {orders !== null && !next && <div><CalendarClock size={28} className="text-white/70" /><h2 className="mt-3 text-xl font-semibold">Chưa có ca sắp tới</h2><p className="mt-1 text-sm text-white/70">Đặt ca đầu tiên chỉ mất vài phút.</p></div>}
         {next && <div>
