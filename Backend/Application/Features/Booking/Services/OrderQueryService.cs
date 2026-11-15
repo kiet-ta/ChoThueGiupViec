@@ -88,11 +88,12 @@ public class OrderQueryService(
 
         var address = await addresses.GetOwnedAsync(customerId, addressId, cancellationToken)
             ?? throw new NotFoundException("Address", addressId);
-        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules);
-        var quote = await pricing.QuoteAsync(tier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken);
+        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules, tier);
+        var quote = await pricing.QuoteAsync(tier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken, plan.PriceUnits, plan.IsContinuousWork);
 
         return new PriceQuoteDto(
-            addressId, DbEnum.ToDb(tier), quote.TotalAreaM2, quote.AreaBracket, quote.RequiredWorkers, quote.UnitPrice, quote.TotalAmount, Currency);
+            addressId, DbEnum.ToDb(tier), quote.TotalAreaM2, quote.AreaBracket, quote.RequiredWorkers, quote.UnitPrice, quote.TotalAmount, Currency,
+            quote.IsContinuousWork);
     }
 
     public async Task<OrderDto> CreateAsync(int customerId, CreateOrderBody body, CancellationToken cancellationToken = default)
@@ -118,7 +119,7 @@ public class OrderQueryService(
         var created = await creation.CreateAsync(
             new CreateOrderRequest(
                 customerId, body.AddressId, tier, body.ScheduledDate!.Value, body.ShiftCode ?? string.Empty, body.CustomerNote, body.RequiredSkill,
-                body.PreferredWorkerId, body.PreviousOrderId),
+                body.PreferredWorkerId, body.PreviousOrderId, body.AcceptsContinuousWork == true),
             cancellationToken);
         return OrderDto.From(created);
     }

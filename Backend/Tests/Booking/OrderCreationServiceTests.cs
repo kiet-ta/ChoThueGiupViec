@@ -90,8 +90,8 @@ public class OrderCreationServiceTests
     /// <summary>260,000 per worker per shift, like the Q01 default of a mid bracket; the real lookup is covered by BE-M2-02 tests.</summary>
     private class StubPricing : IPricingService
     {
-        public Task<PriceQuote> QuoteAsync(ServiceTier serviceTier, decimal totalAreaM2, int requiredWorkers, CancellationToken cancellationToken = default) =>
-            Task.FromResult(PriceCalculator.Calculate(serviceTier, totalAreaM2, requiredWorkers, 260000m));
+        public Task<PriceQuote> QuoteAsync(ServiceTier serviceTier, decimal totalAreaM2, int requiredWorkers, CancellationToken cancellationToken = default, int? priceUnits = null, bool isContinuousWork = false) =>
+            Task.FromResult(PriceCalculator.Calculate(serviceTier, totalAreaM2, requiredWorkers, 260000m, priceUnits, isContinuousWork));
     }
 
     private class Fixture
@@ -169,8 +169,8 @@ public class OrderCreationServiceTests
 
     private static CreateOrderRequest Request(
         ServiceTier tier = ServiceTier.Economy, DateOnly? date = null, string shift = BookingShifts.Morning,
-        string? note = null, string? skill = null, int addressId = AddressId, int? preferredWorkerId = null) =>
-        new(CustomerId, addressId, tier, date ?? ShiftDate, shift, note, skill, preferredWorkerId);
+        string? note = null, string? skill = null, int addressId = AddressId, int? preferredWorkerId = null, bool acceptsContinuousWork = false) =>
+        new(CustomerId, addressId, tier, date ?? ShiftDate, shift, note, skill, preferredWorkerId, AcceptsContinuousWork: acceptsContinuousWork);
 
     private static async Task<BusinessRuleViolationException> ConflictAsync(Task task) =>
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() => task);
@@ -188,14 +188,49 @@ public class OrderCreationServiceTests
     }
 
     [Fact]
-    public async Task Economy_AllowsOrderCreation_ForTwoWorkerOrder()
+    public async Task EconomyLargeHouse_IsOneWorkerPricedAsTwoUnits_WhenTheCustomerAgrees_D35()
     {
         var f = new Fixture(90m);
 
-        var order = await f.Service().CreateAsync(Request());
+        var order = await f.Service().CreateAsync(Request(acceptsContinuousWork: true));
 
-        Assert.Equal(2, order.RequiredWorkers);
+        Assert.Equal(1, order.RequiredWorkers);
+        Assert.Equal(520000, order.TotalAmount);
+        Assert.True(order.IsContinuousWork);
         Assert.Single(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task EconomyLargeHouse_WithoutTheCustomersAgreement_IsA400_AndNothingIsWritten()
+    {
+        var f = new Fixture(90m);
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() => f.Service().CreateAsync(Request()));
+
+        Assert.Contains("acceptsContinuousWork", error.Errors.Keys);
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task EconomyLargeHouse_InTheEveningShift_IsA409_AndNothingIsWritten()
+    {
+        var f = new Fixture(90m);
+
+        var error = await ConflictAsync(f.Service().CreateAsync(Request(shift: BookingShifts.Evening, acceptsContinuousWork: true)));
+
+        Assert.Equal(BookingErrorCodes.LargeHouseEveningNotAllowed, error.Code);
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task EconomySmallHouse_NeedsNoAgreement_AndIsNotContinuous()
+    {
+        var f = new Fixture(50m);
+
+        var order = await f.Service().CreateAsync(Request(shift: BookingShifts.Evening));
+
+        Assert.Equal(1, order.RequiredWorkers);
+        Assert.False(order.IsContinuousWork);
     }
 
     [Fact]
@@ -252,12 +287,12 @@ public class OrderCreationServiceTests
 
     [Theory]
     [InlineData(80, 1, 260000)]
-    [InlineData(80.01, 2, 520000)]
-    public async Task AreaOver80_NeedsTwoWorkers_AndThePriceIsPerWorker(double area, int workers, int total)
+    [InlineData(80.01, 1, 520000)]
+    public async Task AreaOver80_EconomyIsOneWorkerAndTheLargeHousePrice(double area, int workers, int total)
     {
         var f = new Fixture((decimal)area);
 
-        var order = await f.Service().CreateAsync(Request());
+        var order = await f.Service().CreateAsync(Request(acceptsContinuousWork: true));
 
         Assert.Equal(workers, order.RequiredWorkers);
         Assert.Equal(total, order.TotalAmount);

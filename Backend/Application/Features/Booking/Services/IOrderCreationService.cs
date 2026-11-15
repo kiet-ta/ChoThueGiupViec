@@ -11,7 +11,8 @@ public record CreateOrderRequest(
     string? CustomerNote,
     string? RequiredSkill,
     int? PreferredWorkerId = null,
-    long? PreviousOrderId = null);
+    long? PreviousOrderId = null,
+    bool AcceptsContinuousWork = false);
 
 /// <summary>The <c>Order</c> shape of contract booking.md section 2 (times in UTC).</summary>
 public record CreatedOrder(
@@ -32,7 +33,8 @@ public record CreatedOrder(
     string? CancelReason,
     DateTime? PaymentDeadlineAt,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    bool IsContinuousWork = false);
 
 public interface IOrderCreationService
 {

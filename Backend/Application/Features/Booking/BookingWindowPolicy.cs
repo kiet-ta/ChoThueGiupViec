@@ -9,6 +9,8 @@ public static class BookingErrorCodes
     public const string ShiftInPast = "SHIFT_IN_PAST";
     public const string PremiumLeadTime = "PREMIUM_LEAD_TIME";
     public const string FullyBooked = "FULLY_BOOKED";
+    /// <summary>D35: an ECONOMY large house has no shift after the evening one, so it cannot be booked then.</summary>
+    public const string LargeHouseEveningNotAllowed = "LARGE_HOUSE_EVENING_NOT_ALLOWED";
 }
 
 /// <summary>

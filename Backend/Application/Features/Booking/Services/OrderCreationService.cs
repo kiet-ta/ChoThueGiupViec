@@ -65,8 +65,29 @@ public class OrderCreationService(
                 windowError);
         }
 
-        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules);
-        var quote = await pricing.QuoteAsync(request.ServiceTier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken);
+        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules, request.ServiceTier);
+        if (plan.IsContinuousWork)
+        {
+            // D35: the 2nd job is the next shift of the same day, so the evening shift (the last one) cannot take a large house.
+            if (ContinuousWork.NextShift(request.ShiftCode) is null)
+            {
+                throw new BusinessRuleViolationException(
+                    "A large house needs a following shift on the same day, so it cannot be booked in the evening shift.",
+                    BookingErrorCodes.LargeHouseEveningNotAllowed);
+            }
+
+            if (!request.AcceptsContinuousWork)
+            {
+                throw new ValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["acceptsContinuousWork"] =
+                        ["acceptsContinuousWork must be true: a large house is done by one worker who may need to work two consecutive jobs."],
+                });
+            }
+        }
+
+        var quote = await pricing.QuoteAsync(
+            request.ServiceTier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken, plan.PriceUnits, plan.IsContinuousWork);
         var orderCode = await NewOrderCodeAsync(cancellationToken);
         var shiftEndUtc = ToUtc(request.ScheduledDate, BookingShifts.GetLocalTimes(request.ShiftCode)!.Value.End);
 
@@ -110,7 +131,7 @@ public class OrderCreationService(
                     order.OrderId, order.OrderCode, order.ServiceTier, order.AddressId, order.ScheduledDate, order.ShiftCode,
                     shiftStartUtc, shiftEndUtc, order.AreaSnapshotM2, order.RequiredWorkers, order.RequiredSkill, order.TotalAmount,
                     order.OrderStatus, order.CustomerNote, order.CancelReason,
-                    nowUtc.AddMinutes(_rules.Payments.QrExpiryMinutes), order.CreatedAt, order.UpdatedAt);
+                    nowUtc.AddMinutes(_rules.Payments.QrExpiryMinutes), order.CreatedAt, order.UpdatedAt, plan.IsContinuousWork);
             }, cancellationToken);
         }
         catch

@@ -28,12 +28,13 @@ public record OrderDto(
     string? CancelReason,
     DateTime? PaymentDeadlineAt,
     DateTime CreatedAt,
-    DateTime UpdatedAt)
+    DateTime UpdatedAt,
+    bool IsContinuousWork = false)
 {
     public static OrderDto From(CreatedOrder o) => new(
         o.OrderId, o.OrderCode, DbEnum.ToDb(o.ServiceTier), o.AddressId, o.ScheduledDate, o.ShiftCode, o.ShiftStartAt, o.ShiftEndAt,
         o.AreaSnapshotM2, o.RequiredWorkers, o.RequiredSkill, o.TotalAmount, DbEnum.ToDb(o.OrderStatus), o.CustomerNote, o.CancelReason,
-        o.PaymentDeadlineAt, o.CreatedAt, o.UpdatedAt);
+        o.PaymentDeadlineAt, o.CreatedAt, o.UpdatedAt, o.IsContinuousWork);
 }
 
 /// <summary><c>OrderSummary</c> of the history list (contract booking.md section 2).</summary>
@@ -92,7 +93,8 @@ public record PriceQuoteDto(
     int RequiredWorkers,
     decimal UnitPrice,
     decimal TotalAmount,
-    string Currency);
+    string Currency,
+    bool IsContinuousWork = false);
 
 /// <summary>Body of POST /api/v1/booking/orders (contract booking.md 3.3). The optional preferred worker is a favorite or a worker from the caller's completed assignment (ECONOMY only).</summary>
 public record CreateOrderBody(
@@ -103,7 +105,8 @@ public record CreateOrderBody(
     string? CustomerNote,
     string? RequiredSkill,
     int? PreferredWorkerId = null,
-    long? PreviousOrderId = null);
+    long? PreviousOrderId = null,
+    bool? AcceptsContinuousWork = null);
 
 /// <summary>JOB_ORDER -> the <c>Order</c> shape (shift times converted by IClock only, G-3).</summary>
 public static class OrderMapper
@@ -124,7 +127,8 @@ public static class OrderMapper
         return new CreatedOrder(
             order.OrderId, order.OrderCode, order.ServiceTier, order.AddressId, order.ScheduledDate, order.ShiftCode, start, end,
             order.AreaSnapshotM2, order.RequiredWorkers, order.RequiredSkill, order.TotalAmount, order.OrderStatus,
-            order.CustomerNote, order.CancelReason, deadline, order.CreatedAt, order.UpdatedAt);
+            order.CustomerNote, order.CancelReason, deadline, order.CreatedAt, order.UpdatedAt,
+            ContinuousWork.Is(order, rules));
     }
 
     public static OrderSummaryDto ToSummary(JobOrder o) => new(
