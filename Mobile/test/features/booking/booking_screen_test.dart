@@ -677,29 +677,32 @@ void main() {
       },
     );
 
-    testWidgets('a large Economy house cannot be booked in the evening shift', (
-      tester,
-    ) async {
-      await pumpBooking(tester, FakeBookingService());
+    testWidgets(
+      'a large Economy house can be booked in the evening shift too: the 2nd job is extra hours (D35)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
 
-      await tapKey(tester, 'tier-ECONOMY');
-      await tapKey(tester, 'address-2');
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('day-2026-10-16')),
-        80.0,
-        scrollable: find.descendant(
-          of: find.byKey(const Key('day-list')),
-          matching: find.byType(Scrollable),
-        ),
-      );
-      await tapKey(tester, 'day-2026-10-16');
-      await tapKey(tester, 'shift-SHIFT_EVENING');
-      await tester.tap(find.byKey(const Key('submit-order')));
-      await tester.pump();
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'address-2');
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('day-2026-10-16')),
+          80.0,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('day-list')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tapKey(tester, 'day-2026-10-16');
+        await tapKey(tester, 'shift-SHIFT_EVENING');
+        await tapKey(tester, 'submit-order');
 
-      // The evening tile is disabled, so nothing was chosen and no agreement was asked.
-      expect(find.byKey(const Key('continuous-work-consent')), findsNothing);
-    });
+        expect(
+          find.byKey(const Key('continuous-work-consent')),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets(
       'a large Economy house asks the customer to agree before the order is created, and sends the agreement (D35)',

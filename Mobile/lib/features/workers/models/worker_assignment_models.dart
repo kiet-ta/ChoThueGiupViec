@@ -103,7 +103,7 @@ class WorkerAssignmentDetailDto {
   /// ACCEPT-02: the server's acceptance phase and deadlines once the photos are submitted (null before the work).
   final AcceptanceBlock? acceptance;
 
-  /// D35: the 2nd job of a large house (`RESERVED` | `OPEN` | `RELEASED`, the next shift); null for any other job.
+  /// D35: the 2nd job of a large house (`STANDBY` | `OPEN` | `RELEASED`, extra hours after the shift); null for any other job.
   final WorkerContinuationDto? continuation;
 
   const WorkerAssignmentDetailDto({
@@ -165,8 +165,8 @@ class WorkerAssignmentDetailDto {
   ].where((part) => part.trim().isNotEmpty).join(', ');
 }
 
-/// D35: the 2nd job of a large house, as the worker sees it. `status`: `RESERVED` (the next-shift slot is held for the worker), `OPEN` (the
-/// 2nd job opened) or `RELEASED` (the work ended in the first job).
+/// D35: the 2nd job of a large house, as the worker sees it. `status`: `STANDBY` (not opened yet), `OPEN` (the 2nd job opened: extra
+/// hours right after the shift) or `RELEASED` (the work ended in the first job).
 class WorkerContinuationDto {
   final String status;
   final String? shiftCode;
@@ -182,21 +182,10 @@ class WorkerContinuationDto {
       : null;
 
   /// What the worker reads; null once the work ended in the first job (nothing to say).
-  String? get note {
-    final code = shiftCode;
-    if (code == null) return null;
-    final shift = switch (code) {
-      'SHIFT_MORNING' => 'ca sáng',
-      'SHIFT_AFTERNOON' => 'ca chiều',
-      'SHIFT_EVENING' => 'ca tối',
-      _ => code,
-    };
-    return switch (status) {
-      'RESERVED' =>
-        'Nhà lớn: nếu chưa làm xong, bạn làm tiếp ở $shift cùng ngày (lịch đã được giữ cho bạn). Tiền công không đổi.',
-      'OPEN' =>
-        'Đơn nối tiếp đã mở: bạn làm tiếp ở $shift cùng ngày. Tiền công không đổi.',
-      _ => null,
-    };
-  }
+  String? get note => switch (status) {
+    'STANDBY' => 'Nhà lớn: nếu chưa làm xong khi hết ca, bạn làm thêm giờ ngay sau ca (tối đa 4 giờ). Tiền công không đổi.',
+    'OPEN' =>
+      'Đơn nối tiếp đã mở: bạn làm thêm giờ ngay sau ca. Tiền công không đổi.',
+    _ => null,
+  };
 }

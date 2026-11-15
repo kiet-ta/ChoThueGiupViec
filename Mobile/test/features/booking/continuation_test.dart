@@ -4,7 +4,7 @@ import 'package:mobile/features/booking/logic/booking_logic.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/workers/models/worker_assignment_models.dart';
 
-/// D35 (LARGE-1W-01, #900): the 2nd job of a large ECONOMY house, as the customer and the worker read it.
+/// D35 (LARGE-1W-01, #900): the 2nd job of a large ECONOMY house (extra hours right after the shift), as the customer and the worker read it.
 void main() {
   group('customer', () {
     test('reads the continuation of the order progress', () {
@@ -15,20 +15,20 @@ void main() {
         'assignments': [],
         'extension': null,
         'continuation': {
-          'status': 'RESERVED',
-          'shiftCode': 'SHIFT_AFTERNOON',
-          'windowStartAt': '2026-11-20T06:00:00Z',
-          'windowEndAt': '2026-11-20T10:00:00Z',
+          'status': 'STANDBY',
+          'shiftCode': 'SHIFT_MORNING',
+          'windowStartAt': '2026-11-20T05:00:00Z',
+          'windowEndAt': '2026-11-20T09:00:00Z',
           'openedAt': null,
         },
       });
 
-      expect(progress.continuation?.status, OrderContinuation.reserved);
-      expect(progress.continuation?.shiftCode, 'SHIFT_AFTERNOON');
+      expect(progress.continuation?.status, OrderContinuation.standby);
       expect(
         progress.continuation?.windowStartAt,
-        DateTime.utc(2026, 11, 20, 6),
+        DateTime.utc(2026, 11, 20, 5),
       );
+      expect(progress.continuation?.windowEndAt, DateTime.utc(2026, 11, 20, 9));
     });
 
     test('an ordinary order has no continuation', () {
@@ -43,32 +43,35 @@ void main() {
       expect(continuationText(progress.continuation), isNull);
     });
 
-    test('says the next shift and that nothing more is charged', () {
-      const reserved = OrderContinuation(
-        status: OrderContinuation.reserved,
-        shiftCode: 'SHIFT_AFTERNOON',
-      );
-      const open = OrderContinuation(
-        status: OrderContinuation.open,
-        shiftCode: 'SHIFT_AFTERNOON',
-      );
-      const released = OrderContinuation(
-        status: OrderContinuation.released,
-        shiftCode: 'SHIFT_AFTERNOON',
-      );
+    test(
+      'says extra hours after the shift and that nothing more is charged',
+      () {
+        final standby = OrderContinuation(
+          status: OrderContinuation.standby,
+          windowStartAt: DateTime.utc(2026, 11, 20, 5),
+          windowEndAt: DateTime.utc(2026, 11, 20, 9),
+        );
+        final open = OrderContinuation(
+          status: OrderContinuation.open,
+          windowStartAt: DateTime.utc(2026, 11, 20, 5),
+          windowEndAt: DateTime.utc(2026, 11, 20, 9),
+        );
+        const released = OrderContinuation(status: OrderContinuation.released);
 
-      expect(continuationText(reserved), contains('ca chiều'));
-      expect(continuationText(reserved), contains('Không tính thêm tiền'));
-      expect(continuationText(open), contains('Đơn nối tiếp đã mở'));
-      expect(continuationText(released), isNull);
-      expect(
-        continuationText(
-          const OrderContinuation(status: OrderContinuation.reserved),
-        ),
-        isNull,
-        reason: 'no next shift, nothing to show',
-      );
-    });
+        expect(continuationText(standby), contains('thêm giờ ngay sau ca'));
+        expect(continuationText(standby), contains('tối đa 4 giờ'));
+        expect(continuationText(standby), contains('Không tính thêm tiền'));
+        expect(continuationText(open), contains('Đơn nối tiếp đã mở'));
+        expect(continuationText(released), isNull);
+        expect(
+          continuationText(
+            const OrderContinuation(status: OrderContinuation.standby),
+          ),
+          contains('thêm giờ ngay sau ca'),
+          reason: 'no window known: no hours promised',
+        );
+      },
+    );
 
     test('the order carries the large-house flag', () {
       final order = BookingOrder.fromJson({
@@ -85,21 +88,21 @@ void main() {
 
   group('worker', () {
     test('reads and words the 2nd job', () {
-      final reserved = WorkerContinuationDto.fromJson({
-        'status': 'RESERVED',
-        'shiftCode': 'SHIFT_AFTERNOON',
+      final standby = WorkerContinuationDto.fromJson({
+        'status': 'STANDBY',
+        'shiftCode': 'SHIFT_MORNING',
       });
       final open = WorkerContinuationDto.fromJson({
         'status': 'OPEN',
-        'shiftCode': 'SHIFT_AFTERNOON',
+        'shiftCode': 'SHIFT_MORNING',
       });
       final released = WorkerContinuationDto.fromJson({
         'status': 'RELEASED',
-        'shiftCode': 'SHIFT_AFTERNOON',
+        'shiftCode': 'SHIFT_MORNING',
       });
 
-      expect(reserved?.note, contains('ca chiều'));
-      expect(reserved?.note, contains('Tiền công không đổi'));
+      expect(standby?.note, contains('thêm giờ ngay sau ca'));
+      expect(standby?.note, contains('Tiền công không đổi'));
       expect(open?.note, contains('Đơn nối tiếp đã mở'));
       expect(released?.note, isNull);
       expect(WorkerContinuationDto.fromJson(null), isNull);

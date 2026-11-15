@@ -7,7 +7,6 @@ class BookingErrorCode {
   static const shiftInPast = 'SHIFT_IN_PAST';
   static const premiumLeadTime = 'PREMIUM_LEAD_TIME';
   static const fullyBooked = 'FULLY_BOOKED';
-  static const largeHouseEveningNotAllowed = 'LARGE_HOUSE_EVENING_NOT_ALLOWED';
 
   BookingErrorCode._();
 }
@@ -97,13 +96,18 @@ String shiftLabel(String shiftCode) => switch (shiftCode) {
 
 /// D35: what the customer reads about the 2nd job of a large house; null once the work ended in the first job (nothing to say).
 String? continuationText(OrderContinuation? continuation) {
-  if (continuation == null || continuation.shiftCode == null) return null;
-  final next = shiftLabel(continuation.shiftCode!).toLowerCase();
+  if (continuation == null) return null;
+  final start = continuation.windowStartAt;
+  final end = continuation.windowEndAt;
+  final hours = start != null && end != null
+      ? end.difference(start).inHours
+      : 0;
+  final upTo = hours > 0 ? ' (tối đa $hours giờ)' : '';
   return switch (continuation.status) {
-    OrderContinuation.reserved =>
-      'Nhà lớn: nếu thợ chưa làm xong, thợ sẽ làm tiếp ở $next cùng ngày. Không tính thêm tiền.',
+    OrderContinuation.standby =>
+      'Nhà lớn: nếu thợ chưa làm xong, thợ sẽ làm thêm giờ ngay sau ca$upTo. Không tính thêm tiền.',
     OrderContinuation.open =>
-      'Đơn nối tiếp đã mở: thợ làm tiếp ở $next cùng ngày. Không tính thêm tiền.',
+      'Đơn nối tiếp đã mở: thợ làm thêm giờ ngay sau ca$upTo. Không tính thêm tiền.',
     _ => null,
   };
 }
@@ -143,7 +147,7 @@ String dayLabel(DateTime day) =>
 /// The line under the price: one worker, a large ECONOMY house (one worker, a possible 2nd job, D35), or two workers (PREMIUM, BR-02).
 String workersNote(PriceQuote quote, BookingOptions options) =>
     quote.isContinuousWork
-    ? 'Nhà bạn lớn nên thợ có thể cần làm 2 đơn liên tiếp (ca này và ca kế tiếp trong ngày). Bạn chỉ trả một lần, không phát sinh thêm.'
+    ? 'Nhà bạn lớn nên thợ có thể cần làm 2 đơn liên tiếp: đơn 2 là làm thêm giờ ngay sau ca (tối đa ${options.shiftMaxHours} giờ). Bạn chỉ trả một lần, không phát sinh thêm.'
     : quote.requiredWorkers >= 2
     ? 'Diện tích ${formatArea(quote.totalAreaM2)} lớn hơn ${formatArea(options.standardMaxAreaM2)}: cần ${quote.requiredWorkers} người làm cùng lúc.'
     : '1 người, một ca tối đa ${options.shiftMaxHours} giờ.';
@@ -153,13 +157,9 @@ String quoteBreakdown(PriceQuote quote) => quote.isContinuousWork
     ? 'Giá nhà lớn · 1 người · ${tierLabel(quote.serviceTier)}'
     : '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}';
 
-/// D35: a large house also needs the next shift of the day, so the last (evening) shift cannot be booked for it.
-bool shiftAllowed(String shiftCode, PriceQuote? quote) =>
-    !(quote != null && quote.isContinuousWork && shiftCode == 'SHIFT_EVENING');
-
 /// The consent asked before a large house is booked (D35).
 const List<String> continuousWorkConsent = [
-  'Nhà bạn khá lớn nên chỉ một thợ nhận đơn. Nếu thợ chưa làm xong trong ca đã đặt, thợ sẽ làm tiếp một đơn nữa ở ca kế tiếp trong ngày.',
+  'Nhà bạn khá lớn nên chỉ một thợ nhận đơn. Nếu thợ chưa làm xong trong ca đã đặt, thợ sẽ làm tiếp "đơn 2" là thêm giờ ngay sau ca (tối đa 4 giờ).',
   'Bạn chỉ trả một lần theo giá nhà lớn. Đơn nối tiếp không bị tính thêm tiền.',
 ];
 
@@ -233,7 +233,6 @@ CreateOrderFailure createOrderFailure(
           BookingErrorCode.premiumLeadTime =>
             'Gói Cao cấp cần đặt trước ít nhất $premiumMinLeadHours giờ. Chọn ca muộn hơn nhé.',
           BookingErrorCode.fullyBooked => 'Các doanh nghiệp đối tác đã kín lịch cho ca này. Hãy chọn ca hoặc ngày khác.',
-          BookingErrorCode.largeHouseEveningNotAllowed => 'Nhà lớn không đặt được ca tối vì thợ cần thêm ca kế tiếp. Hãy chọn ca sáng hoặc ca chiều.',
           _ => 'Không đặt được đơn lúc này. Vui lòng thử lại.',
         },
       );

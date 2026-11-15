@@ -91,13 +91,9 @@ export const quoteWorkersLabel = (quote: Pick<PriceQuote, 'requiredWorkers' | 'u
   quote.isContinuousWork ? `1 thợ · giá nhà lớn ${formatVnd(quote.totalAmount)}` : workersPrice(quote.requiredWorkers, quote.unitPrice)
 
 /** D35: the notice and the agreement for a large ECONOMY house. */
-export const CONTINUOUS_WORK_NOTICE = 'Nhà bạn lớn nên thợ có thể cần làm 2 đơn liên tiếp (ca này và ca kế tiếp trong ngày). Bạn chỉ trả một lần, không phát sinh thêm.'
+export const CONTINUOUS_WORK_NOTICE = 'Nhà bạn lớn nên thợ có thể cần làm 2 đơn liên tiếp: đơn 2 là làm thêm giờ ngay sau ca (tối đa 4 giờ). Bạn chỉ trả một lần, không phát sinh thêm.'
 export const CONTINUOUS_WORK_AGREEMENT = 'Tôi đồng ý: nhà tôi do một thợ làm và có thể làm 2 đơn liên tiếp.'
 
-/** D35: a large house also needs the next shift of the day, so the last (evening) shift cannot be booked for it; null when the shift is fine. */
-export function continuousShiftBlockedReason(shiftCode: string, quote: Pick<PriceQuote, 'isContinuousWork'> | null): string | null {
-  return quote?.isContinuousWork === true && shiftCode === 'SHIFT_EVENING' ? 'Nhà lớn cần thêm ca kế tiếp' : null
-}
 
 interface ProblemInput {
   status?: number

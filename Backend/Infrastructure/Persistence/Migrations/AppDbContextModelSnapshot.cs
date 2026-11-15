@@ -1034,10 +1034,6 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("DATETIME2")
                         .HasColumnName("continuation_opened_at");
 
-                    b.Property<int?>("ContinuationSlotId")
-                        .HasColumnType("int")
-                        .HasColumnName("continuation_slot_id");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("DATETIME2")
                         .HasColumnName("created_at");

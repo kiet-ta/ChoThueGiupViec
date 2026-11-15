@@ -28,10 +28,9 @@ public class ContinuationTests
 
     private class StubContinuations : IContinuationRepository
     {
-        public ContinuationState? State { get; set; } = new(true, 321, null, Day, BookingShifts.Morning);
+        public ContinuationState? State { get; set; } = new(true, null, Day, BookingShifts.Morning);
         public bool OpenResult { get; set; } = true;
         public List<long> Opened { get; } = [];
-        public List<long> Released { get; } = [];
         public List<DueContinuation> Candidates { get; } = [];
 
         public Task<ContinuationState?> GetStateAsync(long orderId, CancellationToken cancellationToken = default) => Task.FromResult(State);
@@ -44,12 +43,6 @@ public class ContinuationTests
             }
 
             return Task.FromResult(OpenResult);
-        }
-
-        public Task ReleaseSlotAsync(long orderId, DateTime atUtc, CancellationToken cancellationToken = default)
-        {
-            Released.Add(orderId);
-            return Task.CompletedTask;
         }
 
         public Task<IReadOnlyList<DueContinuation>> GetOpenCandidatesAsync(CancellationToken cancellationToken = default) =>
@@ -169,7 +162,7 @@ public class ContinuationTests
     }
 
     [Fact]
-    public async Task FinishingInTheFirstJob_ReleasesTheHeldNextShiftSlot()
+    public async Task FinishingInTheFirstJob_PaysTheWorkerTheWholeLargeHousePrice()
     {
         var now = new DateTime(2026, 11, 20, 5, 10, 0, DateTimeKind.Utc);
         var assignment = AwaitingAcceptance(now.AddMinutes(-5));
@@ -180,7 +173,7 @@ public class ContinuationTests
         Assert.Equal("COMPLETED", result.Data!.Status);
         Assert.Equal(520000m, result.Data.GrossAmount); // the worker is paid the whole large-house price
         Assert.Equal(416000m, result.Data.PayoutAmount); // 80 % of 520000
-        Assert.Equal([OrderId], continuations.Released);
+        Assert.Empty(continuations.Opened);
     }
 
     [Fact]
@@ -243,33 +236,34 @@ public class ContinuationTests
         Assert.Equal(0, await service.OpenDueAsync());
     }
 
-    // ---------------------------------------------------------------- the next shift and the wire shape
-
-    [Theory]
-    [InlineData(BookingShifts.Morning, BookingShifts.Afternoon)]
-    [InlineData(BookingShifts.Afternoon, BookingShifts.Evening)]
-    [InlineData(BookingShifts.Evening, null)]
-    [InlineData("SHIFT_NOPE", null)]
-    public void TheSecondJob_IsTheNextShiftOfTheSameDay(string shift, string? expected) =>
-        Assert.Equal(expected, ContinuousWork.NextShift(shift));
+    // ---------------------------------------------------------------- the wire shape
 
     [Fact]
-    public void TheWire_ShowsReservedOpenAndReleased_AndNothingForAnOrdinaryOrder()
+    public void TheWire_ShowsStandbyOpenAndReleased_AndNothingForAnOrdinaryOrder()
     {
         var clock = new FakeClock();
 
-        Assert.Null(ContinuationDto.Describe(false, Day, BookingShifts.Morning, null, null, clock));
+        Assert.Null(ContinuationDto.Describe(false, Day, BookingShifts.Morning, null, false, 4, clock));
 
-        var reserved = ContinuationDto.Describe(true, Day, BookingShifts.Morning, 321, null, clock)!;
-        Assert.Equal(ContinuationDto.Reserved, reserved.Status);
-        Assert.Equal(BookingShifts.Afternoon, reserved.ShiftCode);
-        Assert.Equal(new DateTime(2026, 11, 20, 6, 0, 0, DateTimeKind.Utc), reserved.WindowStartAt); // 13:00 local
-        Assert.Equal(new DateTime(2026, 11, 20, 10, 0, 0, DateTimeKind.Utc), reserved.WindowEndAt); // 17:00 local
+        var standby = ContinuationDto.Describe(true, Day, BookingShifts.Morning, null, false, 4, clock)!;
+        Assert.Equal(ContinuationDto.Standby, standby.Status);
+        Assert.Equal(BookingShifts.Morning, standby.ShiftCode);
+        Assert.Equal(new DateTime(2026, 11, 20, 5, 0, 0, DateTimeKind.Utc), standby.WindowStartAt); // 12:00 local, the shift end
+        Assert.Equal(new DateTime(2026, 11, 20, 9, 0, 0, DateTimeKind.Utc), standby.WindowEndAt); // 4 hours later
 
-        var opened = ContinuationDto.Describe(true, Day, BookingShifts.Morning, 321, new DateTime(2026, 11, 20, 5, 20, 0, DateTimeKind.Utc), clock)!;
+        var opened = ContinuationDto.Describe(true, Day, BookingShifts.Morning, new DateTime(2026, 11, 20, 5, 20, 0, DateTimeKind.Utc), false, 4, clock)!;
         Assert.Equal(ContinuationDto.Open, opened.Status);
 
-        var released = ContinuationDto.Describe(true, Day, BookingShifts.Morning, null, null, clock)!;
+        var released = ContinuationDto.Describe(true, Day, BookingShifts.Morning, null, true, 4, clock)!;
         Assert.Equal(ContinuationDto.Released, released.Status);
+    }
+
+    [Fact]
+    public void TheWindowFollowsTheConfiguredShiftMaxHours()
+    {
+        var wire = ContinuationDto.Describe(true, Day, BookingShifts.Evening, null, false, 3, new FakeClock())!;
+
+        Assert.Equal(new DateTime(2026, 11, 20, 13, 30, 0, DateTimeKind.Utc), wire.WindowStartAt); // 20:30 local
+        Assert.Equal(new DateTime(2026, 11, 20, 16, 30, 0, DateTimeKind.Utc), wire.WindowEndAt);
     }
 }

@@ -6,7 +6,7 @@ import { formatVnd } from '@/lib/format'
 import { accountApi } from '../account/api'
 import { bookingApi } from './api'
 import type { BookingOptions, CustomerAddress, FreeShift, PriceQuote, ServiceTier } from './types'
-import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, continuousShiftBlockedReason, dayText, NOTE_MAX_LENGTH, quoteWorkersLabel, shiftBlockedReason, shiftLabel, shiftRange, tierLabel, upcomingDays } from './view'
+import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, dayText, NOTE_MAX_LENGTH, quoteWorkersLabel, shiftBlockedReason, shiftLabel, shiftRange, tierLabel, upcomingDays } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const choice = (on: boolean, disabled = false) =>
@@ -87,7 +87,7 @@ export function BookingPage() {
   const shift = options?.shifts.find((s) => s.shiftCode === shiftCode) ?? null
   const blocked = (d: string, code: string) => {
     const s = options?.shifts.find((x) => x.shiftCode === code)
-    return options && s ? (shiftBlockedReason(d, s, tier, options, now, workerAvailability?.shifts ?? null) ?? continuousShiftBlockedReason(code, quote)) : null
+    return options && s ? shiftBlockedReason(d, s, tier, options, now, workerAvailability?.shifts ?? null) : null
   }
   // A choice made for Economy may be invalid for Premium: drop it instead of sending it.
   const selectionValid = date !== null && shiftCode !== null && blocked(date, shiftCode) === null

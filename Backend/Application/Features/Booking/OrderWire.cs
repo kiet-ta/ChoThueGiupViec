@@ -65,19 +65,19 @@ public record ProgressAssignmentDto(
     CommonService.Application.Common.Helpers.AcceptanceDto? Acceptance = null);
 
 /// <summary>
-/// The 2nd job of a large ECONOMY house (decision D35). <c>Status</c>: <c>RESERVED</c> (the worker's next-shift slot is held, the 2nd job has not
-/// opened), <c>OPEN</c> (the 2nd job opened: same worker, next shift, no extra charge) or <c>RELEASED</c> (the work ended in the first job).
-/// The window is the next shift in UTC; <c>ShiftCode</c> is null when there is no next shift.
+/// The 2nd job of a large ECONOMY house (decision D35): the same worker keeps working right after the shift, at most <c>Shift.MaxHours</c> more,
+/// with no extra charge. <c>Status</c>: <c>STANDBY</c> (not opened yet; it opens when the worker does not confirm in time or the customer says
+/// "not clean"), <c>OPEN</c> (opened) or <c>RELEASED</c> (the work ended in the first job). The window runs from the shift end, in UTC.
 /// </summary>
 public record ContinuationDto(string Status, string? ShiftCode, DateTime? WindowStartAt, DateTime? WindowEndAt, DateTime? OpenedAt)
 {
-    public const string Reserved = "RESERVED";
+    public const string Standby = "STANDBY";
     public const string Open = "OPEN";
     public const string Released = "RELEASED";
 
-    /// <summary>Null when the order is not a large-house continuous order.</summary>
+    /// <summary>Null when the order is not a large-house continuous order. <paramref name="finished"/>: the work ended (completed or cancelled).</summary>
     public static ContinuationDto? Describe(
-        bool isContinuousWork, DateOnly scheduledDate, string shiftCode, int? slotId, DateTime? openedAt, IClock clock)
+        bool isContinuousWork, DateOnly scheduledDate, string shiftCode, DateTime? openedAt, bool finished, int maxHours, IClock clock)
     {
         ArgumentNullException.ThrowIfNull(clock);
         if (!isContinuousWork)
@@ -85,15 +85,14 @@ public record ContinuationDto(string Status, string? ShiftCode, DateTime? Window
             return null;
         }
 
-        var status = openedAt is not null ? Open : slotId is not null ? Reserved : Released;
-        var next = ContinuousWork.NextShift(shiftCode);
-        if (next is null || BookingShifts.GetLocalTimes(next) is not { } times)
+        var status = openedAt is not null ? Open : finished ? Released : Standby;
+        if (BookingShifts.GetLocalTimes(shiftCode) is not { } times)
         {
-            return new ContinuationDto(status, null, null, null, openedAt);
+            return new ContinuationDto(status, shiftCode, null, null, openedAt);
         }
 
-        DateTime ToUtc(TimeOnly time) => clock.ToUtc(DateTime.SpecifyKind(scheduledDate.ToDateTime(time), DateTimeKind.Unspecified));
-        return new ContinuationDto(status, next, ToUtc(times.Start), ToUtc(times.End), openedAt);
+        var endUtc = clock.ToUtc(DateTime.SpecifyKind(scheduledDate.ToDateTime(times.End), DateTimeKind.Unspecified));
+        return new ContinuationDto(status, shiftCode, endUtc, endUtc.AddHours(maxHours), openedAt);
     }
 }
 

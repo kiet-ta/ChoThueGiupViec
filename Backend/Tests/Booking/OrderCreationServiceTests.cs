@@ -212,14 +212,14 @@ public class OrderCreationServiceTests
     }
 
     [Fact]
-    public async Task EconomyLargeHouse_InTheEveningShift_IsA409_AndNothingIsWritten()
+    public async Task EconomyLargeHouse_CanBeBookedInTheEveningShift_BecauseTheSecondJobIsExtraHours_D35()
     {
         var f = new Fixture(90m);
 
-        var error = await ConflictAsync(f.Service().CreateAsync(Request(shift: BookingShifts.Evening, acceptsContinuousWork: true)));
+        var order = await f.Service().CreateAsync(Request(shift: BookingShifts.Evening, acceptsContinuousWork: true));
 
-        Assert.Equal(BookingErrorCodes.LargeHouseEveningNotAllowed, error.Code);
-        Assert.Empty(f.Orders.Saved);
+        Assert.True(order.IsContinuousWork);
+        Assert.Single(f.Orders.Saved);
     }
 
     [Fact]

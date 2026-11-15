@@ -140,21 +140,13 @@ void main() {
         final large = quote(area: 90, continuous: true);
         expect(workersNote(large, options), isNot(contains('cùng lúc')));
         expect(workersNote(large, options), contains('2 đơn liên tiếp'));
+        expect(workersNote(large, options), contains('thêm giờ ngay sau ca'));
         expect(workersNote(large, options), contains('không phát sinh thêm'));
         expect(large.totalAmount, 520000);
         expect(quoteBreakdown(large), 'Giá nhà lớn · 1 người · Cơ bản');
         expect(quoteBreakdown(quote()), '260.000 đ × 1 người · Cơ bản');
       },
     );
-
-    test('the evening shift is refused for a large house only (D35)', () {
-      final large = quote(area: 90, continuous: true);
-      expect(shiftAllowed('SHIFT_EVENING', large), isFalse);
-      expect(shiftAllowed('SHIFT_MORNING', large), isTrue);
-      expect(shiftAllowed('SHIFT_AFTERNOON', large), isTrue);
-      expect(shiftAllowed('SHIFT_EVENING', quote()), isTrue);
-      expect(shiftAllowed('SHIFT_EVENING', null), isTrue);
-    });
 
     test('the agreement is sent only when given', () {
       const base = CreateOrderInput(

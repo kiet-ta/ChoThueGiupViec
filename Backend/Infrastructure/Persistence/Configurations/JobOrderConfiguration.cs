@@ -69,9 +69,6 @@ public class JobOrderConfiguration : IEntityTypeConfiguration<JobOrder>
             .HasDefaultValue(false)
             .IsRequired();
 
-        // Plain id, no foreign key: the slot belongs to the Workers module (same as preferred_worker_id).
-        builder.Property(x => x.ContinuationSlotId).HasColumnName("continuation_slot_id");
-
         builder.Property(x => x.ContinuationOpenedAt)
             .HasColumnName("continuation_opened_at")
             .HasColumnType("DATETIME2");

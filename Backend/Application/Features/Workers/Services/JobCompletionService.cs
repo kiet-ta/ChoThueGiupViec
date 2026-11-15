@@ -162,12 +162,6 @@ public class JobCompletionService(
             assignment.AssignmentId, assignment.WorkerId, commissionRate, payoutAmount, nowUtc, source, ct);
         if (!completed) return (false, commissionRate, payoutAmount);
 
-        // D35: the work ended in the first job, so the next-shift slot held for a 2nd job goes back to the worker (a no-op once the 2nd job opened).
-        if (continuations is not null)
-        {
-            await continuations.ReleaseSlotAsync(assignment.OrderId, nowUtc, ct);
-        }
-
         await publisher.Publish(
             new JobCompleted(assignment.AssignmentId, assignment.OrderId, assignment.WorkerId, assignment.AgencyId, payoutAmount, nowUtc), ct);
         return (true, commissionRate, payoutAmount);
@@ -200,8 +194,8 @@ public class JobCompletionService(
 
         var nowUtc = clock.UtcNow;
 
-        // Decision D35: the first "not clean" of a large house opens the 2nd job (same worker, next shift, no extra charge) instead of a redo.
-        // The redo window of D32 does not apply: the worker comes back in the next shift.
+        // Decision D35: the first "not clean" of a large house opens the 2nd job (same worker, extra hours after the shift, no extra charge)
+        // instead of a redo. The redo window of D32 does not apply: the worker keeps working.
         if (continuations is not null && await continuations.TryOpenAsync(assignment.OrderId, nowUtc, ct))
         {
             assignment.TransitionTo(JobAssignmentStatus.InProgress);

@@ -205,7 +205,8 @@ public class OrderQueryService(
                 extension.ExtStatus, extension.WorkerDecision, extension.RequestedAt, extension.DecidedAt);
 
         var continuation = ContinuationDto.Describe(
-            order.IsContinuousWork, order.ScheduledDate, order.ShiftCode, order.ContinuationSlotId, order.ContinuationOpenedAt, clock);
+            order.IsContinuousWork, order.ScheduledDate, order.ShiftCode, order.ContinuationOpenedAt,
+            order.OrderStatus is JobOrderStatus.Completed or JobOrderStatus.Cancelled, _rules.Shift.MaxHours, clock);
         return new OrderProgressDto(order.OrderId, DbEnum.ToDb(order.OrderStatus), order.RequiredWorkers, assignments, extensionDto, continuation);
     }
 

@@ -382,5 +382,5 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 ---
 
 ## D35 addendum: the offer of a large ECONOMY house (LARGE-1W-01, #900)
-- An order with `isContinuousWork` is one seat (`requiredWorkers = 1`) offered like any ECONOMY order (30 s, auto-accept D33), but creating the offer also holds the worker's `AVAILABLE` slot of the NEXT shift of the same day; a candidate without it is skipped. Accepting the offer books both slots; a closed or expired offer, or a cancelled order, releases both. A worker who finishes in the first job (customer accept or the automatic acceptance) releases the next-shift slot.
-- The 2nd job opens after `Dispatch.ContinuationConfirmMinutes` (15) past the shift end if the assignment is still `IN_PROGRESS` (sweep every minute), or on the customer's first "not clean" (`workers.md` 2.5.3).
+- An order with `isContinuousWork` is one seat (`requiredWorkers = 1`) offered exactly like any ECONOMY order (30 s, auto-accept D33); the dispatch changes nothing and holds no slot of another shift. Its single assignment has `grossAmount` = the whole total.
+- The 2nd job (extra hours right after the shift) opens after `Dispatch.ContinuationConfirmMinutes` (15) past the shift end if the assignment is still `IN_PROGRESS` (sweep every minute), or on the customer's first "not clean" (`workers.md` 2.5.3).

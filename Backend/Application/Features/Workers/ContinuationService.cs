@@ -6,9 +6,8 @@ using Microsoft.Extensions.Options;
 namespace CommonService.Application.Features.Workers;
 
 /// <summary>The 2nd-job state of an order (decision D35).</summary>
-/// <param name="SlotId">The worker's next-shift slot held for the 2nd job; null once released (or never held).</param>
 /// <param name="OpenedAt">When the 2nd job opened; null while it has not.</param>
-public record ContinuationState(bool IsContinuousWork, int? SlotId, DateTime? OpenedAt, DateOnly ScheduledDate, string ShiftCode);
+public record ContinuationState(bool IsContinuousWork, DateTime? OpenedAt, DateOnly ScheduledDate, string ShiftCode);
 
 /// <summary>A continuous order whose only job is running and whose 2nd job has not opened (candidate of the 15-minute sweep).</summary>
 public record DueContinuation(long OrderId, DateOnly ScheduledDate, string ShiftCode);
@@ -21,13 +20,10 @@ public interface IContinuationRepository
 {
     Task<ContinuationState?> GetStateAsync(long orderId, CancellationToken cancellationToken = default);
 
-    /// <summary>Marks the 2nd job open only while the order is continuous, has its slot held and was not opened before; false otherwise.</summary>
+    /// <summary>Marks the 2nd job open only while the order is continuous and was not opened before; false otherwise.</summary>
     Task<bool> TryOpenAsync(long orderId, DateTime atUtc, CancellationToken cancellationToken = default);
 
-    /// <summary>Gives the held next-shift slot back (the work ended in the first job) and clears it on the order.</summary>
-    Task ReleaseSlotAsync(long orderId, DateTime atUtc, CancellationToken cancellationToken = default);
-
-    /// <summary>Continuous orders with a held slot, no 2nd job yet and an assignment <c>IN_PROGRESS</c>.</summary>
+    /// <summary>Continuous orders with no 2nd job yet and an assignment <c>IN_PROGRESS</c>.</summary>
     Task<IReadOnlyList<DueContinuation>> GetOpenCandidatesAsync(CancellationToken cancellationToken = default);
 }
 

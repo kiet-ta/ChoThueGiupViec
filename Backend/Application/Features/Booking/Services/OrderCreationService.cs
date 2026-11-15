@@ -66,24 +66,14 @@ public class OrderCreationService(
         }
 
         var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules, request.ServiceTier);
-        if (plan.IsContinuousWork)
+        if (plan.IsContinuousWork && !request.AcceptsContinuousWork)
         {
-            // D35: the 2nd job is the next shift of the same day, so the evening shift (the last one) cannot take a large house.
-            if (ContinuousWork.NextShift(request.ShiftCode) is null)
+            // D35: one worker who may need extra hours after the shift; the customer must agree first.
+            throw new ValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
             {
-                throw new BusinessRuleViolationException(
-                    "A large house needs a following shift on the same day, so it cannot be booked in the evening shift.",
-                    BookingErrorCodes.LargeHouseEveningNotAllowed);
-            }
-
-            if (!request.AcceptsContinuousWork)
-            {
-                throw new ValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["acceptsContinuousWork"] =
-                        ["acceptsContinuousWork must be true: a large house is done by one worker who may need to work two consecutive jobs."],
-                });
-            }
+                ["acceptsContinuousWork"] =
+                    ["acceptsContinuousWork must be true: a large house is done by one worker who may need extra hours after the shift."],
+            });
         }
 
         var quote = await pricing.QuoteAsync(

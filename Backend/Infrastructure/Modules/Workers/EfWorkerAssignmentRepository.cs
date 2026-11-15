@@ -86,7 +86,6 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
                 assignment.CompletionSource,
                 assignment.RedoCount,
                 order.IsContinuousWork,
-                order.ContinuationSlotId,
                 order.ContinuationOpenedAt,
             })
             .FirstOrDefaultAsync(cancellationToken);
@@ -133,7 +132,6 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
             row.CompletionSource,
             row.RedoCount,
             row.IsContinuousWork,
-            row.ContinuationSlotId,
             row.ContinuationOpenedAt);
     }
 }

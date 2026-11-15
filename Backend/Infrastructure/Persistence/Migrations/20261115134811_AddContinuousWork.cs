@@ -17,12 +17,6 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                 type: "DATETIME2",
                 nullable: true);
 
-            migrationBuilder.AddColumn<int>(
-                name: "continuation_slot_id",
-                table: "JOB_ORDER",
-                type: "int",
-                nullable: true);
-
             migrationBuilder.AddColumn<bool>(
                 name: "continuous_work",
                 table: "JOB_ORDER",
@@ -36,10 +30,6 @@ namespace CommonService.Infrastructure.Persistence.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "continuation_opened_at",
-                table: "JOB_ORDER");
-
-            migrationBuilder.DropColumn(
-                name: "continuation_slot_id",
                 table: "JOB_ORDER");
 
             migrationBuilder.DropColumn(

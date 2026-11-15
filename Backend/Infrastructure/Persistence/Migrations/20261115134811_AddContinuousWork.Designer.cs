@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CommonService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261115131935_AddContinuousWork")]
+    [Migration("20261115134811_AddContinuousWork")]
     partial class AddContinuousWork
     {
         /// <inheritdoc />
@@ -1036,10 +1036,6 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ContinuationOpenedAt")
                         .HasColumnType("DATETIME2")
                         .HasColumnName("continuation_opened_at");
-
-                    b.Property<int?>("ContinuationSlotId")
-                        .HasColumnType("int")
-                        .HasColumnName("continuation_slot_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("DATETIME2")

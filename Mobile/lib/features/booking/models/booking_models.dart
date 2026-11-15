@@ -438,10 +438,10 @@ class OrderExtension {
   );
 }
 
-/// The 2nd job of a large ECONOMY house (decision D35): `RESERVED` (the worker's next-shift slot is held), `OPEN` (the 2nd job opened, no extra
-/// charge) or `RELEASED` (the work ended in the first job).
+/// The 2nd job of a large ECONOMY house (decision D35): extra hours right after the shift, no extra charge. `STANDBY` (not opened yet), `OPEN`
+/// (opened) or `RELEASED` (the work ended in the first job). The window runs from the shift end.
 class OrderContinuation {
-  static const reserved = 'RESERVED';
+  static const standby = 'STANDBY';
   static const open = 'OPEN';
   static const released = 'RELEASED';
 

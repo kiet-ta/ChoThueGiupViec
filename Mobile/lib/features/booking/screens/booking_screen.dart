@@ -230,10 +230,6 @@ class _BookingScreenState extends State<BookingScreen> {
       setState(() {
         _quote = quote;
         _quoteLoading = false;
-        // D35: the evening shift cannot take a large house.
-        if (_shiftCode != null && !shiftAllowed(_shiftCode!, quote)) {
-          _shiftCode = null;
-        }
       });
     } on ApiException catch (e) {
       if (!mounted || id != _quoteRequest) return;
@@ -596,9 +592,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 key: Key('shift-${options.shifts[i].shiftCode}'),
                 shift: options.shifts[i],
                 selected: _shiftCode == options.shifts[i].shiftCode,
-                unavailable:
-                    !_shiftFree(options.shifts[i].shiftCode) ||
-                    !shiftAllowed(options.shifts[i].shiftCode, _quote),
+                unavailable: !_shiftFree(options.shifts[i].shiftCode),
                 onTap: () => setState(() {
                   _shiftCode = options.shifts[i].shiftCode;
                   _failure = null;
