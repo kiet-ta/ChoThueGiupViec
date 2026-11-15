@@ -103,6 +103,9 @@ class WorkerAssignmentDetailDto {
   /// ACCEPT-02: the server's acceptance phase and deadlines once the photos are submitted (null before the work).
   final AcceptanceBlock? acceptance;
 
+  /// D35: the 2nd job of a large house (`RESERVED` | `OPEN` | `RELEASED`, the next shift); null for any other job.
+  final WorkerContinuationDto? continuation;
+
   const WorkerAssignmentDetailDto({
     required this.assignmentId,
     required this.orderId,
@@ -121,6 +124,7 @@ class WorkerAssignmentDetailDto {
     required this.payoutAmount,
     this.pendingExtension,
     this.acceptance,
+    this.continuation,
   });
 
   factory WorkerAssignmentDetailDto.fromJson(Map<String, dynamic> json) {
@@ -145,6 +149,7 @@ class WorkerAssignmentDetailDto {
           ? WorkerPendingExtensionDto.fromJson(pending)
           : null,
       acceptance: AcceptanceBlock.fromJson(json['acceptance']),
+      continuation: WorkerContinuationDto.fromJson(json['continuation']),
     );
   }
 
@@ -158,4 +163,39 @@ class WorkerAssignmentDetailDto {
     district,
     city,
   ].where((part) => part.trim().isNotEmpty).join(', ');
+}
+
+/// D35: the 2nd job of a large house, as the worker sees it. `status`: `RESERVED` (the next-shift slot is held for the worker), `OPEN` (the
+/// 2nd job opened) or `RELEASED` (the work ended in the first job).
+class WorkerContinuationDto {
+  final String status;
+  final String? shiftCode;
+
+  const WorkerContinuationDto({required this.status, this.shiftCode});
+
+  static WorkerContinuationDto? fromJson(Object? json) => json is Map<String, dynamic>
+      ? WorkerContinuationDto(
+          status: json['status'] as String? ?? '',
+          shiftCode: json['shiftCode'] as String?,
+        )
+      : null;
+
+  /// What the worker reads; null once the work ended in the first job (nothing to say).
+  String? get note {
+    final code = shiftCode;
+    if (code == null) return null;
+    final shift = switch (code) {
+      'SHIFT_MORNING' => 'ca sáng',
+      'SHIFT_AFTERNOON' => 'ca chiều',
+      'SHIFT_EVENING' => 'ca tối',
+      _ => code,
+    };
+    return switch (status) {
+      'RESERVED' =>
+        'Nhà lớn: nếu chưa làm xong, bạn làm tiếp ở $shift cùng ngày (lịch đã được giữ cho bạn). Tiền công không đổi.',
+      'OPEN' =>
+        'Đơn nối tiếp đã mở: bạn làm tiếp ở $shift cùng ngày. Tiền công không đổi.',
+      _ => null,
+    };
+  }
 }
