@@ -258,7 +258,8 @@ void main() {
       );
       expect(fullPhoto.headers?['Authorization'], 'Bearer tok');
 
-      await tester.pageBack();
+      // The back arrow says "Quay lại" (MOB-A11Y-01), so pageBack (which looks for "Back") cannot find it.
+      await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(find.text('So sánh ảnh trước và sau'), findsOneWidget);
     });

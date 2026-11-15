@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/nordic_colors.dart';
@@ -138,7 +139,18 @@ class NordicPage extends StatelessWidget {
       appBar: fullWidthHeader != null
           ? null
           : AppBar(
-              leading: leading,
+              // The default BackButton is read as "Back" (no Vietnamese Material localizations): the same BackButton,
+              // with its tooltip and screen reader label "Quay lại" (MOB-A11Y-01), like DarkHeader. A screen that brings
+              // its own leading keeps it.
+              leading:
+                  leading ??
+                  ((ModalRoute.of(context)?.canPop ?? false)
+                      ? Localizations.override(
+                          context: context,
+                          delegates: const [_BackTooltipDelegate()],
+                          child: const BackButton(key: Key('nordic-page-back')),
+                        )
+                      : null),
               title: Text(title, key: titleKey),
               actions: appBarActions,
             ),
@@ -175,4 +187,27 @@ class NordicPage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Material strings with only the back tooltip in Vietnamese, for the app bar's [BackButton] (MOB-A11Y-01).
+class _ViBackTooltip extends DefaultMaterialLocalizations {
+  const _ViBackTooltip();
+
+  @override
+  String get backButtonTooltip => 'Quay lại';
+}
+
+class _BackTooltipDelegate
+    extends LocalizationsDelegate<MaterialLocalizations> {
+  const _BackTooltipDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<MaterialLocalizations> load(Locale locale) =>
+      SynchronousFuture<MaterialLocalizations>(const _ViBackTooltip());
+
+  @override
+  bool shouldReload(_BackTooltipDelegate old) => false;
 }
