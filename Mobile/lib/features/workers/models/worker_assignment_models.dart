@@ -103,7 +103,7 @@ class WorkerAssignmentDetailDto {
   /// ACCEPT-02: the server's acceptance phase and deadlines once the photos are submitted (null before the work).
   final AcceptanceBlock? acceptance;
 
-  /// D35: the 2nd job of a large house (`STANDBY` | `OPEN` | `RELEASED`, extra hours after the shift); null for any other job.
+  /// D36: the 2nd job of a large house (`STANDBY` | `OPEN` | `RELEASED`, extra hours after the shift); null for any other job.
   final WorkerContinuationDto? continuation;
 
   const WorkerAssignmentDetailDto({
@@ -165,7 +165,7 @@ class WorkerAssignmentDetailDto {
   ].where((part) => part.trim().isNotEmpty).join(', ');
 }
 
-/// D35: the 2nd job of a large house, as the worker sees it. `status`: `STANDBY` (not opened yet), `OPEN` (the 2nd job opened: extra
+/// D36: the 2nd job of a large house, as the worker sees it. `status`: `STANDBY` (not opened yet), `OPEN` (the 2nd job opened: extra
 /// hours right after the shift) or `RELEASED` (the work ended in the first job).
 class WorkerContinuationDto {
   final String status;

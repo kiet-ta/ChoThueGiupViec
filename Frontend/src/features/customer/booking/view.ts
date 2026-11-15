@@ -86,11 +86,57 @@ export const shiftRange = (shift: Pick<ShiftOption, 'startLocal' | 'endLocal'>) 
 
 export const workersPrice = (workers: number, unitPrice: number) => `${workers} × ${formatVnd(unitPrice)}`
 
-/** D35: what the summary says about the workers; a large ECONOMY house is one worker at the single large-house price (no "x N" to confuse). */
+// ---- Decisions D34: the customer picks the start time and the length of an Economy job inside the shift. ----
+
+const minutesOf = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+
+type TimeRules = Partial<Pick<BookingOptions, 'shiftMaxHours' | 'minDurationHours' | 'durationStepHours' | 'startStepMinutes' | 'economyMinLeadMinutes'>>
+
+/** The lengths offered: from `minDurationHours` (2) to `shiftMaxHours` (4) in `durationStepHours` (0.5). */
+export function durationChoices(options: TimeRules): number[] {
+  const min = options.minDurationHours ?? 2
+  const max = options.shiftMaxHours ?? 4
+  const step = options.durationStepHours && options.durationStepHours > 0 ? options.durationStepHours : 0.5
+  const list: number[] = []
+  for (let h = min; h <= max + 1e-9; h += step) list.push(Math.round(h * 10) / 10)
+  return list
+}
+
+/** `2` -> `2 giờ`, `2.5` -> `2,5 giờ`. */
+export const hoursLabel = (hours: number) => `${String(hours).replace('.', ',')} giờ`
+
+/** End `HH:mm` of a job that starts at `start` and lasts `hours`. */
+export const endTimeOf = (start: string, hours: number) => hhmm(minutesOf(start) + Math.round(hours * 60))
+
+/** `08:30 → 11:30 (3 giờ)`. */
+export const jobRange = (start: string, hours: number) => `${start} → ${endTimeOf(start, hours)} (${hoursLabel(hours)})`
+
+/**
+ * The start times a job of `hours` can take inside `shift` on `date`: on the start step (30 min), ending by the shift end, and at least
+ * `economyMinLeadMinutes` (60) after `now`. Empty when the shift is too short or already too late.
+ */
+export function startTimeChoices(date: string, shift: ShiftOption, hours: number, options: TimeRules, now: Date): string[] {
+  const step = options.startStepMinutes && options.startStepMinutes > 0 ? options.startStepMinutes : 30
+  const lead = (options.economyMinLeadMinutes ?? 60) * 60_000
+  const shiftStartMin = minutesOf(shift.startLocal)
+  const shiftEndMin = minutesOf(shift.endLocal)
+  const length = Math.round(hours * 60)
+  const list: string[] = []
+  for (let m = shiftStartMin; m + length <= shiftEndMin; m += step) {
+    if (shiftStart(date, hhmm(m)).getTime() >= now.getTime() + lead) list.push(hhmm(m))
+  }
+  return list
+}
+
+/** D36: what the summary says about the workers; a large ECONOMY house is one worker at the single large-house price (no "x N" to confuse). */
 export const quoteWorkersLabel = (quote: Pick<PriceQuote, 'requiredWorkers' | 'unitPrice' | 'totalAmount' | 'isContinuousWork'>) =>
   quote.isContinuousWork ? `1 thợ · giá nhà lớn ${formatVnd(quote.totalAmount)}` : workersPrice(quote.requiredWorkers, quote.unitPrice)
 
-/** D35: the notice and the agreement for a large ECONOMY house. */
+/** D36: the notice and the agreement for a large ECONOMY house. */
 export const CONTINUOUS_WORK_NOTICE = 'Nhà bạn lớn nên thợ có thể cần làm 2 đơn liên tiếp: đơn 2 là làm thêm giờ ngay sau ca (tối đa 4 giờ). Bạn chỉ trả một lần, không phát sinh thêm.'
 export const CONTINUOUS_WORK_AGREEMENT = 'Tôi đồng ý: nhà tôi do một thợ làm và có thể làm 2 đơn liên tiếp.'
 
@@ -111,6 +157,7 @@ export function bookingProblem(error: ProblemInput): string {
   const code = error.data && typeof error.data === 'object' ? (error.data as { code?: unknown }).code : undefined
   if (code === 'SHIFT_IN_PAST') return 'Ca đã chọn đã qua. Hãy chọn ca khác.'
   if (code === 'PREMIUM_LEAD_TIME') return 'Gói Premium cần đặt trước tối thiểu 4 giờ.'
+  if (code === 'LEAD_TIME_TOO_SHORT') return 'Giờ này gần quá, thợ không kịp đến. Hãy chọn giờ muộn hơn.'
   if (code === 'FULLY_BOOKED') return 'Ca này hiện không còn thợ rảnh ở khu vực của bạn. Hãy chọn ca hoặc ngày khác.'
   if (error.status === 404) return 'Không tìm thấy địa chỉ. Hãy chọn lại địa chỉ.'
   return error.message || 'Không đặt được ca. Vui lòng thử lại.'

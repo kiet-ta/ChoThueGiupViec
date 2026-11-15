@@ -15,15 +15,38 @@ public record CheckInRequest(double? Latitude, double? Longitude);
 /// <summary>Request body of the plate-photo fallback (contract dispatch.md 3.1).</summary>
 public record PlatePhotoRequest(string? PlatePhotoUrl);
 
+/// <summary>Request body of the worker cancel endpoint (contract dispatch.md 3.1, decisions D35).</summary>
+public record WorkerCancelRequest(string? Reason);
+
 /// <summary>
-/// Worker side of Dispatch (contract dispatch.md 3.1, policy WorkerOnly): the 30-second offer, field check-in (BR-04), system calls and
-/// the customer-absent report (BR-05). Someone else's assignment answers 404; a state that forbids the action answers 409 with data.code.
+/// Worker side of Dispatch (contract dispatch.md 3.1, policy WorkerOnly): the 30-second offer, field check-in (BR-04), system calls,
+/// the customer-absent report (BR-05) and the freelancer cancel (Q15, D35). Someone else's assignment answers 404; a state that forbids
+/// the action answers 409 with data.code.
 /// </summary>
 [ApiController]
 [Route("api/v1/dispatch")]
 [Authorize(Policy = "WorkerOnly")]
-public class WorkerDispatchController(WorkerDispatchService service) : ControllerBase
+public class WorkerDispatchController(WorkerDispatchService service, WorkerCancelService cancel) : ControllerBase
 {
+    /// <summary>What cancelling this accepted job would do (violation count, account lock, auto-accept), before the worker confirms.</summary>
+    [HttpGet("assignments/{assignmentId:long}/cancel-preview")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerCancelPreviewDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelPreview(long assignmentId, CancellationToken ct) =>
+        Ok(ApiResponse<WorkerCancelPreviewDto>.Ok(await cancel.PreviewAsync(assignmentId, ct)));
+
+    /// <summary>A freelancer cancels an accepted job before it starts: the seat is re-dispatched until the cutoff, else the order is refunded 100 %.</summary>
+    [HttpPost("assignments/{assignmentId:long}/cancel")]
+    [ProducesResponseType(typeof(ApiResponse<WorkerCancelResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Cancel(long assignmentId, [FromBody] WorkerCancelRequest? request, CancellationToken ct) =>
+        Ok(ApiResponse<WorkerCancelResultDto>.Ok(await cancel.CancelAsync(assignmentId, request?.Reason, ct)));
+
     /// <summary>The worker's open offer, or data = null.</summary>
     [HttpGet("offers/current")]
     [ProducesResponseType(typeof(ApiResponse<JobOfferDto>), StatusCodes.Status200OK)]

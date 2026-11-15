@@ -253,6 +253,18 @@ public class OrderCancellationServiceTests
     }
 
     [Fact]
+    public async Task DecisionD35_WhileASubstituteIsSearchedForInsideTheTwoHourWindow_TheCustomerCancelIs100PercentRefunded()
+    {
+        // A worker cancelled (order back to DISPATCHING): the late fee never applies, the fault is the worker's.
+        var f = new Fixture(JobOrderStatus.Dispatching, nowUtc: ShiftStartUtc.AddMinutes(-45));
+
+        await f.Service().CancelAsync(CustomerId, OrderId, Reason("Không chờ thợ thay"));
+
+        Assert.Equal(JobOrderStatus.Cancelled, f.Order.OrderStatus);
+        Assert.Equal(260000m, Assert.Single(f.Refunds.Requests).Amount);
+    }
+
+    [Fact]
     public async Task AnAssignedOrder_MoreThanTwoHoursBeforeTheShift_IsRefunded100Percent()
     {
         var f = new Fixture(JobOrderStatus.Assigned, nowUtc: ShiftStartUtc.AddHours(-2).AddMinutes(-1));

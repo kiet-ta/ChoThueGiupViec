@@ -188,7 +188,7 @@ public class OrderCreationServiceTests
     }
 
     [Fact]
-    public async Task EconomyLargeHouse_IsOneWorkerPricedAsTwoUnits_WhenTheCustomerAgrees_D35()
+    public async Task EconomyLargeHouse_IsOneWorkerPricedAsTwoUnits_WhenTheCustomerAgrees_D36()
     {
         var f = new Fixture(90m);
 
@@ -212,7 +212,7 @@ public class OrderCreationServiceTests
     }
 
     [Fact]
-    public async Task EconomyLargeHouse_CanBeBookedInTheEveningShift_BecauseTheSecondJobIsExtraHours_D35()
+    public async Task EconomyLargeHouse_CanBeBookedInTheEveningShift_BecauseTheSecondJobIsExtraHours_D36()
     {
         var f = new Fixture(90m);
 
@@ -220,6 +220,23 @@ public class OrderCreationServiceTests
 
         Assert.True(order.IsContinuousWork);
         Assert.Single(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task EconomyLargeHouse_TimedJob_IsPricedPerHourAsTwoUnits_D34D36()
+    {
+        var f = new Fixture(90m);
+        f.NowUtc = new DateTime(2026, 10, 14, 0, 0, 0, DateTimeKind.Utc);
+
+        // 3 hours of a 4 h shift: 260000 / 4 x 3 = 195000 per unit, 2 units = 390000 (before D36 it was 2 workers x 195000).
+        var order = await f.Service().CreateAsync(
+            Request(acceptsContinuousWork: true) with { StartTime = new TimeOnly(8, 30), DurationHours = 3m });
+
+        Assert.Equal(1, order.RequiredWorkers);
+        Assert.Equal(390000, order.TotalAmount);
+        Assert.True(order.IsContinuousWork);
+        Assert.Equal(new TimeOnly(8, 30), order.StartTime);
+        Assert.Equal(new TimeOnly(11, 30), order.EndTime);
     }
 
     [Fact]
@@ -504,5 +521,110 @@ public class OrderCreationServiceTests
         await f.Service().CreateAsync(Request());
 
         Assert.Null(Assert.Single(f.Orders.Saved).PreferredWorkerId);
+    }
+
+    // ---- Decisions D34 (BOOK-TIME-01): a timed Economy job inside the shift ----
+
+    private static CreateOrderRequest Timed(string start, decimal hours, ServiceTier tier = ServiceTier.Economy, string shift = BookingShifts.Morning) =>
+        Request(tier, shift: shift) with { StartTime = TimeOnly.Parse(start, System.Globalization.CultureInfo.InvariantCulture), DurationHours = hours };
+
+    [Fact]
+    public async Task TimedJob_SavesItsWindow_AndIsPricedPerHour()
+    {
+        var f = new Fixture(50m);
+
+        var order = await f.Service().CreateAsync(Timed("08:30", 3m));
+
+        var saved = Assert.Single(f.Orders.Saved);
+        Assert.Equal(new TimeOnly(8, 30), saved.StartTime);
+        Assert.Equal(new TimeOnly(11, 30), saved.EndTime);
+        Assert.Equal(195000m, order.TotalAmount); // 260,000 / 4 h x 3 h
+        Assert.Equal(new DateTime(2026, 10, 15, 1, 30, 0, DateTimeKind.Utc), order.ShiftStartAt);
+        Assert.Equal(new DateTime(2026, 10, 15, 4, 30, 0, DateTimeKind.Utc), order.ShiftEndAt);
+        Assert.Equal(new TimeOnly(8, 30), order.StartTime);
+    }
+
+    [Fact]
+    public async Task TimedJob_LargeEconomyHouse_IsOneWorkerPaidTwoUnitsOfTheHours_D36()
+    {
+        var f = new Fixture(90m);
+
+        var order = await f.Service().CreateAsync(Timed("13:00", 2m, shift: BookingShifts.Afternoon) with { AcceptsContinuousWork = true });
+
+        Assert.Equal(1, order.RequiredWorkers);
+        Assert.Equal(260000m, order.TotalAmount); // 130,000 x 2 units: the same price as the 2 workers of D34
+    }
+
+    [Fact]
+    public async Task TimedJob_PremiumLargeHouse_StaysTwoWorkers()
+    {
+        var f = new Fixture(90m);
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() =>
+            f.Service().CreateAsync(Timed("13:00", 2m, ServiceTier.Premium, BookingShifts.Afternoon)));
+
+        Assert.Contains("startTime", error.Errors.Keys); // PREMIUM + a time is a 400 (D34), unchanged
+    }
+
+    [Theory]
+    [InlineData("08:15", 2, "startTime")]   // not on a 30-minute step
+    [InlineData("10:30", 2, "startTime")]   // ends 12:30, after the morning shift
+    [InlineData("07:30", 2, "startTime")]   // before the shift
+    [InlineData("08:00", 1.5, "durationHours")] // shorter than 2 h
+    [InlineData("08:00", 2.25, "durationHours")] // not on a 0.5 h step
+    public async Task TimedJob_OutsideTheRules_IsAValidationError(string start, double hours, string field)
+    {
+        var f = new Fixture();
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() => f.Service().CreateAsync(Timed(start, (decimal)hours)));
+
+        Assert.Contains(field, error.Errors.Keys);
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task TimedJob_IsEconomyOnly()
+    {
+        var f = new Fixture();
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() => f.Service().CreateAsync(Timed("08:00", 2m, ServiceTier.Premium)));
+
+        Assert.Contains("startTime", error.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task TimedJob_StartTimeWithoutDuration_IsAValidationError()
+    {
+        var f = new Fixture();
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            f.Service().CreateAsync(Request() with { StartTime = new TimeOnly(9, 0) }));
+    }
+
+    [Fact]
+    public async Task TimedJob_LessThanAnHourAhead_IsLeadTimeTooShort()
+    {
+        // 07:30 local on the shift day; 08:00 is only 30 minutes away.
+        var f = new Fixture { NowUtc = new DateTime(2026, 10, 15, 0, 30, 0, DateTimeKind.Utc) };
+
+        var error = await ConflictAsync(f.Service().CreateAsync(Timed("08:00", 2m)));
+
+        Assert.Equal(BookingErrorCodes.LeadTimeTooShort, error.Code);
+        Assert.Empty(f.Orders.Saved);
+        var later = await f.Service().CreateAsync(Timed("09:00", 2m)); // 90 minutes ahead is fine
+        Assert.Equal(new TimeOnly(9, 0), later.StartTime);
+    }
+
+    [Fact]
+    public async Task WithoutATime_TheOrderStaysAWholeShift()
+    {
+        var f = new Fixture(50m);
+
+        var order = await f.Service().CreateAsync(Request());
+
+        var saved = Assert.Single(f.Orders.Saved);
+        Assert.Null(saved.StartTime);
+        Assert.Null(saved.EndTime);
+        Assert.Equal(260000m, order.TotalAmount);
     }
 }

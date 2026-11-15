@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CommonService.Infrastructure.Modules.Workers;
 
-/// <summary>EF Core storage of the 2nd job of a large ECONOMY house (decision D35); every change is one conditional update.</summary>
+/// <summary>EF Core storage of the 2nd job of a large ECONOMY house (decision D36); every change is one conditional update.</summary>
 public class EfContinuationRepository(AppDbContext db) : IContinuationRepository
 {
     public async Task<ContinuationState?> GetStateAsync(long orderId, CancellationToken cancellationToken = default) =>
@@ -26,6 +26,6 @@ public class EfContinuationRepository(AppDbContext db) : IContinuationRepository
             from o in db.JobOrders.AsNoTracking()
             where o.IsContinuousWork && o.ContinuationOpenedAt == null
                 && db.JobAssignments.Any(a => a.OrderId == o.OrderId && a.AssignmentStatus == JobAssignmentStatus.InProgress)
-            select new DueContinuation(o.OrderId, o.ScheduledDate, o.ShiftCode)
+            select new DueContinuation(o.OrderId, o.ScheduledDate, o.ShiftCode, o.EndTime)
         ).ToListAsync(cancellationToken);
 }

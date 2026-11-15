@@ -123,7 +123,7 @@ public class OrderCancellationService(
                 return;
 
             case JobOrderStatus.Assigned:
-                var start = BookingWindowPolicy.GetShiftStartUtc(order.ScheduledDate, order.ShiftCode, clock);
+                var start = BookingWindowPolicy.GetJobStartUtc(order, clock); // the job's own start (decisions D34) or the shift start
                 if (start is not null && start.Value - now > TimeSpan.FromHours(_rules.Cancel.FullRefundHoursBefore))
                 {
                     return;
@@ -141,15 +141,13 @@ public class OrderCancellationService(
 
     private CreatedOrder ToOrder(JobOrder order)
     {
-        var start = BookingWindowPolicy.GetShiftStartUtc(order.ScheduledDate, order.ShiftCode, clock)
+        var start = BookingWindowPolicy.GetJobStartUtc(order, clock)
             ?? clock.ToUtc(DateTime.SpecifyKind(order.ScheduledDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified));
-        var end = BookingShifts.GetLocalTimes(order.ShiftCode) is { } times
-            ? clock.ToUtc(DateTime.SpecifyKind(order.ScheduledDate.ToDateTime(times.End), DateTimeKind.Unspecified))
-            : start;
+        var end = BookingWindowPolicy.GetJobEndUtc(order, clock) ?? start;
 
         return new CreatedOrder(
             order.OrderId, order.OrderCode, order.ServiceTier, order.AddressId, order.ScheduledDate, order.ShiftCode, start, end,
             order.AreaSnapshotM2, order.RequiredWorkers, order.RequiredSkill, order.TotalAmount, order.OrderStatus,
-            order.CustomerNote, order.CancelReason, PaymentDeadlineAt: null, order.CreatedAt, order.UpdatedAt);
+            order.CustomerNote, order.CancelReason, PaymentDeadlineAt: null, order.CreatedAt, order.UpdatedAt, order.StartTime, order.EndTime);
     }
 }

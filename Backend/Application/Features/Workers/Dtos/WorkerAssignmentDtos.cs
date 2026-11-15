@@ -45,6 +45,6 @@ public record WorkerAssignmentDetailResponse(
     WorkerPendingExtension? PendingExtension,
     // Decision D32 (ACCEPT-01): the acceptance phase and deadlines, the same block the customer reads; null before the work starts.
     CommonService.Application.Common.Helpers.AcceptanceDto? Acceptance = null,
-    // Decision D35: the 2nd job of a large house (same worker, the next shift); null for any other job.
+    // Decision D36: the 2nd job of a large house (same worker, the next shift); null for any other job.
     CommonService.Application.Features.Booking.ContinuationDto? Continuation = null
 );

@@ -135,7 +135,7 @@ void main() {
     });
 
     test(
-      'a large Economy house is one worker with a possible 2nd job (D35)',
+      'a large Economy house is one worker with a possible 2nd job (D36)',
       () {
         final large = quote(area: 90, continuous: true);
         expect(workersNote(large, options), isNot(contains('cùng lúc')));

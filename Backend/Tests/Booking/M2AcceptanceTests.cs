@@ -467,7 +467,7 @@ public class M2AcceptanceTests
     [InlineData(ServiceTier.Economy, "30", 1, AreaBrackets.UpTo30, 160000, 160000)]
     [InlineData(ServiceTier.Economy, "30.01", 1, AreaBrackets.From31To80, 260000, 260000)]
     [InlineData(ServiceTier.Economy, "80", 1, AreaBrackets.From31To80, 260000, 260000)]
-    [InlineData(ServiceTier.Economy, "80.01", 1, AreaBrackets.Over80, 260000, 520000)] // D35: one worker, priced as 2 units
+    [InlineData(ServiceTier.Economy, "80.01", 1, AreaBrackets.Over80, 260000, 520000)] // D36: one worker, priced as 2 units
     [InlineData(ServiceTier.Premium, "30", 1, AreaBrackets.UpTo30, 240000, 240000)]
     [InlineData(ServiceTier.Premium, "30.01", 1, AreaBrackets.From31To80, 390000, 390000)]
     [InlineData(ServiceTier.Premium, "80", 1, AreaBrackets.From31To80, 390000, 390000)]
@@ -676,7 +676,7 @@ public class M2AcceptanceTests
     [Fact]
     public async Task APaidOrder_CancelledByItsCustomer_IsRefunded100Percent_ExactlyOnce()
     {
-        var (w, order, txn) = await PaidUpToQrAsync(areaM2: 90m); // D35: 1 worker, 520,000
+        var (w, order, txn) = await PaidUpToQrAsync(areaM2: 90m); // D36: 1 worker, 520,000
         await w.SendIpnAsync(txn);
 
         var cancel = await w.Cancellation().CancelAsync(Customer, order.OrderId, new CancelOrderRequest("Change of plans"));

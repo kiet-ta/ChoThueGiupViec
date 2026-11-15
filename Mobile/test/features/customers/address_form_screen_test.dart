@@ -53,6 +53,45 @@ void main() {
       expect(find.textContaining('30,0 m²'), findsWidgets);
     });
 
+    testWidgets('the area labels sit above their fields, not on them (#905)', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: AddressFormScreen(addressService: service),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.dragUntilVisible(
+        find.byKey(const Key('address-floors')),
+        find.byType(ListView).first,
+        const Offset(0, -150),
+      );
+      await tester.pumpAndSettle();
+
+      for (final (key, label) in [
+        ('address-floor-area', 'Mỗi sàn (m²)'),
+        ('address-floors', 'Số tầng'),
+      ]) {
+        final input = find.descendant(
+          of: find.byKey(Key(key)),
+          matching: find.byType(TextField),
+        );
+        final field = tester.widget<TextField>(input);
+        expect(field.decoration?.labelText, isNull, reason: key);
+        expect(
+          tester.getRect(find.text(label)).bottom,
+          lessThanOrEqualTo(tester.getRect(input).top),
+          reason: key,
+        );
+      }
+    });
+
     testWidgets('validates required fields and submits valid form', (
       tester,
     ) async {

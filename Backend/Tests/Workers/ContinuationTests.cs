@@ -14,7 +14,7 @@ using Xunit;
 namespace CommonService.Tests.Workers;
 
 /// <summary>
-/// Decision D35 (LARGE-1W-01, #900): the 2nd job of a large ECONOMY house. No database: the repositories are stubs.
+/// Decision D36 (LARGE-1W-01, #900): the 2nd job of a large ECONOMY house. No database: the repositories are stubs.
 /// Owner rules: the worker has 15 minutes after the shift end to submit the completion, else the 2nd job opens by itself; the first
 /// "not clean" of the customer opens it (instead of a redo); finishing in the first job releases the held next-shift slot.
 /// </summary>
@@ -243,25 +243,49 @@ public class ContinuationTests
     {
         var clock = new FakeClock();
 
-        Assert.Null(ContinuationDto.Describe(false, Day, BookingShifts.Morning, null, false, 4, clock));
+        Assert.Null(ContinuationDto.Describe(false, Day, BookingShifts.Morning, null, null, false, 4, clock));
 
-        var standby = ContinuationDto.Describe(true, Day, BookingShifts.Morning, null, false, 4, clock)!;
+        var standby = ContinuationDto.Describe(true, Day, BookingShifts.Morning, null, null, false, 4, clock)!;
         Assert.Equal(ContinuationDto.Standby, standby.Status);
         Assert.Equal(BookingShifts.Morning, standby.ShiftCode);
         Assert.Equal(new DateTime(2026, 11, 20, 5, 0, 0, DateTimeKind.Utc), standby.WindowStartAt); // 12:00 local, the shift end
         Assert.Equal(new DateTime(2026, 11, 20, 9, 0, 0, DateTimeKind.Utc), standby.WindowEndAt); // 4 hours later
 
-        var opened = ContinuationDto.Describe(true, Day, BookingShifts.Morning, new DateTime(2026, 11, 20, 5, 20, 0, DateTimeKind.Utc), false, 4, clock)!;
+        var opened = ContinuationDto.Describe(true, Day, BookingShifts.Morning, null, new DateTime(2026, 11, 20, 5, 20, 0, DateTimeKind.Utc), false, 4, clock)!;
         Assert.Equal(ContinuationDto.Open, opened.Status);
 
-        var released = ContinuationDto.Describe(true, Day, BookingShifts.Morning, null, true, 4, clock)!;
+        var released = ContinuationDto.Describe(true, Day, BookingShifts.Morning, null, null, true, 4, clock)!;
         Assert.Equal(ContinuationDto.Released, released.Status);
+    }
+
+    [Fact]
+    public void TheWindowFollowsTheEndOfATimedJob_D34()
+    {
+        // A timed job 08:30-11:30 inside the morning shift: the extra hours start at 11:30 local (04:30 UTC), not at the shift end.
+        var wire = ContinuationDto.Describe(true, Day, BookingShifts.Morning, new TimeOnly(11, 30), null, false, 4, new FakeClock())!;
+
+        Assert.Equal(new DateTime(2026, 11, 20, 4, 30, 0, DateTimeKind.Utc), wire.WindowStartAt);
+        Assert.Equal(new DateTime(2026, 11, 20, 8, 30, 0, DateTimeKind.Utc), wire.WindowEndAt);
+    }
+
+    [Fact]
+    public async Task TheSweep_WaitsFifteenMinutesAfterTheEndOfATimedJob_NotAfterTheShift()
+    {
+        // Timed job ending 10:00 local = 03:00 UTC: the 2nd job opens from 03:15 UTC although the shift ends at 12:00.
+        var (service, continuations, clock) = Sweep(new DateTime(2026, 11, 20, 3, 14, 0, DateTimeKind.Utc));
+        continuations.Candidates.Clear();
+        continuations.Candidates.Add(new DueContinuation(OrderId, Day, BookingShifts.Morning, new TimeOnly(10, 0)));
+
+        Assert.Equal(0, await service.OpenDueAsync());
+
+        clock.Set(new DateTime(2026, 11, 20, 3, 15, 0, DateTimeKind.Utc));
+        Assert.Equal(1, await service.OpenDueAsync());
     }
 
     [Fact]
     public void TheWindowFollowsTheConfiguredShiftMaxHours()
     {
-        var wire = ContinuationDto.Describe(true, Day, BookingShifts.Evening, null, false, 3, new FakeClock())!;
+        var wire = ContinuationDto.Describe(true, Day, BookingShifts.Evening, null, null, false, 3, new FakeClock())!;
 
         Assert.Equal(new DateTime(2026, 11, 20, 13, 30, 0, DateTimeKind.Utc), wire.WindowStartAt); // 20:30 local
         Assert.Equal(new DateTime(2026, 11, 20, 16, 30, 0, DateTimeKind.Utc), wire.WindowEndAt);

@@ -82,7 +82,7 @@ public class ShiftPlannerTests
     [InlineData("80.01")]
     [InlineData("120")]
     [InlineData("250")]
-    public void Plan_EconomyLargeArea_OneWorkerPricedAsTwoUnits_D35(string area)
+    public void Plan_EconomyLargeArea_OneWorkerPricedAsTwoUnits_D36(string area)
     {
         var plan = ShiftPlanner.Plan(decimal.Parse(area, System.Globalization.CultureInfo.InvariantCulture), Defaults, ServiceTier.Economy);
 

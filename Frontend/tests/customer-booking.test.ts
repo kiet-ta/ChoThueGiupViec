@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, dayText, firstName, nextOrder, quoteWorkersLabel, shiftBlockedReason, shiftStart, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
+import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, dayText, durationChoices, endTimeOf, firstName, hoursLabel, jobRange, nextOrder, quoteWorkersLabel, shiftBlockedReason, shiftStart, startTimeChoices, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
 import type { OrderSummary } from '../src/features/customer/booking/types.ts'
 
 const morning = { shiftCode: 'SHIFT_MORNING', startLocal: '08:00', endLocal: '12:00' }
@@ -80,7 +80,32 @@ describe('price text and next order', () => {
   it('returns null when nothing is open', () => assert.equal(nextOrder([order({ orderStatus: 'COMPLETED' })], evening, shifts), null))
 })
 
-describe('large house: one worker, a possible 2nd job (decision D35)', () => {
+describe('timed Economy job (decisions D34)', () => {
+  const evening = { shiftCode: 'SHIFT_EVENING', startLocal: '17:30', endLocal: '20:30' }
+  const rules = { shiftMaxHours: 4 }
+  const otherDay = new Date('2026-11-15T03:00:00Z')
+
+  it('offers lengths from 2 h to the shift maximum in half hours', () =>
+    assert.deepEqual(durationChoices(rules), [2, 2.5, 3, 3.5, 4]))
+  it('reads hours and the job time in Vietnamese', () => {
+    assert.equal(hoursLabel(2.5), '2,5 giờ')
+    assert.equal(endTimeOf('08:30', 2.5), '11:00')
+    assert.equal(jobRange('08:30', 3), '08:30 → 11:30 (3 giờ)')
+  })
+  it('keeps the job inside the shift', () => {
+    assert.deepEqual(startTimeChoices('2026-11-20', morning, 3, rules, otherDay), ['08:00', '08:30', '09:00'])
+    assert.deepEqual(startTimeChoices('2026-11-20', evening, 4, rules, otherDay), [])
+  })
+  it('starts at least the lead time from now', () => {
+    // 08:10 in Vietnam: the earliest start is 09:10, so 09:30.
+    const now = new Date('2026-11-15T01:10:00Z')
+    assert.deepEqual(startTimeChoices('2026-11-15', morning, 2, rules, now), ['09:30', '10:00'])
+  })
+  it('explains LEAD_TIME_TOO_SHORT from its code', () =>
+    assert.match(bookingProblem({ status: 409, data: { code: 'LEAD_TIME_TOO_SHORT' } }), /muộn hơn/))
+})
+
+describe('large house: one worker, a possible 2nd job (decision D36)', () => {
   const small = { requiredWorkers: 1, unitPrice: 260000, totalAmount: 260000 }
   const large = { requiredWorkers: 1, unitPrice: 260000, totalAmount: 520000, isContinuousWork: true }
   const premiumLarge = { requiredWorkers: 2, unitPrice: 390000, totalAmount: 780000, isContinuousWork: false }

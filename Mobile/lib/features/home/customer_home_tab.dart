@@ -94,6 +94,13 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   String? _nextError;
   BookingOptions? _options;
   _QuickQuotes? _quotes;
+
+  /// Every saved address, for the address dropdown of the header (MOB-HOME-ADDR-01).
+  List<BookingAddress> _addressList = const [];
+
+  /// The address the prices and "Đặt ca" use: the default one until the customer picks another in the dropdown.
+  /// Picking only changes this screen, never the default address on the server.
+  int? _selectedAddressId;
   String _tier = ServiceTier.economy;
   List<FavoriteWorker> _favoriteList = const [];
 
@@ -165,31 +172,63 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   Future<void> _loadQuotes() async {
     try {
       final list = await _addresses.getAddresses();
+      if (!mounted) return;
       if (list.isEmpty) {
-        if (mounted) setState(() => _quotes = null);
+        setState(() {
+          _addressList = const [];
+          _selectedAddressId = null;
+          _quotes = null;
+        });
         return;
       }
+      // Keep the pick while it still exists; otherwise the default address, then the first one.
       final address = list.firstWhere(
-        (a) => a.isDefault,
-        orElse: () => list.first,
+        (a) => a.addressId == _selectedAddressId,
+        orElse: () =>
+            list.firstWhere((a) => a.isDefault, orElse: () => list.first),
       );
-      final byTier = <String, PriceQuote>{};
-      for (final tier in [ServiceTier.economy, ServiceTier.premium]) {
-        try {
-          byTier[tier] = await _booking.getQuote(
-            addressId: address.addressId,
-            serviceTier: tier,
-          );
-        } catch (_) {}
-      }
-      if (!mounted || byTier.isEmpty) return;
       setState(() {
-        _quotes = _QuickQuotes(address, byTier);
-        if (!byTier.containsKey(_tier)) _tier = byTier.keys.first;
+        _addressList = list;
+        _selectedAddressId = address.addressId;
       });
+      await _quoteFor(address);
     } catch (_) {
       // No prices; the booking card still opens the booking form.
     }
+  }
+
+  /// The server prices of both segments for [address].
+  Future<void> _quoteFor(BookingAddress address) async {
+    final byTier = <String, PriceQuote>{};
+    for (final tier in [ServiceTier.economy, ServiceTier.premium]) {
+      try {
+        byTier[tier] = await _booking.getQuote(
+          addressId: address.addressId,
+          serviceTier: tier,
+        );
+      } catch (_) {}
+    }
+    // A newer pick made while this one was quoting wins.
+    if (!mounted || _selectedAddressId != address.addressId) return;
+    setState(() {
+      _quotes = byTier.isEmpty ? null : _QuickQuotes(address, byTier);
+      if (byTier.isNotEmpty && !byTier.containsKey(_tier)) {
+        _tier = byTier.keys.first;
+      }
+    });
+  }
+
+  void _selectAddress(BookingAddress address) {
+    if (address.addressId == _selectedAddressId) return;
+    setState(() => _selectedAddressId = address.addressId);
+    _quoteFor(address);
+  }
+
+  BookingAddress? get _selectedAddress {
+    for (final a in _addressList) {
+      if (a.addressId == _selectedAddressId) return a;
+    }
+    return null;
   }
 
   Future<void> _loadFavorites() async {
@@ -310,9 +349,9 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
               color: NordicColors.textInverse,
             ),
           ),
-          if (_quotes != null) ...[
+          if (_selectedAddress != null) ...[
             const SizedBox(height: NordicSpace.md),
-            _addressPill(_quotes!.address),
+            _addressRow(_selectedAddress!),
           ],
           const SizedBox(height: NordicSpace.gutter),
           _nextSection(),
@@ -321,14 +360,155 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     );
   }
 
-  Widget _addressPill(BookingAddress address) {
+  /// The address dropdown and, next to it, "Xem chi tiết" to the address book (MOB-HOME-ADDR-01).
+  Widget _addressRow(BookingAddress address) {
+    return Row(
+      children: [
+        Flexible(
+          child: Builder(
+            builder: (pillContext) => _addressPill(pillContext, address),
+          ),
+        ),
+        const SizedBox(width: NordicSpace.xs),
+        Semantics(
+          button: true,
+          label: 'Xem chi tiết địa chỉ',
+          child: Pressable(
+            child: GestureDetector(
+              key: const Key('home-address-details'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _openAddresses,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44),
+                child: Center(
+                  child: ExcludeSemantics(
+                    child: Text(
+                      'Xem chi tiết',
+                      style: NordicTypography.labelMedium.copyWith(
+                        color: NordicColors.textInverse,
+                        decoration: TextDecoration.underline,
+                        decorationColor: NordicColors.onDarkMuted,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The menu value of "Quản lý địa chỉ" (address ids are positive).
+  static const int _manageAddresses = -1;
+
+  /// Opens the saved addresses as a menu right under the pill; the last row goes to the address book.
+  Future<void> _openAddressMenu(BuildContext pillContext) async {
+    final box = pillContext.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final topLeft = box.localToGlobal(
+      Offset(0, box.size.height + NordicSpace.xxs),
+      ancestor: overlay,
+    );
+    final picked = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        topLeft.dx,
+        topLeft.dy,
+        overlay.size.width - topLeft.dx - box.size.width,
+        0,
+      ),
+      color: NordicColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: NordicRadius.fieldAll),
+      constraints: BoxConstraints(
+        minWidth: box.size.width,
+        maxWidth: overlay.size.width - 2 * NordicSpace.gutter,
+      ),
+      items: [
+        for (final a in _addressList)
+          PopupMenuItem<int>(
+            key: Key('home-address-option-${a.addressId}'),
+            value: a.addressId,
+            child: _addressOption(a, a.addressId == _selectedAddressId),
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem<int>(
+          key: const Key('home-address-manage'),
+          value: _manageAddresses,
+          child: Row(
+            children: [
+              const Icon(
+                Icons.edit_location_alt_outlined,
+                size: 20,
+                color: NordicColors.primary,
+              ),
+              const SizedBox(width: NordicSpace.sm),
+              Text(
+                'Quản lý địa chỉ',
+                style: NordicTypography.labelMedium.copyWith(
+                  color: NordicColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (!mounted || picked == null) return;
+    if (picked == _manageAddresses) return _openAddresses();
+    for (final a in _addressList) {
+      if (a.addressId == picked) return _selectAddress(a);
+    }
+  }
+
+  Widget _addressOption(BookingAddress a, bool selected) {
+    return Row(
+      children: [
+        Icon(
+          selected ? Icons.check_circle_rounded : Icons.location_on_outlined,
+          size: 20,
+          color: selected ? NordicColors.primary : NordicColors.textSecondary,
+        ),
+        const SizedBox(width: NordicSpace.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                a.isDefault ? '${a.label} · Mặc định' : a.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: NordicTypography.labelMedium.copyWith(
+                  color: NordicColors.textTitle,
+                ),
+              ),
+              Text(
+                '${a.addressLine} · ${formatArea(a.totalAreaM2)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: NordicTypography.bodySmall.copyWith(
+                  color: NordicColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _addressPill(BuildContext pillContext, BookingAddress address) {
     return Semantics(
       button: true,
-      label: 'Địa chỉ: ${address.addressLine}. Đổi địa chỉ',
+      label: 'Địa chỉ: ${address.addressLine}. Chọn địa chỉ khác',
       child: GlassPanel(
         key: const Key('home-address'),
         pill: true,
-        onTap: _openAddresses,
+        onTap: () => _openAddressMenu(pillContext),
         padding: EdgeInsets.zero,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),

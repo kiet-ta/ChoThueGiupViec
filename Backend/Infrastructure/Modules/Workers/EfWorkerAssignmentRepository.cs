@@ -27,6 +27,9 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
                 slot.ShiftCode,
                 slot.StartTime,
                 slot.EndTime,
+                OrderShift = order.ShiftCode,
+                OrderStart = order.StartTime,
+                OrderEnd = order.EndTime,
                 assignment.AssignmentStatus,
                 assignment.ServiceTier,
                 assignment.PayoutAmount,
@@ -44,20 +47,24 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
             .ToDictionaryAsync(a => a.AddressId, a => a.District, cancellationToken);
 
         // The old inner join dropped a row whose address is missing; keep that.
+        // Decisions D34: a shift can carry several timed jobs; each shows (and is sorted by) its own time.
         return rows
             .Where(r => districts.ContainsKey(r.AddressId))
-            .Select(r => new WorkerAssignmentRow(
-                r.AssignmentId,
-                r.OrderId,
-                r.OrderCode,
-                r.SlotDate,
-                r.ShiftCode,
-                r.StartTime,
-                r.EndTime,
-                r.AssignmentStatus,
-                r.ServiceTier,
-                districts[r.AddressId],
-                r.PayoutAmount))
+            .Select(r => (Row: r, Window: JobWindow.OfAssignment(r.OrderShift, r.OrderStart, r.OrderEnd, r.ShiftCode, r.StartTime, r.EndTime)))
+            .OrderBy(x => x.Row.SlotDate)
+            .ThenBy(x => x.Window.Start)
+            .Select(x => new WorkerAssignmentRow(
+                x.Row.AssignmentId,
+                x.Row.OrderId,
+                x.Row.OrderCode,
+                x.Row.SlotDate,
+                x.Row.ShiftCode,
+                x.Window.Start,
+                x.Window.End,
+                x.Row.AssignmentStatus,
+                x.Row.ServiceTier,
+                districts[x.Row.AddressId],
+                x.Row.PayoutAmount))
             .ToList();
     }
 
@@ -79,6 +86,9 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
                 slot.ShiftCode,
                 slot.StartTime,
                 slot.EndTime,
+                OrderShift = order.ShiftCode,
+                OrderStart = order.StartTime,
+                OrderEnd = order.EndTime,
                 assignment.AssignmentStatus,
                 assignment.ServiceTier,
                 assignment.PayoutAmount,
@@ -109,14 +119,15 @@ public class EfWorkerAssignmentRepository(AppDbContext dbContext) : IWorkerAssig
             .Select(e => new { e.ExtensionId, e.ExtraHours, e.ExtraAmount })
             .FirstOrDefaultAsync(cancellationToken);
 
+        var window = JobWindow.OfAssignment(row.OrderShift, row.OrderStart, row.OrderEnd, row.ShiftCode, row.StartTime, row.EndTime);
         return new WorkerAssignmentDetailRow(
             row.AssignmentId,
             row.OrderId,
             row.OrderCode,
             row.SlotDate,
             row.ShiftCode,
-            row.StartTime,
-            row.EndTime,
+            window.Start,
+            window.End,
             row.AssignmentStatus,
             row.ServiceTier,
             address.AddressLine,

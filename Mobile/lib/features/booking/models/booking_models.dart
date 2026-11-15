@@ -28,6 +28,10 @@ class OrderStatus {
 
 int _int(dynamic v) => (v as num?)?.toInt() ?? 0;
 double _double(dynamic v) => (v as num?)?.toDouble() ?? 0;
+int _intOr(dynamic v, int fallback) => (v as num?)?.toInt() ?? fallback;
+double _doubleOr(dynamic v, double fallback) =>
+    (v as num?)?.toDouble() ?? fallback;
+double? _doubleOrNull(dynamic v) => (v as num?)?.toDouble();
 DateTime? _date(dynamic v) =>
     v is String ? DateTime.tryParse(v)?.toUtc() : null;
 
@@ -60,6 +64,13 @@ class BookingOptions {
   final int paymentQrExpiryMinutes;
   final bool sandbox;
 
+  /// Decisions D34 (Cơ bản only): start times are on this step, durations go from [minDurationHours] to [shiftMaxHours] in
+  /// [durationStepHours], and a job starts at least [economyMinLeadMinutes] from now. Defaults match the server's.
+  final int startStepMinutes;
+  final double minDurationHours;
+  final double durationStepHours;
+  final int economyMinLeadMinutes;
+
   const BookingOptions({
     required this.serviceTiers,
     required this.shifts,
@@ -68,6 +79,10 @@ class BookingOptions {
     required this.standardMaxAreaM2,
     required this.paymentQrExpiryMinutes,
     required this.sandbox,
+    this.startStepMinutes = 30,
+    this.minDurationHours = 2,
+    this.durationStepHours = 0.5,
+    this.economyMinLeadMinutes = 60,
   });
 
   factory BookingOptions.fromJson(Map<String, dynamic> json) => BookingOptions(
@@ -83,6 +98,10 @@ class BookingOptions {
     standardMaxAreaM2: _double(json['standardMaxAreaM2']),
     paymentQrExpiryMinutes: _int(json['paymentQrExpiryMinutes']),
     sandbox: json['sandbox'] as bool? ?? true,
+    startStepMinutes: _intOr(json['startStepMinutes'], 30),
+    minDurationHours: _doubleOr(json['minDurationHours'], 2),
+    durationStepHours: _doubleOr(json['durationStepHours'], 0.5),
+    economyMinLeadMinutes: _intOr(json['economyMinLeadMinutes'], 60),
   );
 }
 
@@ -97,7 +116,11 @@ class PriceQuote {
   final int totalAmount;
   final String currency;
 
-  /// D35: an ECONOMY large house is done by ONE worker who may need a 2nd consecutive job (the next shift of the day).
+  /// Decisions D34: the hours this price is for (null = the whole shift) and the duration suggested for the home's area.
+  final double? durationHours;
+  final double? suggestedDurationHours;
+
+  /// D36: an ECONOMY large house is done by ONE worker who may need a 2nd consecutive job (the next shift of the day).
   final bool isContinuousWork;
 
   const PriceQuote({
@@ -109,6 +132,8 @@ class PriceQuote {
     required this.unitPrice,
     required this.totalAmount,
     required this.currency,
+    this.durationHours,
+    this.suggestedDurationHours,
     this.isContinuousWork = false,
   });
 
@@ -121,6 +146,8 @@ class PriceQuote {
     unitPrice: _int(json['unitPrice']),
     totalAmount: _int(json['totalAmount']),
     currency: json['currency'] as String? ?? 'VND',
+    durationHours: _doubleOrNull(json['durationHours']),
+    suggestedDurationHours: _doubleOrNull(json['suggestedDurationHours']),
     isContinuousWork: json['isContinuousWork'] as bool? ?? false,
   );
 }
@@ -146,7 +173,12 @@ class BookingOrder {
   final DateTime? paymentDeadlineAt;
   final DateTime? createdAt;
 
-  /// D35: a large ECONOMY house (one worker, a possible 2nd consecutive job).
+  /// Decisions D34: the job's local start/end ("HH:mm") when the customer picked a time; null = the whole shift.
+  final String? startTime;
+  final String? endTime;
+  final double? durationHours;
+
+  /// D36: a large ECONOMY house (one worker, a possible 2nd consecutive job).
   final bool isContinuousWork;
 
   const BookingOrder({
@@ -166,6 +198,9 @@ class BookingOrder {
     required this.cancelReason,
     required this.paymentDeadlineAt,
     required this.createdAt,
+    this.startTime,
+    this.endTime,
+    this.durationHours,
     this.isContinuousWork = false,
   });
 
@@ -186,6 +221,9 @@ class BookingOrder {
     cancelReason: json['cancelReason'] as String?,
     paymentDeadlineAt: _date(json['paymentDeadlineAt']),
     createdAt: _date(json['createdAt']),
+    startTime: json['startTime'] as String?,
+    endTime: json['endTime'] as String?,
+    durationHours: _doubleOrNull(json['durationHours']),
     isContinuousWork: json['isContinuousWork'] as bool? ?? false,
   );
 }
@@ -204,7 +242,11 @@ class CreateOrderInput {
   final int? preferredWorkerId;
   final int? previousOrderId;
 
-  /// D35: the customer agreed that a large house is done by one worker who may work two consecutive jobs.
+  /// Decisions D34 (Cơ bản only): the local start "HH:mm" and the length in hours; both or neither.
+  final String? startTime;
+  final double? durationHours;
+
+  /// D36: the customer agreed that a large house is done by one worker who may work two consecutive jobs.
   final bool acceptsContinuousWork;
 
   const CreateOrderInput({
@@ -215,6 +257,8 @@ class CreateOrderInput {
     this.customerNote,
     this.preferredWorkerId,
     this.previousOrderId,
+    this.startTime,
+    this.durationHours,
     this.acceptsContinuousWork = false,
   });
 
@@ -226,6 +270,8 @@ class CreateOrderInput {
     'customerNote': customerNote,
     'preferredWorkerId': ?preferredWorkerId,
     'previousOrderId': ?previousOrderId,
+    'startTime': ?startTime,
+    'durationHours': ?durationHours,
     if (acceptsContinuousWork) 'acceptsContinuousWork': true,
   };
 }
@@ -438,7 +484,7 @@ class OrderExtension {
   );
 }
 
-/// The 2nd job of a large ECONOMY house (decision D35): extra hours right after the shift, no extra charge. `STANDBY` (not opened yet), `OPEN`
+/// The 2nd job of a large ECONOMY house (decision D36): extra hours right after the shift, no extra charge. `STANDBY` (not opened yet), `OPEN`
 /// (opened) or `RELEASED` (the work ended in the first job). The window runs from the shift end.
 class OrderContinuation {
   static const standby = 'STANDBY';
@@ -479,7 +525,10 @@ class OrderProgress {
   final List<ProgressAssignment> assignments;
   final OrderExtension? extension;
 
-  /// D35: null unless the order is a large ECONOMY house.
+  /// Decisions D35: while a seat a worker cancelled is re-dispatched, when the search stops (UTC); null otherwise.
+  final DateTime? substituteSearchUntil;
+
+  /// D36: null unless the order is a large ECONOMY house.
   final OrderContinuation? continuation;
 
   const OrderProgress({
@@ -488,6 +537,7 @@ class OrderProgress {
     required this.requiredWorkers,
     required this.assignments,
     required this.extension,
+    this.substituteSearchUntil,
     this.continuation,
   });
 
@@ -502,6 +552,7 @@ class OrderProgress {
     extension: json['extension'] is Map<String, dynamic>
         ? OrderExtension.fromJson(json['extension'] as Map<String, dynamic>)
         : null,
+    substituteSearchUntil: _date(json['substituteSearchUntil']),
     continuation: OrderContinuation.fromJson(json['continuation']),
   );
 }

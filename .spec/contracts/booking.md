@@ -82,9 +82,11 @@ Same codes as `workers.md` §2.3 (`BOOKING_SLOT.shift_code`), local time `Asia/H
       "acceptedAt": "ISO-8601 UTC | null", "completedAt": "ISO-8601 UTC | null"
     }
   ],
-  "extension": "Extension | null"
+  "extension": "Extension | null",
+  "substituteSearchUntil": "ISO-8601 UTC | null"
 }
 ```
+- `substituteSearchUntil` (decisions D35): set while the order is `DISPATCHING` after a worker cancelled a seat (a `CANCELLED_BY_WORKER` assignment is listed) = job start - `Cancel.RedispatchCutoffMinutes` (30); `null` otherwise. At that moment an unfilled seat cancels the order with a 100 % refund.
 - Only assignments **not** in `OFFERED`, `CANCELLED`, `REASSIGNED` are listed (a customer never sees who was merely offered the job, Q22 D1).
 - `workerName` / `workerRatingAvg` come from the `IWorkerProfileQuery` port (M4, Q21 C3), never from the `WORKER` table. No worker phone here: phone visibility is Dispatch's rule (Q17, `dispatch.md`).
 
@@ -118,8 +120,9 @@ Static booking choices so the app hard-codes nothing (G-4). 200 `data`:
 ```
 (values from `BusinessRules`: `Premium.MinLeadHours`, `Shift.MaxHours`, `Area.StandardMaxM2`, `Payments.QrExpiryMinutes`; `sandbox` is always `true` in the MVP, G-1.)
 
-### 3.2 `GET /api/v1/booking/price-quote?addressId=&serviceTier=` (BE-M2-02, MOB-M2-02)
+### 3.2 `GET /api/v1/booking/price-quote?addressId=&serviceTier=&durationHours=` (BE-M2-02, MOB-M2-02, BOOK-TIME-01)
 Shows the fixed price **before** paying (PRD §4.1, Q01). 200 `data`: `PriceQuote`. Read only, creates nothing; the price is only frozen by 3.3.
+Decisions D34: optional `durationHours` (ECONOMY only, 2 to 4 in 0.5 steps; else 400) prices a timed job: `totalAmount = Vnd.Round(unitPrice / Shift.MaxHours x durationHours) x requiredWorkers`, echoed as `durationHours`. Every ECONOMY quote also carries `suggestedDurationHours` (area per worker / `Booking.M2PerHour` 20, rounded up to 0.5 h, in [2, 4]); both are null for PREMIUM.
 
 | Status | Condition |
 |---|---|
@@ -136,9 +139,11 @@ Request
   "addressId": 0, "serviceTier": "ECONOMY | PREMIUM",
   "scheduledDate": "2026-10-15", "shiftCode": "SHIFT_MORNING",
   "customerNote": "string | null", "requiredSkill": "string | null",
-  "preferredWorkerId": "int | null", "previousOrderId": "long | null"
+  "preferredWorkerId": "int | null", "previousOrderId": "long | null",
+  "startTime": "HH:mm | null", "durationHours": "decimal | null"
 }
 ```
+`startTime` + `durationHours` (decisions D34, optional, ECONOMY only, both or neither): a timed job inside the shift. Start on a 30-minute step, duration 2 to 4 h in 0.5 steps, `[start, start + duration]` inside `shiftCode`'s times (400 on `startTime` / `durationHours` otherwise; PREMIUM + a time is 400). The job must start at least `Booking.EconomyMinLeadMinutes` (60) after now (409 `LEAD_TIME_TOO_SHORT`). Price per hour as in 3.2. Stored in `JOB_ORDER.start_time` / `end_time`; the response's `shiftStartAt` / `shiftEndAt` are the job's start and end. Without a time the order is the whole shift, exactly as before.
 `preferredWorkerId` (optional, ECONOMY only): one of the caller's favorite workers (`customers.md` 2.3), or a worker with a COMPLETED assignment on the caller's `previousOrderId`. The latter does not change the caller's favorites. Dispatch offers that worker the first open seat before the 5 -> 7 -> 10 km scan, when they have not had the order yet, are free for the shift, within 10 km and pass the usual eligibility; otherwise (or after a decline / timeout) dispatch goes on as usual. It is a wish, not a guarantee. Stored in `JOB_ORDER.preferred_worker_id` (INT NULL, plain id).
 Response **201** `data`: `Order` (`orderStatus = PENDING_PAYMENT`). The client then asks for the QR (`payments.md` §2.1).
 
@@ -155,7 +160,7 @@ Rules (in this order; nothing is written when one fails):
 |---|---|
 | 400 | validation (O5) |
 | 404 | address not found / not owned; `preferredWorkerId` is neither a favorite nor a completed worker on the caller's previous order |
-| 409 | `data.code` = `SHIFT_IN_PAST` \| `PREMIUM_LEAD_TIME` \| `FULLY_BOOKED` |
+| 409 | `data.code` = `SHIFT_IN_PAST` \| `PREMIUM_LEAD_TIME` \| `LEAD_TIME_TOO_SHORT` (D34) \| `FULLY_BOOKED` |
 
 Business 409s carry `data: { "code": "<CODE>" }` so clients branch on the code, never on `message` (same pattern as `admin.md` `failedCriteria`).
 
@@ -242,7 +247,7 @@ Records are those of `Backend/Domain/Events/*.cs` (BASE-04); this contract does 
 | **B1** | Shift codes differ: `workers.md` §2.3 uses `SHIFT_MORNING / SHIFT_AFTERNOON / SHIFT_EVENING`, the Dispatch code and tests use `SANG / CHIEU / TOI` (e.g. `Backend/Application/Features/Dispatch/MilestoneFailoverService.cs:317`). `JOB_ORDER.shift_code` and `BOOKING_SLOT.shift_code` must match or no slot is ever found. | Use the `workers.md` codes everywhere; M3 aligns its code in a fix ticket. One constant list owned by M1 (Domain) would avoid a third spelling. |
 | **B2** | Booking may not read `CUSTOMER_ADDRESS` (`customers.md` §3) but needs ownership, `totalAreaM2` and coordinates. No such port exists in `Application/Interfaces/Ports`. | New read port `ICustomerAddressQuery.GetOwnedAsync(customerId, addressId)` -> `{ addressId, totalAreaM2, latitude, longitude }` or null; implementer M1, Fake first; via Scope exception on BASE-03. |
 | **B3** | Economy has no lead time or horizon in the PRD/decisions. | Economy: shift start must be in the future only; booking horizon 14 days for both tiers as a new key `Booking.MaxDaysAhead` (14) - **suggestion**, needs a `decisions.md` entry. |
-| **B4** | Who moves `PAID -> DISPATCHING`, and how does Booking learn a seat was lost (worker cancel, incident, reassignment, Q22 D7)? No event carries those. | Booking sets `DISPATCHING` in the same transaction that publishes `OrderPaid` (`PAID` is then only visible in history). For seat loss M3 publishes a new event `AssignmentSeatLost { AssignmentId, OrderId, Reason }` (BASE-04 Scope exception) or Booking re-syncs on `IncidentReported`. |
+| **B4** | Who moves `PAID -> DISPATCHING`, and how does Booking learn a seat was lost (worker cancel, incident, reassignment, Q22 D7)? No event carries those. | Booking sets `DISPATCHING` in the same transaction that publishes `OrderPaid` (`PAID` is then only visible in history). **Worker cancel: closed by decisions D35** — Dispatch moves the order `ASSIGNED -> DISPATCHING` in the cancel transaction (conditional update, like its `DISPATCHING -> ASSIGNED`) and publishes `AssignmentCancelledByWorker`; an unfilled seat ends in `AssignmentFailed`. Incident / reassignment still open. |
 | **B5** | `ext_status` / `worker_decision` value lists are not defined anywhere (columns are free strings). | `ext_status`: `PENDING_PAYMENT`, `PAID`, `ACCEPTED`, `DECLINED`, `EXPIRED`; `worker_decision`: `PENDING`, `ACCEPTED`, `DECLINED` (matches `workers.md` §2.6.1 `DECLINED`). M1 adds enums. |
 | **B6** | `requiredSkill` (`JOB_ORDER.required_skill`, PRD §2.5 skill label) - free text or a Skill catalog id (M5)? | Premium only, a skill **name** from M5's catalog, validated through M5 when its contract exists; until then optional and not validated. |
 | **B7** | `order_code` format (`VARCHAR(20)`, UNIQUE) is not defined. | `GV` + `yyMMdd` (local date) + 6 random uppercase alphanumerics, e.g. `GV261015K3P9QZ` (14 chars); retry on UNIQUE clash. |
@@ -254,7 +259,7 @@ Records are those of `Backend/Domain/Events/*.cs` (BASE-04); this contract does 
 
 ---
 
-## D35 addendum: large ECONOMY house (LARGE-1W-01, #900)
+## D36 addendum: large ECONOMY house (LARGE-1W-01, #900)
 - `GET /api/v1/booking/price-quote` and `Order` gain `isContinuousWork` (bool): true for an ECONOMY order of a house over `standardMaxAreaM2`. Such an order has `requiredWorkers = 1` and `totalAmount = unitPrice x 2` (one payment, decisions D35). PREMIUM keeps `requiredWorkers = 2`.
 - `POST /api/v1/booking/orders`: body gains `acceptsContinuousWork` (bool). For an `isContinuousWork` order it must be `true`, otherwise **400** with the field error `acceptsContinuousWork`. Every shift can be booked for it, the evening one too.
 - `GET /api/v1/booking/orders/{orderId}/progress` gains `continuation` (null unless `isContinuousWork`): `{ "status": "STANDBY" | "OPEN" | "RELEASED", "shiftCode", "windowStartAt", "windowEndAt", "openedAt" }`. The 2nd job is extra hours right after the shift: `windowStartAt` = the shift end, `windowEndAt` = that + `shiftMaxHours`. `STANDBY`: not opened; `OPEN`: opened (same worker, no extra charge); `RELEASED`: the order ended (completed or cancelled) without it.

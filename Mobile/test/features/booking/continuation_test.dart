@@ -4,7 +4,7 @@ import 'package:mobile/features/booking/logic/booking_logic.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/workers/models/worker_assignment_models.dart';
 
-/// D35 (LARGE-1W-01, #900): the 2nd job of a large ECONOMY house (extra hours right after the shift), as the customer and the worker read it.
+/// D36 (LARGE-1W-01, #900): the 2nd job of a large ECONOMY house (extra hours right after the shift), as the customer and the worker read it.
 void main() {
   group('customer', () {
     test('reads the continuation of the order progress', () {

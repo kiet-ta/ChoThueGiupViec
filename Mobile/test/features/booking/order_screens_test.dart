@@ -96,6 +96,7 @@ class FakeOrderService implements IOrderService {
   String? cancelReason;
   List<ProgressAssignment> workers = [];
   OrderExtension? extension;
+  DateTime? substituteSearchUntil;
 
   Object? loadError;
   Object? optionsError;
@@ -146,6 +147,7 @@ class FakeOrderService implements IOrderService {
             requiredWorkers: 1,
             assignments: workers,
             extension: extension,
+            substituteSearchUntil: substituteSearchUntil,
           ),
         );
 
@@ -180,6 +182,9 @@ class FakeOrderService implements IOrderService {
     return Future.value(extension!);
   }
 
+  /// Pages from this one on fail (a later page failing while page 1 worked).
+  int? failFromPage;
+
   @override
   Future<OrderPage> listOrders({
     int page = 1,
@@ -189,6 +194,9 @@ class FakeOrderService implements IOrderService {
     pagesAsked.add(page);
     statusesAsked.add(status);
     if (listError != null) return Future.error(listError!);
+    if (failFromPage != null && page >= failFromPage!) {
+      return Future.error(const ApiException(500, 'boom'));
+    }
     final matching = status == null
         ? all
         : all.where((o) => o.orderStatus == status).toList();
@@ -368,6 +376,29 @@ void main() {
 
         expect(find.byKey(const Key('arrival-title-7')), findsOneWidget);
         expect(find.byKey(const Key('arrival-btn-start-7')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'D35: after the helper cancelled it says until when a substitute is searched for, and the order can still be cancelled',
+      (tester) async {
+        final service = FakeOrderService()
+          ..substituteSearchUntil = DateTime.utc(2026, 11, 20, 0, 30);
+        await pumpDetail(tester, service);
+
+        expect(find.byKey(const Key('substitute-search')), findsOneWidget);
+        expect(find.text('Đang tìm người làm thay'), findsOneWidget);
+        expect(find.textContaining('tới 07:30'), findsOneWidget);
+        expect(find.byKey(const Key('open-cancel')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a dispatching order without a cancelled helper has no such card',
+      (tester) async {
+        await pumpDetail(tester, FakeOrderService());
+
+        expect(find.byKey(const Key('substitute-search')), findsNothing);
       },
     );
 
@@ -948,25 +979,45 @@ void main() {
       expect(opened.single.orderId, 2);
     });
 
-    testWidgets('"Xem thêm" loads the next page until everything is shown', (
-      tester,
-    ) async {
-      final service = FakeOrderService()
-        ..all = [
-          for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
-        ];
-      await pumpHistory(tester, service);
+    testWidgets(
+      'near the end the list loads the next page by itself, once, with no button (MOB-PAGING-01)',
+      (tester) async {
+        final service = FakeOrderService()
+          ..all = [
+            for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
+          ];
+        await pumpHistory(tester, service);
 
-      expect(textOf(tester, 'history-count'), '20 / 25 đơn');
-      expect(find.byKey(const Key('order-21')), findsNothing);
+        expect(service.pagesAsked, [1, 2]);
+        expect(textOf(tester, 'history-count'), '25 đơn');
+        expect(find.byKey(const Key('order-25')), findsOneWidget);
+        expect(find.byKey(const Key('history-more')), findsNothing);
+        expect(find.text('Xem thêm'), findsNothing);
+        expect(find.byKey(const Key('history-more-loading')), findsNothing);
+      },
+    );
 
-      await tapKey(tester, 'history-more');
+    testWidgets(
+      'pulling down at the top reloads page 1 and replaces the list (MOB-PAGING-01)',
+      (tester) async {
+        final service = FakeOrderService()
+          ..all = [
+            for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
+          ];
+        await pumpHistory(tester, service);
+        service.pagesAsked.clear();
 
-      expect(service.pagesAsked, [1, 2]);
-      expect(textOf(tester, 'history-count'), '25 đơn');
-      expect(find.byKey(const Key('order-25')), findsOneWidget);
-      expect(find.byKey(const Key('history-more')), findsNothing);
-    });
+        // The pull gesture itself is Flutter's RefreshIndicator; this runs what it calls.
+        tester
+            .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+            .show();
+        await tester.pumpAndSettle();
+
+        expect(service.pagesAsked.first, 1);
+        expect(textOf(tester, 'history-count'), '25 đơn');
+        expect(find.byKey(const Key('order-25')), findsOneWidget);
+      },
+    );
 
     testWidgets('a failed next page keeps the list and can be tried again', (
       tester,
@@ -974,15 +1025,17 @@ void main() {
       final service = FakeOrderService()
         ..all = [
           for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
-        ];
+        ]
+        ..failFromPage = 2;
       await pumpHistory(tester, service);
 
-      service.listError = const ApiException(500, 'boom');
-      await tapKey(tester, 'history-more');
+      // The failed page is not asked again by itself; "Thử lại" asks for it.
+      expect(service.pagesAsked, [1, 2]);
       expect(textOf(tester, 'history-more-error'), contains('Máy chủ gặp lỗi'));
       expect(find.byKey(const Key('order-20')), findsOneWidget);
+      expect(find.text('Thử lại'), findsOneWidget);
 
-      service.listError = null;
+      service.failFromPage = null;
       await tapKey(tester, 'history-more');
       expect(textOf(tester, 'history-count'), '25 đơn');
     });

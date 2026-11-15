@@ -998,9 +998,7 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PayoutItemId");
 
-                    b.HasIndex("SlotId")
-                        .IsUnique()
-                        .HasFilter("[assignment_status] <> 'CANCELLED' AND [assignment_status] <> 'CANCELLED_BY_WORKER' AND [assignment_status] <> 'REASSIGNED'");
+                    b.HasIndex("SlotId");
 
                     b.HasIndex("WorkerId");
 
@@ -1050,6 +1048,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("customer_note");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time(0)")
+                        .HasColumnName("end_time");
 
                     b.Property<bool>("IsContinuousWork")
                         .ValueGeneratedOnAdd()
@@ -1102,6 +1104,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(20)")
                         .HasColumnName("shift_code");
+
+                    b.Property<TimeOnly?>("StartTime")
+                        .HasColumnType("time(0)")
+                        .HasColumnName("start_time");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)

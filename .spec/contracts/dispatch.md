@@ -114,6 +114,8 @@ Báo cáo sự cố bất khả kháng trên đường hoặc tại nơi làm (B
 
 > **Tự động nhận đơn (DISPATCH-AUTO-01, #890, decisions D33):** thợ tự do bật `PUT /api/v1/workers/me/auto-accept` (workers.md 2.3C) thì offer Economy vẫn được tạo (`OFFERED`) rồi được nhận ngay qua đúng luồng `accept` (`ASSIGNED`, slot `BOOKED`, `JobAssigned`); thợ nhận thông báo realtime topic `dispatch.auto_accepted` (`data.assignmentId`, `data.orderId`) và không có gì trong `offers/current`. Nhận tự động thất bại thì offer vẫn mở 30s như thường. Không áp dụng cho offer ca liên tiếp BR-02 và cho Premium. Thứ tự ứng viên không đổi (D30).
 
+> **Đơn có giờ cụ thể (BOOK-TIME-01, #895, decisions D34):** đơn Economy có `startTime` + `durationHours` là một khoảng giờ nằm trong ca. Offer và accept của đơn này **không** đổi slot (slot vẫn `AVAILABLE`, ca vẫn nhận đơn khác). Thợ chỉ là ứng viên khi không có job sống nào cùng ngày chồng lên khoảng giờ của đơn (mỗi bên nới `Booking.TravelBufferMinutes` = 30 phút) và tổng giờ job trong ngày <= `Worker.MaxJobHoursPerDay` (8); kiểm tra lặp lại trong transaction tạo offer sau khi khoá dòng `WORKER`. `JobOfferDto` hiện giờ của chính đơn (không phải giờ ca). Đơn cả ca (không có giờ), Premium, offer ca liên tiếp BR-02 và cứu hộ khẩn cấp giữ nguyên `HELD -> BOOKED`.
+
 #### `GET /api/v1/dispatch/offers/current`
 Lấy job offer đang chờ thợ phản hồi (nếu có). Trả về `data = null` nếu thợ không có offer nào đang active.
 
@@ -201,6 +203,45 @@ Báo "Khách vắng mặt" (BR-05, Q10).
 - Response 200: `ApiResponse<CustomerAbsentReportDto>`
 - Mã lỗi:
   - `409`: Chưa đủ 15 phút hoặc chưa thực hiện đủ 2 cuộc gọi hệ thống (`CHECK_IN_LOG.call_attempts < 2`).
+
+#### `GET /api/v1/dispatch/assignments/{assignmentId}/cancel-preview`
+Thợ tự do xem hậu quả trước khi hủy ca đã nhận (decisions D35). Không thay đổi gì.
+
+- Response 200: `ApiResponse<WorkerCancelPreviewDto>`
+```json
+{
+  "assignmentId": 1001,
+  "cancelCountInWindow": 2,
+  "lockCount": 3,
+  "windowDays": 30,
+  "willLockAccount": true,
+  "autoAcceptOn": true,
+  "jobStartAt": "2026-11-20T01:00:00Z",
+  "substituteSearchPossible": true
+}
+```
+- Lỗi giống endpoint hủy bên dưới (403 / 404 / 409).
+
+#### `POST /api/v1/dispatch/assignments/{assignmentId}/cancel`
+Thợ tự do hủy ca đã nhận, trước giờ bắt đầu T (Q15, decisions D35).
+
+- Request body: `{ "reason": "string (1-255)" }`
+- Hiệu ứng (một transaction): ca -> `CANCELLED_BY_WORKER`, slot trả lại (`BOOKED -> AVAILABLE`), đơn -> `DISPATCHING`, tắt "Tự động nhận đơn"; vi phạm thứ `Cancel.WorkerCancelLockCount` (3) trong `Cancel.WorkerCancelWindowDays` (30) ngày khóa tài khoản (`LOCKED`, Admin mở khóa). Mỗi lần hủy tính 1, không phạt tiền.
+- Sau commit: phát `AssignmentCancelledByWorker`; nếu còn trước `T - Cancel.RedispatchCutoffMinutes` (30) thì tìm thợ thay ngay cho đúng chỗ đó (không mời lại thợ vừa hủy) và báo khách `dispatch.worker_cancelled`; nếu đã qua mốc thì phát `AssignmentFailed` (`WORKER_CANCELLED_NO_SUBSTITUTE`) -> Booking hủy đơn, hoàn 100 % tự động.
+- Response 200: `ApiResponse<WorkerCancelResultDto>`
+```json
+{
+  "assignmentId": 1001,
+  "status": "CANCELLED_BY_WORKER",
+  "cancelCountInWindow": 1,
+  "lockCount": 3,
+  "windowDays": 30,
+  "accountLocked": false,
+  "orderOutcome": "REDISPATCHING | CANCELLED_REFUNDED",
+  "substituteSearchUntil": "2026-11-20T00:30:00Z | null"
+}
+```
+- Mã lỗi: `400` lý do rỗng / quá 255 ký tự; `403` thợ doanh nghiệp (SLA, Q09); `404` không phải ca của thợ; `409` `ASSIGNMENT_STATE_INVALID` (không còn `ASSIGNED`) hoặc `JOB_ALREADY_STARTED` (đã tới T: luồng vắng mặt Q10).
 
 #### `POST /api/v1/dispatch/assignments/{assignmentId}/incidents`
 Báo sự cố bất khả kháng trên đường hoặc hiện trường (BR-10).
@@ -378,9 +419,14 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 - `WorkerCheckedIn(CheckInResultDto result)`: Thợ đã có mặt tại nhà.
 - `IncidentAlert(IncidentSummaryDto alert)`: Thông báo thợ gặp sự cố + thời gian dự kiến đổi thợ.
 - `DispatchTimeoutCancelled(double refundAmount)`: Quá 10km không có thợ -> tự động hủy đơn và hoàn tiền 100%.
+- Thông báo (`INotificationService`, decisions D35) khi thợ hủy ca: `dispatch.worker_cancelled` (đang tìm thợ thay, kèm giờ dừng tìm), `dispatch.substitute_found`, `dispatch.substitute_not_found` (đơn đã hủy, hoàn 100 %). `data.orderId` luôn có.
+
+### Events (decisions D35)
+- **Publishes** `AssignmentCancelledByWorker { AssignmentId, OrderId, WorkerId, AssignmentSeq, Reason, CancelCount, WorkerLocked, CancelledAtUtc }` sau commit hủy ca của thợ.
+- **Publishes** `AssignmentFailed { OrderId, "WORKER_CANCELLED_NO_SUBSTITUTE", FailedAtUtc }` khi chỗ bị hủy chưa có thợ thay lúc `T - Cancel.RedispatchCutoffMinutes` (sweep 5 s của `OfferExpiryWorker`).
 
 ---
 
-## D35 addendum: the offer of a large ECONOMY house (LARGE-1W-01, #900)
+## D36 addendum: the offer of a large ECONOMY house (LARGE-1W-01, #900)
 - An order with `isContinuousWork` is one seat (`requiredWorkers = 1`) offered exactly like any ECONOMY order (30 s, auto-accept D33); the dispatch changes nothing and holds no slot of another shift. Its single assignment has `grossAmount` = the whole total.
 - The 2nd job (extra hours right after the shift) opens after `Dispatch.ContinuationConfirmMinutes` (15) past the shift end if the assignment is still `IN_PROGRESS` (sweep every minute), or on the customer's first "not clean" (`workers.md` 2.5.3).

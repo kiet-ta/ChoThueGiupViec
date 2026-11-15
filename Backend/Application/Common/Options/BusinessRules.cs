@@ -75,7 +75,7 @@ public class DispatchRules
     public int OfferTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
-    /// D35: after the end of the shift of a large ECONOMY house (one worker), the worker has this many minutes to run
+    /// D36: after the end of the shift of a large ECONOMY house (one worker), the worker has this many minutes to run
     /// <c>submit-completion</c>; if the job is still <c>IN_PROGRESS</c> then, the 2nd job opens by itself (owner decision 2026-11-15).
     /// </summary>
     public int ContinuationConfirmMinutes { get; set; } = 15;
@@ -187,6 +187,18 @@ public class BookingRules
 {
     /// <summary>Booking horizon in days for both tiers (contract booking.md B3).</summary>
     public int MaxDaysAhead { get; set; } = 14;
+
+    /// <summary>A timed Economy job (decisions D34) must start at least this many minutes from now.</summary>
+    public int EconomyMinLeadMinutes { get; set; } = 60;
+
+    /// <summary>Shortest timed job in hours (decisions D34, the 2 h package of the market).</summary>
+    public decimal MinDurationHours { get; set; } = 2m;
+
+    /// <summary>Area one worker cleans in one hour; the suggested duration is area per worker / this, rounded up to 0.5 h (D34).</summary>
+    public decimal M2PerHour { get; set; } = 20m;
+
+    /// <summary>Free time kept before and after every timed job of a worker for travel (decisions D34).</summary>
+    public int TravelBufferMinutes { get; set; } = 30;
 }
 
 public class RatingMinAvgAfterJobsRules
@@ -209,6 +221,12 @@ public class CancelRules
     public decimal LateFeeRate { get; set; } = 0.40m;
     public int WorkerCancelLockCount { get; set; } = 3;
     public int WorkerCancelWindowDays { get; set; } = 30;
+
+    /// <summary>
+    /// Decisions D35: after a freelancer cancels, the lost seat is re-dispatched until this many minutes before the job start; a seat
+    /// still open then fails the order (automatic 100 % refund). A cancel inside this window fails the order at once.
+    /// </summary>
+    public int RedispatchCutoffMinutes { get; set; } = 30;
 }
 
 public class AuthRules
@@ -248,6 +266,9 @@ public class WorkerRules
 {
     /// <summary>After a request to change the payout account is sent, no new request can be sent for this many days (decided with Duy: 15).</summary>
     public int BankChangeLockDays { get; set; } = 15;
+
+    /// <summary>Most hours of live jobs one worker may hold on one day (decisions D34).</summary>
+    public int MaxJobHoursPerDay { get; set; } = 8;
 }
 
 public class CustomerRules

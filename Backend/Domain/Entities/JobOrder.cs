@@ -26,6 +26,15 @@ public partial class JobOrder
     /// <summary>job_order.shift_code VARCHAR(10)</summary>
     public string ShiftCode { get; set; } = string.Empty;
 
+    /// <summary>
+    /// job_order.start_time TIME(0) NULL: local start of a timed job inside the shift (decisions D34). Null together with
+    /// <see cref="EndTime"/> = the whole shift (older orders, Premium).
+    /// </summary>
+    public TimeOnly? StartTime { get; set; }
+
+    /// <summary>job_order.end_time TIME(0) NULL: local end of a timed job (decisions D34).</summary>
+    public TimeOnly? EndTime { get; set; }
+
     /// <summary>job_order.area_snapshot_m2 DECIMAL(8,2)</summary>
     public decimal AreaSnapshotM2 { get; set; }
 
@@ -60,7 +69,7 @@ public partial class JobOrder
     public DateTime UpdatedAt { get; set; }
 
     /// <summary>
-    /// job_order.continuous_work BIT (decision D35): an ECONOMY large house done by ONE worker who may need a 2nd consecutive job
+    /// job_order.continuous_work BIT (decision D36): an ECONOMY large house done by ONE worker who may need a 2nd consecutive job
     /// (extra hours right after the shift, <c>Shift.MaxHours</c> at most). False for every older order.
     /// </summary>
     public bool IsContinuousWork { get; set; }

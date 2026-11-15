@@ -20,6 +20,11 @@ export interface BookingOptions {
   standardMaxAreaM2: number
   paymentQrExpiryMinutes: number
   sandbox: boolean
+  /** Decisions D34 (Economy only): start step, shortest length and its step, how far ahead a timed job must start. */
+  startStepMinutes?: number
+  minDurationHours?: number
+  durationStepHours?: number
+  economyMinLeadMinutes?: number
 }
 
 export interface PriceQuote {
@@ -31,7 +36,10 @@ export interface PriceQuote {
   unitPrice: number
   totalAmount: number
   currency: string
-  /** D35: an ECONOMY large house is done by ONE worker who may need a 2nd consecutive job (the next shift of the day). */
+  /** Decisions D34: the hours this price is for (null = the whole shift) and the length suggested for the home's area. */
+  durationHours?: number | null
+  suggestedDurationHours?: number | null
+  /** D36: an ECONOMY large house is done by ONE worker who may need a 2nd consecutive job (the next shift of the day). */
   isContinuousWork?: boolean
 }
 
@@ -60,6 +68,10 @@ export interface Order {
   customerNote: string | null
   cancelReason: string | null
   paymentDeadlineAt: string | null
+  /** Decisions D34: the job's local start/end (`HH:mm`) and length when a time was picked; null = the whole shift. */
+  startTime?: string | null
+  endTime?: string | null
+  durationHours?: number | null
 }
 
 export interface OrderSummary {
@@ -74,6 +86,9 @@ export interface OrderSummary {
   /** Not currently returned by the list endpoint; detail may supply it. */
   cancelReason?: string | null
   createdAt: string
+  /** Decisions D34: the job's local start/end when a time was picked. */
+  startTime?: string | null
+  endTime?: string | null
 }
 
 export interface OrderPage {
@@ -91,6 +106,9 @@ export interface CreateOrderBody {
   customerNote: string | null
   /** ECONOMY only: one of the caller's favorite workers (a wish, not a guarantee). */
   preferredWorkerId?: number | null
-  /** D35: the customer agreed that a large house is one worker who may work two consecutive jobs (required for it). */
+  /** Decisions D34 (ECONOMY only): local start `HH:mm` and length in hours; both or neither. */
+  startTime?: string | null
+  durationHours?: number | null
+  /** D36: the customer agreed that a large house is one worker who may work two consecutive jobs (required for it). */
   acceptsContinuousWork?: boolean
 }

@@ -67,6 +67,7 @@ class FakeBookingService implements IBookingService {
   Future<PriceQuote> getQuote({
     required int addressId,
     required String serviceTier,
+    double? durationHours,
   }) {
     quotes.add((addressId: addressId, tier: serviceTier));
     if (quoteError != null) return Future.error(quoteError!);
@@ -422,6 +423,10 @@ void main() {
         expect(find.byKey(const Key('favorite-42')), findsOneWidget);
         await tapKey(tester, 'day-2026-10-15');
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(
+          tester,
+          'start-08:00',
+        ); // D34: a Cơ bản job has a start time
         await tapKey(tester, 'submit-order');
         expect(service.created.single.previousOrderId, 100);
         expect(service.created.single.preferredWorkerId, 42);
@@ -459,6 +464,7 @@ void main() {
         expect(faded('shift-SHIFT_MORNING'), findsNothing);
         expect(faded('shift-SHIFT_EVENING'), findsOneWidget);
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-08:00');
         await tapKey(tester, 'submit-order');
 
         expect(service.created.single.preferredWorkerId, 42);
@@ -657,7 +663,7 @@ void main() {
     );
 
     testWidgets(
-      'a large Economy house shows the one-worker notice and the single large-house price (D35)',
+      'a large Economy house shows the one-worker notice and the single large-house price (D36)',
       (tester) async {
         final service = FakeBookingService();
         await pumpBooking(tester, service);
@@ -678,7 +684,7 @@ void main() {
     );
 
     testWidgets(
-      'a large Economy house can be booked in the evening shift too: the 2nd job is extra hours (D35)',
+      'a large Economy house can be booked in the evening shift too: the 2nd job is extra hours (D36)',
       (tester) async {
         final service = FakeBookingService();
         await pumpBooking(tester, service);
@@ -695,6 +701,7 @@ void main() {
         );
         await tapKey(tester, 'day-2026-10-16');
         await tapKey(tester, 'shift-SHIFT_EVENING');
+        await tapKey(tester, 'start-17:30');
         await tapKey(tester, 'submit-order');
 
         expect(
@@ -705,7 +712,7 @@ void main() {
     );
 
     testWidgets(
-      'a large Economy house asks the customer to agree before the order is created, and sends the agreement (D35)',
+      'a large Economy house asks the customer to agree before the order is created, and sends the agreement (D36)',
       (tester) async {
         final service = FakeBookingService();
         final opened = await pumpBooking(tester, service);
@@ -722,6 +729,7 @@ void main() {
         );
         await tapKey(tester, 'day-2026-10-16');
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-09:00');
         await tapKey(tester, 'submit-order');
 
         expect(
@@ -759,6 +767,7 @@ void main() {
       );
       await tapKey(tester, 'day-2026-10-16');
       await tapKey(tester, 'shift-SHIFT_MORNING');
+      await tapKey(tester, 'start-09:00');
       await tapKey(tester, 'submit-order');
       await tapKey(tester, 'continuous-work-decline');
 
@@ -817,6 +826,7 @@ void main() {
         await tapKey(tester, 'tier-ECONOMY');
         await tapKey(tester, 'day-2026-10-15');
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-09:00');
         await tapKey(tester, 'submit-order');
 
         expect(
@@ -824,6 +834,59 @@ void main() {
           isFalse,
         );
         expect(service.created.single.customerNote, isNull);
+        // D34: the job's start and length go with the order.
+        expect(service.created.single.startTime, '09:00');
+        expect(service.created.single.durationHours, 2);
+      },
+    );
+
+    testWidgets(
+      'a Cơ bản order asks for a start time inside the shift and the chosen length (D34)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_EVENING');
+        await tapKey(tester, 'duration-4.0');
+        // The evening is 17:30-20:30: a 4 h job does not fit.
+        expect(find.byKey(const Key('start-none')), findsOneWidget);
+
+        await tapKey(tester, 'submit-order');
+        expect(textOf(tester, 'booking-hint'), 'Chọn giờ bắt đầu.');
+        expect(service.created, isEmpty);
+
+        await tapKey(tester, 'duration-3.0');
+        expect(find.byKey(const Key('start-17:30')), findsOneWidget);
+        expect(find.byKey(const Key('start-18:00')), findsNothing);
+        await tapKey(tester, 'start-17:30');
+        expect(textOf(tester, 'job-time'), '17:30 – 20:30 (3 giờ)');
+
+        await tapKey(tester, 'submit-order');
+        final input = service.created.single;
+        expect(input.startTime, '17:30');
+        expect(input.durationHours, 3);
+      },
+    );
+
+    testWidgets(
+      'a Cao cấp order keeps the whole shift and shows no time pickers (D34)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-PREMIUM');
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+
+        expect(find.byKey(const Key('duration-list')), findsNothing);
+        await tapKey(tester, 'submit-order');
+        expect(service.created.single.startTime, isNull);
+        expect(
+          service.created.single.toJson().containsKey('durationHours'),
+          isFalse,
+        );
       },
     );
 
@@ -836,6 +899,7 @@ void main() {
         await tapKey(tester, 'tier-ECONOMY');
         await tapKey(tester, 'day-2026-10-15');
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-08:00');
 
         await tester.tap(find.byKey(const Key('submit-order')));
         await tester.pump();

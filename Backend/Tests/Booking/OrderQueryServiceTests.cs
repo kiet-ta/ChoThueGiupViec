@@ -399,6 +399,24 @@ public class OrderQueryServiceTests
     }
 
     [Fact]
+    public async Task DecisionD35_AnOrderRedispatchedAfterAWorkerCancel_SaysUntilWhenASubstituteIsSearchedFor()
+    {
+        var f = new Fixture();
+        f.AddOrder(1, status: JobOrderStatus.Dispatching);
+        f.Track.Rows.Add(new AssignmentProgress(100, 1, 11, JobAssignmentStatus.CancelledByWorker, Now.AddMinutes(-60), null));
+
+        var progress = await f.Service().GetProgressAsync(CustomerId, 1);
+
+        Assert.Equal("CANCELLED_BY_WORKER", Assert.Single(progress.Assignments).AssignmentStatus);
+        // Evening shift of 2026-10-15 starts 17:30 local = 10:30 UTC; the search stops Cancel.RedispatchCutoffMinutes (30) before.
+        Assert.Equal(new DateTime(2026, 10, 15, 10, 0, 0, DateTimeKind.Utc), progress.SubstituteSearchUntil);
+
+        f.Track.Rows.Clear();
+        f.Track.Rows.Add(new AssignmentProgress(101, 1, 12, JobAssignmentStatus.Assigned, Now, null));
+        Assert.Null((await f.Service().GetProgressAsync(CustomerId, 1)).SubstituteSearchUntil); // no worker cancel: no search window
+    }
+
+    [Fact]
     public void TheOrderShape_OnTheWire_UsesStringsForEveryEnum()
     {
         var created = new CreatedOrder(
@@ -431,7 +449,7 @@ public class OrderQueryServiceTests
         var body = new CreateOrderBody(AddressId, "ECONOMY", new DateOnly(2026, 10, 15), "SHIFT_MORNING", null, null);
 
         Assert.Equal(200, ((ObjectResult)controller.Options()).StatusCode);
-        Assert.Equal(200, ((ObjectResult)await controller.PriceQuote(AddressId, "ECONOMY", default)).StatusCode);
+        Assert.Equal(200, ((ObjectResult)await controller.PriceQuote(AddressId, "ECONOMY", null, default)).StatusCode);
         Assert.Equal(201, ((ObjectResult)await controller.Create(body, default)).StatusCode);
         Assert.Equal(200, ((ObjectResult)await controller.List(null, null, null, default)).StatusCode);
         Assert.Equal(200, ((ObjectResult)await controller.Get(1, default)).StatusCode);

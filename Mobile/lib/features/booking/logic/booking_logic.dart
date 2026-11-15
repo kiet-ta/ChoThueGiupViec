@@ -8,7 +8,83 @@ class BookingErrorCode {
   static const premiumLeadTime = 'PREMIUM_LEAD_TIME';
   static const fullyBooked = 'FULLY_BOOKED';
 
+  /// Decisions D34: a timed Cơ bản job starts sooner than `economyMinLeadMinutes` from now.
+  static const leadTimeTooShort = 'LEAD_TIME_TOO_SHORT';
+
   BookingErrorCode._();
+}
+
+// ---- Decisions D34: the customer picks the start time and the length of a Cơ bản job inside the shift. ----
+
+/// Minutes since midnight of "HH:mm"; null when the text is not a time.
+int? minutesOf(String hhmm) {
+  final parts = hhmm.split(':');
+  if (parts.length != 2) return null;
+  final h = int.tryParse(parts[0]);
+  final m = int.tryParse(parts[1]);
+  if (h == null || m == null) return null;
+  return h * 60 + m;
+}
+
+/// "HH:mm" of minutes since midnight.
+String hhmmOf(int minutes) => '${_two(minutes ~/ 60)}:${_two(minutes % 60)}';
+
+/// The lengths offered: from `minDurationHours` to `shiftMaxHours` in `durationStepHours` (2, 2,5 … 4).
+List<double> durationChoices(BookingOptions options) {
+  final step = options.durationStepHours <= 0 ? 0.5 : options.durationStepHours;
+  return [
+    for (
+      var h = options.minDurationHours;
+      h <= options.shiftMaxHours + 1e-9;
+      h += step
+    )
+      h,
+  ];
+}
+
+/// `2` -> `2 giờ`, `2.5` -> `2,5 giờ`.
+String hoursLabel(double hours) {
+  final text = hours == hours.roundToDouble()
+      ? hours.toStringAsFixed(0)
+      : hours.toString().replaceAll('.', ',');
+  return '$text giờ';
+}
+
+/// End "HH:mm" of a job that starts at [start] and lasts [hours].
+String endTimeOf(String start, double hours) =>
+    hhmmOf((minutesOf(start) ?? 0) + (hours * 60).round());
+
+/// `08:30 – 11:30 (3 giờ)`.
+String jobTimeText(String start, double hours) =>
+    '$start – ${endTimeOf(start, hours)} (${hoursLabel(hours)})';
+
+/// The start times a job of [hours] can take inside [shift] on [day]: on the start step, ending by the shift end, and (today only)
+/// at least `economyMinLeadMinutes` after [now]. Empty when the shift is too short or already too late.
+List<String> startTimeChoices({
+  required ShiftOption shift,
+  required double hours,
+  required DateTime day,
+  required DateTime now,
+  required BookingOptions options,
+}) {
+  final shiftStart = minutesOf(shift.startLocal);
+  final shiftEnd = minutesOf(shift.endLocal);
+  if (shiftStart == null || shiftEnd == null) return const [];
+  final length = (hours * 60).round();
+  final step = options.startStepMinutes <= 0 ? 30 : options.startStepMinutes;
+
+  var earliest = shiftStart;
+  final localNow = now.toUtc().add(const Duration(hours: 7));
+  if (hoChiMinhDay(now) == day) {
+    earliest = [
+      earliest,
+      localNow.hour * 60 + localNow.minute + options.economyMinLeadMinutes,
+    ].reduce((a, b) => a > b ? a : b);
+  }
+  // Round up to the step, counted from the shift start.
+  final offset = earliest - shiftStart;
+  final first = shiftStart + ((offset + step - 1) ~/ step) * step;
+  return [for (var m = first; m + length <= shiftEnd; m += step) hhmmOf(m)];
 }
 
 const int customerNoteMaxLength = 500;
@@ -94,7 +170,7 @@ String shiftLabel(String shiftCode) => switch (shiftCode) {
   _ => shiftCode,
 };
 
-/// D35: what the customer reads about the 2nd job of a large house; null once the work ended in the first job (nothing to say).
+/// D36: what the customer reads about the 2nd job of a large house; null once the work ended in the first job (nothing to say).
 String? continuationText(OrderContinuation? continuation) {
   if (continuation == null) return null;
   final start = continuation.windowStartAt;
@@ -144,7 +220,7 @@ const _weekdays = ['Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7', 'CN'];
 String dayLabel(DateTime day) =>
     '${_weekdays[day.weekday - 1]} ${_two(day.day)}/${_two(day.month)}';
 
-/// The line under the price: one worker, a large ECONOMY house (one worker, a possible 2nd job, D35), or two workers (PREMIUM, BR-02).
+/// The line under the price: one worker, a large ECONOMY house (one worker, a possible 2nd job, D36), or two workers (PREMIUM, BR-02).
 String workersNote(PriceQuote quote, BookingOptions options) =>
     quote.isContinuousWork
     ? 'Nhà bạn lớn nên thợ có thể cần làm 2 đơn liên tiếp: đơn 2 là làm thêm giờ ngay sau ca (tối đa ${options.shiftMaxHours} giờ). Bạn chỉ trả một lần, không phát sinh thêm.'
@@ -152,12 +228,12 @@ String workersNote(PriceQuote quote, BookingOptions options) =>
     ? 'Diện tích ${formatArea(quote.totalAreaM2)} lớn hơn ${formatArea(options.standardMaxAreaM2)}: cần ${quote.requiredWorkers} người làm cùng lúc.'
     : '1 người, một ca tối đa ${options.shiftMaxHours} giờ.';
 
-/// The price line: unit price x workers, or the single large-house price (D35: one worker, so no "x N" to confuse the customer).
+/// The price line: unit price x workers, or the single large-house price (D36: one worker, so no "x N" to confuse the customer).
 String quoteBreakdown(PriceQuote quote) => quote.isContinuousWork
     ? 'Giá nhà lớn · 1 người · ${tierLabel(quote.serviceTier)}'
     : '${formatVnd(quote.unitPrice)} × ${quote.requiredWorkers} người · ${tierLabel(quote.serviceTier)}';
 
-/// The consent asked before a large house is booked (D35).
+/// The consent asked before a large house is booked (D36).
 const List<String> continuousWorkConsent = [
   'Nhà bạn khá lớn nên chỉ một thợ nhận đơn. Nếu thợ chưa làm xong trong ca đã đặt, thợ sẽ làm tiếp "đơn 2" là thêm giờ ngay sau ca (tối đa 4 giờ).',
   'Bạn chỉ trả một lần theo giá nhà lớn. Đơn nối tiếp không bị tính thêm tiền.',
@@ -174,12 +250,15 @@ String? missingChoice({
   required DateTime? day,
   required String? shiftCode,
   required bool hasQuote,
+  bool needsTime = false,
+  String? startTime,
 }) {
   if (tier == null) return 'Chọn gói dịch vụ.';
   if (addressId == null) return 'Chọn địa chỉ làm việc.';
   if (day == null) return 'Chọn ngày làm việc.';
   if (shiftCode == null) return 'Chọn ca làm việc.';
   if (!hasQuote) return 'Chưa có giá cho lựa chọn này.';
+  if (needsTime && startTime == null) return 'Chọn giờ bắt đầu.';
   return null;
 }
 
@@ -233,6 +312,8 @@ CreateOrderFailure createOrderFailure(
           BookingErrorCode.premiumLeadTime =>
             'Gói Cao cấp cần đặt trước ít nhất $premiumMinLeadHours giờ. Chọn ca muộn hơn nhé.',
           BookingErrorCode.fullyBooked => 'Các doanh nghiệp đối tác đã kín lịch cho ca này. Hãy chọn ca hoặc ngày khác.',
+          BookingErrorCode.leadTimeTooShort =>
+            'Giờ này gần quá, người làm không kịp đến. Chọn giờ muộn hơn nhé.',
           _ => 'Không đặt được đơn lúc này. Vui lòng thử lại.',
         },
       );

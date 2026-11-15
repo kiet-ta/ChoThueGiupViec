@@ -5,15 +5,16 @@ using Microsoft.Extensions.Options;
 
 namespace CommonService.Application.Features.Workers;
 
-/// <summary>The 2nd-job state of an order (decision D35).</summary>
+/// <summary>The 2nd-job state of an order (decision D36).</summary>
 /// <param name="OpenedAt">When the 2nd job opened; null while it has not.</param>
 public record ContinuationState(bool IsContinuousWork, DateTime? OpenedAt, DateOnly ScheduledDate, string ShiftCode);
 
 /// <summary>A continuous order whose only job is running and whose 2nd job has not opened (candidate of the 15-minute sweep).</summary>
-public record DueContinuation(long OrderId, DateOnly ScheduledDate, string ShiftCode);
+/// <param name="EndTime">The local end of a timed job (D34); null = the shift end.</param>
+public record DueContinuation(long OrderId, DateOnly ScheduledDate, string ShiftCode, TimeOnly? EndTime = null);
 
 /// <summary>
-/// Storage of the 2nd job of a large ECONOMY house (decision D35). Lives in Workers: the 2nd job is opened by the worker not confirming in time
+/// Storage of the 2nd job of a large ECONOMY house (decision D36). Lives in Workers: the 2nd job is opened by the worker not confirming in time
 /// or by the customer's "not clean" at acceptance.
 /// </summary>
 public interface IContinuationRepository
@@ -51,7 +52,7 @@ public class ContinuationService(
                 continue;
             }
 
-            var shiftEndUtc = clock.ToUtc(DateTime.SpecifyKind(candidate.ScheduledDate.ToDateTime(times.End), DateTimeKind.Unspecified));
+            var shiftEndUtc = clock.ToUtc(DateTime.SpecifyKind(candidate.ScheduledDate.ToDateTime(candidate.EndTime ?? times.End), DateTimeKind.Unspecified));
             if (now < shiftEndUtc.AddMinutes(_confirmMinutes))
             {
                 continue;

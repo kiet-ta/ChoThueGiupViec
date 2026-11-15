@@ -42,6 +42,14 @@ public class OfferExpiryWorker(IServiceScopeFactory scopeFactory, ILogger<OfferE
                     {
                         logger.LogInformation("Dispatch: {Count} order(s) cancelled because the customer did not answer the fallback.", unanswered);
                     }
+
+                    // Decisions D35: a seat lost to a worker cancel and still open at job start - Cancel.RedispatchCutoffMinutes fails the order.
+                    var cancels = scope.ServiceProvider.GetRequiredService<WorkerCancelService>();
+                    var noSubstitute = await cancels.FailUnfilledAtCutoffAsync(stoppingToken);
+                    if (noSubstitute > 0)
+                    {
+                        logger.LogInformation("Dispatch: {Count} order(s) cancelled because no substitute worker was found by the cutoff.", noSubstitute);
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {

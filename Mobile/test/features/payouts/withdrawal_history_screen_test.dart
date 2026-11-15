@@ -144,11 +144,8 @@ void main() {
             _page([_request(1, 'CANCELLED')], total: 2, page: 2),
           ]);
         await _pump(tester, service);
-        expect(find.byKey(const Key('withdrawals-more')), findsOneWidget);
 
-        await tester.tap(find.byKey(const Key('withdrawals-more')));
-        await tester.pumpAndSettle();
-
+        // The short list loads the next page by itself (MOB-PAGING-01), once.
         expect(service.calls, [1, 2]);
         expect(find.byKey(const Key('withdrawal-row-2')), findsOneWidget);
         expect(find.byKey(const Key('withdrawal-row-1')), findsOneWidget);

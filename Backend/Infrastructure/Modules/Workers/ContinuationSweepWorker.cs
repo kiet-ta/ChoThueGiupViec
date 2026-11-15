@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace CommonService.Infrastructure.Modules.Workers;
 
 /// <summary>
-/// Runs <see cref="IContinuationService.OpenDueAsync"/> every minute (decision D35): a large house whose worker did not run
+/// Runs <see cref="IContinuationService.OpenDueAsync"/> every minute (decision D36): a large house whose worker did not run
 /// <c>submit-completion</c> within <c>Dispatch.ContinuationConfirmMinutes</c> of the shift end opens its 2nd job. A failing run is logged and
 /// never stops the loop.
 /// </summary>

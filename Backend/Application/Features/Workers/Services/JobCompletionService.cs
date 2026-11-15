@@ -194,7 +194,7 @@ public class JobCompletionService(
 
         var nowUtc = clock.UtcNow;
 
-        // Decision D35: the first "not clean" of a large house opens the 2nd job (same worker, extra hours after the shift, no extra charge)
+        // Decision D36: the first "not clean" of a large house opens the 2nd job (same worker, extra hours after the shift, no extra charge)
         // instead of a redo. The redo window of D32 does not apply: the worker keeps working.
         if (continuations is not null && await continuations.TryOpenAsync(assignment.OrderId, nowUtc, ct))
         {
