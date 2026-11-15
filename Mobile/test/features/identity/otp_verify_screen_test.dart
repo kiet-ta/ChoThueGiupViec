@@ -247,7 +247,160 @@ void main() {
       await tester.pumpAndSettle();
       expect(service.verifyCalls, 1);
     });
+
+    testWidgets('shows Sandbox OTP banner and copies code to clipboard', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copiedText = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: OtpVerifyScreen(
+            phoneNumber: '0912345678',
+            role: AppRole.worker,
+            sandboxOtp: '741852',
+            authService: authService,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final box = find.byKey(const Key('sandbox-otp-box'));
+      expect(box, findsOneWidget);
+      final selectable = tester.widget<SelectableText>(
+        find.descendant(of: box, matching: find.byType(SelectableText)),
+      );
+      expect(selectable.textSpan?.toPlainText(), 'Sandbox OTP: 741852');
+
+      await tester.tap(find.byKey(const Key('copy-sandbox-otp')));
+      await tester.pumpAndSettle();
+
+      expect(copiedText, '741852');
+      expect(find.text('Đã sao chép mã OTP'), findsOneWidget);
+    });
+
+    testWidgets('hides Sandbox OTP banner when sandboxOtp is absent or blank', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: OtpVerifyScreen(
+            phoneNumber: '0912345678',
+            sandboxOtp: '   ',
+            authService: authService,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('sandbox-otp-box')), findsNothing);
+    });
+
+    testWidgets('updates Sandbox OTP banner on resend', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final resendService = _ResendingSandboxAuthService(storage);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: OtpVerifyScreen(
+            phoneNumber: '0912345678',
+            resendCooldownSeconds: 0,
+            sandboxOtp: '111222',
+            authService: resendService,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final resendFinder = find.text('Gửi lại mã');
+      await tester.ensureVisible(resendFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(resendFinder);
+      await tester.pumpAndSettle();
+
+      final selectable = tester.widget<SelectableText>(
+        find.descendant(
+          of: find.byKey(const Key('sandbox-otp-box')),
+          matching: find.byType(SelectableText),
+        ),
+      );
+      expect(selectable.textSpan?.toPlainText(), 'Sandbox OTP: 999888');
+    });
+
+    testWidgets(
+      'keeps confirm button above keyboard with Sandbox OTP banner on 360x640',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 640);
+        tester.view.devicePixelRatio = 1.0;
+        tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: OtpVerifyScreen(
+              phoneNumber: '0912345678',
+              sandboxOtp: '111222',
+              authService: authService,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.byKey(const Key('sandbox-otp-box')), findsOneWidget);
+        final button = find.text('Đăng nhập');
+        expect(tester.getRect(button).bottom, lessThanOrEqualTo(640 - 280));
+        expect(button.hitTestable(), findsOneWidget);
+      },
+    );
   });
+}
+
+class _ResendingSandboxAuthService extends AuthService {
+  _ResendingSandboxAuthService(TokenStorage storage)
+    : super(tokenStorage: storage, useMockFallback: true);
+
+  @override
+  Future<OtpRequestResult> requestOtp({
+    required String phoneNumber,
+    required AppRole role,
+  }) async {
+    return const OtpRequestResult(
+      expiresInSeconds: 300,
+      resendAvailableInSeconds: 60,
+      sandboxOtp: '999888',
+    );
+  }
 }
 
 class _CountingAuthService extends AuthService {

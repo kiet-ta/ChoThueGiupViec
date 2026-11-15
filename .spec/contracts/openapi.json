@@ -20036,6 +20036,10 @@
           "resendAvailableInSeconds": {
             "type": "integer",
             "format": "int32"
+          },
+          "sandboxOtp": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false

@@ -47,9 +47,9 @@ Request
 ```
 Response 200 `data`
 ```json
-{ "expiresInSeconds": 300, "resendAvailableInSeconds": 60 }
+{ "expiresInSeconds": 300, "resendAvailableInSeconds": 60, "sandboxOtp": "123456" }
 ```
-(values come from `Otp.TtlMinutes` and `Otp.ResendCooldownSeconds`; they are echoed, never hard-coded by clients)
+(values come from `Otp.TtlMinutes` and `Otp.ResendCooldownSeconds`; they are echoed, never hard-coded by clients. `sandboxOtp` is included **only** in `Development` when `FakeOtpSender` is active, allowing Web/Mobile login UIs to show a copyable sandbox OTP box; it is omitted outside `Development` or when a real `IOtpSender` is used.)
 
 | Status | Condition |
 |---|---|

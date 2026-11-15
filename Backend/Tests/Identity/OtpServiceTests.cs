@@ -3,11 +3,14 @@ using CommonService.Application.Features.Identity.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Modules.Identity;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -442,5 +445,62 @@ public class OtpServiceTests
         Assert.False(verify.AuthResult.User.IsNewUser);
         Assert.Equal("Worker", verify.AuthResult.User.Role);
         Assert.Equal(worker.WorkerId, verify.AuthResult.User.Id);
+    }
+
+    private class TestHostEnvironment(string name) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = name;
+        public string ApplicationName { get; set; } = "Tests";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
+
+    [Fact]
+    public void ResolveSandboxOtp_returns_code_only_in_development_with_FakeOtpSender()
+    {
+        var devEnv = new TestHostEnvironment(Environments.Development);
+        var prodEnv = new TestHostEnvironment(Environments.Production);
+        var fakeSender = new FakeOtpSender(devEnv, NullLogger<FakeOtpSender>.Instance);
+        var nonFakeSender = new TestOtpSender();
+
+        Assert.Equal("654321", OtpService.ResolveSandboxOtp(devEnv, fakeSender, "654321"));
+        Assert.Null(OtpService.ResolveSandboxOtp(devEnv, nonFakeSender, "654321"));
+        Assert.Null(OtpService.ResolveSandboxOtp(prodEnv, fakeSender, "654321"));
+        Assert.Null(OtpService.ResolveSandboxOtp(prodEnv, nonFakeSender, "654321"));
+        Assert.Null(OtpService.ResolveSandboxOtp(null, fakeSender, "654321"));
+    }
+
+    [Fact]
+    public async Task RequestOtp_with_FakeOtpSender_in_Development_returns_SandboxOtp()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        var clock = new TestClock(new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc));
+        var devEnv = new TestHostEnvironment(Environments.Development);
+        var fakeSender = new FakeOtpSender(devEnv, NullLogger<FakeOtpSender>.Instance);
+        var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Otp:HmacSecret"] = "Test_Hmac_Secret_At_Least_32_Characters_Long!"
+        }).Build();
+        var service = new OtpService(
+            db,
+            fakeSender,
+            clock,
+            rules,
+            config,
+            new TokenService(rules, config),
+            NullLogger<OtpService>.Instance,
+            devEnv);
+
+        var phone = GenerateTestPhone();
+        var result = await service.RequestOtpAsync(phone, "Customer", GenerateTestIp());
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var sent = Assert.Single(fakeSender.Sent);
+        Assert.Equal(phone, sent.PhoneNumber);
+        Assert.Equal(sent.Code, result.Data.SandboxOtp);
     }
 }

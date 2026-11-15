@@ -143,7 +143,7 @@ Live in `src/components/` (outside `features/`, so no module owns them). No extr
 - Rows of a dispute link to the case. Pure helpers (labels, actor, change text, the query, the range check) are in `audit/view.ts` and tested in `tests/admin-audit.test.ts`. No write action exists.
 
 ## Customer and separate Admin sign-in (WEB-CUST-01)
-- `/login` offers Customer OTP and Partner password tabs. Customer OTP uses `/auth/otp/request` and `/auth/otp/verify`; resend availability is taken from the server. `/admin` displays the separate fixed-role Admin login when anonymous.
+- `/login` offers Customer OTP and Partner password tabs. Customer OTP uses `/auth/otp/request` and `/auth/otp/verify`; resend availability is taken from the server. When `/auth/otp/request` includes `sandboxOtp` (Development with `FakeOtpSender` only), `/login` renders a copyable `Sandbox OTP` box (`auth/sandbox-otp.ts`) on the verification step, refreshes it on resend, and clears it when changing phone. `/admin` displays the separate fixed-role Admin login when anonymous.
 - `/app/*` is guarded for Customer and renders the customer shell and placeholders. Admin and Partner retain their own guarded areas. `safeNext` limits redirects to the signed-in role's area.
 - All three web roles use the same session policy: access token in memory, refresh token in `sessionStorage`, rotated on refresh and revoked on logout. The OTP API currently does not return remaining attempts on a wrong code.
 

@@ -9,9 +9,11 @@ using CommonService.Application.Features.Identity.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -29,6 +31,7 @@ public class OtpService : IOtpService
     private readonly byte[] _hmacKey;
     private readonly ITokenService _tokenService;
     private readonly ILogger<OtpService> _logger;
+    private readonly IHostEnvironment? _environment;
 
     public OtpService(
         AppDbContext db,
@@ -37,7 +40,8 @@ public class OtpService : IOtpService
         IOptions<BusinessRules> rules,
         IConfiguration config,
         ITokenService tokenService,
-        ILogger<OtpService> logger)
+        ILogger<OtpService> logger,
+        IHostEnvironment? environment = null)
     {
         _db = db;
         _otpSender = otpSender;
@@ -45,6 +49,7 @@ public class OtpService : IOtpService
         _rules = rules.Value;
         _tokenService = tokenService;
         _logger = logger;
+        _environment = environment;
 
         var secret = config["Otp:HmacSecret"]
             ?? config["Jwt:Key"]
@@ -169,9 +174,13 @@ public class OtpService : IOtpService
         return OtpRequestResult.Ok(new OtpRequestResponseDto
         {
             ExpiresInSeconds = _rules.Otp.TtlMinutes * 60,
-            ResendAvailableInSeconds = _rules.Otp.ResendCooldownSeconds
+            ResendAvailableInSeconds = _rules.Otp.ResendCooldownSeconds,
+            SandboxOtp = ResolveSandboxOtp(_environment, _otpSender, code)
         });
     }
+
+    public static string? ResolveSandboxOtp(IHostEnvironment? environment, IOtpSender otpSender, string code) =>
+        environment?.IsDevelopment() == true && otpSender is FakeOtpSender ? code : null;
 
     public async Task<OtpVerifyResult> VerifyOtpAsync(
         string phoneNumber,

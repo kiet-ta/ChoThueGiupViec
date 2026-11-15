@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/models/user_role.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/features/identity/models/auth_models.dart';
 import 'package:mobile/features/identity/screens/otp_verify_screen.dart';
 import 'package:mobile/features/identity/screens/phone_input_screen.dart';
 import 'package:mobile/features/identity/services/auth_service.dart';
@@ -50,6 +51,38 @@ void main() {
 
       expect(find.byType(OtpVerifyScreen), findsOneWidget);
       expect(find.text('Nhập mã xác nhận'), findsOneWidget);
+    });
+
+    testWidgets('forwards sandboxOtp from requestOtp to OtpVerifyScreen', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NordicTheme.lightTheme,
+          home: PhoneInputScreen(
+            role: AppRole.customer,
+            authService: _SandboxOtpPhoneAuthService(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '0912345678');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nhận mã'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OtpVerifyScreen), findsOneWidget);
+      final box = find.byKey(const Key('sandbox-otp-box'));
+      expect(box, findsOneWidget);
+      final selectable = tester.widget<SelectableText>(
+        find.descendant(of: box, matching: find.byType(SelectableText)),
+      );
+      expect(selectable.textSpan?.toPlainText(), 'Sandbox OTP: 654321');
     });
 
     testWidgets('displays worker role indicator when role is Worker', (
@@ -273,4 +306,20 @@ void main() {
       }
     });
   });
+}
+
+class _SandboxOtpPhoneAuthService extends AuthService {
+  _SandboxOtpPhoneAuthService() : super(useMockFallback: true);
+
+  @override
+  Future<OtpRequestResult> requestOtp({
+    required String phoneNumber,
+    required AppRole role,
+  }) async {
+    return const OtpRequestResult(
+      expiresInSeconds: 300,
+      resendAvailableInSeconds: 60,
+      sandboxOtp: '654321',
+    );
+  }
 }
