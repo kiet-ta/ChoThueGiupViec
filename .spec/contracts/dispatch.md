@@ -227,7 +227,7 @@ Thợ tự do hủy ca đã nhận, trước giờ bắt đầu T (Q15, decision
 
 - Request body: `{ "reason": "string (1-255)" }`
 - Hiệu ứng (một transaction): ca -> `CANCELLED_BY_WORKER`, slot trả lại (`BOOKED -> AVAILABLE`), đơn -> `DISPATCHING`, tắt "Tự động nhận đơn"; vi phạm thứ `Cancel.WorkerCancelLockCount` (3) trong `Cancel.WorkerCancelWindowDays` (30) ngày khóa tài khoản (`LOCKED`, Admin mở khóa). Mỗi lần hủy tính 1, không phạt tiền.
-- Sau commit: phát `AssignmentCancelledByWorker`; nếu còn trước `T - Cancel.RedispatchCutoffMinutes` (30) thì tìm thợ thay ngay cho đúng chỗ đó (không mời lại thợ vừa hủy) và báo khách `dispatch.worker_cancelled`; nếu đã qua mốc thì phát `AssignmentFailed` (`WORKER_CANCELLED_NO_SUBSTITUTE`) -> Booking hủy đơn, hoàn 100 % tự động.
+- Sau commit: phát `AssignmentCancelledByWorker`; nếu công tắc "Tự động nhận đơn" vừa bị tắt thì báo thợ `dispatch.auto_accept_off` (#891); nếu còn trước `T - Cancel.RedispatchCutoffMinutes` (30) thì tìm thợ thay ngay cho đúng chỗ đó (không mời lại thợ vừa hủy) và báo khách `dispatch.worker_cancelled`; nếu đã qua mốc thì phát `AssignmentFailed` (`WORKER_CANCELLED_NO_SUBSTITUTE`) -> Booking hủy đơn, hoàn 100 % tự động.
 - Response 200: `ApiResponse<WorkerCancelResultDto>`
 ```json
 {
@@ -419,7 +419,7 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 - `WorkerCheckedIn(CheckInResultDto result)`: Thợ đã có mặt tại nhà.
 - `IncidentAlert(IncidentSummaryDto alert)`: Thông báo thợ gặp sự cố + thời gian dự kiến đổi thợ.
 - `DispatchTimeoutCancelled(double refundAmount)`: Quá 10km không có thợ -> tự động hủy đơn và hoàn tiền 100%.
-- Thông báo (`INotificationService`, decisions D35) khi thợ hủy ca: `dispatch.worker_cancelled` (đang tìm thợ thay, kèm giờ dừng tìm), `dispatch.substitute_found`, `dispatch.substitute_not_found` (đơn đã hủy, hoàn 100 %). `data.orderId` luôn có.
+- Thông báo (`INotificationService`, decisions D35) khi thợ hủy ca: `dispatch.worker_cancelled` (đang tìm thợ thay, kèm giờ dừng tìm), `dispatch.substitute_found`, `dispatch.substitute_not_found` (đơn đã hủy, hoàn 100 %). `data.orderId` luôn có. Gửi thợ (#891, decisions D33 mục 5): `dispatch.auto_accept_off` ("Tự động nhận đơn đã tắt vì bạn vừa hủy ca", `data.orderId`, `data.assignmentId`), chỉ khi công tắc đang bật trước lúc hủy; gửi cả khi hủy sau mốc `T - 30`.
 
 ### Events (decisions D35)
 - **Publishes** `AssignmentCancelledByWorker { AssignmentId, OrderId, WorkerId, AssignmentSeq, Reason, CancelCount, WorkerLocked, CancelledAtUtc }` sau commit hủy ca của thợ.

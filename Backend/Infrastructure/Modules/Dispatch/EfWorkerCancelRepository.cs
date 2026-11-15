@@ -70,6 +70,7 @@ public class EfWorkerCancelRepository(AppDbContext db) : IWorkerCancelRepository
 
             // D33 open item 5: the auto-accept switch turns itself off; Q15: the lock at the configured count.
             var worker = await db.Workers.FirstAsync(w => w.WorkerId == workerId, cancellationToken);
+            var autoAcceptWasOn = worker.AutoAcceptOffers;
             worker.AutoAcceptOffers = false;
             var locked = false;
             if (count >= lockCount && worker.WorkerType == WorkerType.Freelancer && worker.WorkStatus is WorkStatus.Idle or WorkStatus.Busy)
@@ -81,7 +82,7 @@ public class EfWorkerCancelRepository(AppDbContext db) : IWorkerCancelRepository
             worker.UpdatedAt = cancelledAtUtc;
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return new WorkerCancelCommit(count, locked);
+            return new WorkerCancelCommit(count, locked, autoAcceptWasOn);
         });
     }
 

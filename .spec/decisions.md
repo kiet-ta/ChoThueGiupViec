@@ -309,7 +309,7 @@ The customer sees the route, distance and travel time from the worker to the hou
 2. **Guards:** only freelancers (agency staff: 409 `NOT_FREELANCER`); turning it on needs a registered work area (409 `WORK_AREA_REQUIRED`, D24). A failed accept (race, order no longer dispatching) leaves the offer open for the usual 30 s; an error in this step never fails dispatch.
 3. **Not applied:** the BR-02 second-shift offer (D7 option b: a second shift is never given without asking) and Premium / agency seats.
 4. **Ranking unchanged:** the flag is not a score input; the nearest worker by road (D30) is still asked first.
-5. **Switch off on cancel:** the switch turns itself off when the worker cancels an accepted job (D35, #902).
+5. **Switch off on cancel:** the switch turns itself off when the worker cancels an accepted job (D35, #902). When it was on, the worker gets the realtime notice `dispatch.auto_accept_off` ("Tự động nhận đơn đã tắt vì bạn vừa hủy ca", `assignmentId`, `orderId`; #891); a worker whose switch was already off gets nothing.
 
 ### D34 Timed jobs: the customer picks the start and the length; a shift keeps taking jobs (BOOK-TIME-01, #895; owner request 2026-11-15)
 Owner accepted the recommended defaults (market reference: bTaskee packages of 2/3/4 h by area, JupViec worker shifts with customer-picked times, a 20-30 min travel gap between jobs).

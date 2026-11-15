@@ -87,10 +87,10 @@ public class WorkerCancelServiceTests
                 await dispatch.TryMoveOrderStatusAsync(a.OrderId, JobOrderStatus.AwaitingFallback, JobOrderStatus.Dispatching, cancelledAtUtc, cancellationToken);
             }
 
-            dispatch.AutoAcceptWorkerIds.Remove(workerId);
+            var autoAcceptWasOn = dispatch.AutoAcceptWorkerIds.Remove(workerId);
             var count = Count(workerId, windowStartUtc);
             var locked = count >= lockCount && Locked.Add(workerId);
-            return new WorkerCancelCommit(count, locked);
+            return new WorkerCancelCommit(count, locked, autoAcceptWasOn);
         }
 
         public Task<IReadOnlyList<JobOrder>> GetRedispatchingAfterWorkerCancelAsync(DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken = default) =>
@@ -191,8 +191,33 @@ public class WorkerCancelServiceTests
         var evt = Assert.Single(h.Mediator.Published.OfType<AssignmentCancelledByWorker>());
         Assert.Equal("Xe hỏng, không đi được", evt.Reason);
         Assert.Empty(h.Mediator.Published.OfType<AssignmentFailed>());
-        var notice = Assert.Single(h.Notifications.Sent);
-        Assert.Equal((UserRole.Customer, CustomerId, WorkerCancelNotificationTopics.WorkerCancelled), (notice.RecipientRole, notice.RecipientId, notice.Topic));
+        var notice = Assert.Single(h.Notifications.Sent, m => m.RecipientRole == UserRole.Customer);
+        Assert.Equal((CustomerId, WorkerCancelNotificationTopics.WorkerCancelled), (notice.RecipientId, notice.Topic));
+        var workerNotice = Assert.Single(h.Notifications.Sent, m => m.RecipientRole == UserRole.Worker); // #891: the switch went off
+        Assert.Equal((42, WorkerCancelNotificationTopics.AutoAcceptOff), (workerNotice.RecipientId, workerNotice.Topic));
+    }
+
+    [Fact]
+    public async Task Worker_is_told_auto_accept_turned_off_only_when_it_was_on_even_inside_the_cutoff()
+    {
+        // #891 item 3: "Tự động nhận đơn đã tắt vì bạn vừa hủy ca".
+        var on = new Harness();
+        var id = await on.AssignedAsync(42, slotId: 7);
+        on.Repo.AutoAcceptWorkerIds.Add(42);
+        on.Clock.Set(JobStartUtc.AddMinutes(-10)); // no substitute search, the order fails at once
+
+        await on.Service.CancelAsync(id, "Ốm");
+
+        var notice = Assert.Single(on.Notifications.Sent);
+        Assert.Equal((UserRole.Worker, 42, WorkerCancelNotificationTopics.AutoAcceptOff), (notice.RecipientRole, notice.RecipientId, notice.Topic));
+        Assert.StartsWith("Tự động nhận đơn đã tắt vì bạn vừa hủy ca", notice.Body);
+        Assert.Equal((OrderId.ToString(), id.ToString()), (notice.Data!["orderId"], notice.Data["assignmentId"]));
+
+        var off = new Harness();
+        var job = await off.AssignedAsync(42, slotId: 7);
+        off.Clock.Set(JobStartUtc.AddMinutes(-10));
+        await off.Service.CancelAsync(job, "Ốm");
+        Assert.Empty(off.Notifications.Sent); // the switch was already off: nothing to tell
     }
 
     [Fact]
