@@ -629,6 +629,7 @@ public class DispatchOfferEngineTests
         public Task<bool> TryMoveOrderStatusAsync(long orderId, JobOrderStatus from, JobOrderStatus to, DateTime atUtc, CancellationToken cancellationToken = default) => throw Down();
         public Task<CommonService.Domain.Entities.BookingSlot?> GetAvailableSlotAsync(int workerId, DateOnly date, string shiftCode, CancellationToken cancellationToken = default) => throw Down();
         public Task<IReadOnlyList<DispatchOrderContext>> GetAwaitingFallbackOrdersAsync(CancellationToken cancellationToken = default) => throw Down();
+        public Task<bool> IsAutoAcceptOnAsync(int workerId, CancellationToken cancellationToken = default) => throw Down();
     }
 
     [Fact]

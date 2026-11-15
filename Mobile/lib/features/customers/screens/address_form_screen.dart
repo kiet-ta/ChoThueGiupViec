@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/device/device_location.dart';
 import '../../../core/motion/error_shake.dart';
 import '../../../core/theme/nordic_colors.dart';
 import '../../../core/theme/nordic_radius.dart';
@@ -10,13 +9,12 @@ import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
 import '../logic/address_rules.dart';
-import '../logic/map_address.dart';
 import '../models/customer_address.dart';
 import '../models/vn_admin_units.dart';
 import '../services/customer_address_service.dart';
-import '../widgets/address_map_card.dart';
 import '../widgets/admin_unit_picker_field.dart';
 import '../widgets/area_calculator_card.dart';
+import '../widgets/gps_picker.dart';
 
 /// Screen allowing customers to create or edit an address in their address book.
 /// Enforces business rules from PRD §1.1 and .spec/contracts/customers.md §2.2.
@@ -24,18 +22,10 @@ class AddressFormScreen extends StatefulWidget {
   final CustomerAddress? initialAddress;
   final CustomerAddressService? addressService;
 
-  /// The phone's position for the address map; the real device by default, a fake in tests.
-  final IDeviceLocationProvider? locationProvider;
-
-  /// False in widget tests: the address map fetches no tile.
-  final bool showMapTiles;
-
   const AddressFormScreen({
     super.key,
     this.initialAddress,
     this.addressService,
-    this.locationProvider,
-    this.showMapTiles = true,
   });
 
   @override
@@ -58,9 +48,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   late HousingType _housingType;
   late double _latitude;
   late double _longitude;
-
-  /// Whether the point was chosen on the map (a saved address has one); a new address starts on the default point.
-  late bool _hasPoint;
   late bool _isDefault;
 
   bool _isSubmitting = false;
@@ -94,7 +81,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     _housingType = init?.housingType ?? HousingType.house;
     _latitude = init?.latitude ?? 10.7769;
     _longitude = init?.longitude ?? 106.7009;
-    _hasPoint = init != null;
     _isDefault = init?.isDefault ?? false;
 
     _floorAreaController.addListener(_onAreaChanged);
@@ -138,44 +124,63 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     });
   }
 
-  /// ADDR-MAP-01: the customer taps the house on the map; the point is kept and the street, province and ward are filled
-  /// from the address read there (a ward that cannot be matched is left empty for the customer to choose).
-  Future<void> _pickOnMap() async {
-    final picked = await openAddressMap(
-      context,
-      hasPoint: _hasPoint,
-      latitude: _latitude,
-      longitude: _longitude,
-      reverseGeocode: _service.reverseGeocode,
-      locationProvider: widget.locationProvider,
-      showTiles: widget.showMapTiles,
-    );
-    if (picked == null || !mounted) return;
-    final address = picked.address;
+  Future<void> _onCoordinatesChanged(double lat, double lng) async {
     setState(() {
-      _latitude = picked.latitude;
-      _longitude = picked.longitude;
-      _hasPoint = true;
-      if (address != null) {
-        final fill = fillFromGeocode(address, currentCity: _city);
-        if (fill.addressLine != null) {
-          _addressLineController.text = fill.addressLine!;
-        }
-        _city = fill.city;
-        _ward = fill.ward;
-      }
+      _latitude = lat;
+      _longitude = lng;
     });
-    if (address == null) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Đã điền địa chỉ theo bản đồ. Hãy thêm số nhà nếu còn thiếu.',
+
+    try {
+      final res = await _service.reverseGeocode(lat, lng);
+      if (!mounted) return;
+
+      setState(() {
+        if (res.addressLine.isNotEmpty) {
+          _addressLineController.text = res.addressLine;
+        } else if (res.formattedAddress.isNotEmpty) {
+          _addressLineController.text = res.formattedAddress;
+        }
+
+        final newCity = matchAdminCity(res.city) ?? _city;
+        final cityChanged = newCity != _city;
+        _city = newCity;
+
+        final matchedWard = matchAdminWard(
+          _city,
+          res.district,
+          addressLine: res.addressLine,
+          formattedAddress: res.formattedAddress,
+        );
+        if (matchedWard != null) {
+          _ward = matchedWard;
+        } else if (cityChanged) {
+          _ward = null;
+        }
+      });
+
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã tự động điền địa chỉ từ vị trí toạ độ.'),
+          duration: Duration(seconds: 3),
+          backgroundColor: NordicColors.primary,
         ),
-        duration: Duration(seconds: 3),
-      ),
-    );
+      );
+    } catch (_) {
+      // Graceful degradation: keeps coordinates, does not overwrite manually typed fields
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Đã lưu toạ độ. Vui lòng kiểm tra và nhập địa chỉ bên trên.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   Future<void> _handleSubmit() async {
@@ -286,8 +291,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   },
                 ),
                 const SizedBox(height: NordicSpace.md),
-                AddressMapCard(hasPoint: _hasPoint, onTap: _pickOnMap),
-                const SizedBox(height: NordicSpace.md),
                 TextFormField(
                   controller: _addressLineController,
                   decoration: const InputDecoration(
@@ -384,7 +387,15 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   totalAreaM2: _previewTotalArea,
                 ),
 
-                const SizedBox(height: NordicSpace.section),
+                _section('Vị trí trên bản đồ'),
+                NordicCard(
+                  child: GpsCoordinatePicker(
+                    latitude: _latitude,
+                    longitude: _longitude,
+                    onCoordinatesChanged: _onCoordinatesChanged,
+                  ),
+                ),
+                const SizedBox(height: NordicSpace.md),
                 NordicCard(
                   padding: EdgeInsets.zero,
                   child: SwitchListTile(

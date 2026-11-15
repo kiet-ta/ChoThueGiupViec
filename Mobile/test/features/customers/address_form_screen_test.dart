@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/core/device/device_location.dart';
-import 'package:mobile/core/device/location_wrapper.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
 import 'package:mobile/features/customers/models/customer_address.dart';
-import 'package:mobile/features/customers/models/reverse_geocode_result.dart';
 import 'package:mobile/features/customers/screens/address_form_screen.dart';
 import 'package:mobile/features/customers/services/customer_address_service.dart';
 
@@ -233,123 +230,91 @@ void main() {
       expect(updated?.district, 'Phường Bến Thành');
     });
 
-    /// ADDR-MAP-01: the card opens the map; the point tapped there fills the street, the province and the ward.
-    Future<void> pickOnMap(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('address-map-card')));
-      await tester.pumpAndSettle();
-      expect(find.text('Chọn vị trí nhà'), findsOneWidget);
-      final topLeft = tester.getTopLeft(find.byKey(const Key('address-map')));
-      await tester.tapAt(topLeft + const Offset(195, 200));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('address-map-confirm')));
-      await tester.pumpAndSettle();
-    }
+    testWidgets(
+      'tapping a location preset triggers reverse geocode and auto-fills address, city, and ward',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-    Future<void> pumpForm(WidgetTester tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: NordicTheme.lightTheme,
-          home: AddressFormScreen(
-            addressService: service,
-            locationProvider: _NoLocation(),
-            showMapTiles: false,
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: AddressFormScreen(addressService: service),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-    }
+        );
+        await tester.pumpAndSettle();
+
+        // Scroll down to GPS Coordinate picker
+        await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+        await tester.pumpAndSettle();
+
+        // Tap Hanoi preset chip
+        await tester.tap(find.text('Hoàn Kiếm, Hà Nội'));
+        await tester.pumpAndSettle();
+
+        // Verify SnackBar shown
+        expect(
+          find.text('Đã tự động điền địa chỉ từ vị trí toạ độ.'),
+          findsOneWidget,
+        );
+
+        // Scroll back up to verify fields auto-filled
+        await tester.drag(find.byType(ListView).first, const Offset(0, 500));
+        await tester.pumpAndSettle();
+
+        expect(find.text('1 Đinh Tiên Hoàng'), findsOneWidget);
+        expect(find.text('Thành phố Hà Nội'), findsOneWidget);
+        expect(find.text('Phường Hoàn Kiếm'), findsOneWidget);
+      },
+    );
 
     testWidgets(
-      'ADDR-MAP-01: a house tapped on the map fills the street, the province and the ward (matched to the catalogue) and is saved',
+      'graceful degradation when reverse geocode fails retains coordinates and displays fallback notice',
       (tester) async {
-        // The server's answer has the ward without its prefix, as the real one does.
-        service.mockReverseGeocodeHandler = (lat, lng) => ReverseGeocodeResult(
-          city: 'Thành phố Hà Nội',
-          district: 'Hoàn Kiếm',
-          addressLine: '17 Phố Trần Nguyên Hãn',
-          formattedAddress:
-              '17 Phố Trần Nguyên Hãn, Hoàn Kiếm, Thành phố Hà Nội, Việt Nam',
-          latitude: lat,
-          longitude: lng,
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        service.mockReverseGeocodeHandler = (lat, lng) =>
+            throw Exception('Service unavailable');
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: NordicTheme.lightTheme,
+            home: AddressFormScreen(addressService: service),
+          ),
         );
-        await pumpForm(tester);
-        expect(find.text('Chọn nhà trên bản đồ'), findsOneWidget);
+        await tester.pumpAndSettle();
 
-        await pickOnMap(tester);
+        // Scroll down to GPS Coordinate picker
+        await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+        await tester.pumpAndSettle();
 
+        // Tap preset chip
+        await tester.tap(find.text('Q.7, TP.HCM'));
+        await tester.pumpAndSettle();
+
+        // Verify fallback notice
         expect(
           find.text(
-            'Đã điền địa chỉ theo bản đồ. Hãy thêm số nhà nếu còn thiếu.',
+            'Đã lưu toạ độ. Vui lòng kiểm tra và nhập địa chỉ bên trên.',
           ),
           findsOneWidget,
         );
-        expect(find.text('Đã chọn vị trí trên bản đồ'), findsOneWidget);
-        expect(find.text('17 Phố Trần Nguyên Hãn'), findsOneWidget);
-        expect(find.text('Thành phố Hà Nội'), findsOneWidget);
-        expect(find.text('Phường Hoàn Kiếm'), findsOneWidget);
 
-        // The fields stay editable, and the point chosen is the one saved.
-        await tester.enterText(
-          find.widgetWithText(TextFormField, '17 Phố Trần Nguyên Hãn'),
-          '17A Phố Trần Nguyên Hãn',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Tên gợi nhớ'),
-          'Nhà Hà Nội',
-        );
-        // The message floats over the action bar for 3 seconds.
-        await tester.pump(const Duration(seconds: 4));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Lưu địa chỉ'));
-        await tester.pumpAndSettle();
-        final saved = (await service.getAddresses()).firstWhere(
-          (a) => a.label == 'Nhà Hà Nội',
-        );
-        expect(saved.addressLine, '17A Phố Trần Nguyên Hãn');
-        expect(saved.district, 'Phường Hoàn Kiếm');
-        expect(saved.latitude, isNot(10.7769));
-      },
-    );
-
-    testWidgets(
-      'ADDR-MAP-01: when the address cannot be read the point is kept and the typed fields are not touched',
-      (tester) async {
-        service.mockReverseGeocodeHandler = (lat, lng) =>
-            throw Exception('Service unavailable');
-        await pumpForm(tester);
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Số nhà, đường'),
-          '5 Lê Lợi',
-        );
-
-        await pickOnMap(tester);
-
-        expect(find.text('Đã chọn vị trí trên bản đồ'), findsOneWidget);
-        expect(find.text('5 Lê Lợi'), findsOneWidget);
-        expect(
-          find.text(
-            'Đã điền địa chỉ theo bản đồ. Hãy thêm số nhà nếu còn thiếu.',
-          ),
-          findsNothing,
-        );
+        // Verify coordinate display has Q.7 coordinates
+        expect(find.textContaining('10.7412'), findsOneWidget);
+        expect(find.textContaining('106.7028'), findsOneWidget);
       },
     );
   });
-}
-
-/// The phone has no position: the map stays on District 1.
-class _NoLocation implements IDeviceLocationProvider {
-  @override
-  Future<GeoPoint> currentPosition() => Future.error(
-    const DeviceLocationException(DeviceLocationFailure.timeout),
-  );
 }
 
 const searchHint = 'Tìm (gõ không dấu cũng được)';

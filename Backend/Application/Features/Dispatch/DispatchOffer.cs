@@ -23,6 +23,9 @@ public record DispatchOffer
     public bool IsConsecutiveShift { get; init; }
 
     public bool IsAccepted { get; init; }
+
+    /// <summary>True when dispatch accepted the offer for the worker because "Tự động nhận đơn" is on (DISPATCH-AUTO-01).</summary>
+    public bool IsAutoAccepted { get; init; }
     public bool IsDeclined { get; init; }
     public string? DeclineReason { get; init; }
 

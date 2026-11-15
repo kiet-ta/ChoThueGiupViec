@@ -418,6 +418,24 @@ Nothing registered yet: **200** with `isSet: false`, `latitude`, `longitude`, `r
 
 ---
 
+### 2.3C Auto-accept ("Tự động nhận đơn", DISPATCH-AUTO-01, #890, decisions D33)
+
+#### 2.3C.1 `GET /api/v1/workers/me/auto-accept` (WorkerOnly)
+**Response 200 `data` (`WorkerAutoAcceptResponse`):** `{ "enabled": false }`. Off by default; always `false` for agency staff.
+
+#### 2.3C.2 `PUT /api/v1/workers/me/auto-accept` (WorkerOnly)
+**Request Body:** `{ "enabled": true }`
+
+**Response 200 `data`:** the same `WorkerAutoAcceptResponse` as the GET.
+
+**Rules:**
+- `enabled` missing or no body: **400** with the field error `enabled`.
+- Agency staff: **409** `NOT_FREELANCER` (they never get offers).
+- Turning it on without a work area (2.3B): **409** `WORK_AREA_REQUIRED`. Turning it off is always allowed.
+- **Effect (decisions D33):** while it is on, every Economy offer dispatch makes to the worker is accepted for them at once (the job appears as `ASSIGNED` in `GET /me/assignments`, and the realtime topic `dispatch.auto_accepted` carries `assignmentId` and `orderId`). The BR-02 second-shift offer still waits for the worker's answer.
+
+---
+
 ### 2.3A Location and payout account (ECON-FLOW-FIX, decisions D19)
 
 #### `PUT /api/v1/workers/me/location` (WorkerOnly)

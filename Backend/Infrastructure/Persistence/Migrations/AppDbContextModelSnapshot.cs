@@ -2173,6 +2173,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("agency_id");
 
+                    b.Property<bool>("AutoAcceptOffers")
+                        .HasColumnType("bit")
+                        .HasColumnName("auto_accept_offers");
+
                     b.Property<string>("BankAccountNo")
                         .HasMaxLength(30)
                         .IsUnicode(false)
