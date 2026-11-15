@@ -8,7 +8,7 @@ import type { FavoriteWorker } from '../account/types'
 import { bookingApi } from '../booking/api'
 import type { CustomerAddress, OrderSummary, PriceQuote, ServiceTier, ShiftOption } from '../booking/types'
 import { dayText, firstName, nextOrder, shiftLabel, shiftRange, statusLabel, tierLabel } from '../booking/view'
-import { monthStats, topFavorites } from './view'
+import { homeTierCaption, homeTierPrice, monthStats, topFavorites } from './view'
 import { homeApi } from './api'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
@@ -86,8 +86,8 @@ export function HomePage() {
         {address && sample && <p className="mt-1 text-sm text-stone-500">{address.totalAreaM2} m² · {sample.requiredWorkers} thợ · 4 giờ</p>}
         {address && <ul className="mt-4 space-y-3">
           {(['ECONOMY', 'PREMIUM'] as ServiceTier[]).map((t) => <li key={t}><Link to={`/app/booking?tier=${t}`} className="flex items-center justify-between rounded-xl border border-stone-200 p-4">
-            <span><b>{tierLabel(t)}</b><span className="block text-sm text-stone-500">mỗi thợ / ca</span></span>
-            <b>{quotes[t] ? formatVnd(quotes[t].unitPrice) : '—'}</b></Link></li>)}
+            <span><b>{tierLabel(t)}</b><span className="block text-sm text-stone-500">{quotes[t] ? homeTierCaption(quotes[t]) : 'mỗi thợ / ca'}</span></span>
+            <b>{quotes[t] ? homeTierPrice(quotes[t]) : '—'}</b></Link></li>)}
         </ul>}
         <Link to="/app/booking" className="mt-4 flex h-10 items-center justify-center rounded-lg bg-[#1a2f25] font-semibold text-white">Chọn ngày và giờ</Link>
       </section>
