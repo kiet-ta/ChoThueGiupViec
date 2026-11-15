@@ -227,12 +227,9 @@ void main() {
             _page([_entry(6)], total: 2, page: 2),
           ]);
         await _pumpHistory(tester, service);
-        expect(find.byKey(const Key('ledger-more')), findsOneWidget);
 
-        await tester.tap(find.byKey(const Key('ledger-more')));
-        await tester.pumpAndSettle();
-
-        expect(service.calls.last.page, 2);
+        // The short list loads the next page by itself (MOB-PAGING-01), once.
+        expect(service.calls.map((c) => c.page), [1, 2]);
         expect(find.byKey(const Key('ledger-row-5')), findsOneWidget);
         expect(find.byKey(const Key('ledger-row-6')), findsOneWidget);
         expect(find.byKey(const Key('ledger-more')), findsNothing);

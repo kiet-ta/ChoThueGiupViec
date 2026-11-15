@@ -71,10 +71,15 @@ class FakePayoutsService implements IPayoutsService {
     return Future.value(earningsByMonth[month] ?? earnings(month));
   }
 
+  /// [historyError] applies from this page on (1 = every page).
+  int historyErrorFromPage = 1;
+
   @override
   Future<PayoutHistoryPage> getPayouts({int page = 1, int pageSize = 20}) {
     requestedPages.add(page);
-    if (historyError != null) return Future.error(historyError!);
+    if (historyError != null && page >= historyErrorFromPage) {
+      return Future.error(historyError!);
+    }
     return Future.value(historyPages[page - 1]);
   }
 }
@@ -478,11 +483,7 @@ void main() {
         expect(find.text('Đã chuyển khoản 03/10/2026'), findsOneWidget);
         expect(find.text('Chờ chuyển khoản'), findsOneWidget);
         expect(find.text('300.000 đ'), findsOneWidget);
-        expect(find.byKey(const Key('history-more')), findsOneWidget);
-
-        await tester.tap(find.byKey(const Key('history-more')));
-        await tester.pumpAndSettle();
-
+        // The short list loads the next page by itself (MOB-PAGING-01), once.
         expect(service.requestedPages, [1, 2]);
         expect(find.text('Tháng 7/2026'), findsOneWidget);
         expect(find.byKey(const Key('history-more')), findsNothing);
@@ -539,13 +540,14 @@ void main() {
               total: 5,
             ),
           );
+        service
+          ..historyError = const ApiException(500, 'Máy chủ lỗi.')
+          ..historyErrorFromPage = 2;
         await pumpHistory(tester, service);
-        service.historyError = const ApiException(500, 'Máy chủ lỗi.');
 
-        await tester.tap(find.byKey(const Key('history-more')));
-        await tester.pumpAndSettle();
-
+        expect(service.requestedPages, [1, 2]);
         expect(find.byKey(const Key('history-error')), findsOneWidget);
+        expect(find.text('Thử lại'), findsOneWidget);
         expect(find.text('Tháng 9/2026'), findsOneWidget);
         expect(find.byKey(const Key('history-more')), findsOneWidget);
       },
