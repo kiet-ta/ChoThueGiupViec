@@ -31,6 +31,8 @@ export interface PriceQuote {
   unitPrice: number
   totalAmount: number
   currency: string
+  /** D35: an ECONOMY large house is done by ONE worker who may need a 2nd consecutive job (the next shift of the day). */
+  isContinuousWork?: boolean
 }
 
 export interface CustomerAddress {
@@ -89,4 +91,6 @@ export interface CreateOrderBody {
   customerNote: string | null
   /** ECONOMY only: one of the caller's favorite workers (a wish, not a guarantee). */
   preferredWorkerId?: number | null
+  /** D35: the customer agreed that a large house is one worker who may work two consecutive jobs (required for it). */
+  acceptsContinuousWork?: boolean
 }

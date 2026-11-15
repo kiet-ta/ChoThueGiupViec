@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { bookingProblem, dayText, firstName, nextOrder, shiftBlockedReason, shiftStart, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
+import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, continuousShiftBlockedReason, dayText, firstName, nextOrder, quoteWorkersLabel, shiftBlockedReason, shiftStart, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
 import type { OrderSummary } from '../src/features/customer/booking/types.ts'
 
 const morning = { shiftCode: 'SHIFT_MORNING', startLocal: '08:00', endLocal: '12:00' }
@@ -78,4 +78,27 @@ describe('price text and next order', () => {
     assert.equal(nextOrder(list, evening, shifts)?.orderId, 2)
   })
   it('returns null when nothing is open', () => assert.equal(nextOrder([order({ orderStatus: 'COMPLETED' })], evening, shifts), null))
+})
+
+describe('large house: one worker, a possible 2nd job (decision D35)', () => {
+  const small = { requiredWorkers: 1, unitPrice: 260000, totalAmount: 260000 }
+  const large = { requiredWorkers: 1, unitPrice: 260000, totalAmount: 520000, isContinuousWork: true }
+  const premiumLarge = { requiredWorkers: 2, unitPrice: 390000, totalAmount: 780000, isContinuousWork: false }
+  it('says the single large-house price instead of "x N workers"', () => {
+    assert.equal(quoteWorkersLabel(large), '1 thợ · giá nhà lớn 520.000 đ')
+    assert.equal(quoteWorkersLabel(small), '1 × 260.000 đ')
+    assert.equal(quoteWorkersLabel(premiumLarge), '2 × 390.000 đ')
+  })
+  it('keeps the evening shift away from a large house only', () => {
+    assert.equal(continuousShiftBlockedReason('SHIFT_EVENING', large), 'Nhà lớn cần thêm ca kế tiếp')
+    assert.equal(continuousShiftBlockedReason('SHIFT_MORNING', large), null)
+    assert.equal(continuousShiftBlockedReason('SHIFT_AFTERNOON', large), null)
+    assert.equal(continuousShiftBlockedReason('SHIFT_EVENING', small), null)
+    assert.equal(continuousShiftBlockedReason('SHIFT_EVENING', null), null)
+  })
+  it('words the notice and the agreement the customer must give', () => {
+    assert.match(CONTINUOUS_WORK_NOTICE, /2 đơn liên tiếp/)
+    assert.match(CONTINUOUS_WORK_NOTICE, /chỉ trả một lần/)
+    assert.match(CONTINUOUS_WORK_AGREEMENT, /đồng ý/)
+  })
 })

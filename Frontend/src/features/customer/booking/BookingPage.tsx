@@ -6,7 +6,7 @@ import { formatVnd } from '@/lib/format'
 import { accountApi } from '../account/api'
 import { bookingApi } from './api'
 import type { BookingOptions, CustomerAddress, FreeShift, PriceQuote, ServiceTier } from './types'
-import { bookingProblem, dayText, NOTE_MAX_LENGTH, shiftBlockedReason, shiftLabel, shiftRange, tierLabel, upcomingDays, workersPrice } from './view'
+import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, continuousShiftBlockedReason, dayText, NOTE_MAX_LENGTH, quoteWorkersLabel, shiftBlockedReason, shiftLabel, shiftRange, tierLabel, upcomingDays } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const choice = (on: boolean, disabled = false) =>
@@ -24,6 +24,7 @@ export function BookingPage() {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [tier, setTier] = useState<ServiceTier>(params.get('tier') === 'PREMIUM' ? 'PREMIUM' : 'ECONOMY')
+  const [agreedContinuous, setAgreedContinuous] = useState(false)
   const [addressId, setAddressId] = useState<number | null>(null)
   const [quotes, setQuotes] = useState<Partial<Record<ServiceTier, PriceQuote>>>({})
   const [quoteError, setQuoteError] = useState<string | null>(null)
@@ -86,11 +87,13 @@ export function BookingPage() {
   const shift = options?.shifts.find((s) => s.shiftCode === shiftCode) ?? null
   const blocked = (d: string, code: string) => {
     const s = options?.shifts.find((x) => x.shiftCode === code)
-    return options && s ? shiftBlockedReason(d, s, tier, options, now, workerAvailability?.shifts ?? null) : null
+    return options && s ? (shiftBlockedReason(d, s, tier, options, now, workerAvailability?.shifts ?? null) ?? continuousShiftBlockedReason(code, quote)) : null
   }
   // A choice made for Economy may be invalid for Premium: drop it instead of sending it.
   const selectionValid = date !== null && shiftCode !== null && blocked(date, shiftCode) === null
-  const canSubmit = !submitting && addressId !== null && quote !== null && selectionValid
+  // D35: a large ECONOMY house needs the customer's agreement before it is booked.
+  const needsAgreement = quote?.isContinuousWork === true
+  const canSubmit = !submitting && addressId !== null && quote !== null && selectionValid && (!needsAgreement || agreedContinuous)
   const returnParams = new URLSearchParams(params)
   returnParams.set('tier', tier)
   const addAddressUrl = `/app/addresses/new?${new URLSearchParams({ next: `/app/booking?${returnParams}` })}`
@@ -100,7 +103,7 @@ export function BookingPage() {
     setSubmitting(true)
     setBanner(null)
     try {
-      const order = await bookingApi.createOrder({ addressId, serviceTier: tier, scheduledDate: date, shiftCode, customerNote: note.trim() || null, preferredWorkerId: tier === 'ECONOMY' ? workerParam : null })
+      const order = await bookingApi.createOrder({ addressId, serviceTier: tier, scheduledDate: date, shiftCode, customerNote: note.trim() || null, preferredWorkerId: tier === 'ECONOMY' ? workerParam : null, ...(needsAgreement ? { acceptsContinuousWork: true } : {}) })
       navigate(`/app/payments/${order.orderId}`)
     } catch (e) {
       setBanner(bookingProblem(e as ApiError))
@@ -122,8 +125,8 @@ export function BookingPage() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {options.serviceTiers.map((t) => <button key={t} type="button" aria-pressed={tier === t} className={choice(tier === t)} onClick={() => setTier(t)}>
               {radio(tier === t)}
-              <span><b>{tierLabel(t)}</b><span className="mt-1 block text-sm text-stone-500">Giá mỗi thợ, mỗi ca</span>
-                <span className="mt-2 block text-xl font-bold">{quotes[t] ? formatVnd(quotes[t].unitPrice) : '—'}</span></span>
+              <span><b>{tierLabel(t)}</b><span className="mt-1 block text-sm text-stone-500">{quotes[t]?.isContinuousWork ? 'Giá nhà lớn, trọn đơn' : 'Giá mỗi thợ, mỗi ca'}</span>
+                <span className="mt-2 block text-xl font-bold">{quotes[t] ? formatVnd(quotes[t].isContinuousWork ? quotes[t].totalAmount : quotes[t].unitPrice) : '—'}</span></span>
             </button>)}
           </div>
           <p className="mt-3 text-sm text-stone-500">Gói Premium đặt trước tối thiểu {options.premiumMinLeadHours} giờ.</p>
@@ -170,12 +173,16 @@ export function BookingPage() {
           <div className="flex justify-between gap-4"><dt className="text-stone-500">Gói</dt><dd className="font-semibold">{tierLabel(tier)}</dd></div>
           <div className="flex justify-between gap-4"><dt className="text-stone-500">Thời gian</dt><dd className="text-right font-semibold">{date && shift && selectionValid ? `${dayText(date)} · ${shiftRange(shift)}` : '—'}</dd></div>
           <div className="flex justify-between gap-4"><dt className="text-stone-500">Địa chỉ</dt><dd className="text-right font-semibold">{address?.label ?? '—'}</dd></div>
-          <div className="flex justify-between gap-4"><dt className="text-stone-500">Số thợ</dt><dd className="font-semibold">{quote ? workersPrice(quote.requiredWorkers, quote.unitPrice) : '—'}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-stone-500">Số thợ</dt><dd className="font-semibold">{quote ? quoteWorkersLabel(quote) : '—'}</dd></div>
         </dl>
+        {needsAgreement && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          <p data-testid="continuous-work-notice">{CONTINUOUS_WORK_NOTICE}</p>
+          <label className="mt-3 flex items-start gap-2 font-semibold"><input type="checkbox" checked={agreedContinuous} onChange={(e) => setAgreedContinuous(e.target.checked)} className="mt-0.5" />{CONTINUOUS_WORK_AGREEMENT}</label>
+        </div>}
         <hr className="my-4 border-stone-200" />
         <div className="flex items-baseline justify-between"><b>Tổng cộng</b><b className="text-2xl">{quote ? formatVnd(quote.totalAmount) : '—'}</b></div>
         {banner && <p role="alert" className="mt-4 flex gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{banner}</p>}
-        {!canSubmit && !submitting && <p className="mt-4 text-sm text-stone-500">{addressId === null ? 'Chọn địa chỉ để xem giá.' : !selectionValid ? 'Chọn ngày và ca để tiếp tục.' : 'Đang tính giá…'}</p>}
+        {!canSubmit && !submitting && <p className="mt-4 text-sm text-stone-500">{addressId === null ? 'Chọn địa chỉ để xem giá.' : !selectionValid ? 'Chọn ngày và ca để tiếp tục.' : needsAgreement && !agreedContinuous ? 'Tích đồng ý ở trên để tiếp tục.' : 'Đang tính giá…'}</p>}
         <button type="button" disabled={!canSubmit} onClick={() => void submit()}
           className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#1a2f25] font-semibold text-white disabled:opacity-50">
           {submitting && <Loader className="animate-spin" size={16} />}Đặt và thanh toán</button>
