@@ -357,7 +357,7 @@ public class OtpService : IOtpService
 
         var additionalClaims = new List<Claim>
         {
-            new("worker_type", worker.WorkerType.ToString())
+            new("worker_type", DbEnum.ToDb(worker.WorkerType)) // FREELANCER | AGENCY_STAFF (ticket #870, spec), not the C# enum name
         };
         if (worker.WorkerType == WorkerType.AgencyStaff && worker.AgencyId.HasValue)
         {
@@ -422,7 +422,7 @@ public class OtpService : IOtpService
             var worker = await _db.Workers.FirstOrDefaultAsync(w => w.WorkerId == tokenRecord.SubjectId, ct);
             if (worker != null)
             {
-                additionalClaims.Add(new Claim("worker_type", worker.WorkerType.ToString()));
+                additionalClaims.Add(new Claim("worker_type", DbEnum.ToDb(worker.WorkerType)));
                 if (worker.WorkerType == WorkerType.AgencyStaff && worker.AgencyId.HasValue)
                 {
                     additionalClaims.Add(new Claim("agency_id", worker.AgencyId.Value.ToString()));

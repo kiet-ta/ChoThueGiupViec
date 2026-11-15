@@ -143,7 +143,7 @@ public class AgencyStaffLoginTests
 
         // Verify JWT payload contains the claims
         var payload = ParseJwtPayload(verify.AuthResult.AccessToken);
-        Assert.Equal("FREELANCER", payload.GetValueOrDefault("worker_type"));
+        Assert.Equal("FREELANCER", payload.GetValueOrDefault("worker_type")?.ToString());
         Assert.False(payload.ContainsKey("agency_id"));
     }
 
@@ -198,8 +198,8 @@ public class AgencyStaffLoginTests
 
         // Verify JWT payload contains the claims
         var payload = ParseJwtPayload(verify.AuthResult.AccessToken);
-        Assert.Equal("AGENCY_STAFF", payload.GetValueOrDefault("worker_type"));
-        Assert.Equal(agency.AgencyId, payload.GetValueOrDefault("agency_id"));
+        Assert.Equal("AGENCY_STAFF", payload.GetValueOrDefault("worker_type")?.ToString());
+        Assert.Equal(agency.AgencyId.ToString(), payload.GetValueOrDefault("agency_id")?.ToString());
     }
 
     [Fact]
@@ -249,8 +249,8 @@ public class AgencyStaffLoginTests
 
         // Verify original JWT has claims
         var originalPayload = ParseJwtPayload(originalAccessToken);
-        Assert.Equal("AGENCY_STAFF", originalPayload.GetValueOrDefault("worker_type"));
-        Assert.Equal(agency.AgencyId, originalPayload.GetValueOrDefault("agency_id"));
+        Assert.Equal("AGENCY_STAFF", originalPayload.GetValueOrDefault("worker_type")?.ToString());
+        Assert.Equal(agency.AgencyId.ToString(), originalPayload.GetValueOrDefault("agency_id")?.ToString());
 
         // Refresh token - RefreshResult uses .Data not .AuthResult
         var refresh = await service.RefreshTokenAsync(refreshToken);
@@ -259,8 +259,8 @@ public class AgencyStaffLoginTests
 
         // Verify new JWT preserves claims
         var newPayload = ParseJwtPayload(refresh.Data.AccessToken);
-        Assert.Equal("AGENCY_STAFF", newPayload.GetValueOrDefault("worker_type"));
-        Assert.Equal(agency.AgencyId, newPayload.GetValueOrDefault("agency_id"));
+        Assert.Equal("AGENCY_STAFF", newPayload.GetValueOrDefault("worker_type")?.ToString());
+        Assert.Equal(agency.AgencyId.ToString(), newPayload.GetValueOrDefault("agency_id")?.ToString());
 
         // AuthUserDto should also have the claims
         Assert.Equal("AGENCY_STAFF", refresh.Data.User.WorkerType);
@@ -298,7 +298,7 @@ public class AgencyStaffLoginTests
         Assert.Null(verify.AuthResult.User.AgencyId);
 
         var payload = ParseJwtPayload(verify.AuthResult.AccessToken);
-        Assert.Equal("FREELANCER", payload.GetValueOrDefault("worker_type"));
+        Assert.Equal("FREELANCER", payload.GetValueOrDefault("worker_type")?.ToString());
         Assert.False(payload.ContainsKey("agency_id"));
     }
 }
