@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/core/widgets/nordic_dropdown.dart';
+import 'package:mobile/features/payouts/logic/bank_logic.dart';
 import 'package:mobile/features/payouts/models/wallet_models.dart';
 import 'package:mobile/features/payouts/screens/bank_account_screen.dart';
 import 'package:mobile/features/payouts/screens/wallet_screen.dart';
@@ -133,9 +135,31 @@ String _value(WidgetTester tester, String key) => tester
     .controller!
     .text;
 
+/// Picks [label] in the bank dropdown (MOB-BANK-02).
+Future<void> _pick(WidgetTester tester, String label) async {
+  await tester.tap(find.byKey(const Key('bank-pick')));
+  await tester.pumpAndSettle();
+  final item = find.text(label).last;
+  await tester.ensureVisible(item);
+  await tester.pumpAndSettle();
+  await tester.tap(item);
+  await tester.pumpAndSettle();
+}
+
+/// What the bank dropdown shows ('' = nothing picked yet).
+String _bankChoice(WidgetTester tester) => tester
+    .widget<NordicDropdown<String>>(find.byKey(const Key('bank-pick')))
+    .value;
+
+/// A listed bank is picked in the dropdown; any other name goes through "Ngân hàng khác" and the text field.
 Future<void> _fill(WidgetTester tester, {String? name, String? account}) async {
   if (name != null) {
-    await tester.enterText(find.byKey(const Key('bank-name')), name);
+    if (commonBanks.contains(name.trim())) {
+      await _pick(tester, name.trim());
+    } else {
+      await _pick(tester, 'Ngân hàng khác');
+      await tester.enterText(find.byKey(const Key('bank-name')), name);
+    }
   }
   if (account != null) {
     await tester.enterText(find.byKey(const Key('bank-account')), account);
@@ -179,14 +203,33 @@ void main() {
       },
     );
 
-    testWidgets('a quick pick fills the bank name', (tester) async {
-      await _pump(tester, FakeWorkerBank(_none));
+    testWidgets(
+      'the bank is picked from a dropdown, with no free text field (MOB-BANK-02)',
+      (tester) async {
+        await _pump(tester, FakeWorkerBank(_none));
+        expect(_bankChoice(tester), '');
+        expect(find.byKey(const Key('bank-name')), findsNothing);
 
-      await tester.tap(find.byKey(const Key('bank-pick-Techcombank')));
-      await tester.pump();
+        await _pick(tester, 'Techcombank');
 
-      expect(_value(tester, 'bank-name'), 'Techcombank');
-    });
+        expect(_bankChoice(tester), 'Techcombank');
+        expect(find.byKey(const Key('bank-name')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      '"Ngân hàng khác" shows a text field and saves the typed name (MOB-BANK-02)',
+      (tester) async {
+        final service = FakeWorkerBank(_none);
+        await _pump(tester, service);
+
+        await _fill(tester, name: ' Bac A Bank ', account: '0011001234567');
+        expect(find.byKey(const Key('bank-name')), findsOneWidget);
+        await _save(tester);
+
+        expect(service.saved, [(name: 'Bac A Bank', account: '0011001234567')]);
+      },
+    );
 
     testWidgets(
       'saves the trimmed name and the account without spaces, then shows it',
@@ -334,7 +377,7 @@ void main() {
 
       expect(find.byKey(const Key('bank-change-warning')), findsOneWidget);
       expect(find.textContaining('15 ngày không đổi được nữa'), findsOneWidget);
-      expect(_value(tester, 'bank-name'), '');
+      expect(_bankChoice(tester), '');
       expect(_value(tester, 'bank-account'), '');
       expect(find.text('Gửi đơn đổi tài khoản'), findsWidgets);
 
@@ -377,7 +420,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(service.requests, isEmpty);
-      expect(find.byKey(const Key('bank-name')), findsOneWidget);
+      expect(_bankChoice(tester), 'Techcombank');
     });
 
     testWidgets(

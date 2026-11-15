@@ -75,14 +75,24 @@ String bankPendingNote(BankChangePending pending) {
       : 'Đơn đổi tài khoản đã gửi ngày ${formatVietnamDate(sent)}, đang chờ Admin duyệt.';
 }
 
-/// Quick picks under the bank name field.
+/// The banks of the bank dropdown (MOB-BANK-02); any other bank is typed after picking "Ngân hàng khác".
 const List<String> commonBanks = [
   'Vietcombank',
-  'ACB',
+  'VietinBank',
+  'BIDV',
+  'Agribank',
   'Techcombank',
   'MB Bank',
-  'BIDV',
+  'ACB',
   'VPBank',
+  'Sacombank',
+  'TPBank',
+  'VIB',
+  'HDBank',
+  'SHB',
+  'MSB',
+  'OCB',
+  'SeABank',
 ];
 
 /// The digits of an account number the worker typed: spaces are dropped, like the server does.

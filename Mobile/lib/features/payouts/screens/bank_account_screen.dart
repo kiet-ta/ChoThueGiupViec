@@ -5,14 +5,13 @@ import 'package:flutter/material.dart';
 import '../../../core/motion/error_shake.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/nordic_colors.dart';
-import '../../../core/theme/nordic_radius.dart';
 import '../../../core/theme/nordic_spacing.dart';
 import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_dropdown.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_text_input.dart';
-import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
 import '../logic/bank_logic.dart';
@@ -48,6 +47,9 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
   String? _notice;
   bool _saving = false;
   int _errors = 0;
+
+  /// "Ngân hàng khác" is picked: the bank name is typed in a text field under the dropdown.
+  bool _otherBank = false;
 
   /// The form of a change request is open (an account exists and the worker may send a request).
   bool _changing = false;
@@ -134,6 +136,7 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
         _bank = saved;
         _changing = false;
         _bankName.clear();
+        _otherBank = false;
         _account.clear();
         _notice = change
             ? 'Đã gửi đơn đổi tài khoản. Admin sẽ duyệt; trong 15 ngày bạn không gửi được đơn khác.'
@@ -259,6 +262,7 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
         _notice = null;
         _saveError = null;
         _bankName.clear();
+        _otherBank = false;
         _account.clear();
       }),
     ),
@@ -406,23 +410,36 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
             const SizedBox(height: NordicSpace.md),
             const Text('Tên ngân hàng', style: NordicTypography.bodySmall),
             const SizedBox(height: NordicSpace.xxs),
-            NordicTextInput(
-              key: const Key('bank-name'),
-              controller: _bankName,
-              hintText: 'Ví dụ: Vietcombank',
-              readOnly: _saving,
-              onChanged: (_) {
-                if (_nameError != null) setState(() => _nameError = null);
-              },
+            NordicDropdown<String>(
+              key: const Key('bank-pick'),
+              value: _bankChoice,
+              semanticLabel: 'Tên ngân hàng',
+              enabled: !_saving,
+              options: [
+                const NordicDropdownOption('', 'Chọn ngân hàng'),
+                for (final b in commonBanks) NordicDropdownOption(b, b),
+                const NordicDropdownOption(_otherChoice, 'Ngân hàng khác'),
+              ],
+              onChanged: (picked) => setState(() {
+                _nameError = null;
+                _otherBank = picked == _otherChoice;
+                _bankName.text = _otherBank ? '' : picked;
+              }),
             ),
+            if (_otherBank) ...[
+              const SizedBox(height: NordicSpace.xs),
+              NordicTextInput(
+                key: const Key('bank-name'),
+                controller: _bankName,
+                hintText: 'Tên ngân hàng, ví dụ: Bac A Bank',
+                readOnly: _saving,
+                onChanged: (_) {
+                  if (_nameError != null) setState(() => _nameError = null);
+                },
+              ),
+            ],
             if (_nameError != null)
               _errorText(_nameError!, const Key('bank-name-error')),
-            const SizedBox(height: NordicSpace.xs),
-            Wrap(
-              spacing: NordicSpace.xs,
-              runSpacing: NordicSpace.xs,
-              children: [for (final b in commonBanks) _chip(b)],
-            ),
             const SizedBox(height: NordicSpace.md),
             const Text('Số tài khoản', style: NordicTypography.bodySmall),
             const SizedBox(height: NordicSpace.xxs),
@@ -446,48 +463,14 @@ class _BankAccountScreenState extends State<BankAccountScreen> {
     );
   }
 
-  /// A quick pick: tapping it fills the bank name field.
-  Widget _chip(String name) {
-    final selected = _bankName.text.trim() == name;
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: Pressable(
-        child: GestureDetector(
-          key: Key('bank-pick-$name'),
-          behavior: HitTestBehavior.opaque,
-          onTap: _saving
-              ? null
-              : () => setState(() {
-                  _bankName.text = name;
-                  _nameError = null;
-                }),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 44.0),
-            padding: const EdgeInsets.symmetric(
-              horizontal: NordicSpace.md,
-              vertical: NordicSpace.xs,
-            ),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: selected ? NordicColors.primary : NordicColors.surface,
-              borderRadius: NordicRadius.pill,
-              border: Border.all(
-                color: selected ? NordicColors.primary : NordicColors.border,
-              ),
-            ),
-            child: Text(
-              name,
-              style: NordicTypography.bodySmall.copyWith(
-                color: selected
-                    ? NordicColors.textInverse
-                    : NordicColors.textTitle,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+  /// The dropdown value of "Ngân hàng khác" (no bank is called like this).
+  static const String _otherChoice = '__other__';
+
+  /// What the dropdown shows: the picked bank, "Ngân hàng khác", or the empty choice.
+  String get _bankChoice {
+    if (_otherBank) return _otherChoice;
+    final name = _bankName.text.trim();
+    return commonBanks.contains(name) ? name : '';
   }
 
   Widget _errorText(String text, Key key) {
