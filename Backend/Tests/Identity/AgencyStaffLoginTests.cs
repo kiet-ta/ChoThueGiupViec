@@ -86,6 +86,9 @@ public class AgencyStaffLoginTests
         return (service, db, clock, sender);
     }
 
+    /// <summary>A tax code of its own per test: PARTNER_AGENCY.tax_code is unique and a fixed value made every second test (and every re-run) fail.</summary>
+    private static string UniqueTaxCode() => Random.Shared.NextInt64(1_000_000_000, 9_999_999_999).ToString();
+
     private static string GenerateTestPhone() => $"091{Random.Shared.Next(1000000, 9999999)}";
     private static string GenerateTestIp() => $"10.{Random.Shared.Next(1, 254)}.{Random.Shared.Next(1, 254)}.{Random.Shared.Next(1, 254)}";
 
@@ -117,6 +120,7 @@ public class AgencyStaffLoginTests
 
         var (service, db, _, sender) = CreateService();
         await using var _ = db;
+        await using var transaction = await db.Database.BeginTransactionAsync(); // rolled back on dispose: nothing stays in the database
 
         var phone = GenerateTestPhone();
         var nationalId = Random.Shared.NextInt64(100000000000, 999999999999).ToString();
@@ -139,7 +143,7 @@ public class AgencyStaffLoginTests
 
         // Verify JWT payload contains the claims
         var payload = ParseJwtPayload(verify.AuthResult.AccessToken);
-        Assert.Equal("FREELANCER", payload.GetValueOrDefault("worker_type"));
+        Assert.Equal("FREELANCER", payload.GetValueOrDefault("worker_type")?.ToString());
         Assert.False(payload.ContainsKey("agency_id"));
     }
 
@@ -150,6 +154,7 @@ public class AgencyStaffLoginTests
 
         var (service, db, _, sender) = CreateService();
         await using var _ = db;
+        await using var transaction = await db.Database.BeginTransactionAsync(); // rolled back on dispose: nothing stays in the database
 
         var phone = GenerateTestPhone();
         var nationalId = Random.Shared.NextInt64(100000000000, 999999999999).ToString();
@@ -157,7 +162,7 @@ public class AgencyStaffLoginTests
         // Create agency first
         var agency = new PartnerAgency
         {
-            TaxCode = "0123456789",
+            TaxCode = UniqueTaxCode(),
             LegalName = "Test Agency",
             LegalRepresentative = "Test Rep",
             ContactPhone = "0901234567",
@@ -193,8 +198,8 @@ public class AgencyStaffLoginTests
 
         // Verify JWT payload contains the claims
         var payload = ParseJwtPayload(verify.AuthResult.AccessToken);
-        Assert.Equal("AGENCY_STAFF", payload.GetValueOrDefault("worker_type"));
-        Assert.Equal(agency.AgencyId, payload.GetValueOrDefault("agency_id"));
+        Assert.Equal("AGENCY_STAFF", payload.GetValueOrDefault("worker_type")?.ToString());
+        Assert.Equal(agency.AgencyId.ToString(), payload.GetValueOrDefault("agency_id")?.ToString());
     }
 
     [Fact]
@@ -204,6 +209,7 @@ public class AgencyStaffLoginTests
 
         var (service, db, _, sender) = CreateService();
         await using var _ = db;
+        await using var transaction = await db.Database.BeginTransactionAsync(); // rolled back on dispose: nothing stays in the database
 
         var phone = GenerateTestPhone();
         var nationalId = Random.Shared.NextInt64(100000000000, 999999999999).ToString();
@@ -211,7 +217,7 @@ public class AgencyStaffLoginTests
         // Create agency and Agency Staff worker
         var agency = new PartnerAgency
         {
-            TaxCode = "0123456789",
+            TaxCode = UniqueTaxCode(),
             LegalName = "Test Agency",
             LegalRepresentative = "Test Rep",
             ContactPhone = "0901234567",
@@ -243,8 +249,8 @@ public class AgencyStaffLoginTests
 
         // Verify original JWT has claims
         var originalPayload = ParseJwtPayload(originalAccessToken);
-        Assert.Equal("AGENCY_STAFF", originalPayload.GetValueOrDefault("worker_type"));
-        Assert.Equal(agency.AgencyId, originalPayload.GetValueOrDefault("agency_id"));
+        Assert.Equal("AGENCY_STAFF", originalPayload.GetValueOrDefault("worker_type")?.ToString());
+        Assert.Equal(agency.AgencyId.ToString(), originalPayload.GetValueOrDefault("agency_id")?.ToString());
 
         // Refresh token - RefreshResult uses .Data not .AuthResult
         var refresh = await service.RefreshTokenAsync(refreshToken);
@@ -253,8 +259,8 @@ public class AgencyStaffLoginTests
 
         // Verify new JWT preserves claims
         var newPayload = ParseJwtPayload(refresh.Data.AccessToken);
-        Assert.Equal("AGENCY_STAFF", newPayload.GetValueOrDefault("worker_type"));
-        Assert.Equal(agency.AgencyId, newPayload.GetValueOrDefault("agency_id"));
+        Assert.Equal("AGENCY_STAFF", newPayload.GetValueOrDefault("worker_type")?.ToString());
+        Assert.Equal(agency.AgencyId.ToString(), newPayload.GetValueOrDefault("agency_id")?.ToString());
 
         // AuthUserDto should also have the claims
         Assert.Equal("AGENCY_STAFF", refresh.Data.User.WorkerType);
@@ -268,6 +274,7 @@ public class AgencyStaffLoginTests
 
         var (service, db, _, sender) = CreateService();
         await using var _ = db;
+        await using var transaction = await db.Database.BeginTransactionAsync(); // rolled back on dispose: nothing stays in the database
 
         var phone = GenerateTestPhone();
         var nationalId = Random.Shared.NextInt64(100000000000, 999999999999).ToString();
@@ -291,7 +298,7 @@ public class AgencyStaffLoginTests
         Assert.Null(verify.AuthResult.User.AgencyId);
 
         var payload = ParseJwtPayload(verify.AuthResult.AccessToken);
-        Assert.Equal("FREELANCER", payload.GetValueOrDefault("worker_type"));
+        Assert.Equal("FREELANCER", payload.GetValueOrDefault("worker_type")?.ToString());
         Assert.False(payload.ContainsKey("agency_id"));
     }
 }

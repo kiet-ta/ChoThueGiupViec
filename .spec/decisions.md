@@ -309,7 +309,7 @@ The customer sees the route, distance and travel time from the worker to the hou
 2. **Guards:** only freelancers (agency staff: 409 `NOT_FREELANCER`); turning it on needs a registered work area (409 `WORK_AREA_REQUIRED`, D24). A failed accept (race, order no longer dispatching) leaves the offer open for the usual 30 s; an error in this step never fails dispatch.
 3. **Not applied:** the BR-02 second-shift offer (D7 option b: a second shift is never given without asking) and Premium / agency seats.
 4. **Ranking unchanged:** the flag is not a score input; the nearest worker by road (D30) is still asked first.
-5. **Switch off on cancel:** the switch turns itself off when the worker cancels an accepted job (D35, #902).
+5. **Switch off on cancel:** the switch turns itself off when the worker cancels an accepted job (D35, #902). When it was on, the worker gets the realtime notice `dispatch.auto_accept_off` ("Tự động nhận đơn đã tắt vì bạn vừa hủy ca", `assignmentId`, `orderId`; #891); a worker whose switch was already off gets nothing.
 
 ### D34 Timed jobs: the customer picks the start and the length; a shift keeps taking jobs (BOOK-TIME-01, #895; owner request 2026-11-15)
 Owner accepted the recommended defaults (market reference: bTaskee packages of 2/3/4 h by area, JupViec worker shifts with customer-picked times, a 20-30 min travel gap between jobs).
@@ -331,6 +331,13 @@ Market reference: Grab (cancellation rate = cancelled / accepted, temporary lock
 4. **Cutoff:** a cancel at or after `T - Cancel.RedispatchCutoffMinutes` (30) fails the order at once; the dispatch sweep fails any order still `DISPATCHING` with a worker-cancelled seat when it reaches the cutoff. Failing = `AssignmentFailed` (reason `WORKER_CANCELLED_NO_SUBSTITUTE`): Booking cancels the order and refunds 100 % automatically, no Admin step. A scan that finds nobody fails the order the same way (BR-03).
 5. **Customer:** realtime notices `dispatch.worker_cancelled` (with the time the search stops), `dispatch.substitute_found`, `dispatch.substitute_not_found`. `OrderProgress.substituteSearchUntil` is set while the order is `DISPATCHING` after a worker cancel. The customer may cancel meanwhile for a 100 % refund (the order is not `ASSIGNED`, so the late fee never applies).
 6. **Not in scope:** rescheduling, money penalties, Premium / agency seats (Q09 failover).
+
+### D36 Notifications reach only their recipient (SEC-NOTIF-01, #894; owner request 2026-11-15)
+Before this, anyone (even without signing in) could read other users' notifications: the hub let a connection join any `role:id` group (`JoinUserGroup`) or a topic group (`JoinTopic`, which received every message of that topic), and `GET /api/v1/notifications` took `role` / `userId` from the query string with no authentication.
+1. **Hub:** a connection joins only its own `role:id` group, taken from its token on connect; an anonymous connection joins none. The hub has no client-callable methods (`JoinUserGroup`, `LeaveUserGroup`, `JoinTopic`, `LeaveTopic` removed).
+2. **Delivery:** a message goes to its recipient's group only; there is no per-topic broadcast. Clients tell messages apart by `topic` in `NotificationMessageDto` (contracts `booking.md` job.tracking, `payments.md` payment.status).
+3. **Poll:** `GET /api/v1/notifications` requires authentication (anonymous -> 401) and returns only the caller's notifications; the `role` / `userId` query parameters are removed.
+4. **Not in this decision:** the `access_token` query-string token for hub connections and the Mobile client (#893, MOB-RT-01). Until then no client receives realtime messages, as before (no client used the removed methods: grep 2026-11-15).
 
 ### D26 CQRS Read-Join Convention (Architecture Refinement, 2026-11-09)
 1. **Write Side (Commands, State Transitions, Dispatch Matching):** Strictly 0-JOIN. All entity mutations, dispatch slot holds, and state machine transitions MUST use single-table operations or conditional `ExecuteUpdateAsync` (e.g. `WHERE SlotId = @id AND SlotStatus = 'AVAILABLE'`). Domain entities strictly have NO navigation properties (`virtual ICollection<T>` is strictly banned).

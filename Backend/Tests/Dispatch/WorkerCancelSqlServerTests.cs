@@ -182,7 +182,7 @@ public class WorkerCancelSqlServerTests
 
         var commit = await repo.TryCancelAsync(s.AssignmentId, s.WorkerId, Now, Now.AddDays(-30), 3);
 
-        Assert.Equal(new WorkerCancelCommit(1, false), commit);
+        Assert.Equal(new WorkerCancelCommit(1, false, AutoAcceptTurnedOff: true), commit);
         await using var check = NewDb();
         Assert.Equal(JobAssignmentStatus.CancelledByWorker, (await check.JobAssignments.SingleAsync(a => a.AssignmentId == s.AssignmentId)).AssignmentStatus);
         Assert.Equal(DispatchSlotStatuses.Available, (await check.BookingSlots.SingleAsync(x => x.SlotId == s.SlotId)).SlotStatus);
@@ -226,7 +226,7 @@ public class WorkerCancelSqlServerTests
 
         var commit = await repo.TryCancelAsync(s.AssignmentId, s.WorkerId, Now, Now.AddDays(-30), 3);
 
-        Assert.Equal(new WorkerCancelCommit(3, true), commit);
+        Assert.Equal(new WorkerCancelCommit(3, true, AutoAcceptTurnedOff: true), commit);
         await using var check = NewDb();
         Assert.Equal(WorkStatus.Locked, (await check.Workers.SingleAsync(w => w.WorkerId == s.WorkerId)).WorkStatus);
     }
