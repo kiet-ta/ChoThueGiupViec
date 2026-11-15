@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/widgets/nordic_button.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/features/customers/models/customer_address.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/screens/order_detail_screen.dart';
 import 'package:mobile/features/booking/screens/order_history_screen.dart';
@@ -226,6 +227,7 @@ Future<List<PaymentScreenArgs>> pumpDetail(
   FakeOrderService service, {
   bool withArgs = true,
   IFallbackService? fallback,
+  CustomerAddress? address,
 }) async {
   _phone(tester);
   final paid = <PaymentScreenArgs>[];
@@ -238,6 +240,7 @@ Future<List<PaymentScreenArgs>> pumpDetail(
         fallbackService: fallback,
         pollInterval: _poll,
         onPay: paid.add,
+        addressLookup: (_) async => address,
       ),
     ),
   );
@@ -347,6 +350,48 @@ void main() {
     Finder timelineTicks() => find.descendant(
       of: find.byKey(const Key('order-timeline')),
       matching: find.byIcon(Icons.check),
+    );
+
+    testWidgets(
+      'a job waiting for acceptance cannot be cancelled and shows "Chờ nghiệm thu" with the address (MOB-ORDER-02)',
+      (tester) async {
+        final service = FakeOrderService()
+          ..status = OrderStatus.assigned
+          ..workers = [_worker(7, AssignmentStatus.awaitingAcceptance)];
+        await pumpDetail(
+          tester,
+          service,
+          address: const CustomerAddress(
+            addressId: 1,
+            label: 'Căn hộ mẹ',
+            addressLine: 'Vinhomes Central Park',
+            district: 'Phường Thạnh Mỹ Tây',
+            city: 'Thành phố Hồ Chí Minh',
+            housingType: HousingType.apartment,
+            floorAreaM2: 96,
+            numFloors: 1,
+            totalAreaM2: 96,
+            latitude: 10.79,
+            longitude: 106.72,
+            isDefault: false,
+          ),
+        );
+
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('order-address')),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('Huỷ đơn'), findsNothing);
+        expect(
+          textOf(tester, 'order-timeline-hint'),
+          'Mời bạn kiểm tra rồi xác nhận nghiệm thu.',
+        );
+        expect(
+          textOf(tester, 'order-address-line'),
+          'Vinhomes Central Park · Phường Thạnh Mỹ Tây · 96 m²',
+        );
+      },
     );
 
     testWidgets('an assigned order ticks "Có người làm"', (tester) async {
