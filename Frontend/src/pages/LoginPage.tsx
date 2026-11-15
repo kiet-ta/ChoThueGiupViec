@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { OtpInput } from '@/components/ui/otp-input'
 import { safeNext } from '@/auth/access'
 import { authController } from '@/auth'
-import { describeLoginError, describeOtpError, type LoginErrorView } from '@/auth/login-errors'
+import { describeLoginError, describeOtpError, otpCodeError, otpPhoneError, type LoginErrorView } from '@/auth/login-errors'
 import { extractSandboxOtp, type OtpRequestResponse } from '@/auth/sandbox-otp'
 import { useAuth } from '@/auth/useAuth'
 import { apiClient, ApiError } from '@/services/api'
@@ -57,12 +57,22 @@ export function LoginPage({ admin = false }: { admin?: boolean }) {
     }
   }
   async function submit(e: FormEvent) {
-    e.preventDefault(); setBusy(true); setError(null)
+    e.preventDefault(); setError(null)
+    if (!admin && tab === 'customer') {
+      if (step === 'phone') {
+        const msg = otpPhoneError(phone)
+        if (msg) { setError({ fields: { phonenumber: [msg] } }); return }
+      } else {
+        const msg = otpCodeError(code)
+        if (msg) { setError({ fields: { code: [msg] } }); return }
+      }
+    }
+    setBusy(true)
     try {
       if (admin || tab === 'partner') await login(email.trim(), password, admin ? 'Admin' : 'Partner')
       else if (step === 'phone') await requestOtp()
       else {
-        const result = await apiClient.post<AuthResult>('/auth/otp/verify', { phoneNumber: phone.trim(), role: 'Customer', code })
+        const result = await apiClient.post<AuthResult>('/auth/otp/verify', { phoneNumber: phone.trim(), role: 'Customer', code: code.trim() })
         authController.establishOtp(result)
       }
     } catch (err) {

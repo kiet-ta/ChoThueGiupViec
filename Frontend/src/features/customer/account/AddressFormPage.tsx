@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CircleAlert, Loader, Ruler } from 'lucide-react'
 import { ApiError } from '@/services/api'
+import { parsePositiveInt } from '../route-id'
 import { accountApi } from './api'
 import { SearchSelect } from './SearchSelect'
 import {
@@ -16,12 +17,14 @@ const blank: AddressForm = {
 }
 
 export function AddressFormPage() {
-  const id = Number(useParams().addressId) || null
+  const rawAddressId = useParams().addressId
+  const id = rawAddressId === undefined ? null : parsePositiveInt(rawAddressId)
+  const invalidId = rawAddressId !== undefined && id === null
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [units, setUnits] = useState<Record<string, string[]> | null>(null)
   const [form, setForm] = useState<AddressForm>(blank)
-  const [loaded, setLoaded] = useState(id === null)
+  const [loaded, setLoaded] = useState(id === null && !invalidId)
   const [errors, setErrors] = useState<AddressErrors>({})
   const [banner, setBanner] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -30,9 +33,10 @@ export function AddressFormPage() {
   const [located, setLocated] = useState(false)
 
   useEffect(() => {
+    if (invalidId) return
     // The ward catalogue (about 70 KB) is loaded only on this screen.
     import('./vn-admin-units').then((m) => setUnits(m.vnAdminUnits)).catch(() => setBanner('Không tải được danh sách phường / xã.'))
-  }, [])
+  }, [invalidId])
   useEffect(() => {
     if (id === null) return
     let cancelled = false
@@ -124,7 +128,8 @@ export function AddressFormPage() {
     }
   }
 
-  if (!loaded) return banner ? <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{banner}</p> : <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
+  if (invalidId) return <div><Link to="/app/addresses" className="text-sm text-stone-500 underline">← Địa chỉ của tôi</Link><p role="alert" className="mt-6 flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />Không tìm thấy địa chỉ này.</p></div>
+  if (!loaded) return banner ? <div><Link to="/app/addresses" className="text-sm text-stone-500 underline">← Địa chỉ của tôi</Link><p role="alert" className="mt-6 rounded-lg bg-red-50 p-4 text-sm text-red-700">{banner}</p></div> : <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
 
   const err = (key: keyof AddressErrors) => errors[key] && <p role="alert" className="mt-1 text-sm text-red-700">{errors[key]}</p>
   return <div className="mx-auto max-w-2xl">

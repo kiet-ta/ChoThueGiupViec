@@ -4,6 +4,7 @@ import { CircleAlert, Clock, Info, Loader } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
 import type { Order } from '../booking/types'
+import { parsePositiveInt } from '../route-id'
 import { ordersApi } from './api'
 import type { OrderProgress } from './types'
 import { extensionHourOptions, extensionLabel, hoursText, newEndText, orderActions, orderProblem, POLL_PROGRESS_MS } from './view'
@@ -11,7 +12,7 @@ import { extensionHourOptions, extensionLabel, hoursText, newEndText, orderActio
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 
 export function ExtensionPage() {
-  const orderId = Number(useParams().orderId)
+  const orderId = parsePositiveInt(useParams().orderId)
   const [order, setOrder] = useState<Order | null>(null)
   const [progress, setProgress] = useState<OrderProgress | null>(null)
   const [hours, setHours] = useState<number | null>(null)
@@ -19,6 +20,7 @@ export function ExtensionPage() {
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (orderId === null) return
     try {
       const [o, p] = await Promise.all([ordersApi.get(orderId), ordersApi.progress(orderId)])
       setOrder(o)
@@ -42,14 +44,14 @@ export function ExtensionPage() {
     return () => clearInterval(timer)
   }, [waiting, load])
 
-  if (error && !order) return <p role="alert" className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p>
+  if (orderId === null || (error && !order)) return <div role="alert" className="space-y-4"><p className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{orderId === null ? 'Không tìm thấy đơn.' : error}</p><Link to="/app/orders" className="underline">Về danh sách đơn</Link></div>
   if (!order || !progress) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
 
   const actions = orderActions(order.orderStatus, progress.assignments, ext, new Date())
   const worker = progress.assignments.find((a) => ['IN_PROGRESS', 'AWAITING_ACCEPTANCE'].includes(a.assignmentStatus)) ?? progress.assignments[0]
 
   async function send() {
-    if (hours === null || !worker || busy) return
+    if (orderId === null || hours === null || !worker || busy) return
     setBusy(true)
     setError(null)
     try {

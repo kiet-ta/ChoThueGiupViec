@@ -4,6 +4,7 @@ import { ArrowLeft, CircleAlert, Loader } from 'lucide-react'
 import { ApiError } from '@/services/api'
 import { formatDateTime } from '@/lib/format'
 import { bookingApi } from '../booking/api'
+import { parsePositiveInt } from '../route-id'
 import { afterShiftApi } from './api'
 import type { Dispute } from './types'
 import { categoryLabel, disputeDetailProblem, disputeOutcomeLines, disputeStatusLabel, disputeSteps } from './view'
@@ -13,13 +14,14 @@ const tone: Record<string, string> = { OPEN: 'bg-amber-100 text-amber-900', IN_R
 /** One dispute of the customer (DISPUTE-DETAIL-01): `GET /customers/me/disputes/{id}`, disputes.md 2.1. */
 export function DisputeDetailPage() {
   const { disputeId } = useParams()
-  const id = Number(disputeId)
+  const id = parsePositiveInt(disputeId)
   const [dispute, setDispute] = useState<Dispute | null>(null)
   const [orderCode, setOrderCode] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [photo, setPhoto] = useState<string | null>(null)
 
   useEffect(() => {
+    if (id === null) return
     let cancelled = false
     afterShiftApi.dispute(id)
       .then((d) => {
@@ -34,7 +36,7 @@ export function DisputeDetailPage() {
   }, [id])
 
   const back = <Link to="/app/disputes" className="inline-flex items-center gap-1 text-sm text-stone-600 underline"><ArrowLeft size={14} />Khiếu nại của tôi</Link>
-  if (error) return <div>{back}<p role="alert" className="mt-6 flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p></div>
+  if (id === null || error) return <div>{back}<p role="alert" className="mt-6 flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{id === null ? 'Không tìm thấy khiếu nại này.' : error}</p></div>
   if (!dispute) return <div>{back}<p className="mt-6 flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p></div>
 
   const resolved = dispute.disputeStatus === 'RESOLVED'

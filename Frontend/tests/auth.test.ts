@@ -8,7 +8,7 @@ import {
   type AuthApi,
   type Timers,
 } from '../src/auth/auth-controller.ts'
-import { describeLoginError, describeOtpError } from '../src/auth/login-errors.ts'
+import { describeLoginError, describeOtpError, normalizeVietnamesePhone, otpCodeError, otpPhoneError } from '../src/auth/login-errors.ts'
 import { createSessionStore, REFRESH_TOKEN_KEY, type AuthResult, type KeyValueStorage } from '../src/auth/session.ts'
 
 function memoryStorage(): KeyValueStorage & { data: Map<string, string> } {
@@ -302,8 +302,30 @@ describe('customer OTP errors and redirects', () => {
   })
   it('maps validation, expired codes and retry headers', () => {
     assert.deepEqual(describeOtpError({ status: 400, fieldErrors: { PhoneNumber: ['Sai số'] } }, 'phone').fields.phonenumber, ['Sai số'])
+    const engPhone = describeOtpError({
+      status: 400,
+      fieldErrors: { PhoneNumber: ['Invalid Vietnamese mobile phone number format (must be 10 digits starting with 03, 05, 07, 08, or 09).'] },
+    }, 'phone')
+    assert.match(engPhone.fields.phonenumber[0], /Số điện thoại không hợp lệ/)
+    const engCode = describeOtpError({ status: 400, fieldErrors: { Code: ['Code must be a 6-digit numeric string.'] } }, 'code')
+    assert.match(engCode.fields.code[0], /6 chữ số/)
     assert.match(describeOtpError({ status: 401 }, 'code').message!, /hết hạn/)
     assert.match(describeOtpError({ status: 429, retryAfterSeconds: 30 }, 'phone').message!, /30 giây/)
     assert.match(describeOtpError({ status: 429 }, 'code').message!, /mã mới/)
+  })
+
+  it('normalizes and validates Vietnamese mobile numbers and 6-digit codes', () => {
+    assert.equal(normalizeVietnamesePhone(' 0912 345 678 '), '0912345678')
+    assert.equal(normalizeVietnamesePhone('+84912345678'), '0912345678')
+    assert.equal(normalizeVietnamesePhone('84912345678'), '0912345678')
+    assert.equal(otpPhoneError('0912 345 678'), null)
+    assert.equal(otpPhoneError('+84351234567'), null)
+    assert.match(otpPhoneError('') ?? '', /nhập số điện thoại/)
+    assert.match(otpPhoneError('123') ?? '', /03, 05, 07, 08 hoặc 09/)
+    assert.match(otpPhoneError('0241234567') ?? '', /03, 05, 07, 08 hoặc 09/)
+
+    assert.equal(otpCodeError('123456'), null)
+    assert.match(otpCodeError('') ?? '', /6 chữ số/)
+    assert.match(otpCodeError('12ab') ?? '', /6 chữ số/)
   })
 })

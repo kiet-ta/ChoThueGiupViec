@@ -39,10 +39,50 @@ export function describeLoginError(error: ErrorLike): LoginErrorView {
   }
 }
 
+const VN_MOBILE_RE = /^0[35789]\d{8}$/
+const OTP_CODE_RE = /^\d{6}$/
+
+/** Strips formatting punctuation/spaces and normalizes `+84`/`84` prefixes to national `0...` format. */
+export function normalizeVietnamesePhone(input: string): string {
+  let cleaned = input.trim().replace(/[\s\-().]/g, '')
+  if (cleaned.startsWith('+84')) cleaned = `0${cleaned.slice(3)}`
+  else if (cleaned.startsWith('84') && cleaned.length === 11) cleaned = `0${cleaned.slice(2)}`
+  return cleaned
+}
+
+/** Client-side Vietnamese mobile phone validation matching `PhoneValidator` rules (10 digits starting with 03/05/07/08/09). */
+export function otpPhoneError(input: string): string | null {
+  const normalized = normalizeVietnamesePhone(input)
+  if (!normalized) return 'Vui lòng nhập số điện thoại.'
+  if (!VN_MOBILE_RE.test(normalized)) return 'Số điện thoại không hợp lệ (gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09).'
+  return null
+}
+
+/** Client-side 6-digit OTP code check. */
+export function otpCodeError(input: string): string | null {
+  const trimmed = input.trim()
+  if (!trimmed) return 'Vui lòng nhập mã xác nhận 6 chữ số.'
+  if (!OTP_CODE_RE.test(trimmed)) return 'Mã OTP phải gồm đúng 6 chữ số.'
+  return null
+}
+
+function translateOtpFieldMessage(field: string, message: string): string {
+  if (field === 'phonenumber' && /invalid vietnamese mobile phone|phonenumber field is required/i.test(message)) {
+    return 'Số điện thoại không hợp lệ (gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09).'
+  }
+  if (field === 'code' && /code must be a \d+-digit|code field is required/i.test(message)) {
+    return 'Mã OTP phải gồm đúng 6 chữ số.'
+  }
+  return message
+}
+
 export function describeOtpError(error: ErrorLike, step: 'phone' | 'code'): LoginErrorView {
   if (error.status === 400) {
     const fields: Record<string, string[]> = {}
-    for (const [name, messages] of Object.entries(error.fieldErrors ?? {})) fields[name.toLowerCase()] = messages
+    for (const [name, messages] of Object.entries(error.fieldErrors ?? {})) {
+      const key = name.toLowerCase()
+      fields[key] = messages.map((msg) => translateOtpFieldMessage(key, msg))
+    }
     return Object.keys(fields).length ? { fields } : { fields: {}, message: 'Thông tin chưa hợp lệ.' }
   }
   if (error.status === 401) return { fields: {}, message: 'Mã xác nhận không đúng hoặc đã hết hạn.' }
