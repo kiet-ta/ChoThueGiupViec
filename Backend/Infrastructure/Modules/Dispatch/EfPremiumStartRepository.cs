@@ -64,9 +64,44 @@ public class EfPremiumStartRepository(AppDbContext db) : IPremiumStartRepository
         }).ToList();
     }
 
-    public async Task<JobOrderStatus?> GetOrderStatusAsync(long orderId, CancellationToken cancellationToken = default) =>
+    public async Task<PremiumOrderInfo?> GetOrderInfoAsync(long orderId, CancellationToken cancellationToken = default) =>
         await db.JobOrders.AsNoTracking()
             .Where(o => o.OrderId == orderId)
-            .Select(o => (JobOrderStatus?)o.OrderStatus)
+            .Select(o => new PremiumOrderInfo(o.CustomerId, o.TotalAmount, o.OrderStatus))
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<bool> TryCancelRescueAsync(long assignmentId, int workerId, DateTime atUtc, CancellationToken cancellationToken = default)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+            var slotId = await db.JobAssignments.AsNoTracking()
+                .Where(a => a.AssignmentId == assignmentId)
+                .Select(a => (int?)a.SlotId)
+                .FirstOrDefaultAsync(cancellationToken);
+            var cancelled = await db.JobAssignments
+                .Where(a => a.AssignmentId == assignmentId && a.WorkerId == workerId && a.AssignmentStatus == JobAssignmentStatus.Assigned)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(a => a.AssignmentStatus, JobAssignmentStatus.Cancelled)
+                    .SetProperty(a => a.UpdatedAt, atUtc), cancellationToken);
+            if (cancelled != 1)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            if (slotId is int slot)
+            {
+                await db.BookingSlots
+                    .Where(x => x.SlotId == slot && (x.SlotStatus == "BOOKED" || x.SlotStatus == "HELD" || x.SlotStatus == "LOCKED"))
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.SlotStatus, "AVAILABLE")
+                        .SetProperty(x => x.UpdatedAt, atUtc), cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        });
+    }
 }

@@ -54,7 +54,9 @@ public record WorkerCancelPreviewDto(
     bool WillLockAccount,
     bool AutoAcceptOn,
     DateTime JobStartAt,
-    bool SubstituteSearchPossible);
+    bool SubstituteSearchPossible,
+    // Decision D38: a Super-Freelancer rescue seat is cancelled with no penalty and the order is cancelled (refund, apology).
+    bool RescueFreeCancel = false);
 
 /// <summary>Contract dispatch.md 3.1 cancel response.</summary>
 public record WorkerCancelResultDto(
@@ -96,7 +98,8 @@ public class WorkerCancelService(
     IOptions<BusinessRules> rules,
     ICurrentUser currentUser,
     INotificationService? notifications = null,
-    ILogger<WorkerCancelService>? logger = null)
+    ILogger<WorkerCancelService>? logger = null,
+    RescueCancelService? rescue = null)
 {
     /// <summary>provenance: the order's <c>cancel_reason</c> is NVARCHAR(255); the worker's reason is kept to the same length.</summary>
     public const int MaxReasonLength = 255;
@@ -119,6 +122,11 @@ public class WorkerCancelService(
         var now = clock.UtcNow;
         var count = await repository.CountWorkerCancelsSinceAsync(workerId, now.AddDays(-WindowDays), cancellationToken);
         var autoAccept = await repository.IsAutoAcceptOnAsync(workerId, cancellationToken);
+        if (rescue is not null && RescueCancelService.IsRescue(assignment))
+        {
+            return rescue.Preview(assignment, start, count, LockCount, WindowDays, autoAccept);
+        }
+
         return new WorkerCancelPreviewDto(
             assignment.AssignmentId, count, LockCount, WindowDays, count + 1 >= LockCount, autoAccept, start, now < start - Cutoff);
     }
@@ -134,6 +142,13 @@ public class WorkerCancelService(
         var workerId = WorkerId;
         var (assignment, start) = await RequireCancellableAsync(assignmentId, workerId, cancellationToken);
         var now = clock.UtcNow;
+
+        // Decision D38: a rescue seat is cancelled with no penalty and the order is cancelled (the checks of the deadline are in RequireCancellableAsync).
+        if (rescue is not null && RescueCancelService.IsRescue(assignment))
+        {
+            var count = await repository.CountWorkerCancelsSinceAsync(workerId, now.AddDays(-WindowDays), cancellationToken);
+            return await rescue.CancelAsync(assignment, workerId, count, LockCount, WindowDays, cancellationToken);
+        }
 
         var commit = await repository.TryCancelAsync(assignmentId, workerId, now, now.AddDays(-WindowDays), LockCount, cancellationToken)
             ?? throw new BusinessRuleViolationException("Ca này không còn ở trạng thái đã nhận.", DispatchErrorCodes.InvalidAssignmentState);
@@ -236,6 +251,14 @@ public class WorkerCancelService(
         var order = await repository.GetOrderAsync(assignment.OrderId, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy đơn của ca làm việc.");
         var start = BookingWindowPolicy.GetJobStartUtc(order, clock);
+
+        // Decision D38: a rescue seat may be cancelled until its own check-in deadline, which can be after the shift start.
+        if (rescue is not null && RescueCancelService.IsRescue(assignment) && start is not null)
+        {
+            rescue.RequireBeforeDeadline(assignment, start.Value);
+            return (assignment, start.Value);
+        }
+
         if (start is null || clock.UtcNow >= start.Value)
         {
             throw new BusinessRuleViolationException("Ca đã đến giờ bắt đầu, không thể hủy.", DispatchErrorCodes.JobAlreadyStarted);

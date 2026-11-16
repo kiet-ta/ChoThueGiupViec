@@ -500,6 +500,7 @@ public class MilestoneFailoverServiceTests
             WorkerId = 99,
             FullName = "Nguyễn Siêu Thợ",
             IsSuperFreelancer = true,
+            AutoAcceptOffers = true,
             RatingAvg = 4.95m,
             CompletedJobs = 80
         });
@@ -757,9 +758,9 @@ public class MilestoneFailoverServiceTests
             SlotStatus = status
         };
 
-    private static Worker AddSuperFreelancer(InMemoryMilestoneFailoverRepository repo, int workerId = 99)
+    private static Worker AddSuperFreelancer(InMemoryMilestoneFailoverRepository repo, int workerId = 99, bool autoAccept = true)
     {
-        var worker = new Worker { WorkerId = workerId, FullName = "Super", IsSuperFreelancer = true, RatingAvg = 4.95m, CompletedJobs = 80 };
+        var worker = new Worker { WorkerId = workerId, FullName = "Super", IsSuperFreelancer = true, AutoAcceptOffers = autoAccept, RatingAvg = 4.95m, CompletedJobs = 80 };
         repo.SuperFreelancers.Add(worker);
         return worker;
     }
@@ -834,6 +835,67 @@ public class MilestoneFailoverServiceTests
         Assert.DoesNotContain(repo.Assignments.Values, a => a.WorkerId == 99);
         Assert.Equal(SlaViolation.NoShow, Assert.Single(slaService.AppliedRequests).Violation);
         Assert.Single(mediator.PublishedEvents.OfType<AssignmentFailed>());
+    }
+
+    [Fact]
+    public async Task EmergencyRescue_SuperFreelancerWithAutoAcceptOff_IsSkipped_AndTheRescueFails()
+    {
+        var (service, repo, clock, mediator, _, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSuperFreelancer(repo, autoAccept: false); // D38: a rescue is an urgent offer nobody can decline, only auto-accept workers get it
+        AddSlot(repo, clock, 401, workerId: 99);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(FailoverStatus.RescueFailed, result.Status);
+        Assert.DoesNotContain(repo.Assignments.Values, a => a.WorkerId == 99);
+        Assert.Single(mediator.PublishedEvents.OfType<AssignmentFailed>());
+    }
+
+    [Fact]
+    public async Task EmergencyRescue_ASuperFreelancerWithoutASlot_IsSkipped_TheNextOneTakesTheSeat()
+    {
+        var (service, repo, clock, _, _, _, _) = CreateTestRig();
+        var original = SeedAssigned(repo, clock);
+        AddSuperFreelancer(repo, workerId: 98); // best rated, auto-accept on, but no slot on that shift
+        AddSuperFreelancer(repo, workerId: 99);
+        AddSlot(repo, clock, 401, workerId: 99);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(FailoverStatus.EmergencyRescuedToSuperFreelancer, result.Status);
+        Assert.Equal(99, result.NewWorkerId);
+    }
+
+    [Fact]
+    public async Task EmergencyRescue_SuperFreelancer_GetsOneUrgentNoticeWithTheCheckInDeadline()
+    {
+        var (_, repo, clock, mediator, agencyService, slaService, unitOfWork) = CreateTestRig();
+        var notices = new List<NotificationMessage>();
+        var service = new MilestoneFailoverService(
+            repo, new InMemorySwapRepository(), agencyService, slaService, clock, mediator, unitOfWork,
+            MicrosoftOptions.Create(new BusinessRules()), NullLogger<MilestoneFailoverService>.Instance, new CollectingNotifications(notices));
+        var original = SeedAssigned(repo, clock);
+        AddSuperFreelancer(repo);
+        AddSlot(repo, clock, 401, workerId: 99);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, repo.Slots[300], "no-show");
+
+        Assert.Equal(FailoverStatus.EmergencyRescuedToSuperFreelancer, result.Status);
+        var notice = Assert.Single(notices);
+        Assert.Equal((UserRole.Worker, 99, "dispatch.rescue_assigned"), (notice.RecipientRole, notice.RecipientId, notice.Topic));
+        Assert.Equal("true", notice.Data!["urgent"]);
+        Assert.Equal(result.NewAssignmentId!.Value.ToString(), notice.Data["assignmentId"]);
+        Assert.True(DateTime.Parse(notice.Data["checkInBy"], null, System.Globalization.DateTimeStyles.RoundtripKind) >= clock.UtcNow.AddMinutes(30));
+    }
+
+    private class CollectingNotifications(List<NotificationMessage> sent) : INotificationService
+    {
+        public Task SendAsync(NotificationMessage message, CancellationToken cancellationToken = default)
+        {
+            sent.Add(message);
+            return Task.CompletedTask;
+        }
     }
 
     // 3c ------------------------------------------------------------------------------------------------------------------------

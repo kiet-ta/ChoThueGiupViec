@@ -442,3 +442,12 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 
 ## D38 addendum: the check-in reminder (PREM-START-02, #952)
 - A background sweep (the one of the shift-start cancel, every 30 s) sends each worker of a PREMIUM order whose assignment is still `ASSIGNED` ONE notification `Premium.ReminderMinutes` (30) minutes before the check-in time: `topic = dispatch.checkin_reminder`, title "Sap den gio lam", `data.assignmentId`, `data.orderId`, `data.shiftStartUtc`. `JOB_ASSIGNMENT.checkin_reminded_at` (new nullable column) is set first, so a restart never repeats it. A worker who has already checked in gets none.
+
+---
+
+## D38 addendum: the Premium rescue (PREM-RESCUE-01, #953)
+- Emergency rescue of a PREMIUM seat: another agency first, then a Super-Freelancer with `autoAcceptOffers = true` (the best rated one with an available slot on that date/shift); none: the order is cancelled, refunded 100 % and the customer gets `premium.order_cancelled`.
+- Notification to the rescue freelancer: `topic = dispatch.rescue_assigned`, title "Ca cuu ho GAP", `data = { assignmentId, orderId, urgent: "true", checkInBy }` (`checkInBy` ISO UTC = `max(now + Premium.ReplacementCheckInMinutes, shift start + Premium.CheckInGraceMinutes)`).
+- `GET /api/v1/dispatch/assignments/{assignmentId}/cancel-preview` of a rescue seat (PREMIUM, no agency): `rescueFreeCancel = true` (false otherwise; the field is new).
+- `POST /api/v1/dispatch/assignments/{assignmentId}/cancel` on a rescue seat before `checkInBy`: 200, `status = CANCELLED`, `orderOutcome = CANCELLED_REFUNDED`, `cancelCountInWindow` unchanged (no violation), the order is cancelled and the customer gets `premium.order_cancelled`. After `checkInBy`: 409 `JOB_ALREADY_STARTED`.
+- A rescue freelancer who is not present by `checkInBy` gets one violation (`CANCELLED_BY_WORKER`, Q15) when the shift-start sweep cancels the order.
