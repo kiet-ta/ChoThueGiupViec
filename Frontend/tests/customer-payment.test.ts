@@ -43,6 +43,20 @@ describe('state words and QR problems', () => {
     assert.equal(p.expired, false)
     assert.match(p.text, /thử lại/)
   })
+  it('translates 404, 403 and network errors into Vietnamese without leaking raw Resource text', () => {
+    const notFound = qrProblem({ status: 404, message: 'Resource "Order" (999999) was not found.' })
+    assert.equal(notFound.expired, false)
+    assert.match(notFound.text, /Không tìm thấy/)
+    assert.ok(!notFound.text.includes('was not found'))
+
+    const forbidden = qrProblem({ status: 403, message: 'Forbidden' })
+    assert.equal(forbidden.expired, false)
+    assert.match(forbidden.text, /không có quyền/)
+
+    const offline = qrProblem({ status: 0 })
+    assert.equal(offline.expired, false)
+    assert.match(offline.text, /kết nối/)
+  })
 })
 
 describe('qrImageUrl', () => {

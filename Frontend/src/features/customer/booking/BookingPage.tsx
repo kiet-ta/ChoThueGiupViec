@@ -167,7 +167,7 @@ export function BookingPage() {
     <h1 className="mt-1 text-3xl font-semibold">Đặt ca dọn nhà</h1>
     <p className="mt-2 text-stone-500">Chọn gói, địa chỉ và khung giờ. Giá lấy từ máy chủ theo diện tích.</p>
     <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <section className={card}>
           <h2 className="text-lg font-semibold">1. Chọn gói</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">

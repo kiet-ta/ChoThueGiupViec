@@ -83,6 +83,9 @@ export function qrProblem(error: { status?: number; message?: string; data?: unk
     return { text: 'Đơn đã quá hạn thanh toán và bị hủy. Hãy đặt lại ca.', expired: true }
   }
   if (error.status === 409) return { text: 'Đơn này không còn ở trạng thái chờ thanh toán.', expired: false }
+  if (error.status === 404) return { text: 'Không tìm thấy đơn hoặc giao dịch thanh toán này.', expired: false }
+  if (error.status === 403) return { text: 'Bạn không có quyền truy cập giao dịch thanh toán này.', expired: false }
   if (error.status === 502) return { text: 'Cổng thanh toán chưa phản hồi. Vui lòng thử lại.', expired: false }
+  if (error.status === 0) return { text: 'Không kết nối được tới máy chủ.', expired: false }
   return { text: error.message || 'Không tạo được mã thanh toán.', expired: false }
 }

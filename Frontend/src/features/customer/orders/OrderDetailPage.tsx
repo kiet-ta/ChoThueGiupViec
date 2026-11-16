@@ -7,6 +7,7 @@ import type { Order } from '../booking/types'
 import { dayText, shiftLabel, tierLabel } from '../booking/view'
 import { accountApi } from '../account/api'
 import { favoriteToggleError, favoriteToggleLabel } from '../account/view'
+import { parsePositiveInt } from '../route-id'
 import { ordersApi } from './api'
 import type { AddressDetail, OrderProgress } from './types'
 import { WorkerRouteCard } from './WorkerRouteCard'
@@ -18,7 +19,7 @@ const dot = { done: <Check size={14} />, current: <Loader size={14} className="a
 const dotStyle = { done: 'bg-[#1a2f25] text-white', current: 'bg-amber-100 text-amber-900', todo: 'bg-stone-100 text-stone-400', cancelled: 'bg-red-100 text-red-800' }
 
 export function OrderDetailPage() {
-  const orderId = Number(useParams().orderId)
+  const orderId = parsePositiveInt(useParams().orderId)
   const [order, setOrder] = useState<Order | null>(null)
   const [progress, setProgress] = useState<OrderProgress | null>(null)
   const [address, setAddress] = useState<AddressDetail | null>(null)
@@ -44,6 +45,7 @@ export function OrderDetailPage() {
   const [favError, setFavError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (orderId === null) return
     try {
       const [o, p] = await Promise.all([ordersApi.get(orderId), ordersApi.progress(orderId)])
       setOrder(o)
@@ -74,6 +76,7 @@ export function OrderDetailPage() {
   }, [live, load])
 
   useEffect(() => {
+    if (orderId === null) return
     let cancelled = false
     accountApi.favorites().then((list) => !cancelled && setFavIds(new Set(list.map((f) => f.workerId)))).catch(() => undefined)
     return () => { cancelled = true }
@@ -104,7 +107,7 @@ export function OrderDetailPage() {
 
   const cancelledOrder = order?.orderStatus === 'CANCELLED' && order.orderId === orderId
   useEffect(() => {
-    if (!cancelledOrder) return
+    if (!cancelledOrder || orderId === null) return
     let cancelled = false
     ordersApi.payments(orderId)
       .then((payments) => {
@@ -131,6 +134,7 @@ export function OrderDetailPage() {
   }
 
   async function answerFallback(accept: boolean) {
+    if (orderId === null) return
     setFallbackBusy(true)
     setFallbackError(null)
     try {
@@ -145,7 +149,7 @@ export function OrderDetailPage() {
     }
   }
 
-  if (error && !order) return <div role="alert" className="space-y-4"><p className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p><Link to="/app/orders" className="underline">Về danh sách đơn</Link></div>
+  if (orderId === null || (error && !order)) return <div role="alert" className="space-y-4"><p className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{orderId === null ? 'Không tìm thấy đơn.' : error}</p><Link to="/app/orders" className="underline">Về danh sách đơn</Link></div>
   if (!order || !progress) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
 
   const actions = orderActions(order.orderStatus, progress.assignments, progress.extension, now)
@@ -156,7 +160,7 @@ export function OrderDetailPage() {
   async function confirmCancel() {
     const problem = cancelReasonError(reason)
     setReasonError(problem)
-    if (problem || busy) return
+    if (problem || busy || orderId === null) return
     setBusy(true)
     try {
       setOrder(await ordersApi.cancel(orderId, reason.trim()))

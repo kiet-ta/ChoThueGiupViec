@@ -5,6 +5,7 @@ import { ApiError } from '@/services/api'
 import { ordersApi } from '../orders/api'
 import type { OrderProgress, ProgressAssignment } from '../orders/types'
 import { afterShiftApi } from './api'
+import { parsePositiveInt } from '../route-id'
 import type { JobPhoto } from './types'
 import { canAskRedo, customerAcceptanceView } from './acceptance'
 import { useNow } from './useNow'
@@ -43,7 +44,7 @@ function Photo({ assignmentId, photo, label }: { assignmentId: number; photo: Jo
 }
 
 export function AcceptancePage() {
-  const orderId = Number(useParams().orderId)
+  const orderId = parsePositiveInt(useParams().orderId)
   const [progress, setProgress] = useState<OrderProgress | null>(null)
   const [orderCode, setOrderCode] = useState('')
   const [loaded, setLoaded] = useState<{ assignmentId: number; photos: JobPhoto[] } | null>(null)
@@ -57,6 +58,7 @@ export function AcceptancePage() {
   const now = useNow()
 
   useEffect(() => {
+    if (orderId === null) return
     let cancelled = false
     Promise.all([ordersApi.get(orderId), ordersApi.progress(orderId)])
       .then(([o, p]) => {
@@ -88,7 +90,7 @@ export function AcceptancePage() {
   }, [assignmentId])
   const photos = loaded && loaded.assignmentId === assignmentId ? loaded.photos : null
 
-  if (error && !progress) return <p role="alert" className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p>
+  if (orderId === null || (error && !progress)) return <div role="alert" className="space-y-4"><p className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{orderId === null ? 'Không tìm thấy đơn.' : error}</p><Link to="/app/orders" className="underline">Về danh sách đơn</Link></div>
   if (!progress) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
 
   const waiting = target?.assignmentStatus === 'AWAITING_ACCEPTANCE'

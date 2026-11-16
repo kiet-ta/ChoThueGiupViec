@@ -6,6 +6,7 @@ import { accountApi } from '../account/api'
 import { favoriteToggleError, favoriteToggleLabel, isFavorite } from '../account/view'
 import { ordersApi } from '../orders/api'
 import type { ProgressAssignment } from '../orders/types'
+import { parsePositiveInt } from '../route-id'
 import { afterShiftApi } from './api'
 import type { RatingWindow } from './types'
 import { afterShiftProblem, COMMENT_MAX, CRITERIA, formatWindow, overallStars, ratingWindowText, secondsUntil, validateRating, type Scores } from './view'
@@ -13,7 +14,7 @@ import { afterShiftProblem, COMMENT_MAX, CRITERIA, formatWindow, overallStars, r
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 
 export function RatingPage() {
-  const orderId = Number(useParams().orderId)
+  const orderId = parsePositiveInt(useParams().orderId)
   const [orderCode, setOrderCode] = useState('')
   const [worker, setWorker] = useState<ProgressAssignment | null>(null)
   const [window, setWindow] = useState<RatingWindow | null>(null)
@@ -30,6 +31,7 @@ export function RatingPage() {
   const [favError, setFavError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (orderId === null) return
     let cancelled = false
     Promise.all([ordersApi.get(orderId), ordersApi.progress(orderId)])
       .then(async ([o, p]) => {
@@ -54,7 +56,7 @@ export function RatingPage() {
     return () => clearInterval(timer)
   }, [open])
 
-  if (error && !window) return <p role="alert" className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{error}</p>
+  if (orderId === null || (error && !window)) return <div role="alert" className="space-y-4"><p className="flex gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700"><CircleAlert size={16} className="mt-0.5 shrink-0" />{orderId === null ? 'Không tìm thấy đơn.' : error}</p><Link to="/app/orders" className="underline">Về danh sách đơn</Link></div>
   if (!window) return <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tải…</p>
 
   const left = secondsUntil(window.closesAt, now)

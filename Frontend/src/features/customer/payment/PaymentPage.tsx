@@ -5,6 +5,7 @@ import { ApiError } from '@/services/api'
 import { formatVnd } from '@/lib/format'
 import { bookingApi } from '../booking/api'
 import type { Order } from '../booking/types'
+import { parsePositiveInt } from '../route-id'
 import { paymentApi } from './api'
 import type { Payment } from './types'
 import { formatCountdown, paymentState, POLL_INTERVAL_MS, qrImageUrl, qrProblem, secondsLeft, shouldPoll, stateView } from './view'
@@ -17,21 +18,22 @@ export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }
   const params = useParams()
   // The payment of an extension carries no order id, so the extension page passes it as `?order=`.
   const [search] = useSearchParams()
-  const queryOrderId = Number(search.get('order')) || null
+  const queryOrderId = parsePositiveInt(search.get('order') ?? undefined)
   const isExtension = kind === 'extension'
-  const targetId = Number(isExtension ? params.extensionId : params.orderId)
+  const targetId = parsePositiveInt(isExtension ? params.extensionId : params.orderId)
   const orderId = isExtension ? null : targetId
+  const invalidTarget = targetId === null
   const [order, setOrder] = useState<Order | null>(null)
   const [payment, setPayment] = useState<Payment | null>(null)
   const [problem, setProblem] = useState<{ text: string; expired: boolean } | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!invalidTarget)
   const [now, setNow] = useState(() => new Date())
   const [copied, setCopied] = useState(false)
   // One request at a time: a double tap on "Thử lại" never fires two QR calls (the server is idempotent too).
   const inFlight = useRef(false)
 
   const createQr = useCallback(async () => {
-    if (inFlight.current || !Number.isInteger(targetId) || targetId <= 0) return
+    if (inFlight.current || targetId === null) return
     inFlight.current = true
     setLoading(true)
     setProblem(null)
@@ -45,6 +47,7 @@ export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }
     }
   }, [targetId, isExtension])
 
+  const effectiveProblem = invalidTarget ? { text: 'Liên kết thanh toán không hợp lệ.', expired: false } : problem
   const paymentOrderId = payment?.orderId ?? (isExtension ? queryOrderId : orderId)
   useEffect(() => {
     let cancelled = false
@@ -52,8 +55,8 @@ export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }
     return () => { cancelled = true }
   }, [createQr])
   useEffect(() => {
-    if (paymentOrderId) bookingApi.order(paymentOrderId).then(setOrder).catch(() => undefined)
-  }, [paymentOrderId])
+    if (paymentOrderId && !invalidTarget) bookingApi.order(paymentOrderId).then(setOrder).catch(() => undefined)
+  }, [paymentOrderId, invalidTarget])
 
   const paymentId = payment?.paymentId
   const pending = payment ? shouldPoll(payment.txnStatus) : false
@@ -88,16 +91,18 @@ export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }
     }
   }
 
+  const safeOrderLinkId = payment?.orderId ?? (!effectiveProblem && paymentOrderId ? paymentOrderId : null)
+
   return <div className="mx-auto max-w-3xl">
     <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Thanh toán</p>
-    <h1 className="mt-1 text-3xl font-semibold">{isExtension ? 'Thanh toán phần làm thêm' : 'Thanh toán'} đơn {order?.orderCode ?? (orderId ? `#${orderId}` : '')}</h1>
-    {(payment?.sandbox ?? true) && <div className="mt-6 flex gap-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><FlaskConical size={18} className="mt-0.5 shrink-0" /><div><b>SANDBOX</b>. Không dùng tiền thật. Mã QR dưới đây chỉ để thử luồng.{state === 'PENDING' && <p className="mt-1 font-medium text-amber-800">Hệ thống tự động xác nhận chuyển tiền sau 3 giây không cần admin duyệt.</p>}</div></div>}
+    <h1 className="mt-1 text-3xl font-semibold">{isExtension ? 'Thanh toán phần làm thêm' : 'Thanh toán'}{order?.orderCode ? ` đơn ${order.orderCode}` : !effectiveProblem && orderId ? ` đơn #${orderId}` : ''}</h1>
+    {(payment ? payment.sandbox : !effectiveProblem) && <div className="mt-6 flex gap-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><FlaskConical size={18} className="mt-0.5 shrink-0" /><div><b>SANDBOX</b>. Không dùng tiền thật. Mã QR dưới đây chỉ để thử luồng.{state === 'PENDING' && <p className="mt-1 font-medium text-amber-800">Hệ thống tự động xác nhận chuyển tiền sau 3 giây không cần admin duyệt.</p>}</div></div>}
     <section className="mt-4 rounded-xl border border-stone-200 bg-white p-6">
       {loading && !payment && <p className="flex items-center gap-2 text-stone-500"><Loader className="animate-spin" size={18} />Đang tạo mã thanh toán…</p>}
-      {problem && !payment && <div role="alert" className="space-y-4">
-        <p className="flex gap-2 text-red-700"><CircleAlert size={18} className="mt-0.5 shrink-0" />{problem.text}</p>
-        {problem.expired ? <Link to="/app/booking" className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Đặt lại ca</Link>
-          : <button type="button" onClick={() => void createQr()} disabled={loading} className="h-10 rounded-lg border border-stone-300 px-4 font-semibold disabled:opacity-50">Thử lại</button>}
+      {effectiveProblem && !payment && <div role="alert" className="space-y-4">
+        <p className="flex gap-2 text-red-700"><CircleAlert size={18} className="mt-0.5 shrink-0" />{effectiveProblem.text}</p>
+        {!invalidTarget && (effectiveProblem.expired ? <Link to="/app/booking" className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Đặt lại ca</Link>
+          : <button type="button" onClick={() => void createQr()} disabled={loading} className="h-10 rounded-lg border border-stone-300 px-4 font-semibold disabled:opacity-50">Thử lại</button>)}
       </div>}
       {payment && <div className={qrImage && state === 'PENDING' ? 'grid items-center gap-8 sm:grid-cols-[220px_1fr]' : ''}>
         {qrImage && state === 'PENDING' && <figure className="rounded-xl border border-stone-200 bg-white p-3">
@@ -125,8 +130,8 @@ export function PaymentPage({ kind = 'order' }: { kind?: 'order' | 'extension' }
       </div>}
       <hr className="my-6 border-stone-200" />
       <div className="flex flex-wrap justify-between gap-3">
-        <Link to={isExtension && paymentOrderId ? `/app/orders/${paymentOrderId}/extension` : '/app/booking'} className="inline-flex h-10 items-center rounded-lg border border-stone-300 px-4 font-semibold">{!isExtension && (state === 'EXPIRED' || state === 'FAILED') ? 'Đặt lại ca' : 'Quay lại'}</Link>
-        <Link to={paymentOrderId ? `/app/orders/${paymentOrderId}` : '/app/orders'} className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Mở đơn của tôi</Link>
+        <Link to={isExtension ? (safeOrderLinkId ? `/app/orders/${safeOrderLinkId}/extension` : '/app/orders') : '/app/booking'} className="inline-flex h-10 items-center rounded-lg border border-stone-300 px-4 font-semibold">{!isExtension && (state === 'EXPIRED' || (payment !== null && state === 'FAILED')) ? 'Đặt lại ca' : 'Quay lại'}</Link>
+        <Link to={safeOrderLinkId ? `/app/orders/${safeOrderLinkId}` : '/app/orders'} className="inline-flex h-10 items-center rounded-lg bg-[#1a2f25] px-4 font-semibold text-white">Mở đơn của tôi</Link>
       </div>
     </section>
   </div>
