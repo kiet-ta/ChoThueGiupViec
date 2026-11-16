@@ -87,3 +87,17 @@ String? validateWorkerCancelReason(String text) {
   }
   return null;
 }
+
+/// What the worker reads after cancelling from the schedule (MOB-SLOT-CANCEL-01, decisions D35): what happens to the order, the n-th
+/// cancel of the window and, when the account got locked, the way back. The check-in screen shows the same facts on its own screen.
+String workerCancelNotice(WorkerCancelResult r) {
+  final what = r.orderOutcome == WorkerCancelResult.cancelledRefunded
+      ? 'Ca bắt đầu quá gần nên đơn đã được huỷ và gia chủ được hoàn tiền.'
+      : 'Hệ thống đã báo gia chủ và đang tìm thợ khác thay bạn.';
+  final count =
+      'Lần huỷ thứ ${r.cancelCountInWindow}/${r.lockCount} trong ${r.windowDays} ngày.';
+  final locked = r.accountLocked
+      ? ' Tài khoản đã bị khoá. Liên hệ quản trị viên để được mở lại.'
+      : '';
+  return 'Đã huỷ ca. $what $count$locked';
+}

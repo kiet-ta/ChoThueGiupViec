@@ -307,4 +307,33 @@ void main() {
       contains('doanh nghiệp'),
     );
   });
+
+  // MOB-SLOT-CANCEL-01: what the worker reads after cancelling from the schedule.
+  group('workerCancelNotice', () {
+    test('says the order is being handed to someone else, and the count', () {
+      expect(
+        workerCancelNotice(_result()),
+        'Đã huỷ ca. Hệ thống đã báo gia chủ và đang tìm thợ khác thay bạn. Lần huỷ thứ 1/3 trong 30 ngày.',
+      );
+    });
+
+    test('says the customer is refunded when the start is too close', () {
+      expect(
+        workerCancelNotice(
+          _result(count: 2, outcome: WorkerCancelResult.cancelledRefunded),
+        ),
+        'Đã huỷ ca. Ca bắt đầu quá gần nên đơn đã được huỷ và gia chủ được hoàn tiền. Lần huỷ thứ 2/3 trong 30 ngày.',
+      );
+    });
+
+    test('adds the lock and the way back when the account got locked', () {
+      final text = workerCancelNotice(_result(count: 3, locked: true));
+
+      expect(text, contains('Lần huỷ thứ 3/3 trong 30 ngày.'));
+      expect(
+        text,
+        endsWith('Tài khoản đã bị khoá. Liên hệ quản trị viên để được mở lại.'),
+      );
+    });
+  });
 }
