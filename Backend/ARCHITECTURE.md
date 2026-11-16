@@ -233,6 +233,16 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
   `Server=localhost;Database=ChoThueGiupViec;Integrated Security=True;TrustServerCertificate=True;`
 - Connection string placeholder in `appsettings.json`:
   `Server=YOUR_SERVER;Database=ChoThueGiupViec;Trusted_Connection=True;TrustServerCertificate=True;`
+- **Start-up migration (BE-DEV-MIGRATE-01):** in the **Development** environment `DatabaseSeederHostedService` applies the pending EF migrations before it seeds (`Database.MigrateAsync`, which also creates the database when it is missing). So opening `CommonService.sln` in Visual Studio and pressing F5 works on a fresh local SQL Server with no `dotnet ef database update`. Staging and Production never migrate on start (the Docker stack has its own `migrate` service).
+- **Run from Visual Studio against the SQL Server in the Docker kit** (`../mobile-test-kit`):
+  1. Start Docker Desktop and the database only: `docker compose up -d --no-deps db`. The kit's `docker-compose.override.yml` publishes SQL Server on `127.0.0.1:14330`.
+  2. Stop the kit backend if it runs (`docker compose stop backend`): it also uses port 5004 and the same database.
+  3. Keep the connection string out of the repo, in user secrets (the project has a `UserSecretsId`; Visual Studio: right-click the project, "Manage User Secrets"):
+     ```bash
+     dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=127.0.0.1,14330;Database=ChoThueGiupViec;User Id=sa;Password=<the kit's MSSQL_SA_PASSWORD>;TrustServerCertificate=True;Encrypt=False" --project CommonService.csproj
+     ```
+     User secrets override `appsettings.Development.json` in Development only. `dotnet user-secrets remove "ConnectionStrings:DefaultConnection"` goes back to `Server=localhost`.
+  4. Press F5 (profile `http`: `http://localhost:5004`). The first start applies any missing migration to that database.
 - EF Core CLI commands inside `Backend/`:
   ```bash
   dotnet ef database update
