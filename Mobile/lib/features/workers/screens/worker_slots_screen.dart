@@ -23,6 +23,7 @@ import '../routes.dart';
 import '../services/map_launcher.dart';
 import '../services/workers_assignments_service.dart';
 import '../services/workers_location_service.dart';
+import '../services/workers_profile_service.dart';
 import '../services/workers_slots_service.dart';
 
 /// Screen for managing Worker Weekly Availability Block Slots (contract workers.md §2.3).
@@ -42,6 +43,9 @@ class WorkerSlotsScreen extends StatefulWidget {
 
   /// Opens the phone's map app for `Chỉ đường`.
   final IMapLauncher? mapLauncher;
+
+  /// Tells an agency worker from a freelancer (D43): an agency worker only reads the roster the agency set; replaceable in tests.
+  final WorkersProfileService? profileService;
   final DateTime? initialDate;
 
   const WorkerSlotsScreen({
@@ -51,6 +55,7 @@ class WorkerSlotsScreen extends StatefulWidget {
     this.assignmentsService,
     this.dispatchService,
     this.mapLauncher,
+    this.profileService,
     this.initialDate,
   });
 
@@ -70,6 +75,10 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   late final String _todayStr;
 
   bool _isLoading = false;
+
+  /// D43: the worker belongs to an agency, so the shifts are the roster the agency set and cannot be switched here.
+  /// Until the profile says so (or if it cannot be read) the screen behaves as a freelancer's.
+  bool _agencyWorker = false;
 
   /// The week could not be loaded: the whole list is replaced by a retry state.
   String? _loadError;
@@ -114,6 +123,19 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     _selectedDay = now.weekday - 1;
     _loadWeeklySlots();
     _shareLocation();
+    _loadAgencyFlag();
+  }
+
+  Future<void> _loadAgencyFlag() async {
+    try {
+      final summary = await (widget.profileService ?? WorkersProfileService())
+          .getSummary();
+      if (mounted && summary.agencyWorker) {
+        setState(() => _agencyWorker = true);
+      }
+    } catch (_) {
+      // Stays a freelancer's screen; the server still decides what a switch may do.
+    }
   }
 
   /// Best effort: the dispatch search needs the worker's position (decisions D19). A failure must not change or block the screen.
@@ -257,6 +279,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     String shiftCode,
     bool currentActive,
   ) async {
+    if (_agencyWorker) return; // D43: the agency's roster, nothing to switch
     // The shift's time is over: say so, change nothing and send nothing (the server would refuse it too).
     final shift = _shifts.firstWhere((x) => x['code'] == shiftCode);
     if (_isPastDay(dateStr)) {
@@ -319,25 +342,40 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     final selected = _weekStartDate.add(Duration(days: _selectedDay));
 
     final children = <Widget>[
-      Row(
-        children: [
-          Expanded(
-            child: StatTile(
-              key: const Key('slots-on'),
-              label: 'Ca bật',
-              value: '$_activeInWeek',
-            ),
+      if (_agencyWorker) ...[
+        StatTile(
+          key: const Key('slots-rostered'),
+          label: 'Ca doanh nghiệp xếp',
+          value: '$_activeInWeek',
+        ),
+        const SizedBox(height: NordicSpace.xs),
+        Text(
+          'Lịch này do doanh nghiệp của bạn xếp nên bạn chỉ xem được. Cần đổi ca thì liên hệ doanh nghiệp.',
+          key: const Key('slots-agency-hint'),
+          style: NordicTypography.bodySmall.copyWith(
+            color: NordicColors.textSecondary,
           ),
-          const SizedBox(width: NordicSpace.sm),
-          Expanded(
-            child: StatTile(
-              key: const Key('slots-off'),
-              label: 'Ca tắt',
-              value: '${7 * _shifts.length - _activeInWeek}',
+        ),
+      ] else
+        Row(
+          children: [
+            Expanded(
+              child: StatTile(
+                key: const Key('slots-on'),
+                label: 'Ca bật',
+                value: '$_activeInWeek',
+              ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: NordicSpace.sm),
+            Expanded(
+              child: StatTile(
+                key: const Key('slots-off'),
+                label: 'Ca tắt',
+                value: '${7 * _shifts.length - _activeInWeek}',
+              ),
+            ),
+          ],
+        ),
       const SizedBox(height: NordicSpace.gutter),
       _buildWeekNavigator(endDate),
       const SizedBox(height: NordicSpace.xs),
@@ -410,14 +448,15 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
         _buildShiftList(selected),
     ];
 
+    final title = _agencyWorker ? 'Lịch làm việc' : 'Lịch rảnh';
     return pushed
         ? NordicPage.pushed(
-            title: 'Lịch rảnh',
+            title: title,
             onRefresh: _loadWeeklySlots,
             children: children,
           )
         : NordicPage.tab(
-            title: 'Lịch rảnh',
+            title: title,
             onRefresh: _loadWeeklySlots,
             children: children,
           );
@@ -558,7 +597,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
             style: NordicTypography.titleSmall,
           ),
         ),
-        if (_isPastDay(dateStr))
+        if (_isPastDay(dateStr) && !_agencyWorker)
           Padding(
             padding: const EdgeInsets.only(bottom: NordicSpace.xs),
             child: Text(
@@ -630,7 +669,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                   children: [
                     Text(shift['time']!, style: NordicTypography.titleSmall),
                     Text(shift['name']!, style: NordicTypography.bodySmall),
-                    if (started && !booked)
+                    if (started && !booked && !_agencyWorker)
                       Text(
                         'Ca đã bắt đầu hoặc đã qua giờ, không thể bật hoặc tắt.',
                         key: Key('shift-started-$dateStr-$shiftCode'),
@@ -648,6 +687,13 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                       : 'Có ${assignments.length} đơn',
                   tone: PillTone.warn,
                   textKey: Key('shift-booked-$dateStr-$shiftCode'),
+                )
+              else if (_agencyWorker)
+                // D43: read-only. The word carries the meaning, not only the colour.
+                StatusPill(
+                  isActive ? 'Doanh nghiệp xếp ca' : 'Chưa có ca',
+                  tone: isActive ? PillTone.ok : PillTone.neutral,
+                  textKey: Key('shift-roster-$dateStr-$shiftCode'),
                 )
               else
                 Switch.adaptive(
@@ -784,6 +830,22 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     }
   }
 
+  /// Closes the sheet, tells the worker what happened (MOB-SLOT-CANCEL-01; D43 for an agency worker) and reloads the week.
+  void _afterCancel(BuildContext sheetContext, WorkerCancelResult result) {
+    Navigator.of(sheetContext).pop();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('worker-cancelled-notice'),
+          duration: const Duration(seconds: 8),
+          content: Text(workerCancelNotice(result)),
+        ),
+      );
+    _loadWeeklySlots();
+  }
+
   /// The details of a job and, by status, the next step: check in, or continue the work. A finished job has no button.
   void _openOrder(WorkerAssignmentDto a) {
     final date = DateTime.tryParse(a.slotDate);
@@ -882,20 +944,10 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                 WorkerCancelSection(
                   assignmentId: a.assignmentId,
                   service: _dispatchService,
-                  onCancelled: (result) {
-                    Navigator.of(sheetContext).pop();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                        SnackBar(
-                          key: const Key('worker-cancelled-notice'),
-                          duration: const Duration(seconds: 8),
-                          content: Text(workerCancelNotice(result)),
-                        ),
-                      );
-                    _loadWeeklySlots();
-                  },
+                  onCancelled: (result) => _afterCancel(sheetContext, result),
+                  // D43: an agency worker's cancel only told the agency; the job stays in the list until the agency swaps it.
+                  onAgencyNotified: (result) =>
+                      _afterCancel(sheetContext, result),
                   onReportIncident: () {
                     Navigator.of(sheetContext).pop();
                     Navigator.of(context).pushNamed(

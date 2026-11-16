@@ -15,6 +15,10 @@ class WorkerCancelPreview {
   /// cancel it with no penalty; the order is then cancelled and refunded. False when the server does not send the field.
   final bool rescueFreeCancel;
 
+  /// D43: the worker belongs to an agency. Cancelling only tells the agency to replace them (no count, no lock);
+  /// [substituteSearchPossible] then means the agency still has time for its swap window. False when the server does not send the field.
+  final bool agencyWorker;
+
   const WorkerCancelPreview({
     required this.assignmentId,
     required this.cancelCountInWindow,
@@ -25,6 +29,7 @@ class WorkerCancelPreview {
     required this.jobStartAt,
     required this.substituteSearchPossible,
     this.rescueFreeCancel = false,
+    this.agencyWorker = false,
   });
 
   /// This cancel would be the n-th inside the window.
@@ -42,6 +47,7 @@ class WorkerCancelPreview {
     jobStartAt: DateTime.tryParse(json['jobStartAt'] as String? ?? ''),
     substituteSearchPossible: json['substituteSearchPossible'] as bool? ?? true,
     rescueFreeCancel: json['rescueFreeCancel'] as bool? ?? false,
+    agencyWorker: json['agencyWorker'] as bool? ?? false,
   );
 }
 
@@ -49,6 +55,9 @@ class WorkerCancelPreview {
 class WorkerCancelResult {
   static const String redispatching = 'REDISPATCHING';
   static const String cancelledRefunded = 'CANCELLED_REFUNDED';
+
+  /// D43: an agency worker cancelled; the job stays assigned and the agency was told to replace the worker.
+  static const String agencyNotified = 'AGENCY_NOTIFIED';
 
   /// The assignment status of a worker cancel that counts as a violation (Q15).
   static const String cancelledByWorker = 'CANCELLED_BY_WORKER';
@@ -73,7 +82,10 @@ class WorkerCancelResult {
 
   /// D38: the free cancel of a rescue seat ends as `CANCELLED`, not `CANCELLED_BY_WORKER`: no violation was counted.
   bool get isFreeRescueCancel =>
-      status.isNotEmpty && status != cancelledByWorker;
+      status.isNotEmpty && status != cancelledByWorker && !isAgencyNotice;
+
+  /// D43: the cancel of an agency worker: nothing was counted, the agency was told.
+  bool get isAgencyNotice => orderOutcome == agencyNotified;
 
   factory WorkerCancelResult.fromJson(Map<String, dynamic> json) =>
       WorkerCancelResult(
@@ -104,6 +116,9 @@ String? validateWorkerCancelReason(String text) {
 /// What the worker reads after cancelling from the schedule (MOB-SLOT-CANCEL-01, decisions D35): what happens to the order, the n-th
 /// cancel of the window and, when the account got locked, the way back. The check-in screen shows the same facts on its own screen.
 String workerCancelNotice(WorkerCancelResult r) {
+  if (r.isAgencyNotice) {
+    return 'Đã báo doanh nghiệp. Doanh nghiệp sẽ đổi thợ khác cho ca này.';
+  }
   final what = r.orderOutcome == WorkerCancelResult.cancelledRefunded
       ? 'Ca bắt đầu quá gần nên đơn đã được huỷ và gia chủ được hoàn tiền.'
       : 'Hệ thống đã báo gia chủ và đang tìm thợ khác thay bạn.';

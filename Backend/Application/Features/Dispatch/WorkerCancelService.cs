@@ -1,6 +1,7 @@
 using System.Globalization;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
+using CommonService.Application.Features.Agencies;
 using CommonService.Application.Features.Booking;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -56,7 +57,9 @@ public record WorkerCancelPreviewDto(
     DateTime JobStartAt,
     bool SubstituteSearchPossible,
     // Decision D38: a Super-Freelancer rescue seat is cancelled with no penalty and the order is cancelled (refund, apology).
-    bool RescueFreeCancel = false);
+    bool RescueFreeCancel = false,
+    // Decision D43: an agency worker's cancel only tells the agency (no count, no lock); SubstituteSearchPossible then means "the agency still has a swap window".
+    bool AgencyWorker = false);
 
 /// <summary>Contract dispatch.md 3.1 cancel response.</summary>
 public record WorkerCancelResultDto(
@@ -73,6 +76,9 @@ public static class WorkerCancelOutcomes
 {
     public const string Redispatching = "REDISPATCHING";
     public const string CancelledRefunded = "CANCELLED_REFUNDED";
+
+    /// <summary>D43: an agency worker cancelled; the job stays ASSIGNED and the agency was told to replace the worker.</summary>
+    public const string AgencyNotified = "AGENCY_NOTIFIED";
 }
 
 public static class WorkerCancelReasons
@@ -87,7 +93,9 @@ public static class WorkerCancelReasons
 /// told at once. A seat still open at <c>job start - Cancel.RedispatchCutoffMinutes</c> fails the order through
 /// <see cref="AssignmentFailed"/>, whose Booking handler cancels it and refunds 100 % automatically. Every cancel counts 1 towards the
 /// lock (<c>Cancel.WorkerCancelLockCount</c> within <c>Cancel.WorkerCancelWindowDays</c>); there is no money penalty. Agency staff
-/// follow the SLA flow (Q09) and cannot use this.
+/// (D43, AGENCY-CANCEL-01) cancel too, but nothing of the above applies: the job stays ASSIGNED, the agency gets a notice and the 30-minute
+/// swap window of <see cref="AgencySwapService"/> (Q09) to replace the worker; with 2 h or less of notice Dispatch rescues at once (SLA).
+/// No cancel is counted, no lock, no auto-accept change, the order is not touched.
 /// </summary>
 public class WorkerCancelService(
     IWorkerCancelRepository repository,
@@ -99,7 +107,8 @@ public class WorkerCancelService(
     ICurrentUser currentUser,
     INotificationService? notifications = null,
     ILogger<WorkerCancelService>? logger = null,
-    RescueCancelService? rescue = null)
+    RescueCancelService? rescue = null,
+    AgencySwapService? agencySwap = null)
 {
     /// <summary>provenance: the order's <c>cancel_reason</c> is NVARCHAR(255); the worker's reason is kept to the same length.</summary>
     public const int MaxReasonLength = 255;
@@ -120,6 +129,14 @@ public class WorkerCancelService(
         var workerId = WorkerId;
         var (assignment, start) = await RequireCancellableAsync(assignmentId, workerId, cancellationToken);
         var now = clock.UtcNow;
+        if (assignment.AgencyId != null)
+        {
+            // D43: nothing is counted or locked; the only question is whether the agency still has time for a swap window.
+            return new WorkerCancelPreviewDto(
+                assignment.AssignmentId, 0, LockCount, WindowDays, false, false, start,
+                now < start - TimeSpan.FromHours(AgencySwapService.RescueThresholdHours), AgencyWorker: true);
+        }
+
         var count = await repository.CountWorkerCancelsSinceAsync(workerId, now.AddDays(-WindowDays), cancellationToken);
         var autoAccept = await repository.IsAutoAcceptOnAsync(workerId, cancellationToken);
         if (rescue is not null && RescueCancelService.IsRescue(assignment))
@@ -142,6 +159,11 @@ public class WorkerCancelService(
         var workerId = WorkerId;
         var (assignment, start) = await RequireCancellableAsync(assignmentId, workerId, cancellationToken);
         var now = clock.UtcNow;
+
+        if (assignment.AgencyId != null)
+        {
+            return await CancelAgencyWorkerAsync(assignment, workerId, clean, cancellationToken);
+        }
 
         // Decision D38: a rescue seat is cancelled with no penalty and the order is cancelled (the checks of the deadline are in RequireCancellableAsync).
         if (rescue is not null && RescueCancelService.IsRescue(assignment))
@@ -238,7 +260,7 @@ public class WorkerCancelService(
             throw new NotFoundException("Không tìm thấy ca làm việc của thợ.");
         }
 
-        if (assignment.AgencyId != null)
+        if (assignment.AgencyId != null && agencySwap is null)
         {
             throw new ForbiddenAccessException("Thợ doanh nghiệp đối tác báo vắng qua doanh nghiệp (SLA), không hủy ca trên ứng dụng.");
         }
@@ -265,6 +287,32 @@ public class WorkerCancelService(
         }
 
         return (assignment, start.Value);
+    }
+
+    /// <summary>
+    /// D43: the agency worker's cancel. It opens the agency's swap window (or hands over to the rescue when the notice is 2 h or less) and
+    /// tells the agency once. The job, the slot and the order stay as they are until the agency swaps; no cancel is counted.
+    /// </summary>
+    private async Task<WorkerCancelResultDto> CancelAgencyWorkerAsync(
+        JobAssignment assignment, int workerId, string reason, CancellationToken cancellationToken)
+    {
+        var (window, created) = await agencySwap!.ReportUnavailableByWorkerAsync(assignment.AssignmentId, workerId, reason, cancellationToken);
+        _logger.LogInformation(
+            "Agency worker {WorkerId} cancelled assignment {AssignmentId} of order {OrderId}; window {State} (new: {Created}). Reason: {Reason}",
+            workerId, assignment.AssignmentId, assignment.OrderId, window.State, created, reason);
+
+        if (created)
+        {
+            var until = window.State == "OPEN" ? $" Hãy đổi thợ trước {Local(window.DeadlineAt)}." : " Còn quá ít thời gian: hệ thống điều phối thợ cứu hộ ngay.";
+            await NotifyAsync(UserRole.Partner, assignment.AgencyId!.Value, assignment.OrderId, WorkerCancelNotificationTopics.AgencyWorkerCancelled,
+                "Thợ của bạn đã hủy ca",
+                $"Thợ #{workerId} đã hủy ca #{assignment.AssignmentId} (lý do: {reason}).{until}",
+                cancellationToken, assignment.AssignmentId);
+        }
+
+        return new WorkerCancelResultDto(
+            assignment.AssignmentId, DbEnum.ToDb(JobAssignmentStatus.Assigned), 0, LockCount, WindowDays, false,
+            WorkerCancelOutcomes.AgencyNotified, window.State == "OPEN" ? window.DeadlineAt : null);
     }
 
     private string Local(DateTime utc) => clock.ToLocal(utc).ToString("HH:mm dd/MM", CultureInfo.InvariantCulture);
@@ -304,6 +352,9 @@ public static class WorkerCancelNotificationTopics
 
     /// <summary>To the worker: the cancel turned their "Tự động nhận đơn" switch off (D33 item 5, #891).</summary>
     public const string AutoAcceptOff = "dispatch.auto_accept_off";
+
+    /// <summary>To the agency (role Partner): one of its workers cancelled an assigned job (D43).</summary>
+    public const string AgencyWorkerCancelled = "dispatch.agency_worker_cancelled";
 }
 
 /// <summary>

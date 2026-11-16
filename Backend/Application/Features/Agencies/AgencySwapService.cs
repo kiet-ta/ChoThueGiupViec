@@ -119,11 +119,41 @@ public class AgencySwapService(
         }
 
         var view = await OwnAssignmentAsync(assignmentId, agencyId, cancellationToken);
+        return (await OpenWindowAsync(view, agencyId, reason, cancellationToken)).Window;
+    }
+
+    /// <summary>
+    /// D43 (AGENCY-CANCEL-01): the agency worker himself cancels an ASSIGNED job in the app. This is the same report as
+    /// <see cref="ReportUnavailableAsync"/> (30-minute window when the notice is more than 2 h, otherwise Dispatch takes over at once), made
+    /// for the worker's own assignment. <c>Created</c> is false when the window already existed (a repeated cancel changes nothing).
+    /// </summary>
+    public async Task<(SwapWindowDto Window, bool Created)> ReportUnavailableByWorkerAsync(
+        long assignmentId, int workerId, string? reason, CancellationToken cancellationToken = default)
+    {
+        var clean = reason?.Trim() ?? string.Empty;
+        if (clean.Length is 0 or > 255)
+        {
+            throw new ValidationException("reason", "reason is required and must be at most 255 characters.");
+        }
+
+        var view = await repository.GetAssignmentAsync(assignmentId, cancellationToken);
+        if (view is null || view.WorkerId != workerId)
+        {
+            throw new NotFoundException("Assignment", assignmentId);
+        }
+
+        return await OpenWindowAsync(view, view.AgencyId, clean, cancellationToken);
+    }
+
+    private async Task<(SwapWindowDto Window, bool Created)> OpenWindowAsync(
+        SwapAssignmentView view, int agencyId, string reason, CancellationToken cancellationToken)
+    {
+        var assignmentId = view.AssignmentId;
         var existing = await repository.GetWindowAsync(assignmentId, cancellationToken);
         var now = clock.UtcNow;
         if (existing is not null)
         {
-            return ToDto(existing, view, now); // idempotent: the window of this assignment already exists
+            return (ToDto(existing, view, now), false); // idempotent: the window of this assignment already exists
         }
 
         if (view.Status != JobAssignmentStatus.Assigned)
@@ -167,7 +197,7 @@ public class AgencySwapService(
             await publisher.Publish(new AgencySwapWindowExpired(assignmentId, view.OrderId, agencyId, reason, now), cancellationToken);
         }
 
-        return ToDto(window, view, now);
+        return (ToDto(window, view, now), true);
     }
 
     public async Task<SwapWindowDto> SwapWorkerAsync(long assignmentId, SwapRequest request, CancellationToken cancellationToken = default)

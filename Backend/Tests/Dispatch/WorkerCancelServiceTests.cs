@@ -1,5 +1,6 @@
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
+using CommonService.Application.Features.Agencies;
 using CommonService.Application.Features.Booking;
 using CommonService.Application.Features.Dispatch;
 using CommonService.Application.Interfaces.Ports;
@@ -110,9 +111,54 @@ public class WorkerCancelServiceTests
             + (EarlierCancels.TryGetValue(workerId, out var times) ? times.Count(t => t >= sinceUtc) : 0);
     }
 
+    private class PassThroughUnitOfWork : CommonService.Application.Interfaces.IRepositories.IUnitOfWork
+    {
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task CommitTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RollbackTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default) => action();
+    }
+
+    /// <summary>The swap window store, over the assignments of the dispatch fake (only what an agency worker's cancel touches).</summary>
+    private class InMemorySwapRepository(InMemoryDispatchRepository dispatch) : IAgencySwapRepository
+    {
+        public Dictionary<long, AgencySwapWindow> Windows { get; } = new();
+
+        public Task<SwapAssignmentView?> GetAssignmentAsync(long assignmentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<SwapAssignmentView?>(dispatch.Assignments.TryGetValue(assignmentId, out var a) && a.AgencyId is int agency
+                ? new SwapAssignmentView(a.AssignmentId, a.OrderId, agency, a.WorkerId, a.SlotId, a.AssignmentStatus,
+                    JobDate, BookingShifts.Morning, new TimeOnly(8, 0), ServiceTier.Premium)
+                : null);
+
+        public Task<AgencySwapWindow?> GetWindowAsync(long assignmentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Windows.TryGetValue(assignmentId, out var w) ? w : null);
+
+        public void AddWindow(AgencySwapWindow window) => Windows[window.AssignmentId] = window;
+
+        public Task<bool> TryCloseWindowAsync(long assignmentId, string to, int? newWorkerId, DateTime nowUtc, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<IReadOnlyList<AgencySwapWindow>> ListOpenAsync(int? agencyId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<IReadOnlyList<AgencySwapWindow>> ListOpenDueAsync(DateTime nowUtc, int take, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<WorkStatus?> GetAgencyWorkerStatusAsync(int agencyId, int workerId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<BookingSlot?> GetAvailableSlotAsync(int workerId, DateOnly date, string shiftCode, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<bool> TrySwapAsync(long assignmentId, int oldSlotId, int newWorkerId, int newSlotId, DateTime nowUtc, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+    }
+
     private class Harness
     {
         public FakeClock Clock { get; } = new();
+        public InMemorySwapRepository SwapRepo { get; }
         public FakeWorkerAvailabilityQuery Query { get; } = new();
         public InMemoryDispatchRepository Repo { get; } = new();
         public InMemoryCancelRepository Cancels { get; }
@@ -128,7 +174,9 @@ public class WorkerCancelServiceTests
             Cancels = new InMemoryCancelRepository(Repo);
             var rules = MicrosoftOptions.Create(new BusinessRules());
             Engine = new DispatchOfferEngine(new SteppedRadiusDispatchScanner(Query, rules), Repo, Clock, Mediator, rules);
-            Service = new WorkerCancelService(Cancels, Repo, Engine, Clock, Mediator, rules, User, Notifications);
+            SwapRepo = new InMemorySwapRepository(Repo);
+            var swap = new AgencySwapService(SwapRepo, new PassThroughUnitOfWork(), Mediator, User, Clock);
+            Service = new WorkerCancelService(Cancels, Repo, Engine, Clock, Mediator, rules, User, Notifications, agencySwap: swap);
         }
 
         public void AddWorker(int workerId, int slotId, double distanceKm = 1.0)
@@ -275,12 +323,108 @@ public class WorkerCancelServiceTests
         var state = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => h.Service.CancelAsync(id, "x"));
         Assert.Equal(DispatchErrorCodes.InvalidAssignmentState, state.Code);
 
+        Assert.Empty(h.Mediator.Published);
+
+        // D43: an agency worker is no longer refused, but the same refusals hold (404 not own, 409 started, 400 reason).
         var agency = new Harness();
         var agencyJob = await agency.AssignedAsync(50, slotId: 9, agencyId: 3);
-        await Assert.ThrowsAsync<ForbiddenAccessException>(() => agency.Service.CancelAsync(agencyJob, "x")); // SLA flow (Q09)
-
-        Assert.Empty(h.Mediator.Published);
+        await Assert.ThrowsAsync<ArgumentException>(() => agency.Service.CancelAsync(agencyJob, "   "));
+        agency.User.UserId = 99;
+        await Assert.ThrowsAsync<NotFoundException>(() => agency.Service.CancelAsync(agencyJob, "x"));
+        agency.User.UserId = 50;
+        agency.Clock.Set(JobStartUtc);
+        var agencyStarted = await Assert.ThrowsAsync<BusinessRuleViolationException>(() => agency.Service.CancelAsync(agencyJob, "x"));
+        Assert.Equal(DispatchErrorCodes.JobAlreadyStarted, agencyStarted.Code);
+        Assert.Empty(agency.SwapRepo.Windows);
         Assert.Empty(agency.Mediator.Published);
+        Assert.Empty(agency.Notifications.Sent);
+    }
+
+    [Fact]
+    public async Task Agency_worker_cancel_opens_the_swap_window_and_tells_the_agency_without_counting_or_locking()
+    {
+        // D43 (AGENCY-CANCEL-01): the job stays ASSIGNED, the agency gets one notice and a 30-minute window.
+        var h = new Harness();
+        var id = await h.AssignedAsync(50, slotId: 9, agencyId: 3);
+        h.Repo.AutoAcceptWorkerIds.Add(50);
+        h.AddWorker(51, slotId: 10); // a freelancer who would take the seat if Dispatch re-dispatched it
+
+        var preview = await h.Service.PreviewAsync(id);
+        Assert.True(preview.AgencyWorker);
+        Assert.False(preview.WillLockAccount);
+        Assert.True(preview.SubstituteSearchPossible); // a day of notice: the window can open
+        Assert.Equal(0, preview.CancelCountInWindow);
+
+        var result = await h.Service.CancelAsync(id, "  Xe hỏng  ");
+
+        Assert.Equal("ASSIGNED", result.Status);
+        Assert.Equal(WorkerCancelOutcomes.AgencyNotified, result.OrderOutcome);
+        Assert.Equal(h.Clock.UtcNow.AddMinutes(30), result.SubstituteSearchUntil);
+        Assert.Equal((0, false), (result.CancelCountInWindow, result.AccountLocked));
+        Assert.Equal("OPEN", h.SwapRepo.Windows[id].Status);
+        Assert.Equal(3, h.SwapRepo.Windows[id].AgencyId);
+        Assert.Equal("Xe hỏng", h.SwapRepo.Windows[id].Reason);
+
+        // Nothing of the freelancer flow ran: the job, the slot, the order and the auto-accept switch are untouched.
+        Assert.Equal(JobAssignmentStatus.Assigned, h.Repo.Assignments[id].AssignmentStatus);
+        Assert.Equal(DispatchSlotStatuses.Booked, h.Repo.SlotStatus(9));
+        Assert.Equal(JobOrderStatus.Assigned, h.Repo.Orders[OrderId].OrderStatus);
+        Assert.Contains(50, h.Repo.AutoAcceptWorkerIds);
+        Assert.DoesNotContain(h.Repo.Assignments.Values, a => a.AssignmentStatus == JobAssignmentStatus.Offered);
+        Assert.Empty(h.Mediator.Published);
+        Assert.Empty(h.Cancels.Locked);
+
+        var notice = Assert.Single(h.Notifications.Sent);
+        Assert.Equal((UserRole.Partner, 3, WorkerCancelNotificationTopics.AgencyWorkerCancelled), (notice.RecipientRole, notice.RecipientId, notice.Topic));
+        Assert.Equal((OrderId.ToString(), id.ToString()), (notice.Data!["orderId"], notice.Data["assignmentId"]));
+
+        // A second tap changes nothing and does not tell the agency again.
+        var again = await h.Service.CancelAsync(id, "Xe hỏng");
+        Assert.Equal(WorkerCancelOutcomes.AgencyNotified, again.OrderOutcome);
+        Assert.Single(h.Notifications.Sent);
+        Assert.Single(h.SwapRepo.Windows);
+    }
+
+    [Theory]
+    [InlineData(120)] // exactly 2 h
+    [InlineData(45)]
+    public async Task Agency_worker_cancel_with_two_hours_or_less_tells_the_agency_and_hands_over_without_cancelling_the_order(int minutesBeforeStart)
+    {
+        var h = new Harness();
+        var id = await h.AssignedAsync(50, slotId: 9, agencyId: 3);
+        h.Clock.Set(JobStartUtc.AddMinutes(-minutesBeforeStart));
+
+        var preview = await h.Service.PreviewAsync(id);
+        Assert.False(preview.SubstituteSearchPossible); // no window any more
+
+        var result = await h.Service.CancelAsync(id, "Ốm");
+
+        Assert.Equal(WorkerCancelOutcomes.AgencyNotified, result.OrderOutcome);
+        Assert.Null(result.SubstituteSearchUntil); // no swap window
+        Assert.Equal("EXPIRED", h.SwapRepo.Windows[id].Status);
+        // The existing failover/SLA flow takes over through AgencySwapWindowExpired; this action never cancels or refunds the order itself.
+        Assert.Equal(id, Assert.Single(h.Mediator.Published.OfType<AgencySwapWindowExpired>()).AssignmentId);
+        Assert.Empty(h.Mediator.Published.OfType<AssignmentFailed>());
+        Assert.Empty(h.Mediator.Published.OfType<AssignmentCancelledByWorker>());
+        Assert.Equal(JobOrderStatus.Assigned, h.Repo.Orders[OrderId].OrderStatus);
+        var notice = Assert.Single(h.Notifications.Sent);
+        Assert.Equal((UserRole.Partner, 3), (notice.RecipientRole, notice.RecipientId));
+    }
+
+    [Fact]
+    public async Task A_freelancer_is_unchanged_by_the_agency_path()
+    {
+        var h = new Harness();
+        var id = await h.AssignedAsync(42, slotId: 7);
+
+        var preview = await h.Service.PreviewAsync(id);
+        Assert.False(preview.AgencyWorker);
+
+        var result = await h.Service.CancelAsync(id, "x");
+
+        Assert.Equal("CANCELLED_BY_WORKER", result.Status);
+        Assert.Empty(h.SwapRepo.Windows);
+        Assert.DoesNotContain(h.Notifications.Sent, m => m.RecipientRole == UserRole.Partner);
     }
 
     [Fact]
