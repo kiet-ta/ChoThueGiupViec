@@ -254,6 +254,11 @@ void main() {
       expect(text('SHIFT_IN_PAST'), contains('đã bắt đầu hoặc đã qua'));
       expect(text('PREMIUM_LEAD_TIME'), contains('ít nhất 4 giờ'));
       expect(text('FULLY_BOOKED'), contains('kín lịch'));
+      // BOOK-BUSY-01: the chosen worker is busy at that time.
+      expect(
+        text('PREFERRED_WORKER_BUSY'),
+        'Thợ bạn chọn đã bận giờ này. Chọn giờ khác hoặc để hệ thống chọn thợ.',
+      );
       expect(
         text('SOMETHING_NEW'),
         'Không đặt được đơn lúc này. Vui lòng thử lại.',

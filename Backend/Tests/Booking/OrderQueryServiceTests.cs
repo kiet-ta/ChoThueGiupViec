@@ -59,6 +59,9 @@ public class OrderQueryServiceTests
     {
         public Task<IReadOnlyList<WorkerFreeShift>> GetFreeShiftsAsync(int workerId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<WorkerFreeShift>>([new WorkerFreeShift(from, BookingShifts.Morning)]);
+
+        public Task<bool> IsFreeForJobAsync(int workerId, DateOnly date, string shiftCode, TimeOnly? startTime, TimeOnly? endTime, CancellationToken cancellationToken = default) =>
+            Task.FromResult(true);
     }
 
     private class Extensions : IExtensionRepository

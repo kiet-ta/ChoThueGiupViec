@@ -11,6 +11,9 @@ class BookingErrorCode {
   /// Decisions D34: a timed Cơ bản job starts sooner than `economyMinLeadMinutes` from now.
   static const leadTimeTooShort = 'LEAD_TIME_TOO_SHORT';
 
+  /// BOOK-BUSY-01 (decisions D41): the worker the customer chose is busy at the chosen time.
+  static const preferredWorkerBusy = 'PREFERRED_WORKER_BUSY';
+
   BookingErrorCode._();
 }
 
@@ -85,6 +88,63 @@ List<String> startTimeChoices({
   final offset = earliest - shiftStart;
   final first = shiftStart + ((offset + step - 1) ~/ step) * step;
   return [for (var m = first; m + length <= shiftEnd; m += step) hhmmOf(m)];
+}
+
+/// BOOK-BUSY-01 (decisions D41): what a chosen worker's live jobs take on one day. A timed job keeps the worker's shift open (D34), so
+/// [windows] (minutes since midnight, start inclusive, end exclusive, each already widened by the travel buffer) and [remainingHours]
+/// are what tell a time the worker can take from one they cannot.
+class ShiftBusy {
+  final List<({int start, int end})> windows;
+
+  /// Hours left of the worker's day; null = not known.
+  final double? remainingHours;
+
+  const ShiftBusy({this.windows = const [], this.remainingHours});
+
+  /// From the server's "HH:mm" pairs; a pair that is not a time is ignored.
+  factory ShiftBusy.fromTimes(
+    Iterable<({String start, String end})> times,
+    double? remainingHours,
+  ) {
+    final windows = <({int start, int end})>[];
+    for (final t in times) {
+      final start = minutesOf(t.start);
+      final end = minutesOf(t.end);
+      if (start != null && end != null) windows.add((start: start, end: end));
+    }
+    return ShiftBusy(windows: windows, remainingHours: remainingHours);
+  }
+}
+
+/// The shifts a chosen worker is free for ([keys], see [freeShiftKey]) and, per shift, what their jobs already take ([busy]).
+class WorkerFreeShifts {
+  final Set<String> keys;
+  final Map<String, ShiftBusy> busy;
+
+  const WorkerFreeShifts(this.keys, [this.busy = const {}]);
+
+  bool contains(String key) => keys.contains(key);
+  bool get isEmpty => keys.isEmpty;
+}
+
+/// Of [starts] (start times for a job of [hours]) the ones the worker can take: the job fits in their remaining hours and overlaps none
+/// of their busy times. Without [busy] every start stays.
+List<String> startsWorkerCanTake(
+  List<String> starts,
+  double hours,
+  ShiftBusy? busy,
+) {
+  if (busy == null) return starts;
+  final left = busy.remainingHours;
+  if (left != null && hours > left) return const [];
+  if (busy.windows.isEmpty) return starts;
+  final length = (hours * 60).round();
+  return [
+    for (final s in starts)
+      if (minutesOf(s) case final from?)
+        if (!busy.windows.any((w) => from < w.end && w.start < from + length))
+          s,
+  ];
 }
 
 const int customerNoteMaxLength = 500;
@@ -314,6 +374,7 @@ CreateOrderFailure createOrderFailure(
           BookingErrorCode.fullyBooked => 'Các doanh nghiệp đối tác đã kín lịch cho ca này. Hãy chọn ca hoặc ngày khác.',
           BookingErrorCode.leadTimeTooShort =>
             'Giờ này gần quá, người làm không kịp đến. Chọn giờ muộn hơn nhé.',
+          BookingErrorCode.preferredWorkerBusy => 'Thợ bạn chọn đã bận giờ này. Chọn giờ khác hoặc để hệ thống chọn thợ.',
           _ => 'Không đặt được đơn lúc này. Vui lòng thử lại.',
         },
       );

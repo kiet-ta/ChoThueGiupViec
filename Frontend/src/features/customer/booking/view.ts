@@ -77,6 +77,22 @@ export function shiftBlockedReason(
   return null
 }
 
+/**
+ * BOOK-BUSY-01 (decisions D41): of the `starts` of a job of `hours`, the ones the chosen worker can take on a day whose free shift is
+ * `free`: the job fits in their remaining hours and overlaps none of their busy times. Without a worker's data every start stays.
+ */
+export function startsWorkerCanTake(starts: string[], hours: number, free: FreeShift | undefined): string[] {
+  if (!free) return starts
+  if (free.remainingHours != null && hours > free.remainingHours) return []
+  const windows = (free.busyWindows ?? []).map((w) => [minutesOf(w.startTime), minutesOf(w.endTime)] as const)
+  if (windows.length === 0) return starts
+  const length = Math.round(hours * 60)
+  return starts.filter((s) => {
+    const from = minutesOf(s)
+    return !windows.some(([start, end]) => from < end && start < from + length)
+  })
+}
+
 /** `T2 26/10` for a `yyyy-MM-dd` date. */
 export function dayText(date: string): string {
   const weekday = WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]
@@ -159,6 +175,7 @@ export function bookingProblem(error: ProblemInput): string {
   if (code === 'SHIFT_IN_PAST') return 'Ca đã chọn đã qua. Hãy chọn ca khác.'
   if (code === 'PREMIUM_LEAD_TIME') return 'Gói Premium cần đặt trước tối thiểu 4 giờ.'
   if (code === 'LEAD_TIME_TOO_SHORT') return 'Giờ này gần quá, thợ không kịp đến. Hãy chọn giờ muộn hơn.'
+  if (code === 'PREFERRED_WORKER_BUSY') return 'Thợ bạn chọn đã bận giờ này. Chọn giờ khác hoặc để hệ thống chọn thợ.'
   if (code === 'FULLY_BOOKED') return 'Ca này hiện không còn thợ rảnh ở khu vực của bạn. Hãy chọn ca hoặc ngày khác.'
   if (error.status === 404) return 'Không tìm thấy địa chỉ. Hãy chọn lại địa chỉ.'
   return error.message || 'Không đặt được ca. Vui lòng thử lại.'

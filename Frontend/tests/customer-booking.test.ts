@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, dayText, durationChoices, endTimeOf, firstName, hoursLabel, jobRange, nextOrder, quoteWorkersLabel, shiftBlockedReason, shiftStart, startTimeChoices, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
-import type { OrderSummary } from '../src/features/customer/booking/types.ts'
+import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, dayText, durationChoices, endTimeOf, firstName, hoursLabel, jobRange, nextOrder, quoteWorkersLabel, shiftBlockedReason, shiftStart, startsWorkerCanTake, startTimeChoices, upcomingDays, vnDate, workersPrice } from '../src/features/customer/booking/view.ts'
+import type { FreeShift, OrderSummary } from '../src/features/customer/booking/types.ts'
 
 const morning = { shiftCode: 'SHIFT_MORNING', startLocal: '08:00', endLocal: '12:00' }
 const opts = { premiumMinLeadHours: 4 }
@@ -119,5 +119,41 @@ describe('large house: one worker, a possible 2nd job (decision D36)', () => {
     assert.match(CONTINUOUS_WORK_NOTICE, /thêm giờ ngay sau ca/)
     assert.match(CONTINUOUS_WORK_NOTICE, /chỉ trả một lần/)
     assert.match(CONTINUOUS_WORK_AGREEMENT, /đồng ý/)
+  })
+})
+
+describe('a favorite worker who is busy (BOOK-BUSY-01, decisions D41)', () => {
+  const afternoon = ['13:00', '13:30', '14:00', '14:30', '15:00']
+  const free = (over: Partial<FreeShift>): FreeShift => ({ date: '2026-11-17', shiftCode: 'SHIFT_AFTERNOON', ...over })
+
+  it('keeps every start when the worker has no busy time or nothing is known', () => {
+    assert.deepEqual(startsWorkerCanTake(afternoon, 2, undefined), afternoon)
+    assert.deepEqual(startsWorkerCanTake(afternoon, 2, free({})), afternoon)
+    assert.deepEqual(startsWorkerCanTake(afternoon, 2, free({ busyWindows: [], remainingHours: 8 })), afternoon)
+  })
+
+  it('drops the starts that overlap a live job (already widened by the buffer)', () => {
+    // A job until 13:00 and the 30 minutes after it: nothing may start before 13:30.
+    const busy = free({ busyWindows: [{ startTime: '11:30', endTime: '13:30' }], remainingHours: 6 })
+    assert.deepEqual(startsWorkerCanTake(afternoon, 2, busy), ['13:30', '14:00', '14:30', '15:00'])
+  })
+
+  it('drops a start whose job would run into the next live job', () => {
+    const busy = free({ busyWindows: [{ startTime: '15:30', endTime: '17:00' }] })
+    // A 2 h job from 13:30 ends 15:30, exactly where the busy time begins; from 14:00 it overlaps.
+    assert.deepEqual(startsWorkerCanTake(afternoon, 2, busy), ['13:00', '13:30'])
+  })
+
+  it('offers nothing when the whole shift is taken, or when the day has fewer hours left than the job', () => {
+    assert.deepEqual(startsWorkerCanTake(afternoon, 2, free({ busyWindows: [{ startTime: '07:30', endTime: '17:30' }] })), [])
+    assert.deepEqual(startsWorkerCanTake(afternoon, 2, free({ remainingHours: 1.5 })), [])
+    assert.deepEqual(startsWorkerCanTake(afternoon, 2, free({ remainingHours: 2 })), afternoon)
+  })
+
+  it('says it in words when the server refuses a busy preferred worker', () => {
+    assert.equal(
+      bookingProblem({ status: 409, message: 'x', data: { code: 'PREFERRED_WORKER_BUSY' } } as never),
+      'Thợ bạn chọn đã bận giờ này. Chọn giờ khác hoặc để hệ thống chọn thợ.',
+    )
   })
 })

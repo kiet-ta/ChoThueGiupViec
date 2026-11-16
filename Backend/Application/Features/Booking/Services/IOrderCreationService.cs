@@ -47,7 +47,7 @@ public interface IOrderCreationService
 {
     /// <summary>
     /// POST /api/v1/booking/orders (contract booking.md 3.3), rules in order, nothing written when one fails:
-    /// ValidationException (400), NotFoundException (404), BusinessRuleViolationException with Code SHIFT_IN_PAST / PREMIUM_LEAD_TIME / LEAD_TIME_TOO_SHORT / FULLY_BOOKED (409).
+    /// ValidationException (400), NotFoundException (404), BusinessRuleViolationException with Code SHIFT_IN_PAST / PREMIUM_LEAD_TIME / LEAD_TIME_TOO_SHORT / PREFERRED_WORKER_BUSY / FULLY_BOOKED (409).
     /// </summary>
     Task<CreatedOrder> CreateAsync(CreateOrderRequest request, CancellationToken cancellationToken = default);
 }
