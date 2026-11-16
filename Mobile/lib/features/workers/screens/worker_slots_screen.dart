@@ -226,11 +226,18 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     }
   }
 
-  WorkerAssignmentDto? _assignmentOf(String dateStr, String shiftCode) {
-    for (final a in _assignments) {
-      if (a.slotDate == dateStr && a.shiftCode == shiftCode) return a;
-    }
-    return null;
+  /// Every job of the worker in this shift, earliest first: one shift can take several orders (SHIFT-MULTI-01, decisions D42).
+  List<WorkerAssignmentDto> _assignmentsOf(String dateStr, String shiftCode) {
+    final jobs = [
+      for (final a in _assignments)
+        if (a.slotDate == dateStr && a.shiftCode == shiftCode) a,
+    ];
+    // "HH:mm" sorts as text; the id keeps two jobs with the same start in a stable order.
+    jobs.sort((a, b) {
+      final byTime = a.startTime.compareTo(b.startTime);
+      return byTime != 0 ? byTime : a.assignmentId.compareTo(b.assignmentId);
+    });
+    return jobs;
   }
 
   bool _dayHasOrder(String dateStr) =>
@@ -574,8 +581,8 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     IconData icon,
   ) {
     final shiftCode = shift['code']!;
-    final assignment = _assignmentOf(dateStr, shiftCode);
-    final booked = assignment != null;
+    final assignments = _assignmentsOf(dateStr, shiftCode);
+    final booked = assignments.isNotEmpty;
     final started = _isShiftStarted(dateStr, shift);
     final isActive =
         booked || (_slotActiveState['$dateStr:$shiftCode'] ?? false);
@@ -627,7 +634,9 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
               ),
               if (booked)
                 StatusPill(
-                  'Có đơn',
+                  assignments.length == 1
+                      ? 'Có đơn'
+                      : 'Có ${assignments.length} đơn',
                   tone: PillTone.warn,
                   textKey: Key('shift-booked-$dateStr-$shiftCode'),
                 )
@@ -640,7 +649,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                 ),
             ],
           ),
-          if (assignment != null) ...[
+          for (final assignment in assignments) ...[
             const SizedBox(height: NordicSpace.xs),
             _orderCard(assignment),
           ],
