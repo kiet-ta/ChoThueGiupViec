@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:http/http.dart' as http;
 
 import '../../../core/models/user_role.dart';
 import '../../../core/network/api_config.dart';
@@ -10,19 +10,20 @@ import 'token_storage.dart';
 class AuthService {
   final String baseUrl;
   final TokenStorage tokenStorage;
-  final HttpClient _client;
+  final http.Client _client;
 
   /// Mock mode, only when a caller (a test) passes it explicitly: no network, canned answers.
   /// Off (the default, the real app): every server or network error is reported, never replaced by mock data.
   bool useMockFallback;
 
   AuthService({
-    this.baseUrl = apiBaseUrl,
+    String? baseUrl,
     TokenStorage? tokenStorage,
-    HttpClient? client,
+    http.Client? client,
     this.useMockFallback = false,
-  }) : tokenStorage = tokenStorage ?? TokenStorage(),
-       _client = client ?? HttpClient();
+  }) : baseUrl = baseUrl ?? apiBaseUrl,
+       tokenStorage = tokenStorage ?? TokenStorage(),
+       _client = client ?? http.Client();
 
   /// Validates and normalizes Vietnamese mobile phone format (0XXXXXXXXX, 10 digits).
   static String? normalizePhone(String raw) {

@@ -10,10 +10,10 @@ import '../../../core/theme/nordic_typography.dart';
 /// The upload answers with a path on the server (`/files/dispute-evidence/<name>`, contract disputes.md 2.1a); it is made
 /// absolute with the API base address. A full `http(s)` address is used as it is. The file route is anonymous, so no token is
 /// sent: the photo may live on another host, and the Bearer token must never go there.
-String? evidenceImageUrl(String url, {String baseUrl = apiBaseUrl}) {
+String? evidenceImageUrl(String url, {String? baseUrl}) {
   final text = url.trim();
   if (text.startsWith('https://') || text.startsWith('http://')) return text;
-  if (text.startsWith('/files/')) return '$baseUrl$text';
+  if (text.startsWith('/files/')) return '${baseUrl ?? apiBaseUrl}$text';
   return null;
 }
 
