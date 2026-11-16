@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+
+import 'package:http/http.dart' as http;
 
 import '../auth/token_storage.dart';
 import 'api_config.dart';
@@ -105,16 +106,17 @@ class _MultipartBody {
 class ApiClient {
   final String baseUrl;
   final TokenStorage tokenStorage;
-  final HttpClient _httpClient;
+  final http.Client _httpClient;
   final Duration timeout;
 
   ApiClient({
-    this.baseUrl = apiBaseUrl,
+    String? baseUrl,
     TokenStorage? tokenStorage,
-    HttpClient? httpClient,
+    http.Client? httpClient,
     this.timeout = defaultApiTimeout,
-  }) : tokenStorage = tokenStorage ?? TokenStorage(),
-       _httpClient = httpClient ?? HttpClient();
+  }) : baseUrl = baseUrl ?? apiBaseUrl,
+       tokenStorage = tokenStorage ?? TokenStorage(),
+       _httpClient = httpClient ?? http.Client();
 
   Uri _buildUri(String path, [Map<String, String>? queryParams]) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
@@ -239,38 +241,33 @@ class ApiClient {
     final timeout = timeoutOverride ?? this.timeout;
 
     try {
-      final request = await _httpClient.openUrl(method, uri).timeout(timeout);
+      final request = http.Request(method, uri);
 
       // Attach headers
-      request.headers.set('Accept', 'application/json');
+      request.headers['Accept'] = 'application/json';
       if (multipart != null) {
-        request.headers.set(
-          'Content-Type',
-          'multipart/form-data; boundary=${multipart.boundary}',
-        );
-        request.contentLength = multipart.bytes.length;
+        request.headers['Content-Type'] =
+            'multipart/form-data; boundary=${multipart.boundary}';
       } else if (body != null) {
-        request.headers.set('Content-Type', 'application/json; charset=utf-8');
+        request.headers['Content-Type'] = 'application/json; charset=utf-8';
       }
 
       // Attach Bearer token if required and available
       if (requiresAuth && tokenStorage.accessToken != null) {
-        request.headers.set(
-          'Authorization',
-          'Bearer ${tokenStorage.accessToken}',
-        );
+        request.headers['Authorization'] = 'Bearer ${tokenStorage.accessToken}';
       }
 
-      // Write request body
+      // Write request body (bodyBytes sets the Content-Length)
       if (multipart != null) {
-        request.add(multipart.bytes);
+        request.bodyBytes = multipart.bytes;
       } else if (body != null) {
-        final encodedBody = utf8.encode(jsonEncode(body));
-        request.add(encodedBody);
+        request.bodyBytes = utf8.encode(jsonEncode(body));
       }
 
-      final response = await request.close().timeout(timeout);
-      final responseBody = await utf8.decodeStream(response).timeout(timeout);
+      final streamed = await _httpClient.send(request).timeout(timeout);
+      final response = await http.Response.fromStream(streamed)
+          .timeout(timeout);
+      final responseBody = utf8.decode(response.bodyBytes);
       final statusCode = response.statusCode;
 
       // Handle 401 token refresh interceptor once
@@ -334,7 +331,7 @@ class ApiClient {
       }
 
       int? retryAfterSeconds;
-      final retryHeader = response.headers.value('retry-after');
+      final retryHeader = response.headers['retry-after'];
       if (retryHeader != null) {
         retryAfterSeconds = int.tryParse(retryHeader);
       }
@@ -350,13 +347,10 @@ class ApiClient {
       );
     } on ApiException {
       rethrow;
-    } on SocketException {
+    } on http.ClientException {
+      // package:http (MOB-PLATFORM-01, #942): no connection on every platform (on the VM it wraps the socket error).
       throw const ApiException(0, _networkErrorMessage);
     } on TimeoutException {
-      throw const ApiException(0, _networkErrorMessage);
-    } on HttpException {
-      throw const ApiException(0, _networkErrorMessage);
-    } on HandshakeException {
       throw const ApiException(0, _networkErrorMessage);
     } catch (e) {
       throw ApiException(0, 'Lỗi kết nối: ${e.toString()}');
@@ -378,16 +372,16 @@ class ApiClient {
 
     try {
       final refreshUri = _buildUri('/api/v1/auth/refresh');
-      final request = await _httpClient
-          .openUrl('POST', refreshUri)
-          .timeout(timeout);
-      request.headers.set('Content-Type', 'application/json; charset=utf-8');
-      request.headers.set('Accept', 'application/json');
-      request.add(utf8.encode(jsonEncode({'refreshToken': refreshToken})));
+      final request = http.Request('POST', refreshUri)
+        ..headers['Content-Type'] = 'application/json; charset=utf-8'
+        ..headers['Accept'] = 'application/json'
+        ..bodyBytes = utf8.encode(jsonEncode({'refreshToken': refreshToken}));
 
-      final response = await request.close().timeout(timeout);
+      final streamed = await _httpClient.send(request).timeout(timeout);
+      final response = await http.Response.fromStream(streamed)
+          .timeout(timeout);
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final bodyStr = await utf8.decodeStream(response).timeout(timeout);
+        final bodyStr = utf8.decode(response.bodyBytes);
         final map = jsonDecode(bodyStr) as Map<String, dynamic>;
         final data = map['data'] as Map<String, dynamic>?;
         if (data != null && data['accessToken'] is String) {

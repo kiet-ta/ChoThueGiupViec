@@ -100,10 +100,11 @@ class RealtimeService implements IRealtimeService {
 
   RealtimeService({
     ITokenStorage? tokens,
-    this.baseUrl = apiBaseUrl,
+    String? baseUrl,
     HubConnectionFactory? connectionFactory,
     this.retryDelay = const Duration(seconds: 30),
-  }) : _tokens = tokens ?? TokenStorage(),
+  }) : baseUrl = baseUrl ?? apiBaseUrl,
+       _tokens = tokens ?? TokenStorage(),
        _factory = connectionFactory ?? _signalR;
 
   @override

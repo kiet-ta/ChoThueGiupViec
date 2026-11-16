@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 /// Timeout for one real backend call (connect, then response). Phone networks are slow; 600 ms was not enough.
 const apiTimeout = Duration(seconds: 15);
@@ -35,18 +36,20 @@ const _networkMessage =
 
 /// Runs one backend call; a network failure or timeout becomes [ApiException] with status 0.
 /// An [ApiException] thrown inside (from [readEnvelope]) passes through unchanged.
+/// `package:http` (MOB-PLATFORM-01, #942) reports no connection as [http.ClientException] on every platform (on the VM it
+/// also wraps the socket error); any other transport exception (e.g. a TLS handshake) is no connection too.
 Future<T> guardNetwork<T>(Future<T> Function() call) async {
   try {
     return await call();
   } on ApiException {
     rethrow;
-  } on SocketException {
+  } on http.ClientException {
     throw const ApiException(0, _networkMessage);
   } on TimeoutException {
     throw const ApiException(0, _networkMessage);
-  } on HttpException {
-    throw const ApiException(0, _networkMessage);
-  } on HandshakeException {
+  } on FormatException {
+    rethrow;
+  } on Exception {
     throw const ApiException(0, _networkMessage);
   }
 }
@@ -54,7 +57,7 @@ Future<T> guardNetwork<T>(Future<T> Function() call) async {
 /// One JSON call: [method] [uri] with an optional Bearer token and JSON [body]; returns the 2xx envelope,
 /// throws [ApiException] for an error status or no connection.
 Future<Map<String, dynamic>> apiRequest(
-  HttpClient client,
+  http.Client client,
   String method,
   Uri uri, {
   String? bearerToken,
@@ -62,18 +65,17 @@ Future<Map<String, dynamic>> apiRequest(
   required String fallbackMessage,
 }) {
   return guardNetwork(() async {
-    final request = await client.openUrl(method, uri).timeout(apiTimeout);
+    final request = http.Request(method, uri);
     if (bearerToken != null && bearerToken.isNotEmpty) {
-      request.headers.set(
-        HttpHeaders.authorizationHeader,
-        'Bearer $bearerToken',
-      );
+      request.headers['Authorization'] = 'Bearer $bearerToken';
     }
     if (body != null) {
-      request.headers.contentType = ContentType.json;
-      request.write(jsonEncode(body));
+      request.headers['Content-Type'] = 'application/json; charset=utf-8';
+      request.bodyBytes = utf8.encode(jsonEncode(body));
     }
-    final response = await request.close().timeout(apiTimeout);
+    final streamed = await client.send(request).timeout(apiTimeout);
+    final response = await http.Response.fromStream(streamed)
+        .timeout(apiTimeout);
     return readEnvelope(response, fallbackMessage: fallbackMessage);
   });
 }
@@ -81,11 +83,11 @@ Future<Map<String, dynamic>> apiRequest(
 /// Reads the response envelope. Returns it for a 2xx with `success != false`; otherwise throws [ApiException]
 /// with the status and the envelope `message` (or [fallbackMessage] when the body is not a JSON envelope).
 Future<Map<String, dynamic>> readEnvelope(
-  HttpClientResponse response, {
+  http.Response response, {
   required String fallbackMessage,
 }) async {
   final status = response.statusCode;
-  final body = await response.transform(utf8.decoder).join();
+  final body = utf8.decode(response.bodyBytes);
 
   Map<String, dynamic>? envelope;
   try {
@@ -112,9 +114,7 @@ Future<Map<String, dynamic>> readEnvelope(
     status,
     message,
     fieldErrors: _fieldErrors(envelope),
-    retryAfterSeconds: int.tryParse(
-      response.headers.value(HttpHeaders.retryAfterHeader) ?? '',
-    ),
+    retryAfterSeconds: int.tryParse(response.headers['retry-after'] ?? ''),
   );
 }
 
