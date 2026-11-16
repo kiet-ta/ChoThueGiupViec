@@ -139,12 +139,15 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
     return NordicPage.tab(
       title: 'Hôm nay',
       onRefresh: _load,
-      headerAction: IconButton.outlined(
-        key: const Key('worker-today-offers'),
-        tooltip: 'Nhận việc',
-        onPressed: widget.onOpenOffers,
-        icon: const Icon(Icons.notifications_outlined),
-      ),
+      // D44: an agency worker is never offered a job, so there is no way into the offers.
+      headerAction: _agencyWorker == true
+          ? null
+          : IconButton.outlined(
+              key: const Key('worker-today-offers'),
+              tooltip: 'Nhận việc',
+              onPressed: widget.onOpenOffers,
+              icon: const Icon(Icons.notifications_outlined),
+            ),
       children: [
         if (_agencyWorker == false && _area != null && !_area!.isSet) ...[
           _workAreaCard(),
@@ -210,18 +213,20 @@ class _WorkerTodayTabState extends State<WorkerTodayTab> {
           ],
         ),
         _weekStrip(),
-        const SizedBox(height: NordicSpace.section),
-        GroupedListCard(
-          items: [
-            GroupedListItem(
-              key: const Key('worker-today-offer-row'),
-              icon: Icons.notifications_active_outlined,
-              title: 'Nhận việc',
-              subtitle: 'Việc đang chờ, đếm ngược 30 giây',
-              onTap: widget.onOpenOffers,
-            ),
-          ],
-        ),
+        if (_agencyWorker != true) ...[
+          const SizedBox(height: NordicSpace.section),
+          GroupedListCard(
+            items: [
+              GroupedListItem(
+                key: const Key('worker-today-offer-row'),
+                icon: Icons.notifications_active_outlined,
+                title: 'Nhận việc',
+                subtitle: 'Việc đang chờ, đếm ngược 30 giây',
+                onTap: widget.onOpenOffers,
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
