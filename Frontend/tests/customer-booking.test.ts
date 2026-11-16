@@ -41,7 +41,8 @@ describe('shiftBlockedReason', () => {
   it('allows a free worker shift', () => assert.equal(shiftBlockedReason('2026-11-02', morning, 'ECONOMY', opts, now, free), null))
   it('blocks a shift absent from a nonempty availability list', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'ECONOMY', opts, now, free), 'Thợ không rảnh ca này'))
   it('allows shifts while availability is loading or failed', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'ECONOMY', opts, now, null), null))
-  it('allows shifts when no free shifts exist', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'ECONOMY', opts, now, []), null))
+  // BOOK-BUSY-01: the server refuses a worker with no free shift (409), so the form closes every shift instead of letting the order be sent.
+  it('blocks every shift of a worker who has no free shift at all', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'ECONOMY', opts, now, []), 'Thợ không rảnh ca này'))
   it('ignores worker availability for Premium', () => assert.equal(shiftBlockedReason('2026-11-03', morning, 'PREMIUM', opts, now, free), null))
   it('blocks a shift in the past', () => assert.equal(shiftBlockedReason('2026-11-01', morning, 'ECONOMY', opts, now), 'Đã qua'))
   it('allows Economy one hour ahead', () => assert.equal(shiftBlockedReason('2026-11-02', morning, 'ECONOMY', opts, now), null))

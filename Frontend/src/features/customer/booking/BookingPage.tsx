@@ -135,6 +135,9 @@ export function BookingPage() {
   // D36: a large ECONOMY house needs the customer's agreement before it is booked.
   const needsAgreement = quote?.isContinuousWork === true
   const canSubmit = !submitting && addressId !== null && quote !== null && selectionValid && (!needsAgreement || agreedContinuous)
+  // BOOK-BUSY-01: the way back to "let the system choose" when the favorite is busy.
+  const withoutWorker = new URLSearchParams(params)
+  withoutWorker.delete('worker')
   const returnParams = new URLSearchParams(params)
   returnParams.set('tier', tier)
   const addAddressUrl = `/app/addresses/new?${new URLSearchParams({ next: `/app/booking?${returnParams}` })}`
@@ -175,8 +178,8 @@ export function BookingPage() {
             </button>)}
           </div>
           <p className="mt-3 text-sm text-stone-500">Gói Premium đặt trước tối thiểu {options.premiumMinLeadHours} giờ.</p>
-          {workerParam !== null && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">{tier === 'ECONOMY' ? <>Ưu tiên thợ <b>{favoriteName ?? `#${workerParam}`}</b>. Đây là mong muốn, hệ thống sẽ hỏi thợ này trước nếu thợ rảnh ca bạn chọn. Ca và giờ mờ là lúc thợ đang bận.{workerAvailability?.shifts?.length === 0 && <span className="mt-2 block">Thợ không có ca rảnh trong 7 ngày tới. Bạn vẫn đặt được ca.</span>}</> : 'Chọn thợ cụ thể chỉ áp dụng cho gói Economy.'}</p>}
-          {workerParam !== null && tier === 'ECONOMY' && workerAvailability?.failed && <p role="alert" className="mt-3 text-sm text-stone-500">Không xem được lịch của thợ này, bạn vẫn đặt được ca.</p>}
+          {workerParam !== null && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">{tier === 'ECONOMY' ? <>Ưu tiên thợ <b>{favoriteName ?? `#${workerParam}`}</b>. Hệ thống sẽ hỏi thợ này trước. Ca và giờ mờ là lúc thợ đang bận.{workerAvailability?.shifts?.length === 0 && <span className="mt-2 block">Thợ không có ca rảnh trong 7 ngày tới.</span>}{' '}<Link to={`/app/booking?${withoutWorker}`} className="font-semibold underline">Bỏ chọn thợ, để hệ thống tìm người</Link></> : 'Chọn thợ cụ thể chỉ áp dụng cho gói Economy.'}</p>}
+          {workerParam !== null && tier === 'ECONOMY' && workerAvailability?.failed && <p role="alert" className="mt-3 text-sm text-stone-500">Không xem được lịch của thợ này. Nếu thợ bận giờ bạn chọn, hệ thống sẽ báo khi đặt ca.</p>}
           {quoteError && <p role="alert" className="mt-3 text-sm text-red-700">{quoteError}</p>}
         </section>
         <section className={card}>

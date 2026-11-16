@@ -71,7 +71,8 @@ export function shiftBlockedReason(
   if (tier === 'PREMIUM' && start < now.getTime() + options.premiumMinLeadHours * 3600_000) {
     return `Đặt trước tối thiểu ${options.premiumMinLeadHours} giờ`
   }
-  if (tier === 'ECONOMY' && freeShifts && freeShifts.length > 0 && !freeShifts.some((free) => free.date === date && free.shiftCode === shift.shiftCode)) {
+  // A chosen worker with no free shift at all is refused by the server too (409 PREFERRED_WORKER_BUSY, decisions D41), so every shift is closed.
+  if (tier === 'ECONOMY' && freeShifts && !freeShifts.some((free) => free.date === date && free.shiftCode === shift.shiftCode)) {
     return 'Thợ không rảnh ca này'
   }
   return null
