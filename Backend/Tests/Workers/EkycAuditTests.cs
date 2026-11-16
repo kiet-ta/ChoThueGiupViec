@@ -323,6 +323,38 @@ public class EkycAuditTests
     }
 
     [Fact]
+    public async Task GetQueueAsync_ReturnsTheStoredPhotoAddressesAndNullsForARowOlderThanTheColumns()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+
+        Worker NewWorker(string name)
+        {
+            var w = Worker.CreateFreelancer($"091{Random.Shared.Next(1000000, 9999999)}", $"012{Random.Shared.Next(100000000, 999999999)}", name);
+            db.Workers.Add(w);
+            return w;
+        }
+
+        var withPhotos = NewWorker("Queue With Photos");
+        withPhotos.SetKycResult(70.0m, "MANUAL_REVIEW", "https://storage.local/ekyc/f.jpg", "https://storage.local/ekyc/b.jpg", "/files/ekyc/s.jpg");
+        var legacy = NewWorker("Queue Legacy Row");
+        legacy.SetKycResult(70.0m, "MANUAL_REVIEW"); // as a row written before the columns existed
+        await db.SaveChangesAsync();
+
+        var handler = new WorkerEkycService(new EfWorkerRepository(db), null!, new TestCurrentUser { UserId = 1, Role = UserRole.Admin },
+            Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
+        var items = (await handler.GetQueueAsync(1, 500, "PENDING", CancellationToken.None)).Data!.Items.ToDictionary(i => i.WorkerId);
+
+        Assert.Equal(("https://storage.local/ekyc/f.jpg", "https://storage.local/ekyc/b.jpg", "/files/ekyc/s.jpg"),
+            (items[withPhotos.WorkerId].FrontCccdUrl, items[withPhotos.WorkerId].BackCccdUrl, items[withPhotos.WorkerId].SelfieUrl));
+        Assert.Equal((null, null, null), (items[legacy.WorkerId].FrontCccdUrl, items[legacy.WorkerId].BackCccdUrl, items[legacy.WorkerId].SelfieUrl));
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
     public void EkycAuditService_SampleAuditRules_EvaluatesCorrectly()
     {
         var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules

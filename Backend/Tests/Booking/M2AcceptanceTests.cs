@@ -353,7 +353,7 @@ public class M2AcceptanceTests
             new(Db, Db, Refunds(), Capacity, Clock, Events, NullLogger<AssignmentFailedHandler>.Instance);
 
         public Task<CreatedOrder> CreateOrderAsync(int customerId, int addressId, ServiceTier tier = ServiceTier.Economy) =>
-            OrderCreation().CreateAsync(new CreateOrderRequest(customerId, addressId, tier, ShiftDate, BookingShifts.Morning, null, null));
+            OrderCreation().CreateAsync(new CreateOrderRequest(customerId, addressId, tier, ShiftDate, BookingShifts.Morning, null, null, AcceptsContinuousWork: true));
 
         /// <summary>The IPN the Fake gateway would send for a transaction.</summary>
         public Task<IpnOutcome> SendIpnAsync(PaymentTransaction txn, decimal? amount = null, string signature = "valid", string status = "success")
@@ -467,7 +467,7 @@ public class M2AcceptanceTests
     [InlineData(ServiceTier.Economy, "30", 1, AreaBrackets.UpTo30, 160000, 160000)]
     [InlineData(ServiceTier.Economy, "30.01", 1, AreaBrackets.From31To80, 260000, 260000)]
     [InlineData(ServiceTier.Economy, "80", 1, AreaBrackets.From31To80, 260000, 260000)]
-    [InlineData(ServiceTier.Economy, "80.01", 2, AreaBrackets.Over80, 260000, 520000)]
+    [InlineData(ServiceTier.Economy, "80.01", 1, AreaBrackets.Over80, 260000, 520000)] // D36: one worker, priced as 2 units
     [InlineData(ServiceTier.Premium, "30", 1, AreaBrackets.UpTo30, 240000, 240000)]
     [InlineData(ServiceTier.Premium, "30.01", 1, AreaBrackets.From31To80, 390000, 390000)]
     [InlineData(ServiceTier.Premium, "80", 1, AreaBrackets.From31To80, 390000, 390000)]
@@ -477,7 +477,7 @@ public class M2AcceptanceTests
     {
         var areaM2 = decimal.Parse(area, System.Globalization.CultureInfo.InvariantCulture);
         var (w, order, txn) = await PaidUpToQrAsync(areaM2, tier);
-        var quote = await w.Pricing().QuoteAsync(tier, areaM2, workers);
+        var quote = await w.Pricing().QuoteAsync(tier, areaM2, workers, default, total / unitPrice);
 
         Assert.Equal(bracket, quote.AreaBracket);
         Assert.Equal(unitPrice, quote.UnitPrice);
@@ -676,7 +676,7 @@ public class M2AcceptanceTests
     [Fact]
     public async Task APaidOrder_CancelledByItsCustomer_IsRefunded100Percent_ExactlyOnce()
     {
-        var (w, order, txn) = await PaidUpToQrAsync(areaM2: 90m); // 2 workers, 520,000
+        var (w, order, txn) = await PaidUpToQrAsync(areaM2: 90m); // D36: 1 worker, 520,000
         await w.SendIpnAsync(txn);
 
         var cancel = await w.Cancellation().CancelAsync(Customer, order.OrderId, new CancelOrderRequest("Change of plans"));

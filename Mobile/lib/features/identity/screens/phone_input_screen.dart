@@ -76,6 +76,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
             phoneNumber: normalized,
             role: widget.role,
             resendCooldownSeconds: result.resendAvailableInSeconds,
+            sandboxOtp: result.sandboxOtp,
             authService: _authService,
           ),
         ),

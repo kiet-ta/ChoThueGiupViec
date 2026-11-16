@@ -33,14 +33,19 @@ public class WorkersModule : IModule
         services.AddScoped<IWorkerBookingSlotService, WorkerBookingSlotService>();
         services.AddScoped<IWorkerAssignmentRepository, EfWorkerAssignmentRepository>();
         services.AddScoped<IWorkerAssignmentService, WorkerAssignmentService>();
+        services.AddSingleton<IWardCatalog, EmbeddedWardCatalog>(); // WORKERS-WARD-V2-01 (#959)
         services.AddScoped<IWorkerWorkAreaService, WorkerWorkAreaService>();
         // DISPATCH-AUTO-01 (#890): the freelancer's "Tự động nhận đơn" switch, read by Dispatch.
         services.AddScoped<IWorkerAutoAcceptService, WorkerAutoAcceptService>();
         services.AddScoped<IJobCompletionService, JobCompletionService>();
+        services.AddScoped<IContinuationRepository, EfContinuationRepository>();
+        services.AddScoped<IContinuationService, ContinuationService>();
+        services.AddHostedService<ContinuationSweepWorker>();
         // ACCEPT-01 (decision D32): the 24-hour acceptance window.
         services.AddScoped<IAcceptanceTimerRepository, EfAcceptanceTimerRepository>();
         services.AddScoped<IAcceptanceTimerService, AcceptanceTimerService>();
         services.AddHostedService<AcceptanceTimerWorker>();
+        services.AddScoped<IOrderSeatQuery, EfOrderSeatQuery>();
         services.AddScoped<IJobPhotoService, JobPhotoService>();
         services.AddScoped<IWorkerExtensionRepository, EfWorkerExtensionRepository>();
         services.AddScoped<IWorkerExtensionService, WorkerExtensionService>();

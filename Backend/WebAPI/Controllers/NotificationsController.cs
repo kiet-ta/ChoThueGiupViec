@@ -1,6 +1,7 @@
 using CommonService.Application.Common.Models;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Infrastructure.Realtime;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,8 +10,10 @@ namespace CommonService.WebAPI.Controllers;
 /// <summary>
 /// Polling fallback endpoint for notifications (Q07, BASE-12).
 /// Used by clients when WebSocket / SignalR connection is unavailable.
+/// Decisions D36 (SEC-NOTIF-01, #894): signed-in callers only, and only their own notifications.
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/v1/notifications")]
 public class NotificationsController : ControllerBase
 {
@@ -24,33 +27,22 @@ public class NotificationsController : ControllerBase
     }
 
     /// <summary>
-    /// Lists recent notifications for a user since a given UTC timestamp (<c>GET /api/v1/notifications?since=&amp;limit=</c>).
-    /// If caller is authenticated, role and userId default to the caller's claims.
+    /// Lists the caller's recent notifications since a given UTC timestamp (<c>GET /api/v1/notifications?since=&amp;limit=</c>).
+    /// The recipient is always the caller (role and id from the token); anonymous -> 401.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<NotificationMessageDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public ActionResult<ApiResponse<IReadOnlyList<NotificationMessageDto>>> Poll(
-        [FromQuery] string? role = null,
-        [FromQuery] int? userId = null,
         [FromQuery] DateTime? since = null,
         [FromQuery] int limit = 50)
     {
-        var effectiveRole = role;
-        var effectiveUserId = userId;
-
-        if (_currentUser.IsAuthenticated && _currentUser.UserId.HasValue && _currentUser.Role.HasValue)
+        if (!_currentUser.IsAuthenticated || _currentUser.UserId is not int userId || _currentUser.Role is not { } role)
         {
-            effectiveRole ??= _currentUser.Role.Value.ToString();
-            effectiveUserId ??= _currentUser.UserId.Value;
+            return Unauthorized(ApiResponse<object>.Fail("Authentication is required."));
         }
 
-        if (string.IsNullOrWhiteSpace(effectiveRole) || !effectiveUserId.HasValue)
-        {
-            return BadRequest(ApiResponse<object>.Fail("Role and userId are required when unauthenticated."));
-        }
-
-        var results = _store.GetRecent(effectiveRole, effectiveUserId.Value, since, limit);
+        var results = _store.GetRecent(role.ToString(), userId, since, limit);
         return Ok(ApiResponse<IReadOnlyList<NotificationMessageDto>>.Ok(results, "Notifications retrieved"));
     }
 }

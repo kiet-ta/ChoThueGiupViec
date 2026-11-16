@@ -41,3 +41,6 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 
 ## Ghi chú — ADMIN-UAT-13 (ticket #871)
 - Duyệt hoặc từ chối eKYC của thợ (`WorkerEkycService.ReviewAsync`) giờ ghi `ADMIN_AUDIT_LOG` cùng đơn vị công việc với việc cập nhật thợ: luôn có dòng `kyc_status`, thêm dòng `work_status` khi trạng thái làm việc đổi; từ chối bắt buộc có lý do 1 đến 255 ký tự (400 `rejectionReason`). Hàng đợi hậu kiểm (`status=PENDING`) chỉ còn `MANUAL_REVIEW` và `AUDIT_PENDING`, thợ mới đăng ký chưa nộp eKYC không còn lọt vào. Trang Nhật ký kiểm toán có nhãn "Trạng thái eKYC" và "Trạng thái làm việc". Test: `EkycReviewAuditTests` (15, không cần SQL Server), 3 test SQL mới trong `EkycAuditTests`, `admin-audit.test.ts`.
+
+## Ghi chú — ADMIN-UAT-12 (ticket #868)
+- `/admin/login` đăng nhập xong vào thẳng `/admin/dashboard` (route con `login` trong `/admin` chuyển về dashboard, `Frontend/src/app/router.tsx`). Đã thử trên trình duyệt thật: chưa đăng nhập hiện form; đăng nhập Admin ở `/admin/login` -> `/admin/dashboard`; Admin đã đăng nhập mở `/admin/login` -> `/admin/dashboard`; khách hàng -> `/app`, đối tác -> `/partner`. L3: `.harness/evidence/20261114-213202-L3.log` (mọi bước qua, riêng `backend test` có 1 test fail sẵn trên main từ #864, không thuộc ticket này; xem PR).

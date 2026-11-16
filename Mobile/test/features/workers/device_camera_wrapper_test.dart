@@ -33,6 +33,25 @@ void main() {
       },
     );
 
+    test(
+      'capturePhoto opens the file picker where the platform has no camera',
+      () async {
+        ImageSource? asked;
+        final wrapper = DeviceCameraWrapper(
+          cameraSupported: () => false,
+          pick: (source) async {
+            asked = source;
+            return XFile.fromData(jpeg, path: 'desktop.jpg');
+          },
+        );
+
+        final photo = await wrapper.capturePhoto();
+
+        expect(asked, ImageSource.gallery);
+        expect(photo!.bytes, jpeg);
+      },
+    );
+
     test('pickFromGallery opens the photo library', () async {
       ImageSource? asked;
       final wrapper = DeviceCameraWrapper(

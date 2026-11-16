@@ -103,6 +103,9 @@ class WorkerAssignmentDetailDto {
   /// ACCEPT-02: the server's acceptance phase and deadlines once the photos are submitted (null before the work).
   final AcceptanceBlock? acceptance;
 
+  /// D36: the 2nd job of a large house (`STANDBY` | `OPEN` | `RELEASED`, extra hours after the shift); null for any other job.
+  final WorkerContinuationDto? continuation;
+
   const WorkerAssignmentDetailDto({
     required this.assignmentId,
     required this.orderId,
@@ -121,6 +124,7 @@ class WorkerAssignmentDetailDto {
     required this.payoutAmount,
     this.pendingExtension,
     this.acceptance,
+    this.continuation,
   });
 
   factory WorkerAssignmentDetailDto.fromJson(Map<String, dynamic> json) {
@@ -145,6 +149,7 @@ class WorkerAssignmentDetailDto {
           ? WorkerPendingExtensionDto.fromJson(pending)
           : null,
       acceptance: AcceptanceBlock.fromJson(json['acceptance']),
+      continuation: WorkerContinuationDto.fromJson(json['continuation']),
     );
   }
 
@@ -158,4 +163,29 @@ class WorkerAssignmentDetailDto {
     district,
     city,
   ].where((part) => part.trim().isNotEmpty).join(', ');
+}
+
+/// D36: the 2nd job of a large house, as the worker sees it. `status`: `STANDBY` (not opened yet), `OPEN` (the 2nd job opened: extra
+/// hours right after the shift) or `RELEASED` (the work ended in the first job).
+class WorkerContinuationDto {
+  final String status;
+  final String? shiftCode;
+
+  const WorkerContinuationDto({required this.status, this.shiftCode});
+
+  static WorkerContinuationDto? fromJson(Object? json) =>
+      json is Map<String, dynamic>
+      ? WorkerContinuationDto(
+          status: json['status'] as String? ?? '',
+          shiftCode: json['shiftCode'] as String?,
+        )
+      : null;
+
+  /// What the worker reads; null once the work ended in the first job (nothing to say).
+  String? get note => switch (status) {
+    'STANDBY' => 'Nhà lớn: nếu chưa làm xong khi hết ca, bạn làm thêm giờ ngay sau ca (tối đa 4 giờ). Tiền công không đổi.',
+    'OPEN' =>
+      'Đơn nối tiếp đã mở: bạn làm thêm giờ ngay sau ca. Tiền công không đổi.',
+    _ => null,
+  };
 }

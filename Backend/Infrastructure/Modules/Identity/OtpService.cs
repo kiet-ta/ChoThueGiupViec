@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using CommonService.Application.Common.Options;
@@ -7,9 +9,11 @@ using CommonService.Application.Features.Identity.Services;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
+using CommonService.Infrastructure.Fakes;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -27,6 +31,7 @@ public class OtpService : IOtpService
     private readonly byte[] _hmacKey;
     private readonly ITokenService _tokenService;
     private readonly ILogger<OtpService> _logger;
+    private readonly IHostEnvironment? _environment;
 
     public OtpService(
         AppDbContext db,
@@ -35,7 +40,8 @@ public class OtpService : IOtpService
         IOptions<BusinessRules> rules,
         IConfiguration config,
         ITokenService tokenService,
-        ILogger<OtpService> logger)
+        ILogger<OtpService> logger,
+        IHostEnvironment? environment = null)
     {
         _db = db;
         _otpSender = otpSender;
@@ -43,6 +49,7 @@ public class OtpService : IOtpService
         _rules = rules.Value;
         _tokenService = tokenService;
         _logger = logger;
+        _environment = environment;
 
         var secret = config["Otp:HmacSecret"]
             ?? config["Jwt:Key"]
@@ -167,9 +174,13 @@ public class OtpService : IOtpService
         return OtpRequestResult.Ok(new OtpRequestResponseDto
         {
             ExpiresInSeconds = _rules.Otp.TtlMinutes * 60,
-            ResendAvailableInSeconds = _rules.Otp.ResendCooldownSeconds
+            ResendAvailableInSeconds = _rules.Otp.ResendCooldownSeconds,
+            SandboxOtp = ResolveSandboxOtp(_environment, _otpSender, code)
         });
     }
+
+    public static string? ResolveSandboxOtp(IHostEnvironment? environment, IOtpSender otpSender, string code) =>
+        environment?.IsDevelopment() == true && otpSender is FakeOtpSender ? code : null;
 
     public async Task<OtpVerifyResult> VerifyOtpAsync(
         string phoneNumber,
@@ -352,8 +363,18 @@ public class OtpService : IOtpService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        var additionalClaims = new List<Claim>
+        {
+            new("worker_type", DbEnum.ToDb(worker.WorkerType)) // FREELANCER | AGENCY_STAFF (ticket #870, spec), not the C# enum name
+        };
+        if (worker.WorkerType == WorkerType.AgencyStaff && worker.AgencyId.HasValue)
+        {
+            additionalClaims.Add(new Claim("agency_id", worker.AgencyId.Value.ToString()));
+        }
+
         var (authResult, _) = SessionTokenIssuer.IssueSession(
-            _db, _tokenService, _rules, worker.WorkerId, UserRole.Worker, now, isNewUser: false);
+            _db, _tokenService, _rules, worker.WorkerId, UserRole.Worker, now, isNewUser: false, additionalClaims: additionalClaims);
         await _db.SaveChangesAsync(ct);
 
         return OtpVerifyResult.Ok(authResult);
@@ -403,8 +424,23 @@ public class OtpService : IOtpService
         }
 
         // Valid rotation: issue new access token and new refresh token with same family_id
+        // Preserve worker_type and agency_id claims from current token
+        var additionalClaims = new List<Claim>();
+        if (tokenRecord.SubjectRole == UserRole.Worker)
+        {
+            var worker = await _db.Workers.FirstOrDefaultAsync(w => w.WorkerId == tokenRecord.SubjectId, ct);
+            if (worker != null)
+            {
+                additionalClaims.Add(new Claim("worker_type", DbEnum.ToDb(worker.WorkerType)));
+                if (worker.WorkerType == WorkerType.AgencyStaff && worker.AgencyId.HasValue)
+                {
+                    additionalClaims.Add(new Claim("agency_id", worker.AgencyId.Value.ToString()));
+                }
+            }
+        }
+
         var (authResult, newTokenRecord) = SessionTokenIssuer.IssueSession(
-            _db, _tokenService, _rules, tokenRecord.SubjectId, tokenRecord.SubjectRole, now, familyId: tokenRecord.FamilyId);
+            _db, _tokenService, _rules, tokenRecord.SubjectId, tokenRecord.SubjectRole, now, familyId: tokenRecord.FamilyId, additionalClaims: additionalClaims);
         await _db.SaveChangesAsync(ct);
 
         // Mark current token replaced and revoked

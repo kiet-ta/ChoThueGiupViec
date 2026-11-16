@@ -131,6 +131,56 @@ public class EkycTests
     }
 
     [Fact]
+    public async Task SubmitAsync_KeepsTheThreePhotoAddressesInTheWorkerRow()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+
+        var worker = Worker.CreateFreelancer($"096{Random.Shared.Next(1000000, 9999999)}", $"012{Random.Shared.Next(100000000, 999999999)}", "Worker Ekyc Photos");
+        db.Workers.Add(worker);
+        await db.SaveChangesAsync();
+
+        var handler = new WorkerEkycService(new EfWorkerRepository(db), new FakeEkycProvider { Confidence = 60.00m },
+            new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
+
+        await handler.SubmitAsync(new SubmitEkycRequest("  https://storage.local/ekyc/front.jpg ", "https://storage.giupviec.local/ekyc/back.jpg", "/files/ekyc/selfie.jpg"), CancellationToken.None);
+
+        // Read the row back from the database, not from the tracked entity.
+        var stored = await db.Workers.AsNoTracking().SingleAsync(w => w.WorkerId == worker.WorkerId);
+        Assert.Equal(("MANUAL_REVIEW", "https://storage.local/ekyc/front.jpg", "https://storage.giupviec.local/ekyc/back.jpg", "/files/ekyc/selfie.jpg"),
+            (stored.KycStatus, stored.EkycFrontCccdUrl, stored.EkycBackCccdUrl, stored.EkycSelfieUrl));
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task SubmitAsync_WithAnUnsafeAddress_IsRefusedAndTheRowKeepsNoAddress()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        using var db = CreateContext();
+        using var transaction = await db.Database.BeginTransactionAsync();
+
+        var worker = Worker.CreateFreelancer($"096{Random.Shared.Next(1000000, 9999999)}", $"012{Random.Shared.Next(100000000, 999999999)}", "Worker Ekyc Unsafe");
+        db.Workers.Add(worker);
+        await db.SaveChangesAsync();
+
+        var handler = new WorkerEkycService(new EfWorkerRepository(db), new FakeEkycProvider(),
+            new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
+
+        var error = await Assert.ThrowsAsync<CommonService.Application.Exceptions.ValidationException>(() =>
+            handler.SubmitAsync(new SubmitEkycRequest("javascript:alert(1)", "https://storage.local/b.jpg", "https://storage.local/s.jpg"), CancellationToken.None));
+
+        Assert.Contains("frontCccdUrl", error.Errors.Keys);
+        var stored = await db.Workers.AsNoTracking().SingleAsync(w => w.WorkerId == worker.WorkerId);
+        Assert.Null(stored.EkycFrontCccdUrl);
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
     public async Task GetStatusAsync_ReturnsCurrentEkycStatus()
     {
         if (!IsSqlServerAvailable()) return;

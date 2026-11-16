@@ -18,6 +18,7 @@ public class WorkerEkycService(
 {
     private const int MaxReasonLength = 255; // ADMIN_AUDIT_LOG.reason
     private const string DefaultApprovalReason = "Admin duyệt hồ sơ eKYC thủ công.";
+    private const int MaxPhotoUrlLength = 500; // WORKER.ekyc_front_cccd_url, ekyc_back_cccd_url, ekyc_selfie_url
 
     private readonly BusinessRules _rules = rulesOptions.Value;
 
@@ -42,15 +43,18 @@ public class WorkerEkycService(
             });
         }
 
+        var (frontUrl, backUrl, selfieUrl) = ValidatedPhotoUrls(request);
+
         // 1. Call eKYC provider (Phase 1 Fake provider)
-        var ekycReq = new EkycRequest(worker.NationalId, request.FrontCccdUrl, request.SelfieUrl);
+        var ekycReq = new EkycRequest(worker.NationalId, frontUrl, selfieUrl);
         var result = await ekycProvider.VerifyAsync(ekycReq, ct);
 
         // 2. Evaluate auto-approval threshold (Confidence >= 85.00% and no FraudFlag)
         bool autoApproved = !result.FraudFlag && result.Confidence >= _rules.Ekyc.AutoApproveConfidence;
         string newKycStatus = autoApproved ? "APPROVED" : "MANUAL_REVIEW";
 
-        worker.SetKycResult(result.Confidence, newKycStatus);
+        // The three addresses are kept with the result: the Admin review shows them (ADMIN-UAT-15).
+        worker.SetKycResult(result.Confidence, newKycStatus, frontUrl, backUrl, selfieUrl);
         workerRepository.Update(worker);
         await workerRepository.SaveChangesAsync(ct);
 
@@ -117,9 +121,9 @@ public class WorkerEkycService(
             w.FullName,
             w.PhoneNumber,
             w.NationalId,
-            null,
-            null,
-            null,
+            w.EkycFrontCccdUrl,
+            w.EkycBackCccdUrl,
+            w.EkycSelfieUrl,
             w.EkycConfidence,
             w.KycStatus,
             w.CompletedJobs,
@@ -206,5 +210,56 @@ public class WorkerEkycService(
         }
 
         return string.IsNullOrEmpty(text) || text.Length > MaxReasonLength ? DefaultApprovalReason : text;
+    }
+
+    /// <summary>
+    /// The three photo addresses of a submit, trimmed (ADMIN-UAT-15). Each must be an absolute <c>http</c> or <c>https</c> address or a
+    /// root-relative path, at most 500 characters (WORKER.ekyc_*_url), without spaces; anything else (<c>javascript:</c>, <c>data:</c>, ...)
+    /// is a 400 naming the field, because the Admin page puts the address in an <c>img</c> tag.
+    /// </summary>
+    private static (string Front, string Back, string Selfie) ValidatedPhotoUrls(SubmitEkycRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var front = CheckPhotoUrl(request.FrontCccdUrl, "frontCccdUrl", errors);
+        var back = CheckPhotoUrl(request.BackCccdUrl, "backCccdUrl", errors);
+        var selfie = CheckPhotoUrl(request.SelfieUrl, "selfieUrl", errors);
+        if (errors.Count > 0)
+        {
+            throw new ValidationException(errors);
+        }
+
+        return (front, back, selfie);
+    }
+
+    private static string CheckPhotoUrl(string raw, string field, Dictionary<string, string[]> errors)
+    {
+        var url = raw.Trim();
+        if (url.Length > MaxPhotoUrlLength)
+        {
+            errors[field] = [$"The photo address must be at most {MaxPhotoUrlLength} characters."];
+        }
+        else if (!IsSafePhotoUrl(url))
+        {
+            errors[field] = ["The photo address must be an http(s) address or a path starting with '/', without spaces."];
+        }
+
+        return url;
+    }
+
+    public static bool IsSafePhotoUrl(string url)
+    {
+        if (url.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
+        {
+            return false;
+        }
+
+        if (url.StartsWith('/'))
+        {
+            return !url.StartsWith("//", StringComparison.Ordinal) && !url.Contains('\\'); // "//host" would load from another site
+        }
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            && uri.Host.Length > 0;
     }
 }

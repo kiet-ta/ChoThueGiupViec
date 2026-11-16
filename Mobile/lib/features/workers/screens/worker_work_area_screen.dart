@@ -12,14 +12,15 @@ import '../../../core/widgets/nordic_card.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/status_state_widget.dart';
-import '../../customers/models/vn_admin_units.dart';
 import '../../customers/widgets/admin_unit_picker_field.dart';
+import '../models/vn_wards.dart';
 import '../models/worker_work_area_models.dart';
 import '../services/workers_work_area_service.dart';
 
 /// "Nơi làm việc": where the freelancer works (contract workers.md §2.3B, decisions D24). The base point comes from the
 /// phone's GPS, the radius is 5, 10 or 15 km and the wards / communes are shown to the worker only. The dispatch search
-/// offers a job only to a freelancer who registered it.
+/// offers a job only to a freelancer who registered it. Wards are the post-merger units, chosen and saved by code
+/// (WORKERS-WARD-V2-01, #959, decisions D40).
 /// MOB-WORKER-AREA-01 (#556): `NordicPage.pushed`, the save button in `actions`, a wrong entry shakes its message.
 class WorkerWorkAreaScreen extends StatefulWidget {
   final WorkersWorkAreaService? service;
@@ -36,7 +37,9 @@ class WorkerWorkAreaScreen extends StatefulWidget {
 class _WorkerWorkAreaScreenState extends State<WorkerWorkAreaScreen> {
   static const radii = [5, 10, 15];
   static const maxDistricts = 10;
-  static const defaultProvince = 'Thành phố Hồ Chí Minh';
+
+  /// Thành phố Hồ Chí Minh, the province the picker opens on.
+  static const defaultProvinceCode = 79;
 
   late final WorkersWorkAreaService _service;
   late final IDeviceLocationProvider _location;
@@ -49,7 +52,10 @@ class _WorkerWorkAreaScreenState extends State<WorkerWorkAreaScreen> {
   double? _latitude;
   double? _longitude;
   int _radiusKm = 10;
-  List<String> _districts = [];
+  List<WorkerWard> _wards = [];
+
+  /// Old stored names that stand for no ward of the current list: the worker chooses them again.
+  List<String> _unresolved = [];
 
   String? _message;
 
@@ -79,7 +85,8 @@ class _WorkerWorkAreaScreenState extends State<WorkerWorkAreaScreen> {
           _latitude = area.latitude;
           _longitude = area.longitude;
           _radiusKm = radii.contains(area.radiusKm) ? area.radiusKm! : 10;
-          _districts = List.of(area.districts);
+          _wards = List.of(area.wards);
+          _unresolved = area.unresolvedNames;
         }
       });
     } catch (_) {
@@ -151,7 +158,7 @@ class _WorkerWorkAreaScreenState extends State<WorkerWorkAreaScreen> {
           latitude: _latitude!,
           longitude: _longitude!,
           radiusKm: _radiusKm,
-          districts: _districts,
+          wardCodes: [for (final ward in _wards) ward.code],
         ),
       );
       if (!mounted) return;
@@ -175,14 +182,26 @@ class _WorkerWorkAreaScreenState extends State<WorkerWorkAreaScreen> {
   }
 
   Future<void> _pickDistricts() async {
-    final picked = await showModalBottomSheet<List<String>>(
+    final picked = await showModalBottomSheet<List<WorkerWard>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: NordicColors.surface,
       builder: (context) =>
-          _DistrictsSheet(selected: _districts, maxCount: maxDistricts),
+          _WardsSheet(selected: _wards, maxCount: maxDistricts),
     );
-    if (picked != null && mounted) setState(() => _districts = picked);
+    if (picked != null && mounted) {
+      setState(() {
+        _wards = picked;
+        // Choosing again is what the note asked for.
+        _unresolved = const [];
+      });
+    }
+  }
+
+  /// The chip text: the ward, with its province when another chosen ward has the same name.
+  String _chipLabel(WorkerWard ward) {
+    final twin = _wards.any((w) => w.code != ward.code && w.name == ward.name);
+    return twin ? '${ward.name}, ${ward.provinceName}' : ward.name;
   }
 
   @override
@@ -283,23 +302,39 @@ class _WorkerWorkAreaScreenState extends State<WorkerWorkAreaScreen> {
         ),
       ),
       const SizedBox(height: NordicSpace.xs),
-      if (_districts.isNotEmpty)
+      if (_unresolved.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+          child: Text(
+            'Các nơi bạn chọn trước đây không còn trong danh sách phường/xã mới: ${_unresolved.join(', ')}. Hãy chọn lại.',
+            key: const Key('work-area-unresolved'),
+            style: NordicTypography.bodySmall.copyWith(
+              color: NordicColors.error,
+            ),
+          ),
+        ),
+      if (_wards.isNotEmpty)
         Wrap(
           spacing: NordicSpace.xs,
           runSpacing: NordicSpace.xs,
           children: [
-            for (final name in _districts)
+            for (final ward in _wards)
               InputChip(
-                key: Key('district-chip-$name'),
-                label: Text(name),
-                onDeleted: () => setState(() => _districts.remove(name)),
+                key: Key('ward-chip-${ward.code}'),
+                label: Text(_chipLabel(ward)),
+                onDeleted: () => setState(
+                  () => _wards = [
+                    for (final w in _wards)
+                      if (w.code != ward.code) w,
+                  ],
+                ),
               ),
           ],
         ),
       const SizedBox(height: NordicSpace.xs),
       NordicButton(
         key: const Key('pick-districts'),
-        label: _districts.isEmpty ? 'Chọn phường/xã' : 'Thêm hoặc bỏ phường/xã',
+        label: _wards.isEmpty ? 'Chọn phường/xã' : 'Thêm hoặc bỏ phường/xã',
         variant: NordicButtonVariant.secondary,
         icon: const Icon(Icons.add_location_alt_outlined, size: 18.0),
         onPressed: _pickDistricts,
@@ -360,28 +395,41 @@ class _WorkerWorkAreaScreenState extends State<WorkerWorkAreaScreen> {
   }
 }
 
-/// A searchable list of the wards / communes of one province with a tick for each, at most [maxCount] in all.
-class _DistrictsSheet extends StatefulWidget {
-  final List<String> selected;
+/// A searchable list of the wards / communes of one province with a tick for each, at most [maxCount] in all (decisions D40).
+/// The search also matches the names before the 2025 merger: "Bến Nghé" finds "Phường Sài Gòn" and says so.
+class _WardsSheet extends StatefulWidget {
+  final List<WorkerWard> selected;
   final int maxCount;
 
-  const _DistrictsSheet({required this.selected, required this.maxCount});
+  const _WardsSheet({required this.selected, required this.maxCount});
 
   @override
-  State<_DistrictsSheet> createState() => _DistrictsSheetState();
+  State<_WardsSheet> createState() => _WardsSheetState();
 }
 
-class _DistrictsSheetState extends State<_DistrictsSheet> {
-  late final List<String> _picked = List.of(widget.selected);
-  String _province = _WorkerWorkAreaScreenState.defaultProvince;
+class _WardsSheetState extends State<_WardsSheet> {
+  late final List<WorkerWard> _picked = List.of(widget.selected);
+  int _provinceCode = _WorkerWorkAreaScreenState.defaultProvinceCode;
   String _query = '';
   String? _limitMessage;
 
+  /// The old name the search matched, when the current name did not match by itself.
+  static String? _legacyHit(VnWard ward, String query) {
+    if (matchesAdminUnitQuery(ward.name, query)) return null;
+    for (final old in ward.legacy) {
+      if (matchesAdminUnitQuery(old, query)) return old;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final options = vietnamAdminUnits[_province] ?? const <String>[];
-    final matches = options
-        .where((name) => matchesAdminUnitQuery(name, _query))
+    final matches = wardsOfProvince(_provinceCode)
+        .where(
+          (ward) =>
+              matchesAdminUnitQuery(ward.name, _query) ||
+              _legacyHit(ward, _query) != null,
+        )
         .toList();
 
     return SafeArea(
@@ -408,32 +456,34 @@ class _DistrictsSheetState extends State<_DistrictsSheet> {
                       style: NordicTypography.titleMedium,
                     ),
                     const SizedBox(height: NordicSpace.sm),
-                    DropdownButtonFormField<String>(
+                    DropdownButtonFormField<int>(
                       key: const Key('district-province'),
-                      initialValue: _province,
+                      initialValue: _provinceCode,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Tỉnh/thành',
                       ),
                       items: [
-                        for (final province in vietnamAdminUnits.keys)
+                        for (final province in vnProvinces)
                           DropdownMenuItem(
-                            value: province,
+                            value: province.code,
                             child: Text(
-                              province,
+                              province.name,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                       ],
                       onChanged: (value) {
-                        if (value != null) setState(() => _province = value);
+                        if (value != null) {
+                          setState(() => _provinceCode = value);
+                        }
                       },
                     ),
                     const SizedBox(height: NordicSpace.xs),
                     TextField(
                       key: const Key('district-search'),
                       decoration: const InputDecoration(
-                        labelText: 'Tìm phường/xã',
+                        labelText: 'Tìm phường/xã (cả tên cũ)',
                         prefixIcon: Icon(Icons.search),
                       ),
                       onChanged: (value) => setState(() => _query = value),
@@ -455,12 +505,19 @@ class _DistrictsSheetState extends State<_DistrictsSheet> {
                 child: ListView.builder(
                   itemCount: matches.length,
                   itemBuilder: (context, index) {
-                    final name = matches[index];
-                    final on = _picked.contains(name);
+                    final ward = matches[index];
+                    final on = _picked.any((w) => w.code == ward.code);
+                    final old = _legacyHit(ward, _query);
                     return CheckboxListTile(
-                      key: Key('district-option-$name'),
+                      key: Key('ward-option-${ward.code}'),
                       value: on,
-                      title: Text(name),
+                      title: Text(ward.name),
+                      subtitle: old == null
+                          ? null
+                          : Text(
+                              'trước đây: $old',
+                              key: Key('ward-legacy-${ward.code}'),
+                            ),
                       onChanged: (value) => setState(() {
                         if (value == true) {
                           if (_picked.length >= widget.maxCount) {
@@ -468,9 +525,9 @@ class _DistrictsSheetState extends State<_DistrictsSheet> {
                                 'Chọn tối đa ${widget.maxCount} phường/xã.';
                             return;
                           }
-                          _picked.add(name);
+                          _picked.add(WorkerWard.fromList(ward));
                         } else {
-                          _picked.remove(name);
+                          _picked.removeWhere((w) => w.code == ward.code);
                         }
                         _limitMessage = null;
                       }),

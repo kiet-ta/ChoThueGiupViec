@@ -37,7 +37,7 @@ export function DisputesPage() {
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="border-b border-stone-200 text-xs uppercase text-stone-500"><tr><th className="px-5 py-3">Mã</th><th className="px-5 py-3">Đơn</th><th className="px-5 py-3">Vấn đề</th><th className="px-5 py-3">Gửi lúc</th><th className="px-5 py-3">Trạng thái</th></tr></thead>
         <tbody>{items.map((d) => <tr key={d.disputeId} className="border-b border-stone-100 last:border-0 align-top">
-          <td className="px-5 py-4 font-semibold">#D-{d.disputeId}</td>
+          <td className="px-5 py-4 font-semibold"><Link to={`/app/disputes/${d.disputeId}`} className="text-[#1a2f25] underline">#D-{d.disputeId}</Link><Link to={`/app/disputes/${d.disputeId}`} className="mt-1 block whitespace-nowrap text-xs font-normal text-stone-500 underline">Xem chi tiết</Link></td>
           <td className="px-5 py-4"><Link to={`/app/orders/${d.orderId}`} className="underline">{codes[d.orderId] ?? `#${d.orderId}`}</Link></td>
           <td className="px-5 py-4">{categoryLabel(d.category)}<span className="mt-1 block max-w-xs truncate text-xs text-stone-500">{d.description}</span></td>
           <td className="px-5 py-4 tabular-nums">{formatDateTime(d.createdAt)}</td>

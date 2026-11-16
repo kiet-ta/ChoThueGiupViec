@@ -28,8 +28,10 @@ public class BookingOrdersController(IOrderQueryService service, ICurrentUser cu
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public Task<IActionResult> PriceQuote([FromQuery] int addressId, [FromQuery] string? serviceTier, CancellationToken ct) =>
-        AsCustomer(async id => Ok(ApiResponse<PriceQuoteDto>.Ok(await service.QuoteAsync(id, addressId, serviceTier, ct), "Price quote retrieved.")));
+    public Task<IActionResult> PriceQuote(
+        [FromQuery] int addressId, [FromQuery] string? serviceTier, [FromQuery] decimal? durationHours, CancellationToken ct) =>
+        AsCustomer(async id => Ok(ApiResponse<PriceQuoteDto>.Ok(
+            await service.QuoteAsync(id, addressId, serviceTier, durationHours, ct), "Price quote retrieved.")));
 
     /// <summary>Creates a PENDING_PAYMENT order; the client then asks for its QR.</summary>
     [HttpPost("orders")]

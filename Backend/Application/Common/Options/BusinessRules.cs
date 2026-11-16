@@ -75,6 +75,12 @@ public class DispatchRules
     public int OfferTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
+    /// D36: after the end of the shift of a large ECONOMY house (one worker), the worker has this many minutes to run
+    /// <c>submit-completion</c>; if the job is still <c>IN_PROGRESS</c> then, the 2nd job opens by itself (owner decision 2026-11-15).
+    /// </summary>
+    public int ContinuationConfirmMinutes { get; set; } = 15;
+
+    /// <summary>
     /// BR-02 fallback: how long the seat-1 worker has to confirm the second consecutive shift after the customer agreed (leader decision
     /// 2026-10-14, 2 minutes). Longer than <see cref="OfferTimeoutSeconds"/> because a worker must read a different question.
     /// </summary>
@@ -153,6 +159,9 @@ public class SlaPenaltyRules
     public decimal NoShow { get; set; } = 20m;
     public decimal Shortage { get; set; } = 10m;
     public decimal QualityComplaint { get; set; } = 5m;
+
+    /// <summary>D38: a Premium order cancelled because a seat was not present at the shift start (heavier than <see cref="NoShow"/>).</summary>
+    public decimal NoShowAtStart { get; set; } = 30m;
 }
 
 public class SlaRules
@@ -175,12 +184,36 @@ public class SuperFreelancerRules
 public class PremiumRules
 {
     public int MinLeadHours { get; set; } = 4;
+
+    /// <summary>D38: a Premium seat that is not present (checked in) this many minutes after the shift start cancels the order.</summary>
+    public int CheckInGraceMinutes { get; set; } = 5;
+
+    /// <summary>D38: a worker whose GPS check-in failed and who waits for the customer's confirmation counts as present this long after the attempt.</summary>
+    public int FallbackConfirmGraceMinutes { get; set; } = 10;
+
+    /// <summary>D38: a replacement seat (rescue) must be present within this many minutes of being assigned (never before the usual grace).</summary>
+    public int ReplacementCheckInMinutes { get; set; } = 30;
+
+    /// <summary>D38: both workers are reminded to move this many minutes before the check-in time (PREM-START-02).</summary>
+    public int ReminderMinutes { get; set; } = 30;
 }
 
 public class BookingRules
 {
     /// <summary>Booking horizon in days for both tiers (contract booking.md B3).</summary>
     public int MaxDaysAhead { get; set; } = 14;
+
+    /// <summary>A timed Economy job (decisions D34) must start at least this many minutes from now.</summary>
+    public int EconomyMinLeadMinutes { get; set; } = 60;
+
+    /// <summary>Shortest timed job in hours (decisions D34, the 2 h package of the market).</summary>
+    public decimal MinDurationHours { get; set; } = 2m;
+
+    /// <summary>Area one worker cleans in one hour; the suggested duration is area per worker / this, rounded up to 0.5 h (D34).</summary>
+    public decimal M2PerHour { get; set; } = 20m;
+
+    /// <summary>Free time kept before and after every timed job of a worker for travel (decisions D34).</summary>
+    public int TravelBufferMinutes { get; set; } = 30;
 }
 
 public class RatingMinAvgAfterJobsRules
@@ -203,6 +236,12 @@ public class CancelRules
     public decimal LateFeeRate { get; set; } = 0.40m;
     public int WorkerCancelLockCount { get; set; } = 3;
     public int WorkerCancelWindowDays { get; set; } = 30;
+
+    /// <summary>
+    /// Decisions D35: after a freelancer cancels, the lost seat is re-dispatched until this many minutes before the job start; a seat
+    /// still open then fails the order (automatic 100 % refund). A cancel inside this window fails the order at once.
+    /// </summary>
+    public int RedispatchCutoffMinutes { get; set; } = 30;
 }
 
 public class AuthRules
@@ -242,6 +281,9 @@ public class WorkerRules
 {
     /// <summary>After a request to change the payout account is sent, no new request can be sent for this many days (decided with Duy: 15).</summary>
     public int BankChangeLockDays { get; set; } = 15;
+
+    /// <summary>Most hours of live jobs one worker may hold on one day (decisions D34).</summary>
+    public int MaxJobHoursPerDay { get; set; } = 8;
 }
 
 public class CustomerRules

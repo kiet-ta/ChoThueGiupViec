@@ -16,6 +16,7 @@ import {
   ekycQueueRow,
   isUnderThreshold,
   parseActionError,
+  safeEkycPhotoUrl,
   scoreBadgeText,
   validateRejectionReason,
   type ActionError,
@@ -61,6 +62,20 @@ const COLUMNS: Column<EkycRow>[] = [
 ]
 
 type ReviewMode = 'idle' | 'confirmApprove' | 'reject'
+
+const PHOTO_NOTE_CLASS = 'flex size-full items-center justify-center p-2 text-center text-xs text-muted-foreground'
+
+/**
+ * One photo of the review panel (ADMIN-UAT-15): the image when the address is safe (`safeEkycPhotoUrl`), a note when the worker's row has
+ * none (a worker that submitted before the addresses were stored) and a note when the image does not load. The caller keys it by worker.
+ */
+function EkycPhoto({ url, alt }: { url: string | null; alt: string }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const src = safeEkycPhotoUrl(url)
+  if (src === null) return <div className={PHOTO_NOTE_CLASS}>Chưa có ảnh</div>
+  if (failedUrl === src) return <div className={PHOTO_NOTE_CLASS}>Không tải được ảnh</div>
+  return <img src={src} alt={alt} className="size-full object-cover" onError={() => setFailedUrl(src)} />
+}
 
 /** Admin eKYC Manual Review Queue Page (WEB-M4-01, contract workers.md §2.2). */
 export function EkycAuditQueuePage() {
@@ -235,31 +250,19 @@ function EkycDetailPanel({
             <figure className="flex flex-col gap-2">
               <figcaption className="text-xs font-medium text-muted-foreground">1. Mặt trước CCCD</figcaption>
               <div className="relative aspect-4/3 overflow-hidden rounded-lg border border-border bg-muted">
-                <img
-                  src={item.frontCccdUrl}
-                  alt="Mặt trước CCCD"
-                  className="size-full object-cover"
-                />
+                <EkycPhoto key={`${item.workerId}-frontCccdUrl`} url={item.frontCccdUrl} alt="Mặt trước CCCD" />
               </div>
             </figure>
             <figure className="flex flex-col gap-2">
               <figcaption className="text-xs font-medium text-muted-foreground">2. Mặt sau CCCD</figcaption>
               <div className="relative aspect-4/3 overflow-hidden rounded-lg border border-border bg-muted">
-                <img
-                  src={item.backCccdUrl}
-                  alt="Mặt sau CCCD"
-                  className="size-full object-cover"
-                />
+                <EkycPhoto key={`${item.workerId}-backCccdUrl`} url={item.backCccdUrl} alt="Mặt sau CCCD" />
               </div>
             </figure>
             <figure className="flex flex-col gap-2">
               <figcaption className="text-xs font-medium text-muted-foreground">3. Chân dung Selfie</figcaption>
               <div className="relative aspect-4/3 overflow-hidden rounded-lg border border-border bg-muted">
-                <img
-                  src={item.selfieUrl}
-                  alt="Chân dung selfie"
-                  className="size-full object-cover"
-                />
+                <EkycPhoto key={`${item.workerId}-selfieUrl`} url={item.selfieUrl} alt="Chân dung selfie" />
               </div>
             </figure>
           </div>

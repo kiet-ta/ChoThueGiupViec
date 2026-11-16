@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Security.Claims;
 
 namespace CommonService.Application.Features.Identity.Services;
@@ -10,7 +11,7 @@ public interface ITokenService
     /// <summary>
     /// Generates a signed Bearer access token for the given user ID and role.
     /// </summary>
-    (string AccessToken, int ExpiresInSeconds) GenerateAccessToken(int userId, string role);
+    (string AccessToken, int ExpiresInSeconds) GenerateAccessToken(int userId, string role, IEnumerable<Claim>? additionalClaims = null);
 
     /// <summary>
     /// Generates a secure random raw refresh token string.

@@ -67,21 +67,24 @@ class FakeBookingService implements IBookingService {
   Future<PriceQuote> getQuote({
     required int addressId,
     required String serviceTier,
+    double? durationHours,
   }) {
     quotes.add((addressId: addressId, tier: serviceTier));
     if (quoteError != null) return Future.error(quoteError!);
     final large = addressId == 2;
     final unit = serviceTier == ServiceTier.premium ? 390000 : 260000;
+    final continuous = large && serviceTier != ServiceTier.premium;
     return Future.value(
       PriceQuote(
         addressId: addressId,
         serviceTier: serviceTier,
         totalAreaM2: large ? 90 : 50,
         areaBracket: large ? 'OVER_80' : 'FROM_31_TO_80',
-        requiredWorkers: large ? 2 : 1,
+        requiredWorkers: large && !continuous ? 2 : 1,
         unitPrice: unit,
         totalAmount: unit * (large ? 2 : 1),
         currency: 'VND',
+        isContinuousWork: continuous,
       ),
     );
   }
@@ -420,6 +423,10 @@ void main() {
         expect(find.byKey(const Key('favorite-42')), findsOneWidget);
         await tapKey(tester, 'day-2026-10-15');
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(
+          tester,
+          'start-08:00',
+        ); // D34: a Cơ bản job has a start time
         await tapKey(tester, 'submit-order');
         expect(service.created.single.previousOrderId, 100);
         expect(service.created.single.preferredWorkerId, 42);
@@ -457,6 +464,7 @@ void main() {
         expect(faded('shift-SHIFT_MORNING'), findsNothing);
         expect(faded('shift-SHIFT_EVENING'), findsOneWidget);
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-08:00');
         await tapKey(tester, 'submit-order');
 
         expect(service.created.single.preferredWorkerId, 42);
@@ -655,6 +663,119 @@ void main() {
     );
 
     testWidgets(
+      'a large Economy house shows the one-worker notice and the single large-house price (D36)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'address-2');
+
+        expect(textOf(tester, 'quote-total'), '520.000 đ');
+        expect(
+          textOf(tester, 'quote-breakdown'),
+          'Giá nhà lớn · 1 người · Cơ bản',
+        );
+        expect(
+          textOf(tester, 'quote-workers-note'),
+          contains('thợ có thể cần làm 2 đơn liên tiếp'),
+        );
+      },
+    );
+
+    testWidgets(
+      'a large Economy house can be booked in the evening shift too: the 2nd job is extra hours (D36)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'address-2');
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('day-2026-10-16')),
+          80.0,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('day-list')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tapKey(tester, 'day-2026-10-16');
+        await tapKey(tester, 'shift-SHIFT_EVENING');
+        await tapKey(tester, 'start-17:30');
+        await tapKey(tester, 'submit-order');
+
+        expect(
+          find.byKey(const Key('continuous-work-consent')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'a large Economy house asks the customer to agree before the order is created, and sends the agreement (D36)',
+      (tester) async {
+        final service = FakeBookingService();
+        final opened = await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'address-2');
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('day-2026-10-16')),
+          80.0,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('day-list')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tapKey(tester, 'day-2026-10-16');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-09:00');
+        await tapKey(tester, 'submit-order');
+
+        expect(
+          find.byKey(const Key('continuous-work-consent')),
+          findsOneWidget,
+        );
+        expect(
+          service.created,
+          isEmpty,
+          reason: 'nothing is sent before agreeing',
+        );
+
+        await tapKey(tester, 'continuous-work-accept');
+
+        final input = service.created.single;
+        expect(input.acceptsContinuousWork, isTrue);
+        expect(input.toJson()['acceptsContinuousWork'], isTrue);
+        expect(opened.single.orderId, 100);
+      },
+    );
+
+    testWidgets('declining the agreement creates nothing', (tester) async {
+      final service = FakeBookingService();
+      await pumpBooking(tester, service);
+
+      await tapKey(tester, 'tier-ECONOMY');
+      await tapKey(tester, 'address-2');
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('day-2026-10-16')),
+        80.0,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('day-list')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tapKey(tester, 'day-2026-10-16');
+      await tapKey(tester, 'shift-SHIFT_MORNING');
+      await tapKey(tester, 'start-09:00');
+      await tapKey(tester, 'submit-order');
+      await tapKey(tester, 'continuous-work-decline');
+
+      expect(service.created, isEmpty);
+      expect(find.byKey(const Key('continuous-work-consent')), findsNothing);
+    });
+
+    testWidgets(
       'creates the order with the choices and opens the payment for it',
       (tester) async {
         final service = FakeBookingService();
@@ -705,6 +826,7 @@ void main() {
         await tapKey(tester, 'tier-ECONOMY');
         await tapKey(tester, 'day-2026-10-15');
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-09:00');
         await tapKey(tester, 'submit-order');
 
         expect(
@@ -712,6 +834,59 @@ void main() {
           isFalse,
         );
         expect(service.created.single.customerNote, isNull);
+        // D34: the job's start and length go with the order.
+        expect(service.created.single.startTime, '09:00');
+        expect(service.created.single.durationHours, 2);
+      },
+    );
+
+    testWidgets(
+      'a Cơ bản order asks for a start time inside the shift and the chosen length (D34)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_EVENING');
+        await tapKey(tester, 'duration-4.0');
+        // The evening is 17:30-20:30: a 4 h job does not fit.
+        expect(find.byKey(const Key('start-none')), findsOneWidget);
+
+        await tapKey(tester, 'submit-order');
+        expect(textOf(tester, 'booking-hint'), 'Chọn giờ bắt đầu.');
+        expect(service.created, isEmpty);
+
+        await tapKey(tester, 'duration-3.0');
+        expect(find.byKey(const Key('start-17:30')), findsOneWidget);
+        expect(find.byKey(const Key('start-18:00')), findsNothing);
+        await tapKey(tester, 'start-17:30');
+        expect(textOf(tester, 'job-time'), '17:30 – 20:30 (3 giờ)');
+
+        await tapKey(tester, 'submit-order');
+        final input = service.created.single;
+        expect(input.startTime, '17:30');
+        expect(input.durationHours, 3);
+      },
+    );
+
+    testWidgets(
+      'a Cao cấp order keeps the whole shift and shows no time pickers (D34)',
+      (tester) async {
+        final service = FakeBookingService();
+        await pumpBooking(tester, service);
+
+        await tapKey(tester, 'tier-PREMIUM');
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+
+        expect(find.byKey(const Key('duration-list')), findsNothing);
+        await tapKey(tester, 'submit-order');
+        expect(service.created.single.startTime, isNull);
+        expect(
+          service.created.single.toJson().containsKey('durationHours'),
+          isFalse,
+        );
       },
     );
 
@@ -724,6 +899,7 @@ void main() {
         await tapKey(tester, 'tier-ECONOMY');
         await tapKey(tester, 'day-2026-10-15');
         await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-08:00');
 
         await tester.tap(find.byKey(const Key('submit-order')));
         await tester.pump();
@@ -869,6 +1045,70 @@ void main() {
 
       expect(find.byKey(const Key('tier-ECONOMY')), findsOneWidget);
       expect(addresses.calls, 2);
+    });
+  });
+
+  group('address list (MOB-BOOK-03)', () {
+    List<BookingAddress> six() => [
+      for (var i = 1; i <= 6; i++)
+        BookingAddress(
+          addressId: i,
+          label: 'Địa chỉ $i',
+          addressLine: '$i Lê Lợi',
+          totalAreaM2: 50,
+          isDefault: i == 1,
+        ),
+    ];
+    bool shown(int id) => find.byKey(Key('address-$id')).evaluate().isNotEmpty;
+
+    testWidgets('shows 3 addresses and opens the rest with Xem thêm', (
+      tester,
+    ) async {
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        addresses: FakeAddresses(six()),
+      );
+
+      expect(
+        [for (var i = 1; i <= 6; i++) shown(i)],
+        [true, true, true, false, false, false],
+      );
+      expect(find.text('Xem thêm 3 địa chỉ'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('address-more')));
+      await tester.pumpAndSettle();
+      expect([for (var i = 1; i <= 6; i++) shown(i)], everyElement(isTrue));
+      expect(find.text('Thu gọn'), findsOneWidget);
+    });
+
+    testWidgets('the chosen address stays visible after Thu gọn', (
+      tester,
+    ) async {
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        addresses: FakeAddresses(six()),
+      );
+      await tester.tap(find.byKey(const Key('address-more')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('address-5')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('address-more')));
+      await tester.pumpAndSettle();
+
+      expect(shown(5), isTrue);
+      expect([for (var i = 1; i <= 6; i++) shown(i)].where((v) => v).length, 3);
+    });
+
+    testWidgets('3 addresses or fewer have no Xem thêm', (tester) async {
+      await pumpBooking(
+        tester,
+        FakeBookingService(),
+        addresses: FakeAddresses(six().take(3).toList()),
+      );
+
+      expect(find.byKey(const Key('address-more')), findsNothing);
     });
   });
 }

@@ -7227,6 +7227,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "durationHours",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
           }
         ],
         "responses": {
@@ -10586,21 +10594,6 @@
         "operationId": "Notifications_Poll",
         "parameters": [
           {
-            "name": "role",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "userId",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          {
             "name": "since",
             "in": "query",
             "schema": {
@@ -10639,8 +10632,8 @@
               }
             }
           },
-          "400": {
-            "description": "Bad Request",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11359,6 +11352,247 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dispatch/assignments/{assignmentId}/cancel-preview": {
+      "get": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_CancelPreview",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerCancelPreviewDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerCancelPreviewDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerCancelPreviewDtoApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dispatch/assignments/{assignmentId}/cancel": {
+      "post": {
+        "tags": [
+          "WorkerDispatch"
+        ],
+        "operationId": "WorkerDispatch_Cancel",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerCancelRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerCancelRequest"
+              }
+            },
+            "application/*\u002Bjson": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerCancelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerCancelResultDtoApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerCancelResultDtoApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerCancelResultDtoApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectApiResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "text/plain": {
                 "schema": {
@@ -17058,6 +17292,15 @@
           },
           "isNewUser": {
             "type": "boolean"
+          },
+          "workerType": {
+            "type": "string",
+            "nullable": true
+          },
+          "agencyId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17142,6 +17385,22 @@
           },
           "sandbox": {
             "type": "boolean"
+          },
+          "startStepMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minDurationHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "durationStepHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "economyMinLeadMinutes": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -17347,6 +17606,35 @@
         },
         "additionalProperties": false
       },
+      "ContinuationDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "shiftCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "windowStartAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "windowEndAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateBankChangeRequest": {
         "type": "object",
         "properties": {
@@ -17411,6 +17699,19 @@
           "previousOrderId": {
             "type": "integer",
             "format": "int64",
+            "nullable": true
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationHours": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "acceptsContinuousWork": {
+            "type": "boolean",
             "nullable": true
           }
         },
@@ -19532,6 +19833,22 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "endTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationHours": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "isContinuousWork": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -19617,6 +19934,14 @@
           },
           "extension": {
             "$ref": "#/components/schemas/ExtensionDto"
+          },
+          "substituteSearchUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "continuation": {
+            "$ref": "#/components/schemas/ContinuationDto"
           }
         },
         "additionalProperties": false
@@ -19675,6 +20000,14 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "startTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "endTime": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19703,6 +20036,10 @@
           "resendAvailableInSeconds": {
             "type": "integer",
             "format": "int32"
+          },
+          "sandboxOtp": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20311,6 +20648,19 @@
           "currency": {
             "type": "string",
             "nullable": true
+          },
+          "durationHours": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "suggestedDurationHours": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "isContinuousWork": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -21664,6 +22014,14 @@
               "type": "string"
             },
             "nullable": true
+          },
+          "wardCodes": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21887,6 +22245,9 @@
           },
           "acceptance": {
             "$ref": "#/components/schemas/AcceptanceDto"
+          },
+          "continuation": {
+            "$ref": "#/components/schemas/ContinuationDto"
           }
         },
         "additionalProperties": false
@@ -22045,6 +22406,121 @@
           },
           "data": {
             "$ref": "#/components/schemas/WorkerBankResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerCancelPreviewDto": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancelCountInWindow": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lockCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "windowDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "willLockAccount": {
+            "type": "boolean"
+          },
+          "autoAcceptOn": {
+            "type": "boolean"
+          },
+          "jobStartAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "substituteSearchPossible": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerCancelPreviewDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/WorkerCancelPreviewDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerCancelRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerCancelResultDto": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "cancelCountInWindow": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lockCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "windowDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "accountLocked": {
+            "type": "boolean"
+          },
+          "orderOutcome": {
+            "type": "string",
+            "nullable": true
+          },
+          "substituteSearchUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkerCancelResultDtoApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/WorkerCancelResultDto"
           }
         },
         "additionalProperties": false
@@ -22630,6 +23106,28 @@
         },
         "additionalProperties": false
       },
+      "WorkerWardDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "provinceCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "provinceName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "WorkerWorkAreaResponse": {
         "type": "object",
         "properties": {
@@ -22661,6 +23159,20 @@
           "setAt": {
             "type": "string",
             "format": "date-time",
+            "nullable": true
+          },
+          "wards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkerWardDto"
+            },
+            "nullable": true
+          },
+          "unresolvedNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "nullable": true
           }
         },

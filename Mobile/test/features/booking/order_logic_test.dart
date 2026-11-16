@@ -133,9 +133,43 @@ void main() {
     });
 
     test('a completed order has every step done and none current', () {
-      expect(done('COMPLETED').length, 4);
+      expect(done('COMPLETED').length, 7);
       expect(current('COMPLETED'), isEmpty);
     });
+
+    test('has the 7 steps of the Web (MOB-ORDER-02)', () {
+      expect(orderTimeline('ASSIGNED').map((s) => s.label), [
+        'Thanh toán',
+        'Tìm người',
+        'Có người làm',
+        'Người làm đã đến',
+        'Đang làm',
+        'Chờ nghiệm thu',
+        'Hoàn thành',
+      ]);
+    });
+
+    test(
+      'an assigned order stands at its most advanced assignment (MOB-ORDER-02)',
+      () {
+        List<String> at(List<String> statuses) => [
+          for (final s in orderTimeline('ASSIGNED', [
+            for (var i = 0; i < statuses.length; i++)
+              _assignment(i + 1, statuses[i]),
+          ]))
+            if (s.current) s.label,
+        ];
+        expect(at(['ASSIGNED']), ['Có người làm']);
+        expect(at(['CHECKED_IN']), ['Người làm đã đến']);
+        expect(at(['ASSIGNED', 'IN_PROGRESS']), ['Đang làm']);
+        expect(at(['AWAITING_ACCEPTANCE']), ['Chờ nghiệm thu']);
+        expect(at(['COMPLETED', 'ASSIGNED']), ['Chờ nghiệm thu']);
+        final waiting = orderTimeline('ASSIGNED', [
+          _assignment(1, 'AWAITING_ACCEPTANCE'),
+        ]).firstWhere((s) => s.current);
+        expect(waiting.hint, contains('nghiệm thu'));
+      },
+    );
 
     test('a cancelled order is one cancelled step, never a tick', () {
       final step = orderTimeline('CANCELLED').single;
@@ -200,6 +234,35 @@ void main() {
       expect(canCancel('ASSIGNED'), isTrue);
       expect(canCancel('COMPLETED'), isFalse);
       expect(canCancel('CANCELLED'), isFalse);
+    });
+
+    test('the header says the step of the timeline (ORDER-STATUS-SYNC-01)', () {
+      String at(String status) =>
+          orderHeaderLabel('ASSIGNED', [_assignment(1, status)]);
+      expect(at('ASSIGNED'), 'Đã có người làm');
+      expect(at('CHECKED_IN'), 'Người làm đã đến');
+      expect(at('IN_PROGRESS'), 'Đang làm');
+      expect(at('AWAITING_ACCEPTANCE'), 'Chờ nghiệm thu');
+      expect(orderHeaderLabel('ASSIGNED', const []), 'Đã có người làm');
+      expect(orderHeaderLabel('DISPATCHING', const []), 'Đang tìm người làm');
+      expect(orderHeaderLabel('COMPLETED', const []), 'Hoàn thành');
+    });
+
+    test('no cancel once the work started, like the Web (MOB-ORDER-02)', () {
+      expect(canCancel('ASSIGNED', [_assignment(1, 'ASSIGNED')]), isTrue);
+      expect(canCancel('ASSIGNED', [_assignment(1, 'CHECKED_IN')]), isTrue);
+      expect(canCancel('ASSIGNED', [_assignment(1, 'IN_PROGRESS')]), isFalse);
+      expect(
+        canCancel('ASSIGNED', [_assignment(1, 'AWAITING_ACCEPTANCE')]),
+        isFalse,
+      );
+      expect(
+        canCancel('ASSIGNED', [
+          _assignment(1, 'ASSIGNED'),
+          _assignment(2, 'COMPLETED'),
+        ]),
+        isFalse,
+      );
     });
 
     test('an extension needs an ASSIGNED order, a worker on site and no extension yet', () {
@@ -346,6 +409,17 @@ void main() {
       expect(view.text, contains('trong bán kính 10 km'));
       expect(view.suggestRebook, isTrue);
     });
+
+    test(
+      'D35: no substitute after a helper cancel says the money comes back',
+      () {
+        final view = cancelReasonView('WORKER_CANCELLED_NO_SUBSTITUTE');
+        expect(view.text, contains('đã huỷ ca'));
+        expect(view.text, contains('hoàn tiền 100 %'));
+        expect(view.text, isNot(contains('WORKER_')));
+        expect(view.suggestRebook, isTrue);
+      },
+    );
 
     test('a BR-10 rescue on a Premium order is not read as an agency gap', () {
       final view = cancelReasonView(

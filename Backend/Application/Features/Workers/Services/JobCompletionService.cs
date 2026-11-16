@@ -17,7 +17,8 @@ public class JobCompletionService(
     IPublisher publisher,
     ICurrentUser currentUser,
     IClock clock,
-    IOptions<BusinessRules>? rules = null) : IJobCompletionService
+    IOptions<BusinessRules>? rules = null,
+    IContinuationRepository? continuations = null) : IJobCompletionService
 {
     private readonly AcceptanceRules _acceptance = rules?.Value.Acceptance ?? new AcceptanceRules();
 
@@ -192,6 +193,23 @@ public class JobCompletionService(
         }
 
         var nowUtc = clock.UtcNow;
+
+        // Decision D36: the first "not clean" of a large house opens the 2nd job (same worker, extra hours after the shift, no extra charge)
+        // instead of a redo. The redo window of D32 does not apply: the worker keeps working.
+        if (continuations is not null && await continuations.TryOpenAsync(assignment.OrderId, nowUtc, ct))
+        {
+            assignment.TransitionTo(JobAssignmentStatus.InProgress);
+            var continuationNote = $"Second job opened: {request.Reason.Trim()}";
+            assignment.WorkZone = continuationNote;
+            assignment.UpdatedAt = nowUtc;
+            assignment.SubmittedAt = null;
+            await workerRepository.SaveChangesAsync(ct);
+
+            return ApiResponse<AssignmentStatusResponse>.Ok(
+                new AssignmentStatusResponse(assignment.AssignmentId, "IN_PROGRESS", nowUtc, continuationNote),
+                "The second job of this large house is open.");
+        }
+
         // Decision D32: a redo is done on site, so only while the worker is still there (RedoMinutes after the submit).
         if (!AcceptanceWindow.CanRedo(assignment.SubmittedAt, nowUtc, _acceptance))
         {

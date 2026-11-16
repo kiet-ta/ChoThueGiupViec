@@ -130,6 +130,10 @@ public class JobAssignmentConfiguration : IEntityTypeConfiguration<JobAssignment
             .HasColumnName("acceptance_reminded_at")
             .HasColumnType("DATETIME2");
 
+        builder.Property(x => x.CheckInRemindedAt)
+            .HasColumnName("checkin_reminded_at")
+            .HasColumnType("DATETIME2");
+
         builder.Property(x => x.RedoCount)
             .HasColumnName("redo_count")
             .HasDefaultValue((byte)0)
@@ -153,10 +157,9 @@ public class JobAssignmentConfiguration : IEntityTypeConfiguration<JobAssignment
         // The acceptance timer scans waiting jobs by T every minute.
         builder.HasIndex(x => new { x.AssignmentStatus, x.SubmittedAt });
 
-        // Filtered unique index on slot_id per decisions Q22 / D2 / SC-9
-        // SQL Server filtered index syntax requires <> and AND (NOT IN is not allowed in index filter predicate)
-        builder.HasIndex(x => x.SlotId)
-            .IsUnique()
-            .HasFilter("[assignment_status] <> 'CANCELLED' AND [assignment_status] <> 'CANCELLED_BY_WORKER' AND [assignment_status] <> 'REASSIGNED'");
+        // Decisions D34: a slot can carry several timed jobs, so slot_id is no longer unique (it was, per Q22 / D2 / SC-9). Whole-shift
+        // jobs are still guarded by the slot status (AVAILABLE -> HELD -> BOOKED); timed jobs by the overlap check of
+        // EfDispatchRepository.TryCreateOfferAsync, which locks the slot row first.
+        builder.HasIndex(x => x.SlotId);
     }
 }

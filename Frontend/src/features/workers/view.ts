@@ -117,3 +117,21 @@ export function ekycQueueRequest(page: number, pageSize: number, status: EkycFil
 export function ekycReviewRequest(workerId: number, body: EkycReviewRequest) {
   return { path: `/admin/workers/${workerId}/ekyc-review`, body }
 }
+
+/**
+ * The address of an eKYC photo when it is safe to put in an `img` tag: an `http` or `https` address, or a path that starts with `/`
+ * (not `//host`, which would load from another site). Blank, `null`, `javascript:`, `data:`, other schemes and anything with a space or
+ * a control character give `null` (ADMIN-UAT-15), so the page shows a placeholder instead of a broken image or a script address.
+ */
+export function safeEkycPhotoUrl(url: string | null | undefined): string | null {
+  const value = url?.trim() ?? ''
+  if (value === '') return null
+  if ([...value].some((ch) => ch.charCodeAt(0) <= 32 || ch.charCodeAt(0) === 127)) return null
+  if (value.startsWith('/')) return value.startsWith('//') || value.includes('\\') ? null : value
+  try {
+    const parsed = new URL(value)
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.host !== '' ? value : null
+  } catch {
+    return null
+  }
+}

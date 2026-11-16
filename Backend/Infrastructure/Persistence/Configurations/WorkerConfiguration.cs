@@ -72,6 +72,19 @@ public class WorkerConfiguration : IEntityTypeConfiguration<Worker>
             .IsUnicode(false)
             .IsRequired();
 
+        // The photo addresses of the eKYC submit (nullable: agency workers and rows older than the columns have none).
+        builder.Property(x => x.EkycFrontCccdUrl)
+            .HasColumnName("ekyc_front_cccd_url")
+            .HasMaxLength(500);
+
+        builder.Property(x => x.EkycBackCccdUrl)
+            .HasColumnName("ekyc_back_cccd_url")
+            .HasMaxLength(500);
+
+        builder.Property(x => x.EkycSelfieUrl)
+            .HasColumnName("ekyc_selfie_url")
+            .HasMaxLength(500);
+
         builder.Property(x => x.RatingAvg)
             .HasColumnName("rating_avg")
             .HasColumnType("DECIMAL(3,2)")

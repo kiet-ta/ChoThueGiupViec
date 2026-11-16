@@ -100,6 +100,7 @@ public static class EscrowRules
     {
         SlaViolation.NoShow => rules.NoShow,
         SlaViolation.Shortage => rules.Shortage,
+        SlaViolation.NoShowAtStart => rules.NoShowAtStart,
         _ => rules.QualityComplaint,
     };
 

@@ -33,7 +33,10 @@ class DispatchFeatureModule extends FeatureModule {
       assignmentId: 1001,
       checkedInAt: DateTime.now().subtract(const Duration(minutes: 16)),
     ),
-    DispatchRoutes.incidentReport: (context) =>
-        const IncidentReportScreen(assignmentId: 1001),
+    // Opened with the assignment id (the cancel form of decisions D35 links here).
+    DispatchRoutes.incidentReport: (context) => withAssignmentArgument(
+      context,
+      (id) => IncidentReportScreen(assignmentId: id),
+    ),
   };
 }

@@ -17,8 +17,16 @@ class DeviceCameraWrapper implements ICameraWrapper {
   static const int jpegQuality = 85;
 
   final PickImage _pick;
+  final bool Function() _cameraSupported;
 
-  DeviceCameraWrapper({PickImage? pick}) : _pick = pick ?? _pickWithPlugin;
+  /// [cameraSupported] says whether the platform can open a camera; tests pass their own, the default asks the plugin.
+  DeviceCameraWrapper({PickImage? pick, bool Function()? cameraSupported})
+    : _pick = pick ?? _pickWithPlugin,
+      _cameraSupported = cameraSupported ?? _pluginSupportsCamera;
+
+  /// False on Windows, Linux and a browser without a camera delegate (MOB-PLATFORM-01, #942): `image_picker` throws there.
+  static bool _pluginSupportsCamera() =>
+      ImagePicker().supportsImageSource(ImageSource.camera);
 
   static Future<XFile?> _pickWithPlugin(ImageSource source) =>
       ImagePicker().pickImage(
@@ -28,7 +36,9 @@ class DeviceCameraWrapper implements ICameraWrapper {
       );
 
   @override
-  Future<CapturedImage?> capturePhoto() => _read(ImageSource.camera);
+  Future<CapturedImage?> capturePhoto() =>
+      // No camera on this platform (desktop): the file picker opens instead of the call failing.
+      _read(_cameraSupported() ? ImageSource.camera : ImageSource.gallery);
 
   @override
   Future<CapturedImage?> pickFromGallery() => _read(ImageSource.gallery);

@@ -14,6 +14,7 @@ abstract class IBookingService {
   Future<PriceQuote> getQuote({
     required int addressId,
     required String serviceTier,
+    double? durationHours,
   });
 
   Future<BookingOrder> createOrder(CreateOrderInput input);
@@ -86,10 +87,16 @@ class BookingService implements IBookingService {
   Future<PriceQuote> getQuote({
     required int addressId,
     required String serviceTier,
+    double? durationHours,
   }) async {
     final response = await _client.get<PriceQuote>(
       '/api/v1/booking/price-quote',
-      queryParams: {'addressId': '$addressId', 'serviceTier': serviceTier},
+      queryParams: {
+        'addressId': '$addressId',
+        'serviceTier': serviceTier,
+        // Decisions D34: the price of a timed job (Cơ bản) is for its hours.
+        if (durationHours != null) 'durationHours': '$durationHours',
+      },
       fromJson: (json) => PriceQuote.fromJson(json as Map<String, dynamic>),
     );
     return _require(response.data, 'báo giá');

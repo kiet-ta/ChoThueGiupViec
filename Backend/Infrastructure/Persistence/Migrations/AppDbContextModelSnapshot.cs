@@ -892,6 +892,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(20)")
                         .HasColumnName("assignment_status");
 
+                    b.Property<DateTime?>("CheckInRemindedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("checkin_reminded_at");
+
                     b.Property<decimal>("CommissionRate")
                         .HasPrecision(18, 2)
                         .HasColumnType("DECIMAL(4,3)")
@@ -995,9 +999,7 @@ namespace CommonService.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PayoutItemId");
 
-                    b.HasIndex("SlotId")
-                        .IsUnique()
-                        .HasFilter("[assignment_status] <> 'CANCELLED' AND [assignment_status] <> 'CANCELLED_BY_WORKER' AND [assignment_status] <> 'REASSIGNED'");
+                    b.HasIndex("SlotId");
 
                     b.HasIndex("WorkerId");
 
@@ -1030,6 +1032,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("cancel_reason");
 
+                    b.Property<DateTime?>("ContinuationOpenedAt")
+                        .HasColumnType("DATETIME2")
+                        .HasColumnName("continuation_opened_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("DATETIME2")
                         .HasColumnName("created_at");
@@ -1043,6 +1049,16 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("customer_note");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time(0)")
+                        .HasColumnName("end_time");
+
+                    b.Property<bool>("IsContinuousWork")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("continuous_work");
 
                     b.Property<string>("OrderCode")
                         .IsRequired()
@@ -1089,6 +1105,10 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(20)")
                         .HasColumnName("shift_code");
+
+                    b.Property<TimeOnly?>("StartTime")
+                        .HasColumnType("time(0)")
+                        .HasColumnName("start_time");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
@@ -2207,10 +2227,25 @@ namespace CommonService.Infrastructure.Persistence.Migrations
                         .HasColumnType("DECIMAL(9,6)")
                         .HasColumnName("current_lng");
 
+                    b.Property<string>("EkycBackCccdUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("ekyc_back_cccd_url");
+
                     b.Property<decimal?>("EkycConfidence")
                         .HasPrecision(18, 2)
                         .HasColumnType("DECIMAL(5,2)")
                         .HasColumnName("ekyc_confidence");
+
+                    b.Property<string>("EkycFrontCccdUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("ekyc_front_cccd_url");
+
+                    b.Property<string>("EkycSelfieUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("ekyc_selfie_url");
 
                     b.Property<string>("FullName")
                         .IsRequired()
