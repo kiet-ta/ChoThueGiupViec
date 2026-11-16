@@ -47,3 +47,11 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 
 ## Ghi chú — ADMIN-UAT-12 (ticket #868)
 - `/admin/login` đăng nhập xong vào thẳng `/admin/dashboard` (route con `login` trong `/admin` chuyển về dashboard, `Frontend/src/app/router.tsx`). Đã thử trên trình duyệt thật: chưa đăng nhập hiện form; đăng nhập Admin ở `/admin/login` -> `/admin/dashboard`; Admin đã đăng nhập mở `/admin/login` -> `/admin/dashboard`; khách hàng -> `/app`, đối tác -> `/partner`. L3: `.harness/evidence/20261114-213202-L3.log` (mọi bước qua, riêng `backend test` có 1 test fail sẵn trên main từ #864, không thuộc ticket này; xem PR).
+
+## Ghi chú — ADMIN-FIX-01 (ticket #968)
+- Sửa lỗi lồng transaction trong `UnitOfWork.ExecuteInTransactionAsync`: khi đã có `_context.Database.CurrentTransaction` thì tái sử dụng giao dịch hiện hành, giải quyết lỗi 500 khi Admin phán quyết khiếu nại đối tác (nhánh lỗi Agency gọi lồng `EscrowService.ApplyAsync`).
+- Cập nhật UI Admin / Agency:
+  - Trang Khiếu nại ký quỹ (`AppealsPage.tsx` + `view.ts`): Bắt buộc nhập ghi chú quyết định (quy tắc kiểm toán G-5), nhãn đổi thành `Ghi chú quyết định (bắt buộc)`, client validation chặn rỗng / khoảng trắng trước khi gọi API.
+  - Trang Nhật ký kiểm toán (`audit/view.ts`): Bổ sung `WITHDRAWAL_REQUEST` ("Yêu cầu rút tiền") và `WORKER_BANK_CHANGE` ("Đổi thông tin ngân hàng") vào danh sách bộ lọc thực thể `ENTITY_TYPES`.
+- Test: `UnitOfWork_ExecuteInTransactionAsync_Supports_Nested_Transactions_Without_Error`, `RepositoryAndUnitOfWorkTests` (5/5 pass), `DisputeVerdictTests` (39/39 pass), `admin-audit.test.ts` và `agency-admin-view.test.ts` (538/538 frontend tests pass). L3 PASSED (`.harness/evidence/20261116-110706-L3.log`).
+

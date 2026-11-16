@@ -115,5 +115,7 @@ export function appealRow(a: EscrowAppeal) {
 
 /** Hours left of the 48 h window counted from the penalty is the server's rule; the console only shows the decision. */
 export function noteProblem(note: string): string | null {
-  return note.trim().length > NOTE_MAX_LENGTH ? `Ghi chú tối đa ${NOTE_MAX_LENGTH} ký tự.` : null
+  const trimmed = note.trim()
+  if (trimmed.length === 0) return 'Bắt buộc nhập ghi chú quyết định (quy tắc kiểm toán G-5).'
+  return trimmed.length > NOTE_MAX_LENGTH ? `Ghi chú tối đa ${NOTE_MAX_LENGTH} ký tự.` : null
 }

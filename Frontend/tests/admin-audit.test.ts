@@ -29,11 +29,13 @@ const entry = (over: Partial<AuditLogEntry> = {}): AuditLogEntry => ({
 })
 
 describe('labels', () => {
-  it('names the seven entity types the backend writes and shows an unknown one as it is', () => {
-    assert.equal(ENTITY_TYPES.length, 8)
+  it('names the entity types the backend writes and shows an unknown one as it is', () => {
+    assert.equal(ENTITY_TYPES.length, 10)
     assert.equal(entityLabel('WORKER'), 'Thợ')
     assert.equal(entityLabel('CUSTOMER'), 'Khách hàng') // the Q14 flag on a customer (ADMIN-UAT-10)
     assert.equal(entityLabel('PAYOUT_BATCH'), 'Kỳ payout')
+    assert.equal(entityLabel('WITHDRAWAL_REQUEST'), 'Yêu cầu rút tiền')
+    assert.equal(entityLabel('WORKER_BANK_CHANGE'), 'Đổi thông tin ngân hàng')
     assert.equal(entityLabel('SOMETHING_NEW'), 'SOMETHING_NEW')
   })
 
