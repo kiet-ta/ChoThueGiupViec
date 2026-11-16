@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- BE-DEV-MIGRATE-01: per-machine settings (for example the connection string) live in user secrets, outside the repo. -->
+    <UserSecretsId>a6ce7e6f-d08a-4657-a67a-f19fa1cbbf71</UserSecretsId>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
