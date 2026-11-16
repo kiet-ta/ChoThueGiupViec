@@ -62,7 +62,7 @@ async function seedWorker([phone, name, nationalId, point]) {
   }
   const token = session.accessToken;
   await call('POST', '/api/v1/workers/me/ekyc', { frontCccdUrl: 'https://s/f.jpg', backCccdUrl: 'https://s/b.jpg', selfieUrl: 'https://s/s.jpg' }, token);
-  const [ws, wr] = await call('PUT', '/api/v1/workers/me/work-area', { latitude: point[0], longitude: point[1], radiusKm: 15, districts: ['Quan 1'] }, token);
+  const [ws, wr] = await call('PUT', '/api/v1/workers/me/work-area', { latitude: point[0], longitude: point[1], radiusKm: 15, wardCodes: [26740] }, token);
   if (ws !== 200) throw new Error(`work area ${phone}: ${ws} ${JSON.stringify(wr)}`);
   await call('PUT', '/api/v1/workers/me/location', { latitude: point[0], longitude: point[1] }, token);
   for (let ahead = 1; ahead <= 7; ahead++) {
