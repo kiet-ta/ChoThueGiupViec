@@ -15,6 +15,7 @@ import '../dispatch/routes.dart';
 import '../payouts/screens/payout_screen.dart';
 import '../workers/screens/worker_screen.dart';
 import '../workers/screens/worker_slots_screen.dart';
+import '../workers/services/workers_profile_service.dart';
 import 'worker_today_tab.dart';
 
 /// The signed-in worker's app: four tabs and a raised centre button.
@@ -35,12 +36,17 @@ class WorkerShell extends StatefulWidget {
   /// The shell connects when it opens and disconnects when it closes (sign-out replaces it with the welcome).
   final IRealtimeService? realtime;
 
+  /// Tells an agency worker from a freelancer (D44): an agency worker is never offered a job, so the "Việc" button is not shown.
+  /// Replaceable in tests.
+  final WorkersProfileService? profile;
+
   const WorkerShell({
     super.key,
     required this.onSignOut,
     required this.workerId,
     this.tabs,
     this.realtime,
+    this.profile,
   });
 
   @override
@@ -64,9 +70,26 @@ class _WorkerShellState extends State<WorkerShell> {
   StreamSubscription<RealtimeNotification>? _notices;
   final _notice = RealtimeNoticePresenter();
 
+  /// D44: the worker belongs to an agency, so there is no "Việc" (offers) button. Until the profile says so, or if it
+  /// cannot be read, the bar is a freelancer's.
+  bool _agencyWorker = false;
+
+  Future<void> _loadAgencyFlag() async {
+    try {
+      final summary = await (widget.profile ?? WorkersProfileService())
+          .getSummary();
+      if (mounted && summary.agencyWorker) {
+        setState(() => _agencyWorker = true);
+      }
+    } catch (_) {
+      // Stays a freelancer's bar; the server decides what an offer may do.
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadAgencyFlag();
     _ownsRealtime = widget.realtime == null;
     _realtime = widget.realtime ?? RealtimeService();
     _notices = _realtime.notifications.listen(_onNotice);
@@ -239,18 +262,20 @@ class _WorkerShellState extends State<WorkerShell> {
             _visited.contains(i) ? _build(i) : const SizedBox.shrink(),
         ],
       ),
-      floatingActionButton: Pressable(
-        child: SizedBox(
-          width: 58,
-          height: 58,
-          child: FloatingActionButton(
-            key: const Key('worker-shell-job'),
-            tooltip: 'Việc',
-            onPressed: _openOffers,
-            child: const Icon(Icons.work_outline, size: 26),
-          ),
-        ),
-      ),
+      floatingActionButton: _agencyWorker
+          ? null
+          : Pressable(
+              child: SizedBox(
+                width: 58,
+                height: 58,
+                child: FloatingActionButton(
+                  key: const Key('worker-shell-job'),
+                  tooltip: 'Việc',
+                  onPressed: _openOffers,
+                  child: const Icon(Icons.work_outline, size: 26),
+                ),
+              ),
+            ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _bar(context),
     );
@@ -278,22 +303,24 @@ class _WorkerShellState extends State<WorkerShell> {
                 Icons.calendar_month,
                 'Lịch',
               ),
-              const Expanded(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: NordicSpace.xs),
-                    child: Text(
-                      'Việc',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: NordicColors.primary,
+              // The label under the raised centre button; an agency worker has no such button, so four equal items remain.
+              if (!_agencyWorker)
+                const Expanded(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: NordicSpace.xs),
+                      child: Text(
+                        'Việc',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: NordicColors.primary,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
               _item(2, Icons.payments_outlined, Icons.payments, 'Thu nhập'),
               _item(3, Icons.person_outline, Icons.person, 'Tài khoản'),
             ],
