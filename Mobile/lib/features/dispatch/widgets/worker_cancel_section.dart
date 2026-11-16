@@ -25,12 +25,17 @@ class WorkerCancelSection extends StatefulWidget {
   /// Opens the incident report (BR-10) for this job instead of cancelling.
   final VoidCallback onReportIncident;
 
+  /// D43: called instead of [onCancelled] when the cancel of an agency worker only told the agency (no count, no lock, the job stays).
+  /// When null the section shows that confirmation itself, so a screen that only knows the freelancer result keeps working.
+  final ValueChanged<WorkerCancelResult>? onAgencyNotified;
+
   const WorkerCancelSection({
     super.key,
     required this.assignmentId,
     required this.service,
     required this.onCancelled,
     required this.onReportIncident,
+    this.onAgencyNotified,
   });
 
   @override
@@ -43,6 +48,7 @@ class _WorkerCancelSectionState extends State<WorkerCancelSection> {
   bool _loadingPreview = false;
   bool _cancelling = false;
   WorkerCancelPreview? _preview;
+  WorkerCancelResult? _agencyNotice;
   String? _error;
   int _errors = 0;
 
@@ -100,6 +106,15 @@ class _WorkerCancelSectionState extends State<WorkerCancelSection> {
         _reason.text.trim(),
       );
       if (!mounted) return;
+      if (result.isAgencyNotice) {
+        final callback = widget.onAgencyNotified;
+        if (callback != null) {
+          callback(result);
+        } else {
+          setState(() => _agencyNotice = result);
+        }
+        return;
+      }
       widget.onCancelled(result);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -114,6 +129,16 @@ class _WorkerCancelSectionState extends State<WorkerCancelSection> {
 
   @override
   Widget build(BuildContext context) {
+    final notice = _agencyNotice;
+    if (notice != null) {
+      return NordicCard(
+        key: const Key('worker-cancel-agency-sent'),
+        child: Text(
+          workerCancelNotice(notice),
+          style: NordicTypography.bodyRegular,
+        ),
+      );
+    }
     if (!_open) {
       return NordicButton(
         key: const Key('open-worker-cancel'),
@@ -178,14 +203,17 @@ class _WorkerCancelSectionState extends State<WorkerCancelSection> {
               ),
             ],
             const SizedBox(height: NordicSpace.xs),
-            NordicButton(
-              key: const Key('worker-cancel-report-incident'),
-              label: 'Gặp sự cố trên đường? Báo sự cố',
-              width: double.infinity,
-              variant: NordicButtonVariant.ghost,
-              onPressed: widget.onReportIncident,
-            ),
-            const SizedBox(height: NordicSpace.xs),
+            // The incident report waives a freelancer's penalty; an agency worker is not penalised by the app (D43).
+            if (!preview.agencyWorker) ...[
+              NordicButton(
+                key: const Key('worker-cancel-report-incident'),
+                label: 'Gặp sự cố trên đường? Báo sự cố',
+                width: double.infinity,
+                variant: NordicButtonVariant.ghost,
+                onPressed: widget.onReportIncident,
+              ),
+              const SizedBox(height: NordicSpace.xs),
+            ],
             NordicTextInput(
               key: const Key('worker-cancel-reason'),
               label: 'Lý do huỷ ca',
@@ -234,8 +262,14 @@ class _WorkerCancelSectionState extends State<WorkerCancelSection> {
 }
 
 /// What the worker reads before confirming, in plain words (decisions D35).
-List<String> workerCancelConsequences(WorkerCancelPreview p) =>
-    p.rescueFreeCancel
+List<String> workerCancelConsequences(WorkerCancelPreview p) => p.agencyWorker
+    ? [
+        p.substituteSearchPossible
+            ? 'Doanh nghiệp sẽ nhận thông báo và đổi thợ khác cho ca này.'
+            : 'Ca bắt đầu sau chưa tới 2 giờ: doanh nghiệp được báo, nhưng hệ thống sẽ điều thợ cứu hộ ngay và doanh nghiệp có thể bị tính vi phạm.',
+        'Lần huỷ này không tính vào số lần huỷ và tài khoản của bạn không bị khoá.',
+      ]
+    : p.rescueFreeCancel
     ? const [
         'Đây là ca cứu hộ: huỷ trước giờ check-in thì không bị phạt và không tính vào số lần huỷ.',
         'Đơn sẽ bị huỷ và gia chủ được hoàn tiền.',

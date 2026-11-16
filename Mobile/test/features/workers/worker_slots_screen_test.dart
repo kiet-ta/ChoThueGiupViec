@@ -15,6 +15,7 @@ import 'package:mobile/features/workers/screens/worker_slots_screen.dart';
 import 'package:mobile/features/workers/services/map_launcher.dart';
 import 'package:mobile/features/workers/services/workers_assignments_service.dart';
 import 'package:mobile/features/workers/services/workers_location_service.dart';
+import 'package:mobile/features/workers/services/workers_profile_service.dart';
 import 'package:mobile/features/workers/services/workers_slots_service.dart';
 
 import 'design_frame.dart';
@@ -1178,5 +1179,194 @@ void main() {
         },
       );
     });
+
+    // AGENCY-CANCEL-01 (decisions D43): an agency worker only reads the roster the agency set, and a cancel tells the agency.
+    group('agency worker (D43)', () {
+      late FakeAssignmentsService assignments;
+      late FakeAgencyCancelDispatch dispatch;
+
+      setUp(() {
+        assignments = FakeAssignmentsService()
+          ..jobs = [job(10002, '2026-10-12', 'SHIFT_AFTERNOON', 'ASSIGNED')];
+        dispatch = FakeAgencyCancelDispatch();
+      });
+
+      Future<void> pumpAgency(WidgetTester tester) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: WorkerSlotsScreen(
+              slotsService: mockService,
+              locationService: mockLocation,
+              assignmentsService: assignments,
+              dispatchService: dispatch,
+              profileService: FakeAgencyProfile(agency: true),
+              initialDate: fixedDate,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets(
+        'shows the roster read-only: no switch, and a tap changes nothing',
+        (tester) async {
+          await pumpAgency(tester);
+
+          expect(find.byType(Switch), findsNothing);
+          expect(find.text('Lịch làm việc'), findsOneWidget);
+          expect(find.byKey(const Key('slots-agency-hint')), findsOneWidget);
+          expect(find.byKey(const Key('slots-on')), findsNothing);
+          // 2026-10-12 SHIFT_MORNING is on the roster, the evening is not.
+          expect(
+            find.byKey(const Key('shift-roster-2026-10-12-SHIFT_MORNING')),
+            findsOneWidget,
+          );
+          expect(find.text('Doanh nghiệp xếp ca'), findsOneWidget);
+          expect(find.text('Chưa có ca'), findsOneWidget);
+          expect(mockService.toggleCalls, 0);
+        },
+      );
+
+      testWidgets('a freelancer still sees the switches', (tester) async {
+        useDesignFrame(tester);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: WorkerSlotsScreen(
+              slotsService: mockService,
+              locationService: mockLocation,
+              assignmentsService: assignments,
+              profileService: FakeAgencyProfile(agency: false),
+              initialDate: fixedDate,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Switch), findsWidgets);
+        expect(find.text('Lịch rảnh'), findsOneWidget);
+        expect(find.byKey(const Key('slots-agency-hint')), findsNothing);
+      });
+
+      testWidgets(
+        'directions stay, and Huỷ ca tells the agency without a lock warning or an incident button',
+        (tester) async {
+          await pumpAgency(tester);
+          await tapVisible(tester, find.byKey(const Key('order-10002')));
+          expect(find.byKey(const Key('order-sheet-route')), findsOneWidget);
+
+          await tapVisible(tester, find.byKey(const Key('open-worker-cancel')));
+
+          expect(
+            find.text(
+              'Doanh nghiệp sẽ nhận thông báo và đổi thợ khác cho ca này.',
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('worker-cancel-lock-warning')),
+            findsNothing,
+          );
+          expect(
+            find.byKey(const Key('worker-cancel-report-incident')),
+            findsNothing,
+          );
+          expect(find.textContaining('Lần huỷ thứ'), findsNothing);
+
+          await tester.enterText(
+            find.byKey(const Key('worker-cancel-reason')),
+            'Ốm',
+          );
+          await tapVisible(
+            tester,
+            find.byKey(const Key('submit-worker-cancel')),
+          );
+
+          expect(dispatch.cancelled, [(10002, 'Ốm')]);
+          expect(
+            find.text(
+              'Đã báo doanh nghiệp. Doanh nghiệp sẽ đổi thợ khác cho ca này.',
+            ),
+            findsOneWidget,
+          );
+          expect(find.textContaining('Lần huỷ thứ'), findsNothing);
+        },
+      );
+
+      testWidgets(
+        'with under two hours left the sheet says the agency may be penalised',
+        (tester) async {
+          dispatch.windowOpen = false;
+          await pumpAgency(tester);
+          await tapVisible(tester, find.byKey(const Key('order-10002')));
+          await tapVisible(tester, find.byKey(const Key('open-worker-cancel')));
+
+          expect(
+            find.textContaining('Ca bắt đầu sau chưa tới 2 giờ'),
+            findsOneWidget,
+          );
+        },
+      );
+    });
   });
+}
+
+/// The profile of an agency worker (or of a freelancer): only the flag the schedule needs.
+class FakeAgencyProfile extends WorkersProfileService {
+  FakeAgencyProfile({required this.agency});
+
+  final bool agency;
+
+  @override
+  Future<WorkerSummary> getSummary() async =>
+      (fullName: 'Thợ Demo', agencyWorker: agency);
+}
+
+/// Answers the cancel of an agency worker (D43): the job stays, the agency is told, nothing is counted.
+class FakeAgencyCancelDispatch extends DispatchService {
+  FakeAgencyCancelDispatch()
+    : super(
+        isMock: true,
+        locationWrapper: LocationWrapper(
+          mockLocation: GeoPoint(
+            latitude: 10.774,
+            longitude: 106.703,
+            timestamp: DateTime(2026, 10, 12),
+          ),
+        ),
+      );
+
+  bool windowOpen = true;
+  final cancelled = <(int, String)>[];
+
+  @override
+  Future<WorkerCancelPreview> getCancelPreview(int assignmentId) async =>
+      WorkerCancelPreview(
+        assignmentId: assignmentId,
+        cancelCountInWindow: 0,
+        lockCount: 3,
+        windowDays: 30,
+        willLockAccount: false,
+        autoAcceptOn: false,
+        jobStartAt: DateTime.utc(2026, 10, 13, 1),
+        substituteSearchPossible: windowOpen,
+        agencyWorker: true,
+      );
+
+  @override
+  Future<WorkerCancelResult> cancelAssignment(
+    int assignmentId,
+    String reason,
+  ) async {
+    cancelled.add((assignmentId, reason));
+    return WorkerCancelResult(
+      assignmentId: assignmentId,
+      status: 'ASSIGNED',
+      cancelCountInWindow: 0,
+      lockCount: 3,
+      windowDays: 30,
+      accountLocked: false,
+      orderOutcome: WorkerCancelResult.agencyNotified,
+    );
+  }
 }
