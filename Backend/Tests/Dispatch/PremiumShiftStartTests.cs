@@ -103,8 +103,38 @@ public class PremiumShiftStartTests
         public Task<IReadOnlyList<PremiumOrderSnapshot>> GetLivePremiumOrdersAsync(DateOnly latestDate, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PremiumOrderSnapshot>>(Orders.Where(o => !Cancelled.Contains(o.OrderId) && o.ScheduledDate <= latestDate).ToList());
 
-        public Task<JobOrderStatus?> GetOrderStatusAsync(long orderId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<JobOrderStatus?>(Cancelled.Contains(orderId) ? JobOrderStatus.Cancelled : JobOrderStatus.Assigned);
+        public List<long> RescueCancels { get; } = [];
+
+        public Task<PremiumOrderInfo?> GetOrderInfoAsync(long orderId, CancellationToken cancellationToken = default)
+        {
+            var order = Orders.FirstOrDefault(o => o.OrderId == orderId);
+            return Task.FromResult<PremiumOrderInfo?>(order is null ? null : new PremiumOrderInfo(
+                order.CustomerId, order.TotalAmount, Cancelled.Contains(orderId) ? JobOrderStatus.Cancelled : JobOrderStatus.Assigned));
+        }
+
+        public Task<bool> TryCancelRescueAsync(long assignmentId, int workerId, DateTime atUtc, CancellationToken cancellationToken = default)
+        {
+            RescueCancels.Add(assignmentId);
+            return Task.FromResult(true);
+        }
+    }
+
+    private class RecordingWorkerCancels : IWorkerCancelRepository
+    {
+        public List<(long AssignmentId, int WorkerId)> Cancels { get; } = [];
+
+        public Task<WorkerCancelCommit?> TryCancelAsync(
+            long assignmentId, int workerId, DateTime cancelledAtUtc, DateTime windowStartUtc, int lockCount, CancellationToken cancellationToken = default)
+        {
+            Cancels.Add((assignmentId, workerId));
+            return Task.FromResult<WorkerCancelCommit?>(new WorkerCancelCommit(1, false, true));
+        }
+
+        public Task<CommonService.Domain.Entities.JobOrder?> GetOrderAsync(long orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<int> CountWorkerCancelsSinceAsync(int workerId, DateTime sinceUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> IsAutoAcceptOnAsync(int workerId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<CommonService.Domain.Entities.JobOrder>> GetRedispatchingAfterWorkerCancelAsync(DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> HasWorkerCancelledSeatAsync(long orderId, byte? assignmentSeq, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private class RecordingSla : ISlaPenaltyService
@@ -167,7 +197,7 @@ public class PremiumShiftStartTests
     private const string BookingShiftsMorning = "SHIFT_MORNING";
 
     private static (PremiumShiftStartService Service, StubRepository Repo, RecordingSla Sla, RecordingPublisher Publisher, RecordingNotifications Notices, FakeClock Clock) World(
-        DateTime nowUtc, bool cancels = true)
+        DateTime nowUtc, bool cancels = true, IWorkerCancelRepository? workerCancels = null)
     {
         var repo = new StubRepository();
         var sla = new RecordingSla();
@@ -175,7 +205,8 @@ public class PremiumShiftStartTests
         var notices = new RecordingNotifications();
         var clock = new FakeClock();
         clock.Set(nowUtc);
-        return (new PremiumShiftStartService(repo, sla, publisher, notices, clock, Microsoft.Extensions.Options.Options.Create(new BusinessRules())), repo, sla, publisher, notices, clock);
+        var canceller = new PremiumOrderCanceller(publisher, repo, notices);
+        return (new PremiumShiftStartService(repo, sla, canceller, clock, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), workerCancels), repo, sla, publisher, notices, clock);
     }
 
     [Fact]
@@ -294,13 +325,68 @@ public class PremiumShiftStartTests
     [Fact]
     public async Task An_absent_rescue_freelancer_cancels_the_order_without_an_agency_penalty()
     {
-        var (service, repo, sla, publisher, _, _) = World(Start.AddMinutes(40));
+        var workerCancels = new RecordingWorkerCancels();
+        var (service, repo, sla, publisher, _, _) = World(Start.AddMinutes(40), workerCancels: workerCancels);
         repo.Orders.Add(Order(1, Seat(1, JobAssignmentStatus.CheckedIn), Seat(2, JobAssignmentStatus.Assigned, agency: null, replacement: true, created: Start.AddMinutes(-5))));
 
         Assert.Equal(1, await service.CancelUnstaffedOrdersAsync());
 
-        Assert.Empty(sla.Requests); // a Super-Freelancer has no agency: the violation is PREM-RESCUE-01
+        Assert.Empty(sla.Requests); // a Super-Freelancer has no agency: no SLA points
         Assert.Single(publisher.Failures);
+        // ... but the freelancer gets ONE violation (CANCELLED_BY_WORKER, the count of Q15) through the normal worker-cancel write.
+        var cancel = Assert.Single(workerCancels.Cancels);
+        Assert.Equal(102, cancel.AssignmentId);
+        Assert.Equal(12, cancel.WorkerId);
+    }
+
+    [Fact]
+    public async Task A_present_rescue_freelancer_gets_no_violation()
+    {
+        var workerCancels = new RecordingWorkerCancels();
+        var (service, repo, _, _, _, _) = World(Start.AddMinutes(40), workerCancels: workerCancels);
+        repo.Orders.Add(Order(1, Seat(1, JobAssignmentStatus.Assigned), Seat(2, JobAssignmentStatus.CheckedIn, agency: null, replacement: true, created: Start.AddMinutes(-5))));
+
+        await service.CancelUnstaffedOrdersAsync();
+
+        Assert.Empty(workerCancels.Cancels); // only the absent agency seat is penalised
+    }
+
+    [Fact]
+    public async Task The_canceller_apologises_only_when_the_order_is_really_cancelled()
+    {
+        var repo = new StubRepository();
+        repo.Orders.Add(Order(1, Seat(1, JobAssignmentStatus.Assigned)));
+        var notices = new RecordingNotifications();
+
+        Assert.False(await new PremiumOrderCanceller(new RecordingPublisher(repo, cancels: false), repo, notices).CancelAsync(1, "x", Start));
+        Assert.Empty(notices.Sent);
+
+        Assert.True(await new PremiumOrderCanceller(new RecordingPublisher(repo), repo, notices).CancelAsync(1, "x", Start));
+        var apology = Assert.Single(notices.Sent);
+        Assert.Equal(PremiumOrderCanceller.ApologyTopic, apology.Topic);
+    }
+
+    [Fact]
+    public void Rescue_cancel_is_for_premium_seats_without_an_agency_and_its_deadline_follows_the_replacement_rule()
+    {
+        var rescue = new CommonService.Domain.Entities.JobAssignment { ServiceTier = ServiceTier.Premium, AgencyId = null, CreatedAt = Start.AddMinutes(-10) };
+        var agencySeat = new CommonService.Domain.Entities.JobAssignment { ServiceTier = ServiceTier.Premium, AgencyId = 7, CreatedAt = Start.AddMinutes(-10) };
+        var economy = new CommonService.Domain.Entities.JobAssignment { ServiceTier = ServiceTier.Economy, AgencyId = null, CreatedAt = Start.AddMinutes(-10) };
+
+        Assert.True(RescueCancelService.IsRescue(rescue));
+        Assert.False(RescueCancelService.IsRescue(agencySeat));
+        Assert.False(RescueCancelService.IsRescue(economy));
+
+        var clock = new FakeClock();
+        var repo = new StubRepository();
+        var service = new RescueCancelService(
+            repo, new PremiumOrderCanceller(new RecordingPublisher(repo), repo, new RecordingNotifications()), clock,
+            Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        Assert.Equal(Start.AddMinutes(20), service.Deadline(rescue, Start)); // assigned 10 min before + 30
+        clock.Set(Start.AddMinutes(19));
+        service.RequireBeforeDeadline(rescue, Start);
+        clock.Set(Start.AddMinutes(20));
+        Assert.Throws<CommonService.Application.Exceptions.BusinessRuleViolationException>(() => service.RequireBeforeDeadline(rescue, Start));
     }
 
     [Fact]

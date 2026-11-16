@@ -22441,6 +22441,9 @@
           },
           "substituteSearchPossible": {
             "type": "boolean"
+          },
+          "rescueFreeCancel": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

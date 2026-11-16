@@ -1,6 +1,7 @@
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
 using CommonService.Application.Features.Agencies;
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Interfaces.IRepositories;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -91,6 +92,8 @@ public class MilestoneFailoverService
     private readonly IUnitOfWork _unitOfWork;
     private readonly BusinessRules _rules;
     private readonly ILogger<MilestoneFailoverService> _logger;
+    private readonly INotificationService? _notifications;
+    private readonly PremiumOrderCanceller? _canceller;
 
     public MilestoneFailoverService(
         IMilestoneFailoverRepository repository,
@@ -101,8 +104,12 @@ public class MilestoneFailoverService
         IMediator mediator,
         IUnitOfWork unitOfWork,
         IOptions<BusinessRules> rules,
-        ILogger<MilestoneFailoverService>? logger = null)
+        ILogger<MilestoneFailoverService>? logger = null,
+        INotificationService? notifications = null,
+        PremiumOrderCanceller? canceller = null)
     {
+        _notifications = notifications;
+        _canceller = canceller;
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _swapRepository = swapRepository ?? throw new ArgumentNullException(nameof(swapRepository));
         _agencyCapacityService = agencyCapacityService ?? throw new ArgumentNullException(nameof(agencyCapacityService));
@@ -520,6 +527,7 @@ public class MilestoneFailoverService
                         SlotId: newSlotId,
                         AssignedAtUtc: nowUtc
                     ), cancellationToken);
+                    await NotifyUrgentAsync(newWorkerId, savedAssignment.AssignmentId, originalAssignment.OrderId, date, shiftCode, nowUtc, cancellationToken);
 
                     var penaltyReq = new SlaPenaltyRequest(
                         AgencyId: originalAgencyId,
@@ -549,100 +557,105 @@ public class MilestoneFailoverService
 
         // Step 2: Try finding a Super-Freelancer (Q12)
         var superFreelancers = await _repository.GetEligibleSuperFreelancersAsync(cancellationToken);
-        var superFreelancer = superFreelancers.FirstOrDefault(w =>
+        // Decision D38: only a Super-Freelancer who turned "Tự động nhận đơn" on takes a rescue seat (that switch is their consent, D33).
+        // The first one (best rated) who also has an available slot on the same date/shift (never the slot of the old worker) takes the seat; one
+        // without a slot is skipped, not the end of the search.
+        Worker? superFreelancer = null;
+        var freelancerSlotId = 0;
+        foreach (var candidate in superFreelancers.Where(w =>
             w.IsSuperFreelancer &&
+            w.AutoAcceptOffers &&
             w.RatingAvg >= _rules.SuperFreelancer.MinRating &&
-            w.CompletedJobs >= _rules.SuperFreelancer.MinCompletedJobs);
+            w.CompletedJobs >= _rules.SuperFreelancer.MinCompletedJobs))
+        {
+            var availableSlot = string.IsNullOrEmpty(shiftCode)
+                ? null
+                : await _repository.GetAvailableSlotAsync(candidate.WorkerId, date, shiftCode, cancellationToken);
+            if (availableSlot is null)
+            {
+                _logger.LogWarning(
+                    "Super-Freelancer {WorkerId} has no available slot for date {Date} shift {ShiftCode}; trying the next one.",
+                    candidate.WorkerId, date, shiftCode);
+                continue;
+            }
+
+            superFreelancer = candidate;
+            freelancerSlotId = availableSlot.SlotId;
+            break;
+        }
 
         if (superFreelancer != null)
         {
-            // Fix: get an available slot for the super freelancer on the same date/shift, don't reuse old slot
-            int newSlotId = 0;
-            if (!string.IsNullOrEmpty(shiftCode))
+            // Fix: use _rules.Commission.Freelancer instead of magic 0.20m
+            var newAssignment = new JobAssignment
             {
-                var availableSlot = await _repository.GetAvailableSlotAsync(superFreelancer.WorkerId, date, shiftCode, cancellationToken);
-                newSlotId = availableSlot?.SlotId ?? 0;
-            }
+                OrderId = originalAssignment.OrderId,
+                CustomerId = originalAssignment.CustomerId,
+                WorkerId = superFreelancer.WorkerId,
+                AgencyId = null,
+                SlotId = freelancerSlotId,
+                ServiceTier = ServiceTier.Premium,
+                AssignmentSeq = originalAssignment.AssignmentSeq,
+                GrossAmount = originalAssignment.GrossAmount,
+                CommissionRate = _rules.Commission.Freelancer,
+                PayoutAmount = originalAssignment.PayoutAmount,
+                AcceptedAt = nowUtc,
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            };
 
-            // Super-Freelancer without an available slot is not eligible
-            if (newSlotId == 0)
+            JobAssignment? savedAssignment = null;
+
+            // All database changes in one unit of work
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
             {
-                _logger.LogWarning(
-                    "Super-Freelancer {WorkerId} has no available slot for date {Date} shift {ShiftCode}; rescue fails.",
-                    superFreelancer.WorkerId, date, shiftCode);
-            }
-            else
+                var reassigned = await _repository.UpdateAssignmentStatusAsync(
+                    originalAssignment.AssignmentId, JobAssignmentStatus.Assigned, JobAssignmentStatus.Reassigned, cancellationToken);
+                if (!reassigned)
+                {
+                    throw new InvalidOperationException($"Failed to reassign assignment {originalAssignment.AssignmentId}; status may have changed.");
+                }
+
+                await _repository.ReleaseSlotAsync(originalAssignment.SlotId, cancellationToken);
+
+                savedAssignment = await _repository.CreateAssignmentAsync(newAssignment, cancellationToken);
+                await _repository.LockSlotAsync(freelancerSlotId, cancellationToken);
+
+                return true;
+            }, cancellationToken);
+
+            await _mediator.Publish(new JobAssigned(
+                AssignmentId: savedAssignment!.AssignmentId,
+                OrderId: originalAssignment.OrderId,
+                WorkerId: superFreelancer.WorkerId,
+                AgencyId: null,
+                SlotId: freelancerSlotId,
+                AssignedAtUtc: nowUtc
+            ), cancellationToken);
+            await NotifyUrgentAsync(superFreelancer.WorkerId, savedAssignment.AssignmentId, originalAssignment.OrderId, date, shiftCode, nowUtc, cancellationToken);
+
+            var penaltyReq = new SlaPenaltyRequest(
+                AgencyId: originalAgencyId,
+                Violation: SlaViolation.Shortage,
+                OrderId: originalAssignment.OrderId,
+                DisputeId: null,
+                CustomerRefundAmount: 0m,
+                RescueCost: rescueCost,
+                Reason: $"Milestone failover: Cứu hộ khẩn cấp chuyển sang Super-Freelancer {superFreelancer.WorkerId} do {reason}."
+            );
+
+            var penaltyResult = await _slaPenaltyService.ApplyAsync(penaltyReq, cancellationToken);
+
+            return new MilestoneFailoverResult
             {
-                // Fix: use _rules.Commission.Freelancer instead of magic 0.20m
-                var newAssignment = new JobAssignment
-                {
-                    OrderId = originalAssignment.OrderId,
-                    CustomerId = originalAssignment.CustomerId,
-                    WorkerId = superFreelancer.WorkerId,
-                    AgencyId = null,
-                    SlotId = newSlotId,
-                    ServiceTier = ServiceTier.Premium,
-                    AssignmentSeq = originalAssignment.AssignmentSeq,
-                    GrossAmount = originalAssignment.GrossAmount,
-                    CommissionRate = _rules.Commission.Freelancer,
-                    PayoutAmount = originalAssignment.PayoutAmount,
-                    AcceptedAt = nowUtc,
-                    CreatedAt = nowUtc,
-                    UpdatedAt = nowUtc
-                };
-
-                JobAssignment? savedAssignment = null;
-
-                // All database changes in one unit of work
-                await _unitOfWork.ExecuteInTransactionAsync(async () =>
-                {
-                    var reassigned = await _repository.UpdateAssignmentStatusAsync(
-                        originalAssignment.AssignmentId, JobAssignmentStatus.Assigned, JobAssignmentStatus.Reassigned, cancellationToken);
-                    if (!reassigned)
-                    {
-                        throw new InvalidOperationException($"Failed to reassign assignment {originalAssignment.AssignmentId}; status may have changed.");
-                    }
-
-                    await _repository.ReleaseSlotAsync(originalAssignment.SlotId, cancellationToken);
-
-                    savedAssignment = await _repository.CreateAssignmentAsync(newAssignment, cancellationToken);
-                    await _repository.LockSlotAsync(newSlotId, cancellationToken);
-
-                    return true;
-                }, cancellationToken);
-
-                await _mediator.Publish(new JobAssigned(
-                    AssignmentId: savedAssignment!.AssignmentId,
-                    OrderId: originalAssignment.OrderId,
-                    WorkerId: superFreelancer.WorkerId,
-                    AgencyId: null,
-                    SlotId: newSlotId,
-                    AssignedAtUtc: nowUtc
-                ), cancellationToken);
-
-                var penaltyReq = new SlaPenaltyRequest(
-                    AgencyId: originalAgencyId,
-                    Violation: SlaViolation.Shortage,
-                    OrderId: originalAssignment.OrderId,
-                    DisputeId: null,
-                    CustomerRefundAmount: 0m,
-                    RescueCost: rescueCost,
-                    Reason: $"Milestone failover: Cứu hộ khẩn cấp chuyển sang Super-Freelancer {superFreelancer.WorkerId} do {reason}."
-                );
-
-                var penaltyResult = await _slaPenaltyService.ApplyAsync(penaltyReq, cancellationToken);
-
-                return new MilestoneFailoverResult
-                {
-                    Success = true,
-                    AssignmentId = originalAssignment.AssignmentId,
-                    Status = FailoverStatus.EmergencyRescuedToSuperFreelancer,
-                    NewAssignmentId = savedAssignment.AssignmentId,
-                    NewWorkerId = superFreelancer.WorkerId,
-                    SlaPenalty = penaltyResult,
-                    Message = $"Cứu hộ thành công: Chuyển sang Super-Freelancer {superFreelancer.WorkerId}. Agency cũ bị phạt SLA."
-                };
-            }
+                Success = true,
+                AssignmentId = originalAssignment.AssignmentId,
+                Status = FailoverStatus.EmergencyRescuedToSuperFreelancer,
+                NewAssignmentId = savedAssignment.AssignmentId,
+                NewWorkerId = superFreelancer.WorkerId,
+                SlaPenalty = penaltyResult,
+                Message = $"Cứu hộ thành công: Chuyển sang Super-Freelancer {superFreelancer.WorkerId}. Agency cũ bị phạt SLA."
+            };
         }
 
         // Step 3: Neither another Agency nor Super-Freelancer available
@@ -658,11 +671,15 @@ public class MilestoneFailoverService
 
         var failPenaltyResult = await _slaPenaltyService.ApplyAsync(failPenaltyReq, cancellationToken);
 
-        await _mediator.Publish(new AssignmentFailed(
-            OrderId: originalAssignment.OrderId,
-            Reason: $"Cứu hộ khẩn cấp thất bại cho đơn Premium {originalAssignment.OrderId}.",
-            FailedAtUtc: nowUtc
-        ), cancellationToken);
+        var failedReason = $"Cứu hộ khẩn cấp thất bại cho đơn Premium {originalAssignment.OrderId}.";
+        if (_canceller is not null)
+        {
+            await _canceller.CancelAsync(originalAssignment.OrderId, failedReason, nowUtc, cancellationToken);
+        }
+        else
+        {
+            await _mediator.Publish(new AssignmentFailed(OrderId: originalAssignment.OrderId, Reason: failedReason, FailedAtUtc: nowUtc), cancellationToken);
+        }
 
         return new MilestoneFailoverResult
         {
@@ -673,4 +690,48 @@ public class MilestoneFailoverService
             Message = "Không tìm thấy Agency thay thế hoặc Super-Freelancer. Đơn hàng thất bại và hoàn tiền cho khách."
         };
     }
+    /// <summary>
+    /// Decision D38: the rescue worker is told at once, with an urgent mark: move now and be present by <c>checkInBy</c> =
+    /// <c>max(now + Premium.ReplacementCheckInMinutes, shift start + Premium.CheckInGraceMinutes)</c>. A Super-Freelancer who cannot make it may cancel
+    /// without any penalty (the order is then cancelled). A failed notice never undoes the rescue.
+    /// </summary>
+    private async Task NotifyUrgentAsync(
+        int workerId, long assignmentId, long orderId, DateOnly date, string shiftCode, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        if (_notifications is null)
+        {
+            return;
+        }
+
+        var start = BookingWindowPolicy.GetShiftStartUtc(date, shiftCode, _clock);
+        var byReplacement = nowUtc.AddMinutes(_rules.Premium.ReplacementCheckInMinutes);
+        var byStart = (start ?? nowUtc).AddMinutes(_rules.Premium.CheckInGraceMinutes);
+        var checkInBy = byReplacement > byStart ? byReplacement : byStart;
+        try
+        {
+            await _notifications.SendAsync(
+                new NotificationMessage(
+                    UserRole.Worker, workerId, RescueNotificationTopics.RescueAssigned, "Ca cứu hộ GẤP",
+                    $"Bạn vừa nhận một ca cứu hộ gấp. Hãy di chuyển ngay và check-in trước {_clock.ToLocal(checkInBy):HH:mm}. Nếu không kịp, bạn có thể hủy ca mà không bị phạt.",
+                    new Dictionary<string, string>
+                    {
+                        ["assignmentId"] = assignmentId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["orderId"] = orderId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["urgent"] = "true",
+                        ["checkInBy"] = checkInBy.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+                    }),
+                cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not send the urgent rescue notice of assignment {AssignmentId}.", assignmentId);
+        }
+    }
+}
+
+/// <summary>Realtime topics of the rescue (decision D38).</summary>
+public static class RescueNotificationTopics
+{
+    /// <summary>A worker was given a rescue seat: urgent, with the check-in deadline.</summary>
+    public const string RescueAssigned = "dispatch.rescue_assigned";
 }

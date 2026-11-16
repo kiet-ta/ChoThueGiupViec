@@ -23,6 +23,8 @@ public class DispatchModule : IModule
     {
         services.AddScoped<IDispatchRepository, EfDispatchRepository>();
         services.AddScoped<IPremiumStartRepository, EfPremiumStartRepository>();
+        services.AddScoped<PremiumOrderCanceller>();
+        services.AddScoped<RescueCancelService>();
         services.AddScoped<PremiumShiftStartService>();
         services.AddScoped<IPremiumReminderRepository, EfPremiumReminderRepository>();
         services.AddScoped<PremiumCheckInReminderService>();
@@ -40,7 +42,9 @@ public class DispatchModule : IModule
             sp.GetRequiredService<IMediator>(),
             sp.GetRequiredService<IUnitOfWork>(),
             sp.GetRequiredService<IOptions<BusinessRules>>(),
-            sp.GetRequiredService<ILogger<MilestoneFailoverService>>()));
+            sp.GetRequiredService<ILogger<MilestoneFailoverService>>(),
+            sp.GetRequiredService<INotificationService>(),
+            sp.GetRequiredService<PremiumOrderCanceller>()));
 
         // Worker field steps (contract dispatch.md 3.1): one EF repository behind the three read/write ports.
         services.AddScoped<EfFieldRepository>();

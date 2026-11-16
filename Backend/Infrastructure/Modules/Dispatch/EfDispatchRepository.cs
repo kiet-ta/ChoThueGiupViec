@@ -335,6 +335,13 @@ public class EfDispatchRepository(AppDbContext db, IOptions<BusinessRules>? rule
     /// </summary>
     private async Task<T> InTransactionAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken, Type? rollbackOn = null)
     {
+        // Inside a unit of work of the caller (the emergency rescue creates its assignment there) EF cannot open a second transaction: join the
+        // caller's one, which commits or rolls back everything together.
+        if (db.Database.CurrentTransaction is not null)
+        {
+            return await action();
+        }
+
         var strategy = db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
