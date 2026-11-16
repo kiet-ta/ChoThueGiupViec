@@ -24,7 +24,8 @@ public class OrderCreationService(
     IOptions<BusinessRules> rules,
     IWorkerAvailabilityQuery availability,
     ICustomerFavoriteQuery? favorites = null,
-    IOrderTrackingQuery? tracking = null) : IOrderCreationService
+    IOrderTrackingQuery? tracking = null,
+    IWorkerFreeShiftQuery? freeShifts = null) : IOrderCreationService
 {
     private const int MaxNoteLength = 500;
     private const int MaxSkillLength = 100;
@@ -73,6 +74,14 @@ public class OrderCreationService(
         {
             throw new BusinessRuleViolationException(
                 $"The job must start at least {_rules.Booking.EconomyMinLeadMinutes} minutes from now.", BookingErrorCodes.LeadTimeTooShort);
+        }
+
+        // BOOK-BUSY-01 (decisions D41): the customer named a worker for this time; a worker who is busy then is refused here, before the order and the payment.
+        if (request.PreferredWorkerId is int chosenWorkerId && freeShifts is not null
+            && !await freeShifts.IsFreeForJobAsync(chosenWorkerId, request.ScheduledDate, request.ShiftCode, window?.Start, window?.End, cancellationToken))
+        {
+            throw new BusinessRuleViolationException(
+                "The worker you chose is busy at this time. Choose another time or let the system pick a worker.", BookingErrorCodes.PreferredWorkerBusy);
         }
 
         var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules, request.ServiceTier);

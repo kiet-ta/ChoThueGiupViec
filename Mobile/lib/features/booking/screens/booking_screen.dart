@@ -122,8 +122,9 @@ class _BookingScreenState extends State<BookingScreen> {
   int? _previousWorkerId;
   String? _previousWorkerName;
 
-  /// The preferred worker's free shifts ([freeShiftKey]); null when nobody is picked or not known (nothing greyed out).
-  Set<String>? _free;
+  /// The preferred worker's free shifts ([freeShiftKey]) and what their jobs already take of each; null when nobody is picked or not
+  /// known (nothing greyed out).
+  WorkerFreeShifts? _free;
   bool _freeLoading = false;
   String? _freeError;
   int _freeRequest = 0; // an older answer must not overwrite a newer choice
@@ -281,21 +282,37 @@ class _BookingScreenState extends State<BookingScreen> {
 
   /// The start times the chosen shift, day and length allow (empty until all three are known).
   List<String> _startChoices() {
-    final options = _options;
     final day = _day;
+    final code = _shiftCode;
+    return day == null || code == null ? const [] : _startsOn(day, code);
+  }
+
+  /// The start times of one shift of one day for the chosen length. With a favorite worker chosen ([forWorker]) only the times that
+  /// worker can take: a timed job keeps their shift open, so the shift alone does not say they are free (BOOK-BUSY-01, D41).
+  List<String> _startsOn(
+    DateTime day,
+    String shiftCode, {
+    bool forWorker = true,
+  }) {
+    final options = _options;
     final hours = _durationHours;
     final shift = options?.shifts
-        .where((s) => s.shiftCode == _shiftCode)
+        .where((s) => s.shiftCode == shiftCode)
         .firstOrNull;
-    if (options == null || day == null || hours == null || shift == null) {
-      return const [];
-    }
-    return startTimeChoices(
+    if (options == null || hours == null || shift == null) return const [];
+    final all = startTimeChoices(
       shift: shift,
       hours: hours,
       day: day,
       now: (widget.now ?? DateTime.now)(),
       options: options,
+    );
+    final free = forWorker ? _free : null;
+    if (free == null || _preferredWorkerId == null) return all;
+    return startsWorkerCanTake(
+      all,
+      hours,
+      free.busy[freeShiftKey(dateKey(day), shiftCode)],
     );
   }
 
@@ -311,6 +328,9 @@ class _BookingScreenState extends State<BookingScreen> {
       _durationHours = hours;
       _failure = null;
       _hint = null;
+      // A longer job may no longer fit the chosen worker's day: forget a day or shift they cannot take.
+      if (_day != null && !_dayFree(_day!)) _day = null;
+      if (_shiftCode != null && !_shiftFree(_shiftCode!)) _shiftCode = null;
       _dropStartIfItNoLongerFits();
     });
     _refreshQuote();
@@ -379,22 +399,30 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  /// True when the day has a shift the preferred worker is free for (always true when nothing is known).
-  bool _dayFree(DateTime day) {
+  /// True when the preferred worker can work this shift of this day: the shift is open and, for a timed job, they have a start time
+  /// of the chosen length that clashes with none of their jobs (always true when nothing is known). A shift with no start time for
+  /// another reason (too late today) is not blamed on the worker.
+  bool _workerCanWork(DateTime day, String shiftCode) {
     final free = _free;
     if (free == null) return true;
-    final shifts = _options?.shifts ?? const <ShiftOption>[];
-    return shifts.any(
-      (s) => free.contains(freeShiftKey(dateKey(day), s.shiftCode)),
-    );
+    if (!free.contains(freeShiftKey(dateKey(day), shiftCode))) return false;
+    if (!_timed || _durationHours == null) return true;
+    return _startsOn(day, shiftCode, forWorker: false).isEmpty ||
+        _startsOn(day, shiftCode).isNotEmpty;
   }
 
-  /// True when the preferred worker is free for the shift on the chosen day (true before a day is chosen).
+  /// True when the day has a shift the preferred worker can work (always true when nothing is known).
+  bool _dayFree(DateTime day) {
+    if (_free == null) return true;
+    final shifts = _options?.shifts ?? const <ShiftOption>[];
+    return shifts.any((s) => _workerCanWork(day, s.shiftCode));
+  }
+
+  /// True when the preferred worker can work the shift on the chosen day (true before a day is chosen).
   bool _shiftFree(String shiftCode) {
-    final free = _free;
     final day = _day;
-    if (free == null || day == null) return true;
-    return free.contains(freeShiftKey(dateKey(day), shiftCode));
+    if (_free == null || day == null) return true;
+    return _workerCanWork(day, shiftCode);
   }
 
   void _chooseAddress(int addressId) {
@@ -822,7 +850,7 @@ class _BookingScreenState extends State<BookingScreen> {
     } else if (free != null && free.isEmpty) {
       note = 'Người này chưa mở ca trống nào trong 2 tuần tới.';
     } else {
-      note = 'Ngày và ca bị làm mờ là lúc người này bận. Hệ thống mời người này trước; nếu họ không nhận, sẽ tìm người khác gần bạn.';
+      note = 'Ngày, ca và giờ bị làm mờ là lúc người này bận. Hệ thống mời người này trước; nếu họ không nhận, sẽ tìm người khác gần bạn.';
     }
     return [
       _heading(

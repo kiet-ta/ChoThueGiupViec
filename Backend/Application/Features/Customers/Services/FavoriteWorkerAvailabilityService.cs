@@ -58,6 +58,12 @@ public class FavoriteWorkerAvailabilityService(
         }
 
         var free = await shifts.GetFreeShiftsAsync(workerId, start, end, cancellationToken);
-        return free.Select(s => new FavoriteWorkerFreeShiftDto { Date = s.Date, ShiftCode = s.ShiftCode }).ToList();
+        return free.Select(s => new FavoriteWorkerFreeShiftDto
+        {
+            Date = s.Date,
+            ShiftCode = s.ShiftCode,
+            BusyWindows = s.BusyWindows ?? [],
+            RemainingHours = s.RemainingHours,
+        }).ToList();
     }
 }

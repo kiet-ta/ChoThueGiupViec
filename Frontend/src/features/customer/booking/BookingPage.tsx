@@ -6,7 +6,7 @@ import { formatVnd } from '@/lib/format'
 import { accountApi } from '../account/api'
 import { bookingApi } from './api'
 import type { BookingOptions, CustomerAddress, FreeShift, PriceQuote, ServiceTier } from './types'
-import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, dayText, durationChoices, hoursLabel, jobRange, NOTE_MAX_LENGTH, quoteWorkersLabel, shiftBlockedReason, shiftLabel, shiftRange, startTimeChoices, tierLabel, upcomingDays, workersPrice } from './view'
+import { bookingProblem, CONTINUOUS_WORK_AGREEMENT, CONTINUOUS_WORK_NOTICE, dayText, durationChoices, hoursLabel, jobRange, NOTE_MAX_LENGTH, quoteWorkersLabel, shiftBlockedReason, shiftLabel, shiftRange, startsWorkerCanTake, startTimeChoices, tierLabel, upcomingDays, workersPrice } from './view'
 
 const card = 'rounded-xl border border-stone-200 bg-white p-6'
 const choice = (on: boolean, disabled = false) =>
@@ -108,9 +108,13 @@ export function BookingPage() {
   const timedFresh = timedQuote && timedQuote.addressId === addressId && timedQuote.hours === durationHours ? timedQuote.quote : null
   const quote = timed ? timedFresh : quotes[tier] ?? null
   const shift = options?.shifts.find((s) => s.shiftCode === shiftCode) ?? null
-  const startsFor = (d: string, code: string) => {
+  const startsFor = (d: string, code: string, forWorker = true) => {
     const s = options?.shifts.find((x) => x.shiftCode === code)
-    return options && s && durationHours !== null ? startTimeChoices(d, s, durationHours, options, now) : []
+    if (!options || !s || durationHours === null) return []
+    const all = startTimeChoices(d, s, durationHours, options, now)
+    // BOOK-BUSY-01: with a favorite worker chosen, only the times that worker can take (a timed job keeps their shift open).
+    const free = forWorker && workerParam !== null ? workerAvailability?.shifts?.find((f) => f.date === d && f.shiftCode === code) : undefined
+    return startsWorkerCanTake(all, durationHours, free)
   }
   const blocked = (d: string, code: string) => {
     const s = options?.shifts.find((x) => x.shiftCode === code)
@@ -119,7 +123,10 @@ export function BookingPage() {
     if (!timed || durationHours === null) return reason
     // D34: a shift that already started may still have a later start time; it is closed only when no start time fits.
     if (reason !== null && reason !== 'Đã qua') return reason
-    return startsFor(d, code).length > 0 ? null : reason ?? `Không đủ ${hoursLabel(durationHours)}`
+    if (startsFor(d, code).length > 0) return null
+    // Times exist for the shift but not for this worker: say so (it is the worker, not the length).
+    if (workerParam !== null && startsFor(d, code, false).length > 0) return 'Thợ bận giờ này'
+    return reason ?? `Không đủ ${hoursLabel(durationHours)}`
   }
   const starts = date !== null && shiftCode !== null ? startsFor(date, shiftCode) : []
   const startValid = !timed || (startTime !== null && starts.includes(startTime))
@@ -128,6 +135,9 @@ export function BookingPage() {
   // D36: a large ECONOMY house needs the customer's agreement before it is booked.
   const needsAgreement = quote?.isContinuousWork === true
   const canSubmit = !submitting && addressId !== null && quote !== null && selectionValid && (!needsAgreement || agreedContinuous)
+  // BOOK-BUSY-01: the way back to "let the system choose" when the favorite is busy.
+  const withoutWorker = new URLSearchParams(params)
+  withoutWorker.delete('worker')
   const returnParams = new URLSearchParams(params)
   returnParams.set('tier', tier)
   const addAddressUrl = `/app/addresses/new?${new URLSearchParams({ next: `/app/booking?${returnParams}` })}`
@@ -168,8 +178,8 @@ export function BookingPage() {
             </button>)}
           </div>
           <p className="mt-3 text-sm text-stone-500">Gói Premium đặt trước tối thiểu {options.premiumMinLeadHours} giờ.</p>
-          {workerParam !== null && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">{tier === 'ECONOMY' ? <>Ưu tiên thợ <b>{favoriteName ?? `#${workerParam}`}</b>. Đây là mong muốn, hệ thống sẽ hỏi thợ này trước nếu thợ rảnh ca bạn chọn.{workerAvailability?.shifts?.length === 0 && <span className="mt-2 block">Thợ không có ca rảnh trong 7 ngày tới. Bạn vẫn đặt được ca.</span>}</> : 'Chọn thợ cụ thể chỉ áp dụng cho gói Economy.'}</p>}
-          {workerParam !== null && tier === 'ECONOMY' && workerAvailability?.failed && <p role="alert" className="mt-3 text-sm text-stone-500">Không xem được lịch của thợ này, bạn vẫn đặt được ca.</p>}
+          {workerParam !== null && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">{tier === 'ECONOMY' ? <>Ưu tiên thợ <b>{favoriteName ?? `#${workerParam}`}</b>. Hệ thống sẽ hỏi thợ này trước. Ca và giờ mờ là lúc thợ đang bận.{workerAvailability?.shifts?.length === 0 && <span className="mt-2 block">Thợ không có ca rảnh trong 7 ngày tới.</span>}{' '}<Link to={`/app/booking?${withoutWorker}`} className="font-semibold underline">Bỏ chọn thợ, để hệ thống tìm người</Link></> : 'Chọn thợ cụ thể chỉ áp dụng cho gói Economy.'}</p>}
+          {workerParam !== null && tier === 'ECONOMY' && workerAvailability?.failed && <p role="alert" className="mt-3 text-sm text-stone-500">Không xem được lịch của thợ này. Nếu thợ bận giờ bạn chọn, hệ thống sẽ báo khi đặt ca.</p>}
           {quoteError && <p role="alert" className="mt-3 text-sm text-red-700">{quoteError}</p>}
         </section>
         <section className={card}>

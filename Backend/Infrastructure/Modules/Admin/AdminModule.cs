@@ -38,6 +38,10 @@ public class AdminModule : IModule
         services.AddScoped<IWorkerLockRepository, EfWorkerLockRepository>();
         services.AddScoped<IWorkerUnlockService, WorkerUnlockService>();
 
+        // Admin lookup of workers by name, phone, national id or number (ADMIN-UAT-14).
+        services.AddScoped<IAdminWorkerSearchRepository, EfAdminWorkerSearchRepository>();
+        services.AddScoped<IAdminWorkerQueryService, AdminWorkerQueryService>();
+
         services.AddScoped<IAbsenceRepository, EfAbsenceRepository>();
         services.AddScoped<IAbsenceReportService, AbsenceReportService>();
     }

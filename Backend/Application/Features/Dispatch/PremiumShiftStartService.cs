@@ -24,8 +24,19 @@ public interface IPremiumStartRepository
     /// <summary>PAID, DISPATCHING and ASSIGNED PREMIUM orders scheduled on or before <paramref name="latestDate"/>, with their live seats.</summary>
     Task<IReadOnlyList<PremiumOrderSnapshot>> GetLivePremiumOrdersAsync(DateOnly latestDate, CancellationToken cancellationToken = default);
 
-    Task<JobOrderStatus?> GetOrderStatusAsync(long orderId, CancellationToken cancellationToken = default);
+    /// <summary>The customer, the amount and the status of an order (for the apology and to know whether the cancel happened); null when it does not exist.</summary>
+    Task<PremiumOrderInfo?> GetOrderInfoAsync(long orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The free cancel of a rescue assignment (PREM-RESCUE-01): <c>ASSIGNED -&gt; CANCELLED</c> (only while it is the worker's and still ASSIGNED) and the
+    /// slot back to AVAILABLE. <c>CANCELLED</c>, not <c>CANCELLED_BY_WORKER</c>: it does not count towards the lock of Q15. False when it was no
+    /// longer ASSIGNED.
+    /// </summary>
+    Task<bool> TryCancelRescueAsync(long assignmentId, int workerId, DateTime atUtc, CancellationToken cancellationToken = default);
 }
+
+/// <summary>What the apology of a cancelled Premium order needs.</summary>
+public record PremiumOrderInfo(int CustomerId, decimal TotalAmount, JobOrderStatus Status);
 
 /// <summary>
 /// Decision D38 (PREM-START-01): a Premium order whose seats are not all present at the shift start + grace is cancelled: the agencies of the
@@ -36,13 +47,13 @@ public interface IPremiumStartRepository
 public class PremiumShiftStartService(
     IPremiumStartRepository repository,
     ISlaPenaltyService slaPenalties,
-    IPublisher publisher,
-    INotificationService notifications,
+    PremiumOrderCanceller canceller,
     IClock clock,
     IOptions<BusinessRules> rules,
+    IWorkerCancelRepository? workerCancels = null,
     ILogger<PremiumShiftStartService>? logger = null)
 {
-    public const string ApologyTopic = "premium.order_cancelled";
+    public const string ApologyTopic = PremiumOrderCanceller.ApologyTopic;
 
     private readonly ILogger<PremiumShiftStartService> _logger = logger ?? NullLogger<PremiumShiftStartService>.Instance;
 
@@ -104,37 +115,24 @@ public class PremiumShiftStartService(
                 cancellationToken);
         }
 
+        // A Super-Freelancer who took over a seat and did not come: ONE violation (a CANCELLED_BY_WORKER row, the count of Q15 / D35: three in
+        // 30 days lock the account), no money. The cancel also turns their auto-accept switch off and moves the order to DISPATCHING, which
+        // AssignmentFailed below still cancels.
         foreach (var freelancer in absent.Where(s => s.AgencyId is null))
         {
-            // The violation of a Super-Freelancer is PREM-RESCUE-01; here the seat is only logged.
-            _logger.LogWarning(
-                "Order {OrderId}: the rescue worker {WorkerId} of seat {Seq} was not present in time.", order.OrderId, freelancer.WorkerId, freelancer.Seq);
+            if (workerCancels is null)
+            {
+                _logger.LogWarning("Order {OrderId}: the rescue worker {WorkerId} of seat {Seq} was not present in time.", order.OrderId, freelancer.WorkerId, freelancer.Seq);
+                continue;
+            }
+
+            var cancel = rules.Value.Cancel;
+            await workerCancels.TryCancelAsync(
+                freelancer.AssignmentId, freelancer.WorkerId, now, now.AddDays(-Math.Max(1, cancel.WorkerCancelWindowDays)),
+                Math.Max(1, cancel.WorkerCancelLockCount), cancellationToken);
         }
 
-        // 2. Cancel the order: refund 100 %, release the hold, cancel every assignment.
-        await publisher.Publish(new AssignmentFailed(order.OrderId, reason, now), cancellationToken);
-
-        // 3. The apology, only when the order is really cancelled now (otherwise the next tick repeats the whole step).
-        if (await repository.GetOrderStatusAsync(order.OrderId, cancellationToken) != JobOrderStatus.Cancelled)
-        {
-            return false;
-        }
-
-        var amount = order.TotalAmount.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
-        try
-        {
-            await notifications.SendAsync(
-                new NotificationMessage(
-                    UserRole.Customer, order.CustomerId, ApologyTopic, "TỔ ẤM xin lỗi bạn",
-                    $"Xin lỗi bạn, ca dọn nhà của bạn không thể bắt đầu vì đối tác chưa đủ người làm đúng giờ. Đơn đã được huỷ và hoàn 100% ({amount} đ). TỔ ẤM chân thành xin lỗi vì sự bất tiện này.",
-                    new Dictionary<string, string> { ["orderId"] = order.OrderId.ToString(CultureInfo.InvariantCulture) }),
-                cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(ex, "Could not send the apology of order {OrderId}.", order.OrderId);
-        }
-
-        return true;
+        // 2. Cancel the order (refund 100 %, release the hold, cancel every assignment) and apologise.
+        return await canceller.CancelAsync(order.OrderId, reason, now, cancellationToken);
     }
 }

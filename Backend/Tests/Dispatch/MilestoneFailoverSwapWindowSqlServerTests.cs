@@ -274,4 +274,72 @@ public class MilestoneFailoverSwapWindowSqlServerTests
         Assert.Equal(job.OldWorkerId, await WorkerOfAsync(job.AssignmentId));
         Assert.Equal(SwapWindowStatuses.Expired, (await ReadWindowAsync(job.AssignmentId))!.Status);
     }
+
+    private class NoAgencyHasCapacity : IAgencyCapacityService, ISlaPenaltyService
+    {
+        public Task<bool> HasCapacityAsync(CapacityRequest request, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<CapacityReservation?> TryReserveAsync(CapacityRequest request, CancellationToken cancellationToken = default) => Task.FromResult<CapacityReservation?>(null);
+        public Task<CapacityReservation?> GetReservationByOrderAsync(long orderId, CancellationToken cancellationToken = default) => Task.FromResult<CapacityReservation?>(null);
+        public Task ReleaseAsync(Guid reservationId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task ReleaseByOrderAsync(long orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<SlaPenaltyResult> ApplyAsync(SlaPenaltyRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SlaPenaltyResult(-10m, 90m, request.CustomerRefundAmount, 0m, false));
+    }
+
+    /// <summary>
+    /// PREM-RESCUE-01 found it on the real run: the rescue creates its assignment inside the unit of work, and <c>CreateAssignmentAsync</c> opened a second
+    /// transaction ("The connection is already in a transaction"), so a rescue to a Super-Freelancer always failed on SQL Server. The in-memory tests
+    /// never saw it.
+    /// </summary>
+    [Fact]
+    public async Task The_emergency_rescue_to_a_Super_Freelancer_creates_the_assignment_inside_the_unit_of_work()
+    {
+        if (!Available()) return;
+        var job = await SeedAssignedAgencyJobAsync();
+        int freelancerId;
+        await using (var seed = NewDb())
+        {
+            var freelancer = Worker.CreateFreelancer("09" + Digits(8), Digits(12), "Super " + Digits(4));
+            freelancer.IsSuperFreelancer = true;
+            freelancer.AutoAcceptOffers = true;
+            freelancer.RatingAvg = 5m;
+            freelancer.CompletedJobs = 1_000_000;
+            freelancer.CreatedAt = Now;
+            freelancer.UpdatedAt = Now;
+            seed.Workers.Add(freelancer);
+            await seed.SaveChangesAsync();
+            freelancerId = freelancer.WorkerId;
+            await seed.Database.ExecuteSqlInterpolatedAsync($"UPDATE WORKER SET work_status = 'IDLE' WHERE worker_id = {freelancerId}");
+            seed.BookingSlots.Add(new BookingSlot
+            {
+                WorkerId = freelancerId,
+                AgencyId = null,
+                SlotDate = Day,
+                ShiftCode = Morning,
+                StartTime = new TimeOnly(8, 0),
+                EndTime = new TimeOnly(12, 0),
+                SlotSource = "FREELANCER",
+                SlotStatus = "AVAILABLE",
+                UpdatedAt = Now,
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = NewDb();
+        var stubs = new NoAgencyHasCapacity();
+        var service = new MilestoneFailoverService(
+            new EfDispatchRepository(db), new EfAgencySwapRepository(db), stubs, stubs, ClockAt(Now), new Unused(), new UnitOfWork(db),
+            MicrosoftOptions.Create(new BusinessRules()), NullLogger<MilestoneFailoverService>.Instance);
+        var original = await db.JobAssignments.AsNoTracking().SingleAsync(a => a.AssignmentId == job.AssignmentId);
+        var slot = await db.BookingSlots.AsNoTracking().SingleAsync(x => x.SlotId == original.SlotId);
+
+        var result = await service.TriggerEmergencyRescueAsync(original, null, slot, "no-show");
+
+        Assert.Equal(FailoverStatus.EmergencyRescuedToSuperFreelancer, result.Status);
+        await using var check = NewDb();
+        var created = await check.JobAssignments.AsNoTracking().SingleAsync(a => a.AssignmentId == result.NewAssignmentId!.Value);
+        Assert.Equal((freelancerId, JobAssignmentStatus.Assigned), (created.WorkerId, created.AssignmentStatus));
+        Assert.Null(created.AgencyId);
+        Assert.Equal(JobAssignmentStatus.Reassigned, (await check.JobAssignments.AsNoTracking().SingleAsync(a => a.AssignmentId == job.AssignmentId)).AssignmentStatus);
+    }
 }
