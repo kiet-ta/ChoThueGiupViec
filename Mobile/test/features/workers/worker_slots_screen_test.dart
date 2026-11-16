@@ -133,14 +133,16 @@ WorkerAssignmentDto job(
   String shift,
   String status, {
   String tier = 'ECONOMY',
+  String? start,
+  String? end,
 }) => WorkerAssignmentDto(
   assignmentId: id,
   orderId: id,
   orderCode: 'GV-$id',
   slotDate: date,
   shiftCode: shift,
-  startTime: shift == 'SHIFT_MORNING' ? '08:00' : '13:00',
-  endTime: shift == 'SHIFT_MORNING' ? '12:00' : '17:00',
+  startTime: start ?? (shift == 'SHIFT_MORNING' ? '08:00' : '13:00'),
+  endTime: end ?? (shift == 'SHIFT_MORNING' ? '12:00' : '17:00'),
   status: status,
   serviceTier: tier,
   district: 'Quận 1',
@@ -389,6 +391,103 @@ void main() {
         );
         await tester.pumpAndSettle();
       }
+
+      // SHIFT-MULTI-01 (decisions D42): one shift takes several orders, so the schedule shows every one of them.
+      testWidgets(
+        'two jobs in one shift are both shown, earliest first, under one "Có 2 đơn"',
+        (tester) async {
+          assignments.jobs = [
+            // The server lists them the other way round: the screen orders them by start time.
+            job(
+              10012,
+              '2026-10-12',
+              'SHIFT_MORNING',
+              'ASSIGNED',
+              start: '10:00',
+              end: '12:00',
+            ),
+            job(
+              10011,
+              '2026-10-12',
+              'SHIFT_MORNING',
+              'ASSIGNED',
+              start: '08:00',
+              end: '10:00',
+            ),
+          ];
+          await pumpScreen(tester);
+
+          expect(find.byKey(const Key('order-10011')), findsOneWidget);
+          expect(find.byKey(const Key('order-10012')), findsOneWidget);
+          expect(
+            tester.getTopLeft(find.byKey(const Key('order-10011'))).dy,
+            lessThan(
+              tester.getTopLeft(find.byKey(const Key('order-10012'))).dy,
+            ),
+          );
+          expect(
+            tester
+                .widget<Text>(
+                  find.byKey(
+                    const Key('shift-booked-2026-10-12-SHIFT_MORNING'),
+                  ),
+                )
+                .data,
+            'Có 2 đơn',
+          );
+          // The booked morning has no switch; the afternoon and the evening keep theirs.
+          expect(find.byType(Switch), findsNWidgets(2));
+        },
+      );
+
+      testWidgets('the second job of a shift opens its own sheet', (
+        tester,
+      ) async {
+        assignments.jobs = [
+          job(
+            10011,
+            '2026-10-12',
+            'SHIFT_MORNING',
+            'ASSIGNED',
+            start: '08:00',
+            end: '10:00',
+          ),
+          job(
+            10012,
+            '2026-10-12',
+            'SHIFT_MORNING',
+            'ASSIGNED',
+            start: '10:00',
+            end: '12:00',
+          ),
+        ];
+        await pumpScreen(tester);
+
+        await tapVisible(tester, find.byKey(const Key('order-10012')));
+
+        expect(find.byKey(const Key('order-sheet-10012')), findsOneWidget);
+        expect(find.byKey(const Key('order-sheet-10011')), findsNothing);
+      });
+
+      testWidgets(
+        'a morning job and an afternoon job stay one card per shift',
+        (tester) async {
+          await pumpScreen(tester);
+
+          expect(find.byKey(const Key('order-10002')), findsOneWidget);
+          expect(find.byKey(const Key('order-10003')), findsOneWidget);
+          for (final shift in ['SHIFT_MORNING', 'SHIFT_AFTERNOON']) {
+            expect(
+              tester
+                  .widget<Text>(
+                    find.byKey(Key('shift-booked-2026-10-12-$shift')),
+                  )
+                  .data,
+              'Có đơn',
+            );
+          }
+        },
+      );
 
       testWidgets('marks the days that have an order on the strip', (
         tester,
