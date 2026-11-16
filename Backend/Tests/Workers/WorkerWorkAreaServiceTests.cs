@@ -6,13 +6,22 @@ using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Fakes;
+using CommonService.Infrastructure.Modules.Workers;
 using Xunit;
 
 namespace CommonService.Tests.Workers;
 
-/// <summary>GET / PUT /api/v1/workers/me/work-area (contract workers.md 2.3B, decisions D24).</summary>
+/// <summary>
+/// GET / PUT /api/v1/workers/me/work-area (contract workers.md 2.3B, decisions D24, D40). Wards are the post-merger list of
+/// provinces.open-api.vn v2, bundled as <c>vn-wards.json</c>: 26740 = Phường Sài Gòn (HCM; merged Bến Nghé, Đa Kao, Nguyễn Thái Bình),
+/// 26743 = Phường Bến Thành (HCM), 27031 = Phường Tân Phú (HCM).
+/// </summary>
 public class WorkerWorkAreaServiceTests
 {
+    private const int SaiGon = 26740;
+    private const int BenThanh = 26743;
+    private const int TanPhu = 27031;
+
     private class TestCurrentUser : ICurrentUser
     {
         public int? UserId { get; set; }
@@ -69,12 +78,15 @@ public class WorkerWorkAreaServiceTests
         repo.Workers[2] = other;
         var clock = new FakeClock();
         clock.Set(new DateTime(2026, 10, 31, 3, 0, 0, DateTimeKind.Utc));
-        return (new WorkerWorkAreaService(repo, new TestCurrentUser { UserId = signedIn }, clock), repo, mine, other);
+        return (new WorkerWorkAreaService(repo, new TestCurrentUser { UserId = signedIn }, clock, new EmbeddedWardCatalog()), repo, mine, other);
     }
 
     private static UpdateWorkerWorkAreaRequest Valid(
-        double? lat = 10.7769, double? lng = 106.7009, int? radius = 10, IReadOnlyList<string>? districts = null) =>
-        new(lat, lng, radius, districts ?? ["Quận 1", "Quận 3"]);
+        double? lat = 10.7769, double? lng = 106.7009, int? radius = 10, IReadOnlyList<int>? wardCodes = null) =>
+        new(lat, lng, radius, null, wardCodes ?? [SaiGon, BenThanh]);
+
+    private static UpdateWorkerWorkAreaRequest ValidNames(params string[] names) =>
+        new(10.7769, 106.7009, 10, names, null);
 
     private static async Task<IDictionary<string, string[]>> ErrorsOf(Task<object> call) =>
         (await Assert.ThrowsAsync<ValidationException>(async () => await call)).Errors;
@@ -100,23 +112,27 @@ public class WorkerWorkAreaServiceTests
     {
         var (service, repo, mine, other) = Create();
 
-        var saved = await service.SaveAsync(Valid(10.77691234, 106.70091234, 15, ["Quận 1", "Quận 3"]));
+        var saved = await service.SaveAsync(Valid(10.77691234, 106.70091234, 15, [BenThanh, SaiGon]));
 
         Assert.True(saved.Data!.IsSet);
         Assert.Equal(15, saved.Data.RadiusKm);
-        Assert.Equal(["Quận 1", "Quận 3"], saved.Data.Districts);
+        // The order the worker chose, with the province of each ward.
+        Assert.Equal([BenThanh, SaiGon], saved.Data.Wards!.Select(w => w.Code));
+        Assert.Equal(["Phường Bến Thành", "Phường Sài Gòn"], saved.Data.Districts);
+        Assert.All(saved.Data.Wards!, w => Assert.Equal((79, "Thành phố Hồ Chí Minh"), (w.ProvinceCode, w.ProvinceName)));
+        Assert.Empty(saved.Data.UnresolvedNames!);
         Assert.Equal(new DateTime(2026, 10, 31, 3, 0, 0, DateTimeKind.Utc), saved.Data.SetAt);
         // Six decimals, like PUT /me/location (the columns are DECIMAL(9,6)).
         Assert.Equal(10.776912m, mine.WorkLat);
         Assert.Equal(106.700912m, mine.WorkLng);
         Assert.Equal((byte)15, mine.WorkRadiusKm);
-        Assert.Equal("Quận 1;Quận 3", mine.WorkDistricts);
+        Assert.Equal("26743;26740", mine.WorkDistricts); // codes, not names
         Assert.Equal(1, repo.Saves);
 
         var read = await service.GetAsync();
         Assert.True(read.Data!.IsSet);
         Assert.Equal(saved.Data.Latitude, read.Data.Latitude);
-        Assert.Equal(["Quận 1", "Quận 3"], read.Data.Districts);
+        Assert.Equal([BenThanh, SaiGon], read.Data.Wards!.Select(w => w.Code));
 
         // Only the signed-in worker's row changed.
         Assert.Null(other.WorkLat);
@@ -124,27 +140,61 @@ public class WorkerWorkAreaServiceTests
     }
 
     [Fact]
-    public async Task Save_without_districts_is_fine_and_a_second_save_replaces_the_first()
+    public async Task Save_without_wards_is_fine_and_a_second_save_replaces_the_first()
     {
         var (service, _, mine, _) = Create();
 
-        await service.SaveAsync(Valid(districts: ["Quận 1"]));
+        await service.SaveAsync(Valid(wardCodes: [TanPhu]));
         var second = await service.SaveAsync(Valid(10.80, 106.71, 5, []));
 
         Assert.Equal(5, second.Data!.RadiusKm);
+        Assert.Empty(second.Data.Wards!);
         Assert.Empty(second.Data.Districts);
         Assert.Null(mine.WorkDistricts);
         Assert.Equal(10.8m, mine.WorkLat);
     }
 
     [Fact]
-    public async Task Save_drops_duplicate_districts_and_trims_the_names()
+    public async Task The_old_districts_names_still_work_when_each_names_exactly_one_ward()
+    {
+        var (service, _, mine, _) = Create();
+
+        // A current name, a pre-merger name (Bến Nghé was merged into Sài Gòn) and the same ward again with other spelling.
+        var saved = await service.SaveAsync(ValidNames("  Phường Bến Thành ", "Phường Bến Nghé", "phường sài gòn"));
+
+        Assert.Equal([BenThanh, SaiGon], saved.Data!.Wards!.Select(w => w.Code));
+        Assert.Equal("26743;26740", mine.WorkDistricts);
+    }
+
+    [Fact]
+    public async Task The_old_districts_names_that_are_unknown_or_ambiguous_are_refused()
+    {
+        var (service, repo, mine, _) = Create();
+
+        foreach (var bad in new[]
+        {
+            "Quận 1",                    // the district level no longer exists
+            "Phường Việt Hưng",          // a current name in Hà Nội and in Quảng Ninh
+            "Phường Nguyễn Thái Bình",   // a pre-merger name that went into Sài Gòn and into Bến Thành
+            "  ",
+        })
+        {
+            var errors = await ErrorsOf(Task.Run<object>(async () => await service.SaveAsync(ValidNames("Phường Bến Thành", bad))));
+            Assert.Contains("districts", errors.Keys);
+        }
+
+        Assert.Equal(0, repo.Saves);
+        Assert.Null(mine.WorkDistricts);
+    }
+
+    [Fact]
+    public async Task When_wardCodes_is_sent_the_old_districts_are_ignored()
     {
         var (service, _, _, _) = Create();
 
-        var saved = await service.SaveAsync(Valid(districts: ["  Quận 1 ", "quận 1", "Quận 3"]));
+        var saved = await service.SaveAsync(new UpdateWorkerWorkAreaRequest(10.77, 106.70, 10, ["Quận 1"], [SaiGon]));
 
-        Assert.Equal(["Quận 1", "Quận 3"], saved.Data!.Districts);
+        Assert.Equal([SaiGon], saved.Data!.Wards!.Select(w => w.Code));
     }
 
     [Theory]
@@ -171,28 +221,64 @@ public class WorkerWorkAreaServiceTests
     }
 
     [Fact]
-    public async Task Save_rejects_too_many_blank_long_or_separated_districts()
+    public async Task Save_rejects_unknown_repeated_or_too_many_ward_codes()
     {
         var (service, repo, mine, _) = Create();
-        var eleven = Enumerable.Range(1, 11).Select(i => $"Quận {i}").ToList();
+        var eleven = Enumerable.Range(0, 11).Select(i => 26740 + i).ToList();
 
-        foreach (var bad in new string[][]
+        foreach (var bad in new int[][]
         {
-            eleven.ToArray(),
-            ["Quận 1", "  "],
-            [new string('x', 101)],
-            ["Quận 1;Quận 3"],
+            [1234567],            // not a ward code
+            [SaiGon, SaiGon],     // repeated
+            [0],
+            [-5],
+            eleven.ToArray(),     // more than 10
         })
         {
-            var errors = await ErrorsOf(Task.Run<object>(async () => await service.SaveAsync(Valid(districts: bad))));
-            Assert.Contains("districts", errors.Keys);
+            var errors = await ErrorsOf(Task.Run<object>(async () => await service.SaveAsync(Valid(wardCodes: bad))));
+            Assert.Contains("wardCodes", errors.Keys);
         }
 
-        // 10 districts of 100 characters are the largest accepted.
-        var largest = await service.SaveAsync(Valid(districts: Enumerable.Range(1, 10).Select(i => new string((char)('a' + i), 100)).ToList()));
-        Assert.Equal(10, largest.Data!.Districts.Count);
-        Assert.Equal(1, repo.Saves);
-        Assert.NotNull(mine.WorkDistricts);
+        Assert.Equal(0, repo.Saves);
+        Assert.Null(mine.WorkDistricts);
+    }
+
+    [Fact]
+    public async Task Ten_ward_codes_are_the_most_and_fit_the_column()
+    {
+        var (service, _, mine, _) = Create();
+        var catalog = new EmbeddedWardCatalog();
+        // Ten different codes of the list (five digits at most, the column is NVARCHAR(500)).
+        var ten = Enumerable.Range(26737, 400).Where(c => catalog.FindByCode(c) is not null).Take(10).ToList();
+        Assert.Equal(10, ten.Count);
+
+        var saved = await service.SaveAsync(Valid(wardCodes: ten));
+
+        Assert.Equal(10, saved.Data!.Wards!.Count);
+        Assert.True(mine.WorkDistricts!.Length <= 500);
+    }
+
+    [Fact]
+    public async Task A_row_saved_with_names_before_reads_as_the_wards_they_became_and_a_read_writes_nothing()
+    {
+        var (service, repo, mine, _) = Create();
+        await service.SaveAsync(Valid());
+        var saves = repo.Saves;
+        // How the row looked before ward codes: the names of the first picker, one of them since merged away, one no longer a place.
+        mine.WorkDistricts = "Phường Bến Nghé;Phường Bến Thành;Quận 1;Phường Sài Gòn";
+
+        var read = await service.GetAsync();
+
+        // Bến Nghé -> Sài Gòn; Sài Gòn again collapses; Quận 1 cannot be placed.
+        Assert.Equal([SaiGon, BenThanh], read.Data!.Wards!.Select(w => w.Code));
+        Assert.Equal(["Phường Sài Gòn", "Phường Bến Thành"], read.Data.Districts);
+        Assert.Equal(["Quận 1"], read.Data.UnresolvedNames);
+        Assert.Equal("Phường Bến Nghé;Phường Bến Thành;Quận 1;Phường Sài Gòn", mine.WorkDistricts);
+        Assert.Equal(saves, repo.Saves);
+
+        // The next save stores codes.
+        await service.SaveAsync(Valid(wardCodes: read.Data.Wards!.Select(w => w.Code).ToList()));
+        Assert.Equal("26740;26743", mine.WorkDistricts);
     }
 
     [Fact]
