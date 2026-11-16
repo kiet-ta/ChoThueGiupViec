@@ -723,6 +723,104 @@ public class DisputeVerdictTests
         }
     }
 
+    [Fact]
+    public async Task Real_database_verdict_ignores_cancelled_and_offered_assignments_and_only_penalizes_completed_worker()
+    {
+        if (!DisputeEndpointTests.IsSqlServerAvailable()) return;
+
+        var now = DateTime.UtcNow;
+        var s = await DisputeEndpointTests.SeedAsync(now);
+        try
+        {
+            var orderId = s.OrderIds[0];
+            var disputeId = await AddTicketAsync(orderId, now);
+
+            // Add a second worker and a cancelled assignment on the same order
+            int cancelledWorkerId;
+            long cancelledAssignmentId;
+            await using (var db = new AppDbContext(DisputeEndpointTests.Options()))
+            {
+                var phone = "098" + Random.Shared.Next(1000000, 9999999);
+                var worker2 = new Worker
+                {
+                    PhoneNumber = phone,
+                    NationalId = "079" + Random.Shared.Next(100000000, 999999999),
+                    FullName = "Declined Worker",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                worker2.TransitionTo(WorkStatus.Idle);
+                db.Workers.Add(worker2);
+                await db.SaveChangesAsync();
+                cancelledWorkerId = worker2.WorkerId;
+
+                var cancelledAssignment = new JobAssignment
+                {
+                    OrderId = orderId,
+                    CustomerId = s.CustomerId,
+                    WorkerId = cancelledWorkerId,
+                    SlotId = s.SlotIds[0],
+                    ServiceTier = ServiceTier.Economy,
+                    AssignmentSeq = 2,
+                    DispatchRadiusKm = 5,
+                    GrossAmount = 260000m,
+                    CommissionRate = 0.200m,
+                    PayoutAmount = 208000m,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                cancelledAssignment.TransitionTo(JobAssignmentStatus.Cancelled);
+                db.JobAssignments.Add(cancelledAssignment);
+                await db.SaveChangesAsync();
+                cancelledAssignmentId = cancelledAssignment.AssignmentId;
+            }
+
+            try
+            {
+                // Verify repository GetVerdictAssignmentsAsync only returns the completed assignment
+                await using (var db = new AppDbContext(DisputeEndpointTests.Options()))
+                {
+                    var repo = new EfDisputeRepository(db);
+                    var verdictAssignments = await repo.GetVerdictAssignmentsAsync(orderId);
+                    Assert.Single(verdictAssignments);
+                    Assert.Equal(s.AssignmentIds[0], verdictAssignments[0].AssignmentId);
+                    Assert.Equal(s.WorkerId, verdictAssignments[0].WorkerId);
+
+                    // Also check ListForWorkerAsync excludes cancelled worker
+                    var workerDisputes = await repo.ListForWorkerAsync(cancelledWorkerId);
+                    Assert.Empty(workerDisputes);
+
+                    // Resolve dispute with FREELANCER fault and lockWorker = true
+                    var refunds = new FakeRefundService();
+                    var publisher = new RecordingPublisher();
+                    var service = Real(db, now, refunds, new FakeSlaPenaltyService(), publisher);
+                    var outcome = await service.ResolveAsync(s.AdminId, disputeId, Body("FREELANCER", 100000m, lockWorker: true)).Outcome();
+                    Assert.True(outcome.Success);
+                }
+
+                // Verify completed worker was penalized/locked, but cancelled worker remains untouched (Active, not Locked)
+                await using (var verify = new AppDbContext(DisputeEndpointTests.Options()))
+                {
+                    var completedWorker = await verify.Workers.AsNoTracking().SingleAsync(w => w.WorkerId == s.WorkerId);
+                    Assert.Equal(WorkStatus.Locked, completedWorker.WorkStatus);
+
+                    var cancelledWorker = await verify.Workers.AsNoTracking().SingleAsync(w => w.WorkerId == cancelledWorkerId);
+                    Assert.Equal(WorkStatus.Idle, cancelledWorker.WorkStatus);
+                }
+            }
+            finally
+            {
+                await using var db = new AppDbContext(DisputeEndpointTests.Options());
+                await db.JobAssignments.Where(a => a.AssignmentId == cancelledAssignmentId).ExecuteDeleteAsync();
+                await db.Workers.Where(w => w.WorkerId == cancelledWorkerId).ExecuteDeleteAsync();
+            }
+        }
+        finally
+        {
+            await CleanVerdictAsync(s, s.OrderIds);
+        }
+    }
+
     private static async Task CleanVerdictAsync(DisputeEndpointTests.Seeded s, List<long> orderIds)
     {
         await using (var db = new AppDbContext(DisputeEndpointTests.Options()))
