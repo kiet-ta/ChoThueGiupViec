@@ -71,6 +71,9 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
   String? _successMessage;
   int _errors = 0;
 
+  /// D38: the server refused the first BEFORE photo because the colleague of a 2-seat Premium order has not checked in yet.
+  bool _waitingForPartner = false;
+
   final List<JobPhotoDto> _uploadedPhotos = [];
 
   final List<Map<String, dynamic>> _angleGuides = [
@@ -237,6 +240,13 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     }
   }
 
+  /// D38: the work of a 2-seat Premium order starts only when both workers are present; the server refuses the first BEFORE photo
+  /// with 409 and this code until the colleague has checked in. It is waiting, not an error of the photo.
+  static const partnerNotCheckedIn = 'PARTNER_NOT_CHECKED_IN';
+
+  static const waitForPartnerMessage =
+      'Chờ đồng nghiệp check-in. Ca chỉ bắt đầu khi đủ người có mặt, bạn thử lại sau ít phút nhé.';
+
   String _uploadError(ApiException e) {
     final fields = e.fieldErrors;
     if (fields != null) {
@@ -315,6 +325,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       _isLoading = true;
       _errorMessage = null;
       _successMessage = null;
+      _waitingForPartner = false;
     });
 
     final targetAngle = _selectedAngle;
@@ -350,6 +361,14 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+      if (e.isConflict && e.code == partnerNotCheckedIn) {
+        // Not an error of the photo: keep it and let the worker send it again once the colleague is there.
+        setState(() {
+          _isLoading = false;
+          _waitingForPartner = true;
+        });
+        return;
+      }
       final blurry = e.fieldErrors?.containsKey('volScore') ?? false;
       setState(() {
         if (blurry) {
@@ -617,6 +636,14 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
                   foreground: NordicColors.error,
                 ),
         ),
+        if (_waitingForPartner)
+          _message(
+            waitForPartnerMessage,
+            key: const Key('photo-wait-partner'),
+            icon: Icons.hourglass_top_rounded,
+            background: NordicColors.amberSoft,
+            foreground: NordicColors.onAmberSoft,
+          ),
         if (_successMessage != null)
           _message(
             _successMessage!,
@@ -1018,6 +1045,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
 
   Widget _message(
     String text, {
+    Key? key,
     required IconData icon,
     required Color background,
     required Color foreground,
@@ -1025,6 +1053,7 @@ class _WorkerPhotosScreenState extends State<WorkerPhotosScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: NordicSpace.sm),
       child: Container(
+        key: key,
         padding: const EdgeInsets.all(NordicSpace.sm),
         decoration: BoxDecoration(
           color: background,

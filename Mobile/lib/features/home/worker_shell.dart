@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../../core/motion/nordic_motion.dart';
+import '../../core/realtime/realtime_notice.dart';
 import '../../core/realtime/realtime_service.dart';
 import '../../core/theme/nordic_colors.dart';
 import '../../core/theme/nordic_radius.dart';
@@ -61,6 +62,7 @@ class _WorkerShellState extends State<WorkerShell> {
   late final IRealtimeService _realtime;
   late final bool _ownsRealtime;
   StreamSubscription<RealtimeNotification>? _notices;
+  final _notice = RealtimeNoticePresenter();
 
   @override
   void initState() {
@@ -75,13 +77,61 @@ class _WorkerShellState extends State<WorkerShell> {
   @override
   void dispose() {
     _notices?.cancel();
+    _notice.dismiss();
     _ownsRealtime ? _realtime.dispose() : _realtime.disconnect();
     super.dispose();
   }
 
-  /// A job the server accepted for the worker (D33): reload Hôm nay and Lịch, and say so with a way to open the job.
   void _onNotice(RealtimeNotification notice) {
-    if (!mounted || notice.topic != RealtimeTopics.autoAccepted) return;
+    if (!mounted) return;
+    switch (notice.topic) {
+      case RealtimeTopics.autoAccepted:
+        _onAutoAccepted(notice);
+      case RealtimeTopics.checkInReminder:
+        _onCheckInReminder(notice);
+      case RealtimeTopics.rescueAssigned:
+        _onRescueAssigned(notice);
+    }
+  }
+
+  /// D38: a Premium order whose worker has not checked in yet, `Premium.ReminderMinutes` before the check-in time: it stays on
+  /// screen until closed, with a way to the job (where the check-in is).
+  void _onCheckInReminder(RealtimeNotification notice) {
+    final assignmentId = int.tryParse(notice.data['assignmentId'] ?? '');
+    _notice.show(
+      context,
+      title: 'Còn 30 phút, hãy di chuyển',
+      body: notice.body,
+      actionLabel: 'Xem việc',
+      onAction: assignmentId == null ? null : () => _openJob(assignmentId),
+    );
+  }
+
+  /// D38: the worker was given a rescue seat, which must be present by `data.checkInBy`; they may cancel it without a penalty.
+  /// The jobs reload, and the urgent notice stays until closed.
+  void _onRescueAssigned(RealtimeNotification notice) {
+    setState(() {
+      _generation[0]++;
+      _generation[1]++;
+    });
+    final assignmentId = int.tryParse(notice.data['assignmentId'] ?? '');
+    final by = DateTime.tryParse(notice.data['checkInBy'] ?? '')?.toLocal();
+    _notice.show(
+      context,
+      tone: RealtimeNoticeTone.urgent,
+      title: notice.title.isNotEmpty ? notice.title : 'Ca cứu hộ gấp',
+      body: notice.body,
+      detail: by == null ? null : 'Check-in trước ${_hhmm(by)}',
+      actionLabel: 'Xem việc',
+      onAction: assignmentId == null ? null : () => _openJob(assignmentId),
+    );
+  }
+
+  static String _hhmm(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  /// A job the server accepted for the worker (D33): reload Hôm nay and Lịch, and say so with a way to open the job.
+  void _onAutoAccepted(RealtimeNotification notice) {
     setState(() {
       _generation[0]++;
       _generation[1]++;

@@ -503,6 +503,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
   List<Widget> _buildCancelledView(WorkerCancelResult result) {
     final refunded =
         result.orderOutcome == WorkerCancelResult.cancelledRefunded;
+    final free = result.isFreeRescueCancel;
     return [
       const SizedBox(height: NordicSpace.xl),
       const Icon(
@@ -519,7 +520,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
       ),
       const SizedBox(height: NordicSpace.xs),
       Text(
-        refunded
+        free
+            ? 'Bạn huỷ ca cứu hộ trước giờ check-in nên không bị phạt. Đơn đã được huỷ và gia chủ được hoàn tiền.'
+            : refunded
             ? 'Ca bắt đầu quá gần nên đơn đã được huỷ và gia chủ được hoàn tiền.'
             : 'Hệ thống đã báo gia chủ và đang tìm thợ khác thay bạn.',
         textAlign: TextAlign.center,
@@ -527,13 +530,20 @@ class _CheckInScreenState extends State<CheckInScreen> {
       ),
       const SizedBox(height: NordicSpace.sm),
       Center(
-        child: StatusPill(
-          result.accountLocked
-              ? 'Tài khoản đã bị khoá'
-              : 'Lần huỷ thứ ${result.cancelCountInWindow}/${result.lockCount} trong ${result.windowDays} ngày',
-          tone: result.accountLocked ? PillTone.bad : PillTone.warn,
-          dot: true,
-        ),
+        child: free
+            ? const StatusPill(
+                'Không bị phạt',
+                tone: PillTone.ok,
+                dot: true,
+                key: Key('worker-cancelled-no-penalty'),
+              )
+            : StatusPill(
+                result.accountLocked
+                    ? 'Tài khoản đã bị khoá'
+                    : 'Lần huỷ thứ ${result.cancelCountInWindow}/${result.lockCount} trong ${result.windowDays} ngày',
+                tone: result.accountLocked ? PillTone.bad : PillTone.warn,
+                dot: true,
+              ),
       ),
       if (result.accountLocked) ...[
         const SizedBox(height: NordicSpace.sm),

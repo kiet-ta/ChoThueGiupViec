@@ -296,6 +296,63 @@ void main() {
     );
 
     testWidgets(
+      'D38: the first BEFORE photo refused with PARTNER_NOT_CHECKED_IN says to wait for the colleague, not that the photo is wrong',
+      (tester) async {
+        useDesignFrame(tester);
+        final service = RecordingPhotosService()
+          ..failure = const ApiException(
+            409,
+            'Cho dong nghiep check-in: ca chi bat dau khi du nguoi co mat.',
+            code: 'PARTNER_NOT_CHECKED_IN',
+          );
+        await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
+        await tester.pumpAndSettle();
+
+        await tapVisible(tester, find.text('Chụp ảnh'));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('photo-wait-partner')), findsOneWidget);
+        expect(find.textContaining('Chờ đồng nghiệp check-in'), findsOneWidget);
+        // The server's English text is not shown, and nothing says the photo failed.
+        expect(find.textContaining('Cho dong nghiep'), findsNothing);
+        expect(find.textContaining('Đã tải ảnh lên'), findsNothing);
+        expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
+
+        // Once the colleague is there the same capture goes through and the waiting notice goes away.
+        service.failure = null;
+        await tapVisible(tester, find.text('Chụp ảnh'));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('photo-wait-partner')), findsNothing);
+        expect(find.textContaining('Đã tải ảnh lên'), findsOneWidget);
+        expect(service.uploads, hasLength(2));
+      },
+    );
+
+    testWidgets('another 409 is still shown as the server says it', (
+      tester,
+    ) async {
+      useDesignFrame(tester);
+      final service = RecordingPhotosService()
+        ..failure = const ApiException(
+          409,
+          'Ca này không còn ở trạng thái cho phép tải ảnh.',
+          code: 'INVALID_ASSIGNMENT_STATE',
+        );
+      await tester.pumpWidget(screen(service, FakeCamera(jpeg)));
+      await tester.pumpAndSettle();
+
+      await tapVisible(tester, find.text('Chụp ảnh'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('photo-wait-partner')), findsNothing);
+      expect(
+        find.textContaining('không còn ở trạng thái cho phép'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
       'A refused file type and a too large file are rejected locally with messages',
       (tester) async {
         useDesignFrame(tester);

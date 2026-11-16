@@ -135,7 +135,26 @@ class _WorkerCancelSectionState extends State<WorkerCancelSection> {
           if (_loadingPreview)
             const LoadingStateWidget(message: 'Đang kiểm tra...')
           else if (preview != null) ...[
-            for (final line in workerCancelConsequences(preview))
+            if (preview.rescueFreeCancel)
+              Container(
+                key: const Key('worker-cancel-rescue-free'),
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: NordicSpace.xs),
+                padding: const EdgeInsets.all(NordicSpace.sm),
+                decoration: const BoxDecoration(
+                  color: NordicColors.primaryFixed,
+                  borderRadius: NordicRadius.tileAll,
+                ),
+                child: Text(
+                  workerCancelConsequences(preview).first,
+                  style: NordicTypography.bodySmall.copyWith(
+                    color: NordicColors.primary,
+                  ),
+                ),
+              ),
+            for (final line in workerCancelConsequences(
+              preview,
+            ).skip(preview.rescueFreeCancel ? 1 : 0))
               Padding(
                 padding: const EdgeInsets.only(bottom: NordicSpace.xxs),
                 child: Text(line, style: NordicTypography.bodySmall),
@@ -215,14 +234,20 @@ class _WorkerCancelSectionState extends State<WorkerCancelSection> {
 }
 
 /// What the worker reads before confirming, in plain words (decisions D35).
-List<String> workerCancelConsequences(WorkerCancelPreview p) => [
-  p.substituteSearchPossible
-      ? 'Hệ thống sẽ báo gia chủ và tìm thợ khác thay bạn.'
-      : 'Ca bắt đầu sau chưa tới 30 phút: đơn sẽ bị huỷ và gia chủ được hoàn tiền.',
-  'Đây là lần huỷ thứ ${p.nextCount} trong ${p.windowDays} ngày. Huỷ ${p.lockCount} lần, tài khoản sẽ bị khoá.',
-  if (p.autoAcceptOn) '"Tự động nhận đơn" sẽ tắt.',
-  'Gặp sự cố bất khả kháng thì báo sự cố để không bị tính vi phạm.',
-];
+List<String> workerCancelConsequences(WorkerCancelPreview p) =>
+    p.rescueFreeCancel
+    ? const [
+        'Đây là ca cứu hộ: huỷ trước giờ check-in thì không bị phạt và không tính vào số lần huỷ.',
+        'Đơn sẽ bị huỷ và gia chủ được hoàn tiền.',
+      ]
+    : [
+        p.substituteSearchPossible
+            ? 'Hệ thống sẽ báo gia chủ và tìm thợ khác thay bạn.'
+            : 'Ca bắt đầu sau chưa tới 30 phút: đơn sẽ bị huỷ và gia chủ được hoàn tiền.',
+        'Đây là lần huỷ thứ ${p.nextCount} trong ${p.windowDays} ngày. Huỷ ${p.lockCount} lần, tài khoản sẽ bị khoá.',
+        if (p.autoAcceptOn) '"Tự động nhận đơn" sẽ tắt.',
+        'Gặp sự cố bất khả kháng thì báo sự cố để không bị tính vi phạm.',
+      ];
 
 /// A server refusal of the cancel, in plain words; other errors show the server's message.
 String workerCancelFailure(ApiException e) {
