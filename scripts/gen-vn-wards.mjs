@@ -7,6 +7,7 @@
 //   Backend/Infrastructure/Modules/Workers/Data/vn-wards.json   (embedded in the backend, validates ward codes)
 //   Mobile/lib/features/workers/models/vn_wards.dart            (the picker; searches the old names too)
 // The old (pre-merger) ward names come from GET /w/{code}/to-legacies/ (one call per ward, a few minutes).
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -92,4 +93,6 @@ const dart = [
   '',
 ].join('\n');
 fs.writeFileSync(dartOut, dart);
+// Same layout as `dart format` (the commit hook and `verify` L2 check it), so a re-run changes only what the data changed.
+execSync(`dart format "${dartOut}"`, { stdio: 'inherit' });
 console.log(`wrote ${path.relative(root, jsonOut)} and ${path.relative(root, dartOut)}`);
