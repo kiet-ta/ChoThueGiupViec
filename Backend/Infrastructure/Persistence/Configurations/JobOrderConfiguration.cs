@@ -64,6 +64,19 @@ public class JobOrderConfiguration : IEntityTypeConfiguration<JobOrder>
         // Plain id, no foreign key: WORKER belongs to M4 and a removed worker must not block the order row.
         builder.Property(x => x.PreferredWorkerId).HasColumnName("preferred_worker_id");
 
+        // Decisions D34: a timed job inside the shift (local time); both null = the whole shift.
+        builder.Property(x => x.StartTime).HasColumnName("start_time").HasColumnType("time(0)");
+        builder.Property(x => x.EndTime).HasColumnName("end_time").HasColumnType("time(0)");
+
+        builder.Property(x => x.IsContinuousWork)
+            .HasColumnName("continuous_work")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(x => x.ContinuationOpenedAt)
+            .HasColumnName("continuation_opened_at")
+            .HasColumnType("DATETIME2");
+
         builder.Property(x => x.RequiredSkill)
             .HasColumnName("required_skill")
             .HasMaxLength(100)

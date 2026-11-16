@@ -1,3 +1,4 @@
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Features.Disputes;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
@@ -17,7 +18,7 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
     {
         var order = await db.JobOrders.AsNoTracking()
             .Where(o => o.OrderId == orderId)
-            .Select(o => new { o.OrderId, o.OrderCode, o.CustomerId })
+            .Select(o => new { o.OrderId, o.OrderCode, o.CustomerId, o.ShiftCode, o.StartTime, o.EndTime })
             .FirstOrDefaultAsync(cancellationToken);
         if (order is null) return null;
 
@@ -25,11 +26,14 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
             from a in db.JobAssignments.AsNoTracking()
             join s in db.BookingSlots.AsNoTracking() on a.SlotId equals s.SlotId
             where a.OrderId == orderId
-            select new { a.AssignmentId, a.WorkerId, a.AssignmentStatus, a.CompletedAt, s.SlotDate, s.EndTime, a.SubmittedAt })
+            select new { a.AssignmentId, a.WorkerId, a.AssignmentStatus, a.CompletedAt, s.SlotDate, s.ShiftCode, s.StartTime, s.EndTime, a.SubmittedAt })
             .ToListAsync(cancellationToken);
 
+        // Decisions D34: a timed job ends at its own end time, not at the end of the shift.
         var assignments = rows
-            .Select(r => new DisputeAssignmentInfo(r.AssignmentId, r.WorkerId, r.AssignmentStatus, r.CompletedAt, r.SlotDate.ToDateTime(r.EndTime), r.SubmittedAt))
+            .Select(r => new DisputeAssignmentInfo(r.AssignmentId, r.WorkerId, r.AssignmentStatus, r.CompletedAt,
+                r.SlotDate.ToDateTime(JobWindow.OfAssignment(order.ShiftCode, order.StartTime, order.EndTime, r.ShiftCode, r.StartTime, r.EndTime).End),
+                r.SubmittedAt))
             .ToList();
         return new DisputeOrderInfo(order.OrderId, order.OrderCode, order.CustomerId, assignments);
     }

@@ -81,8 +81,14 @@ class _WithdrawalHistoryScreenState extends State<WithdrawalHistoryScreen> {
     }
   }
 
+  /// The next page, asked by the list when it is scrolled near its end (MOB-PAGING-01).
+  VoidCallback? get _onEndReached =>
+      !_loading && !_loadingMore && _moreError == null && _items.length < _total
+      ? _loadMore
+      : null;
+
   Future<void> _loadMore() async {
-    if (_loadingMore) return;
+    if (_loadingMore || _items.length >= _total) return;
     final id = _requestId;
     setState(() {
       _loadingMore = true;
@@ -112,6 +118,7 @@ class _WithdrawalHistoryScreenState extends State<WithdrawalHistoryScreen> {
     return NordicPage.pushed(
       title: 'Lịch sử rút tiền',
       onRefresh: _load,
+      onEndReached: _onEndReached,
       children: _content(),
     );
   }
@@ -164,12 +171,26 @@ class _WithdrawalHistoryScreenState extends State<WithdrawalHistoryScreen> {
             ),
           ),
         ),
-      if (_items.length < _total)
+      if (_loadingMore)
+        Padding(
+          key: const Key('withdrawals-more-loading'),
+          padding: const EdgeInsets.symmetric(vertical: NordicSpace.md),
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: NordicColors.primary,
+              ),
+            ),
+          ),
+        )
+      else if (_moreError != null)
         NordicButton(
           key: const Key('withdrawals-more'),
-          label: 'Xem thêm',
+          label: 'Thử lại',
           variant: NordicButtonVariant.secondary,
-          isLoading: _loadingMore,
           onPressed: _loadMore,
         ),
     ];

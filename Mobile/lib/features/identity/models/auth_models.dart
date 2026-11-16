@@ -3,16 +3,22 @@
 class OtpRequestResult {
   final int expiresInSeconds;
   final int resendAvailableInSeconds;
+  final String? sandboxOtp;
 
   const OtpRequestResult({
     required this.expiresInSeconds,
     required this.resendAvailableInSeconds,
+    this.sandboxOtp,
   });
 
   factory OtpRequestResult.fromJson(Map<String, dynamic> json) {
+    final rawSandboxOtp = (json['sandboxOtp'] as String?)?.trim();
     return OtpRequestResult(
       expiresInSeconds: json['expiresInSeconds'] as int? ?? 300,
       resendAvailableInSeconds: json['resendAvailableInSeconds'] as int? ?? 60,
+      sandboxOtp: rawSandboxOtp == null || rawSandboxOtp.isEmpty
+          ? null
+          : rawSandboxOtp,
     );
   }
 }

@@ -22,7 +22,8 @@ import '../../../core/widgets/raised_panel.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
-import '../../../core/widgets/step_dots.dart';
+import '../../customers/models/customer_address.dart';
+import '../../customers/services/customer_address_service.dart';
 import '../../customers/services/favorite_worker_service.dart';
 import '../../disputes/models/dispute_models.dart';
 import '../../disputes/routes.dart';
@@ -41,6 +42,7 @@ import '../models/booking_models.dart';
 import '../routes.dart';
 import 'booking_screen.dart';
 import '../services/fallback_service.dart';
+import '../services/worker_route_service.dart';
 import '../services/order_service.dart';
 import 'arrival_prompt_card.dart';
 import 'fallback_prompt_card.dart';
@@ -73,6 +75,12 @@ class OrderDetailScreen extends StatefulWidget {
   /// and reloads the order when the customer comes back.
   final void Function(String route, Object args)? onOpen;
 
+  /// The address of the order, for the "Địa điểm" card; by default read from the customer's address book.
+  final Future<CustomerAddress?> Function(int addressId)? addressLookup;
+
+  /// The worker's way to the house for the "đang trên đường tới" card (MOB-ORDER-03).
+  final IWorkerRouteService? routeService;
+
   const OrderDetailScreen({
     super.key,
     this.args,
@@ -83,6 +91,8 @@ class OrderDetailScreen extends StatefulWidget {
     this.pollInterval = defaultProgressPollInterval,
     this.onPay,
     this.onOpen,
+    this.addressLookup,
+    this.routeService,
   });
 
   @override
@@ -100,6 +110,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   bool _started = false;
 
   BookingOrder? _order;
+
+  /// The order's address (MOB-ORDER-02); null until read, or when it is no longer in the address book.
+  CustomerAddress? _address;
+  int? _addressAsked;
   OrderProgress? _progress;
   String? _error;
   bool _loading = false;
@@ -125,6 +139,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   // Worker check-in arrival confirmation (CUST-ARRIVAL-01)
   int _arrivalRequest = 0;
   Map<int, CustomerArrivalStatus> _pendingArrivals = {};
+
+  // MOB-ORDER-03: the "on the way" cards (assignment id -> card) and the customer's favourite workers.
+  late final IWorkerRouteService _routeService =
+      widget.routeService ?? WorkerRouteService();
+  late final FavoriteWorkerService _favoriteService =
+      widget.favorites ?? FavoriteWorkerService();
+  Map<int, WorkerRouteView> _routes = {};
+  int _routeRequest = 0;
+  Set<int>? _favoriteIds;
+  final Set<int> _favoriteBusy = {};
+  String? _favoriteError;
 
   @override
   void initState() {
@@ -179,6 +204,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       });
       unawaited(_loadRatingEligibility(order, progress));
       unawaited(_loadArrivals(order, progress));
+      unawaited(_loadAddress(order.addressId));
+      unawaited(_loadRoutes(order, progress));
+      unawaited(_loadFavorites());
       _watch();
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -187,6 +215,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// Reads the order's address once per address id; any failure just leaves the card out.
+  Future<void> _loadAddress(int addressId) async {
+    if (_addressAsked == addressId) return;
+    _addressAsked = addressId;
+    try {
+      final lookup = widget.addressLookup ?? _addressFromBook;
+      final address = await lookup(addressId);
+      if (mounted) setState(() => _address = address);
+    } catch (_) {}
+  }
+
+  static Future<CustomerAddress?> _addressFromBook(int addressId) async {
+    final list = await CustomerAddressService().getAddresses();
+    for (final a in list) {
+      if (a.addressId == addressId) return a;
+    }
+    return null;
   }
 
   Future<void> _loadRatingEligibility(
@@ -228,6 +275,131 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         results.map((result) => MapEntry(result.$1, result.$2)),
       );
     });
+  }
+
+  /// The way of each worker still on the road (an ASSIGNED order, assignment ASSIGNED): the Web's `routeCandidates`.
+  Future<void> _loadRoutes(BookingOrder order, OrderProgress progress) async {
+    final request = ++_routeRequest;
+    final onTheWay = order.orderStatus == OrderStatus.assigned
+        ? [
+            for (final a in progress.assignments)
+              if (a.assignmentStatus == AssignmentStatus.assigned)
+                a.assignmentId,
+          ]
+        : const <int>[];
+    final results = await Future.wait(
+      onTheWay.map((id) async {
+        try {
+          return (id, await _routeService.getRoute(id));
+        } catch (_) {
+          return (id, const WorkerRouteView.message(routeUnavailableText));
+        }
+      }),
+    );
+    if (!mounted || request != _routeRequest) return;
+    setState(() {
+      _routes = {for (final (id, view) in results) id: ?view};
+    });
+  }
+
+  /// Which workers are already favourites, for the hearts; a failure leaves the hearts out.
+  Future<void> _loadFavorites() async {
+    try {
+      final list = await _favoriteService.getFavoriteWorkers();
+      if (mounted) {
+        setState(() => _favoriteIds = {for (final w in list) w.workerId});
+      }
+    } catch (_) {}
+  }
+
+  /// Adds or removes the worker at once; a failure puts the heart back and says so.
+  Future<void> _toggleFavorite(int workerId) async {
+    final ids = _favoriteIds;
+    if (ids == null || _favoriteBusy.contains(workerId)) return;
+    final wasFavorite = ids.contains(workerId);
+    setState(() {
+      _favoriteBusy.add(workerId);
+      _favoriteError = null;
+      wasFavorite ? ids.remove(workerId) : ids.add(workerId);
+    });
+    try {
+      if (wasFavorite) {
+        await _favoriteService.removeFavoriteWorker(workerId);
+      } else {
+        await _favoriteService.addFavoriteWorker(workerId);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        wasFavorite ? ids.add(workerId) : ids.remove(workerId);
+        _favoriteError = wasFavorite
+            ? 'Chưa bỏ yêu thích được. Thử lại nhé.'
+            : 'Chưa thêm vào yêu thích được. Thử lại nhé.';
+      });
+    } finally {
+      if (mounted) setState(() => _favoriteBusy.remove(workerId));
+    }
+  }
+
+  Widget _routeCard(ProgressAssignment a, WorkerRouteView view) {
+    final route = view.route;
+    return NordicCard(
+      key: Key('route-${a.assignmentId}'),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: NordicColors.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.two_wheeler_rounded,
+              size: 22,
+              color: NordicColors.primary,
+            ),
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${workerName(a)} đang trên đường tới',
+                  style: NordicTypography.titleSmall,
+                ),
+                const SizedBox(height: NordicSpace.xxs),
+                Text(
+                  route == null
+                      ? view.message!
+                      : 'Cách ${formatRouteDistance(route.distanceMeters)} · ${formatRouteDuration(route.durationSeconds)}',
+                  key: Key('route-text-${a.assignmentId}'),
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _favoriteHeart(ProgressAssignment a) {
+    final favorite = _favoriteIds!.contains(a.workerId);
+    return IconButton(
+      key: Key('favorite-${a.assignmentId}'),
+      tooltip: favorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích',
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+      onPressed: _favoriteBusy.contains(a.workerId)
+          ? null
+          : () => _toggleFavorite(a.workerId),
+      icon: Icon(
+        favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+        color: favorite ? NordicColors.error : NordicColors.textSecondary,
+      ),
+    );
   }
 
   Future<void> _loadArrivals(BookingOrder order, OrderProgress progress) async {
@@ -292,6 +464,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       });
       unawaited(_loadRatingEligibility(order, progress));
       unawaited(_loadArrivals(order, progress));
+      unawaited(_loadRoutes(order, progress));
       if (!shouldPollOrder(order.orderStatus)) {
         _pollTimer?.cancel();
         _pollTimer = null;
@@ -412,6 +585,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           requiredWorkers: progress.requiredWorkers,
           assignments: progress.assignments,
           extension: extension,
+          substituteSearchUntil: progress.substituteSearchUntil,
         );
         _extOpen = false;
       });
@@ -524,7 +698,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     overlap: _overlap,
                     appBarTitle: 'Chi tiết đơn',
                     titleKey: const Key('order-title'),
-                    child: _headerContent(order, displayStatus),
+                    child: _headerContent(order, progress, displayStatus),
                   ),
                   Transform.translate(
                     offset: const Offset(0, -_overlap),
@@ -558,7 +732,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   /// In the dark header: the status, the start time as the big figure, the day and the shift.
-  Widget _headerContent(BookingOrder order, String displayStatus) {
+  Widget _headerContent(
+    BookingOrder order,
+    OrderProgress progress,
+    String displayStatus,
+  ) {
     final start = _localTime(order.shiftStartAt);
     final end = _localTime(order.shiftEndAt);
     final cancelled = order.orderStatus == OrderStatus.cancelled;
@@ -568,7 +746,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OrderStatusPill(displayStatus, textKey: const Key('order-status')),
+        OrderStatusPill(
+          displayStatus,
+          textKey: const Key('order-status'),
+          label: orderHeaderLabel(displayStatus, progress.assignments),
+        ),
         const SizedBox(height: NordicSpace.sm),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -810,6 +992,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         const SizedBox(height: NordicSpace.sm),
       ],
+      if (order.orderStatus == OrderStatus.dispatching &&
+          progress.substituteSearchUntil != null) ...[
+        _substituteSearchCard(progress.substituteSearchUntil!),
+        const SizedBox(height: NordicSpace.sm),
+      ],
       if (_pendingArrivals.isNotEmpty) ...[
         for (final entry in _pendingArrivals.entries) ...[
           Builder(
@@ -839,19 +1026,59 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           const SizedBox(height: NordicSpace.sm),
         ],
       ],
+      for (final a in progress.assignments)
+        if (_routes[a.assignmentId] case final view?) ...[
+          _routeCard(a, view),
+          const SizedBox(height: NordicSpace.sm),
+        ],
       const SectionTitle('Tiến trình'),
-      NordicCard(child: _timeline(displayStatus)),
+      NordicCard(child: _timeline(displayStatus, progress.assignments)),
+      if (continuationText(progress.continuation) case final note?) ...[
+        const SizedBox(height: NordicSpace.sm),
+        NordicCard(
+          key: const Key('continuation-card'),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.more_time_outlined, color: NordicColors.primary),
+              const SizedBox(width: NordicSpace.xs),
+              Expanded(
+                child: Text(
+                  note,
+                  key: const Key('continuation-note'),
+                  style: NordicTypography.bodyRegular,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
       if (!(cancelled && progress.assignments.isEmpty)) ...[
         SectionTitle(
           'Người làm',
           trailing:
               '${progress.assignments.length}/${progress.requiredWorkers}',
         ),
+        if (_favoriteError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: NordicSpace.xs),
+            child: Text(
+              _favoriteError!,
+              key: const Key('favorite-error'),
+              style: NordicTypography.bodySmall.copyWith(
+                color: NordicColors.error,
+              ),
+            ),
+          ),
         ..._assignments(order, progress),
       ],
       if (extension != null) ...[
         const SizedBox(height: NordicSpace.md),
         _extensionCard(extension),
+      ],
+      if (_address != null) ...[
+        const SectionTitle('Địa điểm'),
+        _addressCard(_address!),
       ],
       if (actions.isNotEmpty) ...[
         const SectionTitle('Việc khác'),
@@ -863,7 +1090,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         const SizedBox(height: NordicSpace.md),
         _extensionForm(workers),
       ],
-      if (canCancel(order.orderStatus)) ...[
+      if (canCancel(order.orderStatus, progress.assignments)) ...[
         const SizedBox(height: NordicSpace.lg),
         _cancelSection(),
       ],
@@ -1007,8 +1234,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return null;
   }
 
-  Widget _timeline(String status) {
-    final steps = orderTimeline(status);
+  /// The 7 steps as a vertical list (MOB-ORDER-02): 7 labels do not fit side by side on a phone. Done steps are ticked;
+  /// the current one is bold with its hint. "Có người làm", "đã đến" and "đang làm" are milestones already reached when
+  /// they are current, so they are ticked too; the waiting steps (pay, find, acceptance) are a highlighted ring.
+  Widget _timeline(String status, List<ProgressAssignment> assignments) {
+    final steps = orderTimeline(status, assignments);
     if (steps.length == 1 && steps.single.cancelled) {
       return Row(
         key: const Key('order-timeline'),
@@ -1036,19 +1266,141 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ],
       );
     }
-    return StepDots(
+    return Column(
       key: const Key('order-timeline'),
-      steps: [
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         for (var i = 0; i < steps.length; i++)
-          StepItem(
-            steps[i].label,
-            // "Có thợ" (and after) is a milestone already reached when it is the current step: show it ticked.
-            // The waiting steps (pay, find a worker) stay an open ring while the order sits on them.
-            steps[i].done || (steps[i].current && i >= 2)
-                ? DotState.done
-                : (steps[i].current ? DotState.current : DotState.todo),
+          _timelineRow(
+            steps[i],
+            reached: steps[i].done || (steps[i].current && i >= 2 && i <= 4),
+            last: i == steps.length - 1,
+            nextReached: i + 1 < steps.length && steps[i + 1].done,
           ),
       ],
+    );
+  }
+
+  Widget _timelineRow(
+    TimelineStep step, {
+    required bool reached,
+    required bool last,
+    required bool nextReached,
+  }) {
+    final waiting = step.current && !reached;
+    final Widget dot = reached
+        ? Container(
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(
+              color: NordicColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check,
+              size: 16,
+              color: NordicColors.textInverse,
+            ),
+          )
+        : Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: waiting
+                  ? NordicColors.primaryContainer
+                  : NordicColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: waiting ? NordicColors.primary : NordicColors.border,
+                width: waiting ? 2 : 1.5,
+              ),
+            ),
+          );
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Column(
+            children: [
+              dot,
+              if (!last)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    color: nextReached
+                        ? NordicColors.primary
+                        : NordicColors.border,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: 2,
+                bottom: last ? 0 : NordicSpace.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    step.label,
+                    style: step.current
+                        ? NordicTypography.titleSmall
+                        : NordicTypography.bodyRegular.copyWith(
+                            color: step.done
+                                ? NordicColors.textTitle
+                                : NordicColors.textSecondary,
+                          ),
+                  ),
+                  if (step.hint != null) ...[
+                    const SizedBox(height: NordicSpace.xxs),
+                    Text(
+                      step.hint!,
+                      key: const Key('order-timeline-hint'),
+                      style: NordicTypography.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Where the job is (MOB-ORDER-02, like the Web "Địa điểm" card): label, street and ward, total area.
+  Widget _addressCard(CustomerAddress a) {
+    return NordicCard(
+      key: const Key('order-address'),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.location_on_outlined,
+            size: 20,
+            color: NordicColors.primary,
+          ),
+          const SizedBox(width: NordicSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(a.label, style: NordicTypography.titleSmall),
+                const SizedBox(height: NordicSpace.xxs),
+                Text(
+                  '${a.addressLine} · ${a.district} · ${formatArea(a.totalAreaM2)}',
+                  key: const Key('order-address-line'),
+                  style: NordicTypography.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1112,6 +1464,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ],
                     ),
                   ),
+                  if (_favoriteIds != null) _favoriteHeart(a),
                   const SizedBox(width: NordicSpace.xs),
                   // Full label width ("Chờ bạn nghiệm thu"); the name column gives way first.
                   ConstrainedBox(
@@ -1393,6 +1746,39 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               variant: NordicButtonVariant.secondary,
               onPressed: _openExtension,
             ),
+        ],
+      ),
+    );
+  }
+
+  /// Decisions D35: the helper cancelled; a substitute is searched for until [until], then the order is refunded 100 %.
+  Widget _substituteSearchCard(DateTime until) {
+    return Container(
+      key: const Key('substitute-search'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(NordicSpace.md),
+      decoration: const BoxDecoration(
+        color: NordicColors.amberSoft,
+        borderRadius: NordicRadius.cardAll,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Đang tìm người làm thay',
+            style: NordicTypography.titleSmall.copyWith(
+              color: NordicColors.onAmberSoft,
+            ),
+          ),
+          const SizedBox(height: NordicSpace.xxs),
+          Text(
+            'Người giúp việc đã huỷ ca. Hệ thống đang tìm người khác tới ${_localTime(until)}. '
+            'Nếu không tìm được, đơn tự huỷ và bạn được hoàn tiền 100 %. '
+            'Bạn cũng có thể huỷ đơn ngay, vẫn được hoàn 100 %.',
+            style: NordicTypography.bodySmall.copyWith(
+              color: NordicColors.onAmberSoft,
+            ),
+          ),
         ],
       ),
     );

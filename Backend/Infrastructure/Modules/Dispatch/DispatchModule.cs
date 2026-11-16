@@ -22,6 +22,11 @@ public class DispatchModule : IModule
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IDispatchRepository, EfDispatchRepository>();
+        services.AddScoped<IPremiumStartRepository, EfPremiumStartRepository>();
+        services.AddScoped<PremiumShiftStartService>();
+        services.AddScoped<IPremiumReminderRepository, EfPremiumReminderRepository>();
+        services.AddScoped<PremiumCheckInReminderService>();
+        services.AddHostedService<PremiumStartSweepWorker>();
         services.AddScoped<EfDispatchRepository>();
         services.AddScoped<IMilestoneFailoverRepository>(sp => sp.GetRequiredService<EfDispatchRepository>());
         services.AddScoped<SteppedRadiusDispatchScanner>();
@@ -45,6 +50,8 @@ public class DispatchModule : IModule
         services.AddScoped<FieldCheckInService>();
         services.AddScoped<CustomerAbsentService>();
         services.AddScoped<WorkerDispatchService>();
+        services.AddScoped<IWorkerCancelRepository, EfWorkerCancelRepository>(); // freelancer cancel (Q15, D35)
+        services.AddScoped<WorkerCancelService>();
         services.AddScoped<ConsecutiveShiftFallbackService>();
         services.AddScoped<CustomerArrivalService>(); // customer confirms the arrival when the GPS is off (BR-04, #657)
         services.AddScoped<IAdminIncidentQuery, EfAdminIncidentQuery>(); // Admin incident monitor (read only)

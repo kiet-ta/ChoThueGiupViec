@@ -11,7 +11,12 @@ public record CreateOrderRequest(
     string? CustomerNote,
     string? RequiredSkill,
     int? PreferredWorkerId = null,
-    long? PreviousOrderId = null);
+    long? PreviousOrderId = null,
+    // Decisions D34 (ECONOMY only): the local start and the length in hours of a timed job inside the shift; both or neither.
+    TimeOnly? StartTime = null,
+    decimal? DurationHours = null,
+    // Decision D36: the customer agreed that a large house is one worker who may need extra hours after the job.
+    bool AcceptsContinuousWork = false);
 
 /// <summary>The <c>Order</c> shape of contract booking.md section 2 (times in UTC).</summary>
 public record CreatedOrder(
@@ -32,13 +37,17 @@ public record CreatedOrder(
     string? CancelReason,
     DateTime? PaymentDeadlineAt,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    // Decisions D34: the timed job's local start/end; both null = the whole shift.
+    TimeOnly? StartTime = null,
+    TimeOnly? EndTime = null,
+    bool IsContinuousWork = false);
 
 public interface IOrderCreationService
 {
     /// <summary>
     /// POST /api/v1/booking/orders (contract booking.md 3.3), rules in order, nothing written when one fails:
-    /// ValidationException (400), NotFoundException (404), BusinessRuleViolationException with Code SHIFT_IN_PAST / PREMIUM_LEAD_TIME / FULLY_BOOKED (409).
+    /// ValidationException (400), NotFoundException (404), BusinessRuleViolationException with Code SHIFT_IN_PAST / PREMIUM_LEAD_TIME / LEAD_TIME_TOO_SHORT / FULLY_BOOKED (409).
     /// </summary>
     Task<CreatedOrder> CreateAsync(CreateOrderRequest request, CancellationToken cancellationToken = default);
 }

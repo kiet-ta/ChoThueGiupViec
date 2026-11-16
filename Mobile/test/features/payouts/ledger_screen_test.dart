@@ -99,8 +99,9 @@ void _tallView(WidgetTester tester) {
 
 Future<void> _pumpHistory(
   WidgetTester tester,
-  FakeLedgerService service,
-) async {
+  FakeLedgerService service, {
+  DateTime? joined,
+}) async {
   _tallView(tester);
   await tester.pumpWidget(
     MaterialApp(
@@ -108,6 +109,7 @@ Future<void> _pumpHistory(
       home: LedgerHistoryScreen(
         service: service,
         now: () => DateTime.utc(2026, 11, 15, 3),
+        joinedAt: () async => joined ?? DateTime.utc(2024, 1, 1),
       ),
     ),
   );
@@ -181,6 +183,21 @@ void main() {
       expect(service.calls.last.type, isNull);
     });
 
+    testWidgets(
+      'cannot go back before the month the worker registered (MOB-PAYOUT-02)',
+      (tester) async {
+        final service = FakeLedgerService()..pages.add(_page([_entry(5)]));
+        await _pumpHistory(tester, service, joined: DateTime.utc(2026, 11, 2));
+
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(const Key('ledger-prev')))
+              .onPressed,
+          isNull,
+        );
+      },
+    );
+
     testWidgets('goes back a month and cannot go past the current one', (
       tester,
     ) async {
@@ -210,12 +227,9 @@ void main() {
             _page([_entry(6)], total: 2, page: 2),
           ]);
         await _pumpHistory(tester, service);
-        expect(find.byKey(const Key('ledger-more')), findsOneWidget);
 
-        await tester.tap(find.byKey(const Key('ledger-more')));
-        await tester.pumpAndSettle();
-
-        expect(service.calls.last.page, 2);
+        // The short list loads the next page by itself (MOB-PAGING-01), once.
+        expect(service.calls.map((c) => c.page), [1, 2]);
         expect(find.byKey(const Key('ledger-row-5')), findsOneWidget);
         expect(find.byKey(const Key('ledger-row-6')), findsOneWidget);
         expect(find.byKey(const Key('ledger-more')), findsNothing);

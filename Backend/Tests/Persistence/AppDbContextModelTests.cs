@@ -89,7 +89,7 @@ public class AppDbContextModelTests
     }
 
     [Fact]
-    public void JobAssignment_Has_Required_Indexes_And_Filtered_Unique_Slot_Index()
+    public void JobAssignment_Has_Required_Indexes_And_A_Plain_Slot_Index()
     {
         using var context = CreateContext();
         var entityType = context.Model.FindEntityType(typeof(JobAssignment));
@@ -103,14 +103,12 @@ public class AppDbContextModelTests
         Assert.Contains(indexes, i => i.Properties.Any(p => p.Name == nameof(JobAssignment.CustomerId)));
         Assert.Contains(indexes, i => i.Properties.Any(p => p.Name == nameof(JobAssignment.OrderId)));
 
-        // Filtered unique index on slot_id
+        // Decisions D34 (SC-16): one slot can carry several timed jobs, so slot_id has a plain index (it was filtered unique, Q22/D2/SC-9).
+        // The double-booking guard is the overlap check of EfDispatchRepository.TryCreateOfferAsync (TimedJobOfferSqlServerTests).
         var slotIndex = indexes.FirstOrDefault(i => i.Properties.Any(p => p.Name == nameof(JobAssignment.SlotId)));
         Assert.NotNull(slotIndex);
-        Assert.True(slotIndex.IsUnique);
-        Assert.NotNull(slotIndex.GetFilter());
-        Assert.Contains("CANCELLED", slotIndex.GetFilter()!);
-        Assert.Contains("CANCELLED_BY_WORKER", slotIndex.GetFilter()!);
-        Assert.Contains("REASSIGNED", slotIndex.GetFilter()!);
+        Assert.False(slotIndex.IsUnique);
+        Assert.Null(slotIndex.GetFilter());
     }
 
     [Fact]

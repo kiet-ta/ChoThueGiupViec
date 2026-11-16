@@ -66,11 +66,18 @@ public class DatabaseSeederTests
             })
             .Build();
 
-        // Prepare clean state: delete test admin if exists
+        // Prepare a clean state without deleting anything: the whole test runs in a transaction that is never committed, and an existing dev admin
+        // only gets another email inside it. (Other tests of the suite leave rows that point at the dev admin: audit rows, escrow rows, ...; deleting
+        // the admin broke on whichever foreign key they happened to use.)
+        await using var transaction = await context.Database.BeginTransactionAsync();
         var existing = await context.Admins.Where(a => a.Email == "admin@dev.local").ToListAsync();
+        foreach (var previous in existing)
+        {
+            previous.Email = $"previous-{Guid.NewGuid():N}@dev.test";
+        }
+
         if (existing.Count > 0)
         {
-            context.Admins.RemoveRange(existing);
             await context.SaveChangesAsync();
         }
 

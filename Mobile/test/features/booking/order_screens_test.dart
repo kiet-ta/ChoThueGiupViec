@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/widgets/nordic_button.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/features/customers/models/customer_address.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/screens/order_detail_screen.dart';
 import 'package:mobile/features/booking/screens/order_history_screen.dart';
@@ -96,6 +97,7 @@ class FakeOrderService implements IOrderService {
   String? cancelReason;
   List<ProgressAssignment> workers = [];
   OrderExtension? extension;
+  DateTime? substituteSearchUntil;
 
   Object? loadError;
   Object? optionsError;
@@ -146,6 +148,7 @@ class FakeOrderService implements IOrderService {
             requiredWorkers: 1,
             assignments: workers,
             extension: extension,
+            substituteSearchUntil: substituteSearchUntil,
           ),
         );
 
@@ -180,6 +183,9 @@ class FakeOrderService implements IOrderService {
     return Future.value(extension!);
   }
 
+  /// Pages from this one on fail (a later page failing while page 1 worked).
+  int? failFromPage;
+
   @override
   Future<OrderPage> listOrders({
     int page = 1,
@@ -189,6 +195,9 @@ class FakeOrderService implements IOrderService {
     pagesAsked.add(page);
     statusesAsked.add(status);
     if (listError != null) return Future.error(listError!);
+    if (failFromPage != null && page >= failFromPage!) {
+      return Future.error(const ApiException(500, 'boom'));
+    }
     final matching = status == null
         ? all
         : all.where((o) => o.orderStatus == status).toList();
@@ -218,6 +227,7 @@ Future<List<PaymentScreenArgs>> pumpDetail(
   FakeOrderService service, {
   bool withArgs = true,
   IFallbackService? fallback,
+  CustomerAddress? address,
 }) async {
   _phone(tester);
   final paid = <PaymentScreenArgs>[];
@@ -230,6 +240,7 @@ Future<List<PaymentScreenArgs>> pumpDetail(
         fallbackService: fallback,
         pollInterval: _poll,
         onPay: paid.add,
+        addressLookup: (_) async => address,
       ),
     ),
   );
@@ -341,6 +352,50 @@ void main() {
       matching: find.byIcon(Icons.check),
     );
 
+    testWidgets(
+      'a job waiting for acceptance cannot be cancelled and shows "Chờ nghiệm thu" with the address (MOB-ORDER-02)',
+      (tester) async {
+        final service = FakeOrderService()
+          ..status = OrderStatus.assigned
+          ..workers = [_worker(7, AssignmentStatus.awaitingAcceptance)];
+        await pumpDetail(
+          tester,
+          service,
+          address: const CustomerAddress(
+            addressId: 1,
+            label: 'Căn hộ mẹ',
+            addressLine: 'Vinhomes Central Park',
+            district: 'Phường Thạnh Mỹ Tây',
+            city: 'Thành phố Hồ Chí Minh',
+            housingType: HousingType.apartment,
+            floorAreaM2: 96,
+            numFloors: 1,
+            totalAreaM2: 96,
+            latitude: 10.79,
+            longitude: 106.72,
+            isDefault: false,
+          ),
+        );
+
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('order-address')),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('Huỷ đơn'), findsNothing);
+        // ORDER-STATUS-SYNC-01: the header pill says the same step as the timeline.
+        expect(textOf(tester, 'order-status'), 'Chờ nghiệm thu');
+        expect(
+          textOf(tester, 'order-timeline-hint'),
+          'Mời bạn kiểm tra rồi xác nhận nghiệm thu.',
+        );
+        expect(
+          textOf(tester, 'order-address-line'),
+          'Vinhomes Central Park · Phường Thạnh Mỹ Tây · 96 m²',
+        );
+      },
+    );
+
     testWidgets('an assigned order ticks "Có người làm"', (tester) async {
       final assigned = FakeOrderService()
         ..status = OrderStatus.assigned
@@ -368,6 +423,29 @@ void main() {
 
         expect(find.byKey(const Key('arrival-title-7')), findsOneWidget);
         expect(find.byKey(const Key('arrival-btn-start-7')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'D35: after the helper cancelled it says until when a substitute is searched for, and the order can still be cancelled',
+      (tester) async {
+        final service = FakeOrderService()
+          ..substituteSearchUntil = DateTime.utc(2026, 11, 20, 0, 30);
+        await pumpDetail(tester, service);
+
+        expect(find.byKey(const Key('substitute-search')), findsOneWidget);
+        expect(find.text('Đang tìm người làm thay'), findsOneWidget);
+        expect(find.textContaining('tới 07:30'), findsOneWidget);
+        expect(find.byKey(const Key('open-cancel')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a dispatching order without a cancelled helper has no such card',
+      (tester) async {
+        await pumpDetail(tester, FakeOrderService());
+
+        expect(find.byKey(const Key('substitute-search')), findsNothing);
       },
     );
 
@@ -824,7 +902,7 @@ void main() {
       expect(textOf(tester, 'order-status-1'), 'Đã có người làm');
       expect(textOf(tester, 'order-status-2'), 'Đã huỷ');
       expect(find.text('Ca sáng · Cơ bản'), findsNWidgets(2));
-      expect(find.text('260.000 đ'), findsNWidgets(2));
+      expect(find.text('260.000 đ'), findsNWidgets(2));
       expect(find.text('Tháng 10/2026'), findsOneWidget);
       expect(textOf(tester, 'history-count'), '2 đơn');
       expect(find.byKey(const Key('history-more')), findsNothing);
@@ -882,6 +960,28 @@ void main() {
     );
 
     testWidgets(
+      'the Web status filters ask the server for their status (MOB-ORDERS-03)',
+      (tester) async {
+        final service = FakeOrderService()
+          ..all = [_summary(1, OrderStatus.completed)];
+        await pumpHistory(tester, service);
+
+        for (final status in [
+          OrderStatus.pendingPayment,
+          OrderStatus.dispatching,
+          OrderStatus.assigned,
+        ]) {
+          await tester.ensureVisible(find.byKey(Key('history-filter-$status')));
+          await tapKey(tester, 'history-filter-$status');
+          expect(service.statusesAsked.last, status);
+        }
+        // Nothing assigned: the empty state names the filter, it does not say there is no order at all.
+        expect(find.textContaining('Không có đơn'), findsOneWidget);
+        expect(find.text('Bạn chưa có đơn nào'), findsNothing);
+      },
+    );
+
+    testWidgets(
       'an open order that has not started is also shown as a dark card on "Tất cả" only',
       (tester) async {
         final service = FakeOrderService()
@@ -927,7 +1027,7 @@ void main() {
           find.byKey(const Key('order-1')),
           findsOneWidget,
         ); // also in its month
-        expect(find.text('08:00–12:00 · 260.000 đ'), findsNWidgets(2));
+        expect(find.text('08:00–12:00 · 260.000 đ'), findsNWidgets(2));
 
         await tapKey(tester, 'history-filter-COMPLETED');
 
@@ -948,25 +1048,45 @@ void main() {
       expect(opened.single.orderId, 2);
     });
 
-    testWidgets('"Xem thêm" loads the next page until everything is shown', (
-      tester,
-    ) async {
-      final service = FakeOrderService()
-        ..all = [
-          for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
-        ];
-      await pumpHistory(tester, service);
+    testWidgets(
+      'near the end the list loads the next page by itself, once, with no button (MOB-PAGING-01)',
+      (tester) async {
+        final service = FakeOrderService()
+          ..all = [
+            for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
+          ];
+        await pumpHistory(tester, service);
 
-      expect(textOf(tester, 'history-count'), '20 / 25 đơn');
-      expect(find.byKey(const Key('order-21')), findsNothing);
+        expect(service.pagesAsked, [1, 2]);
+        expect(textOf(tester, 'history-count'), '25 đơn');
+        expect(find.byKey(const Key('order-25')), findsOneWidget);
+        expect(find.byKey(const Key('history-more')), findsNothing);
+        expect(find.text('Xem thêm'), findsNothing);
+        expect(find.byKey(const Key('history-more-loading')), findsNothing);
+      },
+    );
 
-      await tapKey(tester, 'history-more');
+    testWidgets(
+      'pulling down at the top reloads page 1 and replaces the list (MOB-PAGING-01)',
+      (tester) async {
+        final service = FakeOrderService()
+          ..all = [
+            for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
+          ];
+        await pumpHistory(tester, service);
+        service.pagesAsked.clear();
 
-      expect(service.pagesAsked, [1, 2]);
-      expect(textOf(tester, 'history-count'), '25 đơn');
-      expect(find.byKey(const Key('order-25')), findsOneWidget);
-      expect(find.byKey(const Key('history-more')), findsNothing);
-    });
+        // The pull gesture itself is Flutter's RefreshIndicator; this runs what it calls.
+        tester
+            .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+            .show();
+        await tester.pumpAndSettle();
+
+        expect(service.pagesAsked.first, 1);
+        expect(textOf(tester, 'history-count'), '25 đơn');
+        expect(find.byKey(const Key('order-25')), findsOneWidget);
+      },
+    );
 
     testWidgets('a failed next page keeps the list and can be tried again', (
       tester,
@@ -974,15 +1094,17 @@ void main() {
       final service = FakeOrderService()
         ..all = [
           for (var i = 1; i <= 25; i++) _summary(i, OrderStatus.completed),
-        ];
+        ]
+        ..failFromPage = 2;
       await pumpHistory(tester, service);
 
-      service.listError = const ApiException(500, 'boom');
-      await tapKey(tester, 'history-more');
+      // The failed page is not asked again by itself; "Thử lại" asks for it.
+      expect(service.pagesAsked, [1, 2]);
       expect(textOf(tester, 'history-more-error'), contains('Máy chủ gặp lỗi'));
       expect(find.byKey(const Key('order-20')), findsOneWidget);
+      expect(find.text('Thử lại'), findsOneWidget);
 
-      service.listError = null;
+      service.failFromPage = null;
       await tapKey(tester, 'history-more');
       expect(textOf(tester, 'history-count'), '25 đơn');
     });

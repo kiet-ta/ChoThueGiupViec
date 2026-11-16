@@ -49,7 +49,31 @@ void main() {
         'phoneNumber': '0912345678',
         'role': 'Worker',
       });
+      expect(result.sandboxOtp, isNull);
     });
+
+    test(
+      '200 parses sandboxOtp when returned by Development fake sender',
+      () async {
+        backend.on(
+          'POST',
+          '/api/v1/auth/otp/request',
+          200,
+          FakeBackend.ok({
+            'expiresInSeconds': 300,
+            'resendAvailableInSeconds': 60,
+            'sandboxOtp': '482913',
+          }),
+        );
+
+        final result = await service().requestOtp(
+          phoneNumber: '0912345678',
+          role: AppRole.customer,
+        );
+
+        expect(result.sandboxOtp, '482913');
+      },
+    );
 
     test('429 throws with the server message and Retry-After, instead of pretending the OTP was sent', () async {
       backend.on(

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CommonService.Application.Common.Models;
 using CommonService.Application.Features.Identity.Dtos;
 using CommonService.Application.Features.Identity.Services;
@@ -97,6 +98,57 @@ public class AuthControllerTests
         Assert.True(apiResponse.Success);
         Assert.NotNull(apiResponse.Data);
         Assert.Equal(300, apiResponse.Data.ExpiresInSeconds);
+    }
+
+    [Fact]
+    public async Task RequestOtp_returns_SandboxOtp_when_populated()
+    {
+        var (controller, service, _, _) = CreateController();
+        service.RequestResult = OtpRequestResult.Ok(new OtpRequestResponseDto
+        {
+            ExpiresInSeconds = 300,
+            ResendAvailableInSeconds = 60,
+            SandboxOtp = "654321"
+        });
+
+        var actionResult = await controller.RequestOtp(new OtpRequestDto
+        {
+            PhoneNumber = "0901234567",
+            Role = "Customer"
+        }, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(actionResult);
+        var apiResponse = Assert.IsType<ApiResponse<OtpRequestResponseDto>>(okResult.Value);
+        Assert.Equal("654321", apiResponse.Data?.SandboxOtp);
+    }
+
+    [Fact]
+    public void OtpRequestResponseDto_json_serialization_includes_SandboxOtp_only_when_present()
+    {
+        var webOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+        var omittedJson = JsonSerializer.Serialize(new OtpRequestResponseDto
+        {
+            ExpiresInSeconds = 300,
+            ResendAvailableInSeconds = 60,
+            SandboxOtp = null
+        }, webOptions);
+        using (var doc = JsonDocument.Parse(omittedJson))
+        {
+            Assert.False(doc.RootElement.TryGetProperty("sandboxOtp", out _));
+        }
+
+        var presentJson = JsonSerializer.Serialize(new OtpRequestResponseDto
+        {
+            ExpiresInSeconds = 300,
+            ResendAvailableInSeconds = 60,
+            SandboxOtp = "123456"
+        }, webOptions);
+        using (var doc = JsonDocument.Parse(presentJson))
+        {
+            Assert.True(doc.RootElement.TryGetProperty("sandboxOtp", out var otpElement));
+            Assert.Equal("123456", otpElement.GetString());
+        }
     }
 
     [Fact]

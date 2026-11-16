@@ -54,6 +54,16 @@ class FakeDisputesService implements IDisputesService {
     if (listError != null) throw listError!;
     return mine;
   }
+
+  /// DISPUTE-DETAIL-01: the server's copy of one dispute; [detail] replaces it, [detailError] fails it.
+  Dispute? detail;
+  Object? detailError;
+
+  @override
+  Future<Dispute> getMine(DisputeRole role, int disputeId) async {
+    if (detailError != null) throw detailError!;
+    return detail ?? mine.firstWhere((d) => d.disputeId == disputeId);
+  }
 }
 
 class FakeUploader implements IEvidenceUploader {
@@ -559,5 +569,61 @@ void main() {
         expect(find.byKey(const Key('dispute-remove-0')), findsOneWidget);
       },
     );
+  });
+
+  group('DisputeDetailScreen (DISPUTE-DETAIL-01)', () {
+    testWidgets('tapping a dispute opens all of it, with the server copy', (
+      tester,
+    ) async {
+      final service = FakeDisputesService()
+        ..mine = [dispute(5, 'OPEN')]
+        ..detail = dispute(
+          5,
+          'RESOLVED',
+          fault: 'FREELANCER',
+          compensation: 150000,
+        );
+      await pumpList(tester, service);
+
+      await tester.tap(find.byKey(const Key('dispute-card-5')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Chi tiết khiếu nại'), findsOneWidget);
+      expect(find.text('#D-5'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('dispute-detail-description')))
+            .data,
+        'Mô tả 5',
+      );
+      expect(find.text('2 ảnh'), findsOneWidget);
+      await tester.dragUntilVisible(
+        find.byKey(const Key('dispute-detail-compensation')),
+        find.byType(Scrollable).first,
+        const Offset(0, -200),
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('dispute-detail-fault'))).data,
+        'Lỗi thuộc về người làm',
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('dispute-detail-compensation')))
+            .data,
+        'Bồi thường: 150.000 đ',
+      );
+    });
+
+    testWidgets("a dispute that is not the caller's says so", (tester) async {
+      final service = FakeDisputesService()
+        ..mine = [dispute(5, 'OPEN')]
+        ..detailError = const ApiException(404, 'Not found');
+      await pumpList(tester, service);
+
+      await tester.tap(find.byKey(const Key('dispute-card-5')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Không tìm thấy khiếu nại này.'), findsOneWidget);
+    });
   });
 }

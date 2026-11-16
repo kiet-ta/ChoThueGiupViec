@@ -1,3 +1,4 @@
+using CommonService.Application.Features.Booking;
 using CommonService.Application.Features.Dispatch;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
@@ -72,6 +73,10 @@ public class EfFieldRepository(AppDbContext db) : IFieldCheckInRepository, ICust
             {
                 Assignment = a,
                 o.ScheduledDate,
+                OrderShift = o.ShiftCode,
+                OrderStart = o.StartTime,
+                OrderEnd = o.EndTime,
+                SlotShift = slot.ShiftCode,
                 slot.StartTime,
                 slot.EndTime,
                 addr.District,
@@ -88,7 +93,9 @@ public class EfFieldRepository(AppDbContext db) : IFieldCheckInRepository, ICust
         }
 
         GeoPoint? workerAt = row.CurrentLat is { } lat && row.CurrentLng is { } lng ? new GeoPoint((double)lat, (double)lng) : null;
-        return new OfferView(row.Assignment, row.ScheduledDate, row.StartTime, row.EndTime, row.District,
+        // Decisions D34: the worker sees the job's own time when the customer picked one, else the shift.
+        var (start, end) = JobWindow.OfAssignment(row.OrderShift, row.OrderStart, row.OrderEnd, row.SlotShift, row.StartTime, row.EndTime);
+        return new OfferView(row.Assignment, row.ScheduledDate, start, end, row.District,
             new GeoPoint((double)row.Latitude, (double)row.Longitude), workerAt);
     }
 

@@ -5,7 +5,10 @@ public enum SlaViolation
 {
     NoShow,
     Shortage,
-    QualityComplaint
+    QualityComplaint,
+
+    /// <summary>D38: a seat of a Premium order was not present at the shift start, so the order was cancelled (-30 points).</summary>
+    NoShowAtStart
 }
 
 /// <param name="CustomerRefundAmount">Step 1 of the deduction order (decisions Q09): 100 % of the affected amount.</param>

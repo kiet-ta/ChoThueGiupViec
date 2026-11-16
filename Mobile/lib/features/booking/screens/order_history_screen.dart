@@ -111,8 +111,17 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     _load();
   }
 
+  /// The next page, asked by the list when it is scrolled near its end (MOB-PAGING-01).
+  VoidCallback? get _onEndReached =>
+      !_loading &&
+          !_loadingMore &&
+          _moreError == null &&
+          hasMoreOrders(_items.length, _total)
+      ? _more
+      : null;
+
   Future<void> _more() async {
-    if (_loadingMore) return;
+    if (_loadingMore || !hasMoreOrders(_items.length, _total)) return;
     _loadingMore = true;
     setState(() => _moreError = null);
     final filter = _filter;
@@ -182,6 +191,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       return NordicPage.pushed(
         title: 'Đơn đã đặt',
         onRefresh: _load,
+        onEndReached: _onEndReached,
         children: [
           if (count != null)
             Padding(
@@ -196,6 +206,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       title: 'Đơn',
       headerAction: count,
       onRefresh: _load,
+      onEndReached: _onEndReached,
       children: children,
     );
   }
@@ -213,25 +224,31 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   // ---------------------------------------------------------------- filters
 
+  /// The Web's status filters (MOB-ORDERS-03), in one row that scrolls sideways.
+  static const List<(String, String?)> _filterChoices = [
+    ('Tất cả', null),
+    ('Chờ thanh toán', OrderStatus.pendingPayment),
+    ('Đang tìm người', OrderStatus.dispatching),
+    ('Có người làm', OrderStatus.assigned),
+    ('Hoàn thành', OrderStatus.completed),
+    ('Đã huỷ', OrderStatus.cancelled),
+  ];
+
   Widget _filters() {
     return Padding(
       padding: const EdgeInsets.only(bottom: NordicSpace.md),
-      child: Wrap(
-        spacing: NordicSpace.xs,
-        runSpacing: NordicSpace.xs,
-        children: [
-          _chip('history-filter-all', 'Tất cả', null),
-          _chip(
-            'history-filter-${OrderStatus.completed}',
-            'Hoàn thành',
-            OrderStatus.completed,
-          ),
-          _chip(
-            'history-filter-${OrderStatus.cancelled}',
-            'Đã huỷ',
-            OrderStatus.cancelled,
-          ),
-        ],
+      child: SingleChildScrollView(
+        key: const Key('history-filters'),
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        child: Row(
+          children: [
+            for (final (label, status) in _filterChoices) ...[
+              if (status != null) const SizedBox(width: NordicSpace.xs),
+              _chip('history-filter-${status ?? 'all'}', label, status),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -474,10 +491,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     final day = DateTime.tryParse(order.scheduledDate);
     final cancelled = order.orderStatus == OrderStatus.cancelled;
     final shift = _shift(order.shiftCode);
+    // Non-breaking spaces keep "260.000 đ" together and the "·" with the time: when the line is too narrow the amount
+    // moves to the next line as a whole, never "đ" alone (MOB-ORDERS-03).
     final meta = [
       if (shift != null) '${shift.startLocal}–${shift.endLocal}',
-      formatVnd(order.totalAmount),
-    ].join(' · ');
+      formatVnd(order.totalAmount).replaceAll(' ', ' '),
+    ].join(' · ');
     return InkWell(
       key: Key('order-${order.orderId}'),
       onTap: () => _open(order),
@@ -601,6 +620,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             title: 'Không có đơn đã huỷ',
             subtitle: 'Đơn bạn huỷ sẽ hiện ở đây.',
           ),
+          // The other status filters (MOB-ORDERS-03): nothing in that state, not "no order at all".
+          final String status => EmptyStateWidget(
+            title: 'Không có đơn ${orderStatusLabel(status).toLowerCase()}',
+            subtitle: 'Chọn "Tất cả" để xem mọi đơn của bạn.',
+          ),
           _ => EmptyStateWidget(
             title: 'Bạn chưa có đơn nào',
             subtitle: 'Đơn bạn đặt sẽ hiện ở đây.',
@@ -619,13 +643,27 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           key: const Key('history-more-error'),
           style: NordicTypography.bodySmall.copyWith(color: NordicColors.error),
         ),
-      if (hasMoreOrders(_items.length, _total))
+      if (_loadingMore)
+        Padding(
+          key: const Key('history-more-loading'),
+          padding: const EdgeInsets.symmetric(vertical: NordicSpace.md),
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: NordicColors.primary,
+              ),
+            ),
+          ),
+        )
+      else if (_moreError != null)
         NordicButton(
           key: const Key('history-more'),
-          label: 'Xem thêm',
+          label: 'Thử lại',
           width: double.infinity,
           variant: NordicButtonVariant.secondary,
-          isLoading: _loadingMore,
           onPressed: _more,
         ),
     ];

@@ -39,6 +39,15 @@ public class WorkerExtensionService(
         string status;
         if (accept)
         {
+            // Decisions D34: the extra hours must not run into the worker's next job (plus the travel buffer) that day.
+            if (JobWindow.OfOrder(extension.ShiftCode, extension.StartTime, extension.EndTime) is { } window
+                && await extensions.ClashesWithOtherJobAsync(
+                    workerId, extension.ScheduledDate, extension.OrderId, window.End, ExtendedEnd(window.End, extension.ExtraHours), ct))
+            {
+                throw new BusinessRuleViolationException(
+                    "The extra hours would run into your next job.", ExtensionErrorCodes.OverlapsNextJob);
+            }
+
             if (!await extensions.TryAcceptAsync(extension.ExtensionId, now, ct))
             {
                 throw new BusinessRuleViolationException("The extension was already answered.");
@@ -64,10 +73,13 @@ public class WorkerExtensionService(
         return ApiResponse<ExtensionResponse>.Ok(response, accept ? "Extension accepted." : "Extension declined.");
     }
 
-    /// <summary>The local end of the shift, longer by the extra hours only when the extension was accepted; empty for an unknown shift code.</summary>
+    /// <summary>
+    /// The local end of the job (its own end for a timed job, decisions D34, else the shift end), longer by the extra hours only when the
+    /// extension was accepted; empty for an unknown shift code.
+    /// </summary>
     private static string NewEndTime(ExtensionForWorker extension, bool accepted)
     {
-        if (BookingShifts.GetLocalTimes(extension.ShiftCode) is not { } times)
+        if (JobWindow.OfOrder(extension.ShiftCode, extension.StartTime, extension.EndTime) is not { } times)
         {
             return string.Empty;
         }
@@ -75,4 +87,18 @@ public class WorkerExtensionService(
         var end = accepted ? times.End.AddHours((double)extension.ExtraHours) : times.End;
         return end.ToString("HH:mm", CultureInfo.InvariantCulture);
     }
+
+    /// <summary>End after the extra hours, kept on the same day (an evening job never wraps past midnight).</summary>
+    private static TimeOnly ExtendedEnd(TimeOnly end, decimal extraHours)
+    {
+        var span = end.ToTimeSpan() + TimeSpan.FromHours((double)extraHours);
+        return span >= TimeSpan.FromDays(1) ? TimeOnly.MaxValue : TimeOnly.FromTimeSpan(span);
+    }
+}
+
+/// <summary>Decisions D34: the business 409 codes of answering an extension.</summary>
+public static class ExtensionErrorCodes
+{
+    /// <summary>The extra hours would overlap the worker's next job that day (with the travel buffer).</summary>
+    public const string OverlapsNextJob = "EXTENSION_OVERLAPS_NEXT_JOB";
 }

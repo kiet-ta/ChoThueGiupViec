@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Security.Claims;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Features.Identity.Dtos;
 using CommonService.Application.Features.Identity.Services;
@@ -21,10 +23,11 @@ internal static class SessionTokenIssuer
         UserRole role,
         DateTime now,
         Guid? familyId = null,
-        bool isNewUser = false)
+        bool isNewUser = false,
+        IEnumerable<Claim>? additionalClaims = null)
     {
         var roleStr = role.ToString();
-        var (accessToken, accessExpiry) = tokenService.GenerateAccessToken(subjectId, roleStr);
+        var (accessToken, accessExpiry) = tokenService.GenerateAccessToken(subjectId, roleStr, additionalClaims);
         var rawRefreshToken = tokenService.GenerateRefreshToken();
         var tokenHash = tokenService.HashRefreshToken(rawRefreshToken);
 
@@ -41,6 +44,18 @@ internal static class SessionTokenIssuer
         };
         db.RefreshTokens.Add(record);
 
+        // Extract worker_type and agency_id from additionalClaims for AuthUserDto
+        string? workerType = null;
+        int? agencyId = null;
+        if (additionalClaims != null)
+        {
+            foreach (var claim in additionalClaims)
+            {
+                if (claim.Type == "worker_type") workerType = claim.Value;
+                else if (claim.Type == "agency_id" && int.TryParse(claim.Value, out var aId)) agencyId = aId;
+            }
+        }
+
         var authResult = new AuthResultDto
         {
             TokenType = "Bearer",
@@ -51,7 +66,9 @@ internal static class SessionTokenIssuer
             {
                 Id = subjectId,
                 Role = roleStr,
-                IsNewUser = isNewUser
+                IsNewUser = isNewUser,
+                WorkerType = workerType,
+                AgencyId = agencyId
             }
         };
 

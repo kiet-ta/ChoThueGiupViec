@@ -26,8 +26,16 @@ String shiftMonth(String key, int delta) {
 /// The server answers 400 for a future month, so the selector never goes past the current one.
 bool canGoNext(String key, String currentKey) => key.compareTo(currentKey) < 0;
 
-/// January of [firstSelectableYear] is the first month.
-bool canGoPrevious(String key) => key.compareTo('$firstSelectableYear-01') > 0;
+/// The first month is the one the worker registered in ([firstMonth], from the profile's `createdAt`), never before
+/// January of [firstSelectableYear]. While [firstMonth] is unknown (not loaded, or the read failed) there is no going back:
+/// the selector never offers a month before the worker joined (MOB-PAYOUT-02).
+bool canGoPrevious(String key, String? firstMonth) {
+  if (firstMonth == null) return false;
+  final floor = firstMonth.compareTo('$firstSelectableYear-01') > 0
+      ? firstMonth
+      : '$firstSelectableYear-01';
+  return key.compareTo(floor) > 0;
+}
 
 /// "Tháng 10/2026".
 String monthLabel(String key) =>

@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
 import '../../core/motion/nordic_motion.dart';
+import '../../core/realtime/realtime_service.dart';
 import '../../core/theme/nordic_colors.dart';
 import '../../core/theme/nordic_radius.dart';
 import '../../core/theme/nordic_spacing.dart';
+import '../../core/theme/nordic_typography.dart';
 import '../../core/widgets/pressable.dart';
 import '../dispatch/routes.dart';
 import '../payouts/screens/payout_screen.dart';
@@ -27,11 +30,16 @@ class WorkerShell extends StatefulWidget {
   /// Tab contents, replaceable in tests (index 0..3).
   final List<Widget>? tabs;
 
+  /// The realtime channel (MOB-RT-01, decisions D37); tests pass a fake. Default: the SignalR hub with the session's token.
+  /// The shell connects when it opens and disconnects when it closes (sign-out replaces it with the welcome).
+  final IRealtimeService? realtime;
+
   const WorkerShell({
     super.key,
     required this.onSignOut,
     required this.workerId,
     this.tabs,
+    this.realtime,
   });
 
   @override
@@ -49,6 +57,82 @@ class _WorkerShellState extends State<WorkerShell> {
 
   /// The day the Lịch tab opens on after a cell of the Today grid was tapped; null = today.
   DateTime? _slotsDate;
+
+  late final IRealtimeService _realtime;
+  late final bool _ownsRealtime;
+  StreamSubscription<RealtimeNotification>? _notices;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsRealtime = widget.realtime == null;
+    _realtime = widget.realtime ?? RealtimeService();
+    _notices = _realtime.notifications.listen(_onNotice);
+    // Best effort: without the hub the screens keep polling as before.
+    _realtime.connect();
+  }
+
+  @override
+  void dispose() {
+    _notices?.cancel();
+    _ownsRealtime ? _realtime.dispose() : _realtime.disconnect();
+    super.dispose();
+  }
+
+  /// A job the server accepted for the worker (D33): reload Hôm nay and Lịch, and say so with a way to open the job.
+  void _onNotice(RealtimeNotification notice) {
+    if (!mounted || notice.topic != RealtimeTopics.autoAccepted) return;
+    setState(() {
+      _generation[0]++;
+      _generation[1]++;
+    });
+    final assignmentId = int.tryParse(notice.data['assignmentId'] ?? '');
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        key: const Key('worker-realtime-notice'),
+        duration: const Duration(seconds: 8),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (notice.title.isNotEmpty)
+              Text(
+                notice.title,
+                style: NordicTypography.titleSmall.copyWith(
+                  color: NordicColors.textInverse,
+                ),
+              ),
+            if (notice.body.isNotEmpty)
+              Text(
+                notice.body,
+                style: NordicTypography.bodySmall.copyWith(
+                  color: NordicColors.textInverse,
+                ),
+              ),
+          ],
+        ),
+        action: assignmentId == null
+            ? null
+            : SnackBarAction(
+                key: const Key('worker-realtime-open-job'),
+                label: 'Xem việc',
+                textColor: NordicColors.textInverse,
+                onPressed: () => _openJob(assignmentId),
+              ),
+      ),
+    );
+  }
+
+  void _openJob(int assignmentId) {
+    if (!mounted) return;
+    Navigator.of(context)
+        .pushNamed(DispatchRoutes.checkIn, arguments: assignmentId)
+        .then((_) {
+          if (mounted) setState(() => _generation[_tab]++);
+        });
+  }
 
   void _openSlotsOn(DateTime date) {
     _slotsDate = date;
@@ -70,9 +154,10 @@ class _WorkerShellState extends State<WorkerShell> {
   }
 
   Widget _build(int index) {
-    final custom = widget.tabs;
-    if (custom != null) return custom[index];
     final key = ValueKey('worker-$index-${_generation[index]}');
+    final custom = widget.tabs;
+    // A replaced tab is reloaded the same way as a real one (a new key).
+    if (custom != null) return KeyedSubtree(key: key, child: custom[index]);
     return switch (index) {
       0 => WorkerTodayTab(
         key: key,

@@ -87,6 +87,7 @@ public static class DispatchErrorCodes
     public const string AbsentAlreadyReported = "ABSENT_ALREADY_REPORTED";
     public const string FallbackNotWaiting = "FALLBACK_NOT_WAITING";
     public const string FallbackAlreadyAnswered = "FALLBACK_ALREADY_ANSWERED";
+    public const string JobAlreadyStarted = "JOB_ALREADY_STARTED";
 }
 
 /// <summary>

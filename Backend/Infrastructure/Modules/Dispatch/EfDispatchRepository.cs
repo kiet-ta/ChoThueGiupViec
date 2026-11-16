@@ -1,10 +1,13 @@
+using CommonService.Application.Common.Options;
 using CommonService.Application.Features.Dispatch;
 using CommonService.Application.Interfaces.Ports;
 using CommonService.Domain.Entities;
 using CommonService.Domain.Enums;
 using CommonService.Infrastructure.Modules.Agencies;
+using CommonService.Infrastructure.Modules.Workers;
 using CommonService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace CommonService.Infrastructure.Modules.Dispatch;
 
@@ -13,9 +16,13 @@ namespace CommonService.Infrastructure.Modules.Dispatch;
 /// Offers are <c>JOB_ASSIGNMENT</c> rows in <c>OFFERED</c>; every state change is a conditional update (or an insert guarded by one)
 /// inside a transaction, so concurrent requests cannot both win.
 /// Not verified against a live SQL Server on the Linux dev host (no server there); covered by the owner's Windows run.
+/// Decisions D34: a timed job leaves its shift slot AVAILABLE, so an offer first locks the worker row and then checks the worker's other
+/// live jobs that day (overlap with the travel buffer, daily hour cap) before it inserts.
 /// </summary>
-public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMilestoneFailoverRepository
+public class EfDispatchRepository(AppDbContext db, IOptions<BusinessRules>? rules = null) : IDispatchRepository, IMilestoneFailoverRepository
 {
+    private readonly BusinessRules _rules = rules?.Value ?? new BusinessRules();
+
     public async Task<DispatchOrderContext?> GetOrderContextAsync(long orderId, CancellationToken cancellationToken = default) =>
         await (
             from order in db.JobOrders.AsNoTracking()
@@ -44,14 +51,39 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
     public Task<JobAssignment?> TryCreateOfferAsync(JobAssignment offer, CancellationToken cancellationToken = default) =>
         InTransactionAsync(async () =>
         {
+            var slot = await db.BookingSlots.AsNoTracking()
+                .Where(s => s.SlotId == offer.SlotId)
+                .Select(s => new { s.SlotDate, s.ShiftCode, s.StartTime, s.EndTime })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (slot == null)
+            {
+                return null;
+            }
+
+            // Serialise the offers of one worker: the row lock is held until commit, so two scans cannot both pass the overlap check.
+            await db.Workers
+                .Where(w => w.WorkerId == offer.WorkerId)
+                .ExecuteUpdateAsync(s => s.SetProperty(w => w.UpdatedAt, w => w.UpdatedAt), cancellationToken);
+
+            // Decisions D34: a timed job keeps the shift open (the slot stays AVAILABLE); a whole-shift job holds it as before (D1).
+            var timed = await WorkerJobTimes.IsTimedInShiftAsync(db, offer.OrderId, slot.ShiftCode, cancellationToken);
+            var newStatus = timed ? DispatchSlotStatuses.Available : DispatchSlotStatuses.Held;
             var held = await db.BookingSlots
                 .Where(s => s.SlotId == offer.SlotId && s.SlotStatus == DispatchSlotStatuses.Available)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(x => x.SlotStatus, DispatchSlotStatuses.Held)
+                    .SetProperty(x => x.SlotStatus, newStatus)
                     .SetProperty(x => x.UpdatedAt, offer.CreatedAt), cancellationToken);
             if (held != 1)
             {
                 return null;
+            }
+
+            var window = await WorkerJobTimes.OrderWindowAsync(db, offer.OrderId, slot.ShiftCode, slot.StartTime, slot.EndTime, cancellationToken)
+                ?? (slot.StartTime, slot.EndTime);
+            var jobs = await WorkerJobTimes.LoadAsync(db, [offer.WorkerId], slot.SlotDate, cancellationToken);
+            if (!WorkerJobTimes.Fits(jobs.GetValueOrDefault(offer.WorkerId), window, _rules))
+            {
+                return null; // overlaps another job of the worker (or the day is full): the slot change is rolled back
             }
 
             db.JobAssignments.Add(offer);
@@ -88,14 +120,17 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
         CancellationToken cancellationToken = default) =>
         await InTransactionAsync(async () =>
         {
-            var slotId = await db.JobAssignments.AsNoTracking()
-                .Where(a => a.AssignmentId == assignmentId)
-                .Select(a => (int?)a.SlotId)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (slotId == null)
+            var offer = await (
+                from a in db.JobAssignments.AsNoTracking()
+                join s in db.BookingSlots.AsNoTracking() on a.SlotId equals s.SlotId
+                where a.AssignmentId == assignmentId
+                select new { a.SlotId, a.OrderId, s.ShiftCode }).FirstOrDefaultAsync(cancellationToken);
+            if (offer == null)
             {
                 return false;
             }
+
+            var slotId = (int?)offer.SlotId;
 
             var accepted = await db.JobAssignments
                 .Where(a => a.AssignmentId == assignmentId
@@ -109,6 +144,11 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
             if (accepted != 1)
             {
                 return false;
+            }
+
+            if (await WorkerJobTimes.IsTimedInShiftAsync(db, offer.OrderId, offer.ShiftCode, cancellationToken))
+            {
+                return true; // decisions D34: a timed job never held the slot, the shift stays open for other jobs
             }
 
             var booked = await db.BookingSlots
@@ -215,7 +255,8 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
         {
             var open = await db.JobAssignments.AsNoTracking()
                 .Where(a => a.OrderId == orderId
-                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned))
+                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned
+                        || a.AssignmentStatus == JobAssignmentStatus.CheckedIn)) // D38: a worker who arrived is cancelled with the order
                 .Select(a => new { a.AssignmentId, a.SlotId })
                 .ToListAsync(cancellationToken);
             if (open.Count == 0)
@@ -228,7 +269,8 @@ public class EfDispatchRepository(AppDbContext db) : IDispatchRepository, IMiles
 
             var cancelled = await db.JobAssignments
                 .Where(a => ids.Contains(a.AssignmentId)
-                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned))
+                    && (a.AssignmentStatus == JobAssignmentStatus.Offered || a.AssignmentStatus == JobAssignmentStatus.Assigned
+                        || a.AssignmentStatus == JobAssignmentStatus.CheckedIn))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(a => a.AssignmentStatus, JobAssignmentStatus.Cancelled)
                     .SetProperty(a => a.UpdatedAt, cancelledAtUtc), cancellationToken);

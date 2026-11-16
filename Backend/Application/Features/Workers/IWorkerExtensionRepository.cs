@@ -9,7 +9,10 @@ public record ExtensionForWorker(
     decimal ExtraAmount,
     string ExtStatus,
     DateOnly ScheduledDate,
-    string ShiftCode);
+    string ShiftCode,
+    // Decisions D34: the order's own local start/end when it is a timed job; null = the whole shift.
+    TimeOnly? StartTime = null,
+    TimeOnly? EndTime = null);
 
 /// <summary>What the Workers module needs of JOB_ORDER_EXTENSION to answer a paid extension (contract workers.md 2.6.1, BR-08).</summary>
 public interface IWorkerExtensionRepository
@@ -25,4 +28,12 @@ public interface IWorkerExtensionRepository
     /// still PAID. False, with nothing changed, when another answer came first, so two concurrent answers decide once.
     /// </summary>
     Task<bool> TryAcceptAsync(int extensionId, DateTime decidedAtUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Decisions D34: true when another live job of the worker that day (not of <paramref name="orderId"/>) overlaps
+    /// [<paramref name="from"/>, <paramref name="to"/>] widened by the travel buffer. The default answers false (no other jobs known).
+    /// </summary>
+    Task<bool> ClashesWithOtherJobAsync(
+        int workerId, DateOnly date, long orderId, TimeOnly from, TimeOnly to, CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
 }

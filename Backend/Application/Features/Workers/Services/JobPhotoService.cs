@@ -16,7 +16,8 @@ public class JobPhotoService(
     IOptions<BusinessRules> rulesOptions,
     IClock clock,
     IFileStorage fileStorage,
-    JobPhotoUploadPolicy uploadPolicy) : IJobPhotoService
+    JobPhotoUploadPolicy uploadPolicy,
+    IOrderSeatQuery? seatQuery = null) : IJobPhotoService
 {
     private readonly BusinessRules _rules = rulesOptions.Value;
 
@@ -189,7 +190,7 @@ public class JobPhotoService(
         return (bytes, contentType);
     }
 
-    /// <summary>The assignment must exist (404), be the worker's (403), be running (409), and the phase must have room and a matching angle.</summary>
+    /// <summary>The assignment must exist (404), be the worker's (403), be running (409), the colleagues of a Premium order present (409 PARTNER_NOT_CHECKED_IN), and the phase must have room and a matching angle.</summary>
     private async Task<JobAssignment> LoadAssignmentForUploadAsync(long assignmentId, string phase, byte angleNo, int workerId, CancellationToken ct)
     {
         // Verify assignment exists
@@ -210,6 +211,15 @@ public class JobPhotoService(
         {
             throw new BusinessRuleViolationException(
                 $"Photos can only be added after check-in and while the job runs (assignment status {assignment.AssignmentStatus}).");
+        }
+
+        // Decision D38: the work of a PREMIUM order starts only when every seat is present, so the first BEFORE photo waits for the colleague.
+        // This runs before the file is stored or accepted (D21 keeps rejected photos too).
+        if (phase == "BEFORE" && assignment.AssignmentStatus == JobAssignmentStatus.CheckedIn && seatQuery is not null
+            && await seatQuery.GetAsync(assignment.OrderId, ct) is { } seats && PremiumStartGate.MustWaitForPartner(seats))
+        {
+            throw new BusinessRuleViolationException(
+                "Chờ đồng nghiệp check-in: ca chỉ bắt đầu khi đủ người có mặt.", StartGateErrorCodes.PartnerNotCheckedIn);
         }
 
         // Max accepted photos per phase. A photo for an angle that already has one replaces it (#661), so only the other angles count.

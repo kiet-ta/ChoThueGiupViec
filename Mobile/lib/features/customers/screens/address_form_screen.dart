@@ -8,6 +8,7 @@ import '../../../core/theme/nordic_typography.dart';
 import '../../../core/widgets/nordic_page.dart';
 import '../../../core/widgets/nordic_button.dart';
 import '../../../core/widgets/nordic_card.dart';
+import '../../../core/widgets/nordic_text_input.dart';
 import '../logic/address_rules.dart';
 import '../models/customer_address.dart';
 import '../models/vn_admin_units.dart';
@@ -353,28 +354,23 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: TextFormField(
+                      child: _areaField(
+                        key: const Key('address-floor-area'),
+                        label: 'Mỗi sàn (m²)',
                         controller: _floorAreaController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Mỗi sàn (m²)',
-                          helperText: floorAreaHelper(_housingType),
-                        ),
+                        hint: floorAreaHelper(_housingType),
+                        decimal: true,
                         validator: (val) => floorAreaError(_housingType, val),
                       ),
                     ),
                     const SizedBox(width: NordicSpace.sm),
                     Expanded(
-                      child: TextFormField(
+                      child: _areaField(
+                        key: const Key('address-floors'),
+                        label: 'Số tầng',
                         controller: _numFloorsController,
-                        keyboardType: TextInputType.number,
-                        enabled: _housingType == HousingType.house,
-                        decoration: InputDecoration(
-                          labelText: 'Số tầng',
-                          helperText: floorsHelper(_housingType),
-                        ),
+                        hint: floorsHelper(_housingType),
+                        locked: _housingType != HousingType.house,
                         validator: (val) => floorsError(_housingType, val),
                       ),
                     ),
@@ -411,6 +407,42 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// A number field with its label ABOVE it (like the onboarding, #819): a floating label sat on the border of a
+  /// filled field and covered it (#905). The hint stays under the field; [locked] greys it out and makes it read only.
+  Widget _areaField({
+    required Key key,
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    required FormFieldValidator<String> validator,
+    bool decimal = false,
+    bool locked = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Opacity(
+          opacity: locked ? 0.5 : 1.0,
+          child: NordicTextInput(
+            key: key,
+            label: label,
+            controller: controller,
+            readOnly: locked,
+            keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+            validator: validator,
+          ),
+        ),
+        const SizedBox(height: NordicSpace.xxs),
+        Text(
+          hint,
+          style: NordicTypography.bodySmall.copyWith(
+            color: NordicColors.textSecondary,
           ),
         ),
       ],

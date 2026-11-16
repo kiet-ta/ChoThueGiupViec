@@ -54,7 +54,11 @@ public class OrderCreationService(
         }
 
         var nowUtc = clock.UtcNow;
-        var shiftStartUtc = BookingWindowPolicy.GetShiftStartUtc(request.ScheduledDate, request.ShiftCode, clock)!.Value;
+        // Decisions D34: Validate checked the timed job, so the window is the job's (or the whole shift without a time).
+        var window = JobWindow.Validate(request.ShiftCode, request.StartTime, request.DurationHours, _rules).Window;
+        var shiftStartUtc = window is { } timed
+            ? ToUtc(request.ScheduledDate, timed.Start)
+            : BookingWindowPolicy.GetShiftStartUtc(request.ScheduledDate, request.ShiftCode, clock)!.Value;
         var windowError = BookingWindowPolicy.Check(request.ServiceTier, shiftStartUtc, nowUtc, _rules.Premium.MinLeadHours);
         if (windowError is not null)
         {
@@ -65,10 +69,32 @@ public class OrderCreationService(
                 windowError);
         }
 
-        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules);
-        var quote = await pricing.QuoteAsync(request.ServiceTier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken);
+        if (window is not null && shiftStartUtc < nowUtc.AddMinutes(_rules.Booking.EconomyMinLeadMinutes))
+        {
+            throw new BusinessRuleViolationException(
+                $"The job must start at least {_rules.Booking.EconomyMinLeadMinutes} minutes from now.", BookingErrorCodes.LeadTimeTooShort);
+        }
+
+        var plan = ShiftPlanner.Plan(address.TotalAreaM2, _rules, request.ServiceTier);
+        if (plan.IsContinuousWork && !request.AcceptsContinuousWork)
+        {
+            // D36: one worker who may need extra hours after the job; the customer must agree first.
+            throw new ValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["acceptsContinuousWork"] =
+                    ["acceptsContinuousWork must be true: a large house is done by one worker who may need extra hours after the job."],
+            });
+        }
+
+        var quote = await pricing.QuoteAsync(
+            request.ServiceTier, address.TotalAreaM2, plan.RequiredWorkers, cancellationToken, plan.PriceUnits, plan.IsContinuousWork);
+        if (window is not null)
+        {
+            quote = PriceCalculator.ForHours(quote, request.DurationHours!.Value, _rules.Shift.MaxHours);
+        }
+
         var orderCode = await NewOrderCodeAsync(cancellationToken);
-        var shiftEndUtc = ToUtc(request.ScheduledDate, BookingShifts.GetLocalTimes(request.ShiftCode)!.Value.End);
+        var shiftEndUtc = ToUtc(request.ScheduledDate, window?.End ?? BookingShifts.GetLocalTimes(request.ShiftCode)!.Value.End);
 
         CapacityReservation? reservation = null;
         try
@@ -89,6 +115,9 @@ public class OrderCreationService(
                     TotalAmount = quote.TotalAmount,
                     CustomerNote = request.CustomerNote,
                     PreferredWorkerId = request.PreferredWorkerId,
+                    IsContinuousWork = plan.IsContinuousWork,
+                    StartTime = window?.Start,
+                    EndTime = window?.End,
                     CreatedAt = nowUtc,
                     UpdatedAt = nowUtc,
                 };
@@ -110,7 +139,8 @@ public class OrderCreationService(
                     order.OrderId, order.OrderCode, order.ServiceTier, order.AddressId, order.ScheduledDate, order.ShiftCode,
                     shiftStartUtc, shiftEndUtc, order.AreaSnapshotM2, order.RequiredWorkers, order.RequiredSkill, order.TotalAmount,
                     order.OrderStatus, order.CustomerNote, order.CancelReason,
-                    nowUtc.AddMinutes(_rules.Payments.QrExpiryMinutes), order.CreatedAt, order.UpdatedAt);
+                    nowUtc.AddMinutes(_rules.Payments.QrExpiryMinutes), order.CreatedAt, order.UpdatedAt, order.StartTime, order.EndTime,
+                    plan.IsContinuousWork);
             }, cancellationToken);
         }
         catch
@@ -188,6 +218,22 @@ public class OrderCreationService(
         {
             // PREMIUM workers come from the partner agency's roster (Q13), not from the freelancer pool.
             errors["preferredWorkerId"] = ["preferredWorkerId is only allowed for ECONOMY orders."];
+        }
+
+        // Decisions D34: a timed job (start + duration) is ECONOMY only; Premium agencies keep the whole shift.
+        if (request.StartTime is not null || request.DurationHours is not null)
+        {
+            if (request.ServiceTier != ServiceTier.Economy)
+            {
+                errors["startTime"] = ["startTime and durationHours are only allowed for ECONOMY orders."];
+            }
+            else
+            {
+                foreach (var (field, messages) in JobWindow.Validate(request.ShiftCode, request.StartTime, request.DurationHours, _rules).Errors)
+                {
+                    errors[field] = messages;
+                }
+            }
         }
 
         if (request.PreviousOrderId is <= 0 ||

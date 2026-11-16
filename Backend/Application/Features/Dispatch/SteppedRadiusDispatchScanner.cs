@@ -72,7 +72,8 @@ public class SteppedRadiusDispatchScanner
         GeoPoint location,
         int candidateLimitPerStep = 50,
         CancellationToken cancellationToken = default,
-        IReadOnlyCollection<long>? excludedWorkerIds = null)
+        IReadOnlyCollection<long>? excludedWorkerIds = null,
+        long? orderId = null)
     {
         // Guard: PRD §2.1 Economy tier is for Freelancers; Agency workers must never enter Economy
         // If an agency staff candidate appears in the query results, they are strictly rejected for Economy.
@@ -95,7 +96,8 @@ public class SteppedRadiusDispatchScanner
                 ShiftCode: shiftCode,
                 Location: location,
                 RadiusKm: currentRadius,
-                Limit: candidateLimitPerStep
+                Limit: candidateLimitPerStep,
+                OrderId: orderId // decisions D34: skip workers whose jobs that day clash with this order's window
             );
 
             var availableWorkers = await _workerAvailabilityQuery.FindAvailableFreelancersAsync(query, cancellationToken);
@@ -241,7 +243,8 @@ public class SteppedRadiusDispatchScanner
         string shiftCode,
         GeoPoint location,
         long workerId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        long? orderId = null)
     {
         var radiusSteps = _businessRules.Dispatch.RadiusStepsKm;
         if (radiusSteps == null || radiusSteps.Length == 0 || radiusSteps.SequenceEqual([5.0, 7.0, 10.0]))
@@ -251,7 +254,7 @@ public class SteppedRadiusDispatchScanner
 
         var maxRadius = radiusSteps.Max();
         var available = await _workerAvailabilityQuery.FindAvailableFreelancersAsync(
-            new AvailabilityQuery(date, shiftCode, location, maxRadius, PreferredLookupLimit),
+            new AvailabilityQuery(date, shiftCode, location, maxRadius, PreferredLookupLimit, orderId),
             cancellationToken);
         var worker = available.FirstOrDefault(w => w.WorkerId == workerId);
         if (worker == null)

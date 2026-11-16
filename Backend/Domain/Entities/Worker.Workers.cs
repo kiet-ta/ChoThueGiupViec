@@ -31,6 +31,17 @@ public partial class Worker
     }
 
     /// <summary>
+    /// Update eKYC evaluation result and keep the three photo addresses the worker submitted, so the Admin review can show them.
+    /// </summary>
+    public void SetKycResult(decimal confidence, string status, string frontCccdUrl, string backCccdUrl, string selfieUrl)
+    {
+        SetKycResult(confidence, status);
+        EkycFrontCccdUrl = frontCccdUrl;
+        EkycBackCccdUrl = backCccdUrl;
+        EkycSelfieUrl = selfieUrl;
+    }
+
+    /// <summary>
     /// Admin manual review of worker eKYC.
     /// </summary>
     public void ReviewKyc(bool approved, int adminId)

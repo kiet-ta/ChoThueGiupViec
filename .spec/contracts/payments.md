@@ -58,7 +58,7 @@ Same as 2.1 for an extension in `PENDING_PAYMENT` (`booking.md` §3.8); amount =
 ### 2.3 `GET /api/v1/payments/{paymentId}` (`CustomerOnly`, polling fallback, MOB-M2-03)
 200 `data`: `Payment`. 404 if not the caller's. `GET /api/v1/payments?orderId=` returns every transaction of one of the caller's orders (order and extension), newest first: 200 `data: Payment[]`.
 
-Realtime (Q07): on every status change the module sends `NotificationMessage { RecipientRole = Customer, RecipientId = customerId, Topic = "payment.status", Data = { paymentId, orderId, extensionId, txnStatus } }` through `INotificationService` (SignalR hub `/hubs/notifications`, already merged). The app shows `PAID` from the push and polls 2.3 only when the socket is down.
+Realtime (Q07): on every status change the module sends `NotificationMessage { RecipientRole = Customer, RecipientId = customerId, Topic = "payment.status", Data = { paymentId, orderId, extensionId, txnStatus } }` through `INotificationService` (SignalR hub `/hubs/notifications`, already merged); the app receives messages with topic `payment.status` on its own connection (decisions D36: no topic subscription, only the recipient gets the message). The app shows `PAID` from the push and polls 2.3 only when the socket is down.
 
 ### 2.4 `POST /api/v1/payments/ipn/momo` (anonymous, gateway-facing, BE-M2-05, BE-M2-06)
 Called by the MoMo sandbox (or a test with the Fake). This endpoint is the only one **outside** the `identity.md` envelope rules: the request body and the exact response the gateway expects are those of MoMo's official documentation and are written into this section by BE-M2-06 (**G-7: field names and the signature are not guessed here**).

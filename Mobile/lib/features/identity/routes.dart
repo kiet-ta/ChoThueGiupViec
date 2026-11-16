@@ -36,6 +36,7 @@ class IdentityFeatureModule extends FeatureModule {
             phoneNumber: args['phoneNumber'] as String? ?? '',
             role: args['role'] as AppRole? ?? AppRole.customer,
             resendCooldownSeconds: args['resendCooldownSeconds'] as int? ?? 60,
+            sandboxOtp: args['sandboxOtp'] as String?,
           ),
         );
       }

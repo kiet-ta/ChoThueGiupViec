@@ -5,8 +5,8 @@
 | Flow | Steps |
 |---|---|
 | **Premium** (agency) | agency registers with a bank account, a duplicate tax code is a 409 -> escrow deposit -> guarantee + worker import (template downloaded through the API, dry-run, commit) -> roster -> Pro package (Verified Partner label) -> customer books a Premium shift and pays -> the order is assigned to an agency worker -> check-in (GPS) -> BEFORE photos (the first one starts the work) -> AFTER photos -> completion -> customer accepts (Pro commission 0) |
-| **Economy** (freelancer) | OTP registration -> eKYC auto-approve -> open a slot, share the location, set the bank account -> customer books an Economy shift and pays -> the freelancer gets the offer (30 s) and accepts -> check-in -> photos -> completion -> customer accepts (payout 80 %) -> earnings |
-| **Payout** | the completions are dated to last month -> payout batch (agency and freelancer items carry their bank accounts, the export file too) -> confirm -> the freelancer sees the transfer |
+| **Economy** (freelancer) | OTP registration -> eKYC auto-approve -> open a slot, share the location, **register the work area** (D24: a freelancer without one is never offered a job), set the bank account -> customer books an Economy shift and pays -> the freelancer gets the offer (30 s) and accepts -> check-in -> photos -> completion -> customer accepts (payout 80 %) -> earnings |
+| **Payout** | the month is settled from the ledger by the Development route `POST /api/v1/dev/settlement/run?period=yyyy-MM` (D28: nobody builds or confirms a batch; the period is the current month in Asia/Ho_Chi_Minh) -> the closed batch is listed -> its items (the agency item and the freelancer item carry their bank accounts, the freelancer item is 208,000 and `TRANSFERRED`; the export file carries the agency account) -> the freelancer sees the transfer |
 
 Payments are confirmed with the development tool (`/api/v1/dev/payments`, Development only), OTPs are read from the backend console (Fake OTP sender).
 
@@ -36,7 +36,8 @@ Output: one `PASS` / `FAIL` line per check and a last line `RESULT: ALL PASS` (e
 
 ## What it needs and what it changes directly in the database
 
-- `sqlcmd` is used for three things only: the ids of the imported workers (no API lists them), the status of the assignment after the first BEFORE photo, and **dating the completions to last month** (a payout month must be over; the only change made behind the API's back).
+- `sqlcmd` is used for reading only: the ids of the imported workers (no API lists them), the status of the assignment after the first BEFORE photo, and the days that have no slot yet. The script changes nothing in the database behind the API's back: the completions are no longer dated to last month, because the Development settlement route closes the current month (D28).
+- **A month settles once.** The settlement of a closed month answers 200 and does nothing, so run the script against a fresh database, or at most once per month per database; a second run in the same month does not find its new workers in the closed batch and the payout checks fail.
 - Every run creates its own agency, workers, customers and orders with random numbers. It picks a day with no slot yet, so older runs in the same database do not take its workers; if every day of the booking horizon is taken, use a fresh database.
 - The Economy flow waits out the 60 s OTP cooldown of its phone once (the freelancer registers, then signs in).
 
