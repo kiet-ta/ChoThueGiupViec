@@ -33,6 +33,7 @@ public class WorkersModule : IModule
         services.AddScoped<IWorkerBookingSlotService, WorkerBookingSlotService>();
         services.AddScoped<IWorkerAssignmentRepository, EfWorkerAssignmentRepository>();
         services.AddScoped<IWorkerAssignmentService, WorkerAssignmentService>();
+        services.AddSingleton<IWardCatalog, EmbeddedWardCatalog>(); // WORKERS-WARD-V2-01 (#959)
         services.AddScoped<IWorkerWorkAreaService, WorkerWorkAreaService>();
         // DISPATCH-AUTO-01 (#890): the freelancer's "Tự động nhận đơn" switch, read by Dispatch.
         services.AddScoped<IWorkerAutoAcceptService, WorkerAutoAcceptService>();

@@ -384,8 +384,9 @@ Up to 3 ways from the worker's position to the house of one of the worker's own 
 - The Customer's own route (single route) is `GET /api/v1/dispatch/assignments/{id}/route` in `dispatch.md`.
 ---
 
-### 2.3B Work area (WORKERS-AREA-01, #555, decisions D24)
+### 2.3B Work area (WORKERS-AREA-01, #555, decisions D24; wards: WORKERS-WARD-V2-01, #959, decisions D40)
 Where a freelancer works. The dispatch search matches on it (see below). Registering is mandatory to be offered jobs.
+The wards are the post-merger administrative units (34 provinces/cities, wards/communes/special zones, no district level) of https://provinces.open-api.vn/api/v2, bundled with the backend as a generated list (`scripts/gen-vn-wards.mjs`); the API never calls the public service at run time.
 
 #### 2.3B.1 `GET /api/v1/workers/me/work-area` (WorkerOnly)
 **Response 200 `data` (`WorkerWorkAreaResponse`)**
@@ -395,19 +396,27 @@ Where a freelancer works. The dispatch search matches on it (see below). Registe
   "latitude": 10.7769,
   "longitude": 106.7009,
   "radiusKm": 10,
-  "districts": ["Quận 1", "Quận 3"],
+  "wards": [
+    { "code": 26740, "name": "Phường Sài Gòn", "provinceCode": 79, "provinceName": "Thành phố Hồ Chí Minh" },
+    { "code": 26743, "name": "Phường Bến Thành", "provinceCode": 79, "provinceName": "Thành phố Hồ Chí Minh" }
+  ],
+  "unresolvedNames": [],
+  "districts": ["Phường Sài Gòn", "Phường Bến Thành"],
   "setAt": "2026-10-31T03:00:00Z"
 }
 ```
-Nothing registered yet: **200** with `isSet: false`, `latitude`, `longitude`, `radiusKm` and `setAt` null and `districts: []` (never 404).
+`wards` are in the order the worker chose them. `districts` is the same names as plain text, for apps built before ward codes. `unresolvedNames` lists old stored names that stand for no ward or for several (the worker must choose them again); it is empty for a row saved with codes.
+Nothing registered yet: **200** with `isSet: false`, `latitude`, `longitude`, `radiusKm` and `setAt` null and `wards`, `districts`, `unresolvedNames` all `[]` (never 404).
+
+**Old rows (names).** `WORKER.work_districts` held ward *names* before ward codes. A read turns each name into the ward it stands for now: a current ward name that exists once in the whole country, otherwise a pre-merger name that was merged into exactly one ward (e.g. `Phường Bến Nghé` -> `Phường Sài Gòn`, 26740). Repeats collapse; a name that stands for no ward or several goes to `unresolvedNames`. A read never writes: the next `PUT` stores codes.
 
 #### 2.3B.2 `PUT /api/v1/workers/me/work-area` (WorkerOnly)
-**Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009, "radiusKm": 10, "districts": ["Quận 1", "Quận 3"] }`
+**Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009, "radiusKm": 10, "wardCodes": [26740, 26743] }`
 
 **Response 200 `data`:** the same `WorkerWorkAreaResponse` as the GET.
 
 **Rules:**
-- `latitude` -90..90, `longitude` -180..180 (rounded to 6 decimals, like `PUT /me/location`), `radiusKm` one of **5, 10, 15**, `districts` optional, at most **10**, each 1 to 100 characters after trimming and without `;`; duplicates (ignoring case) are dropped. Any failure is **400** with field errors (`latitude`, `longitude`, `radiusKm`, `districts`) and nothing is stored.
+- `latitude` -90..90, `longitude` -180..180 (rounded to 6 decimals, like `PUT /me/location`), `radiusKm` one of **5, 10, 15**, `wardCodes` optional, at most **10**, each a ward code of the bundled list, none repeated (stored in `WORKER.work_districts` as the codes joined by `;`, in order). The old `districts` (names) is accepted **only when `wardCodes` is absent** and every name stands for exactly one ward (a current or a pre-merger name, ignoring case and surrounding spaces); it is ignored when `wardCodes` is sent. Any failure is **400** with field errors (`latitude`, `longitude`, `radiusKm`, `wardCodes`, `districts`) and nothing is stored.
 - A new PUT replaces the previous area.
 - **Matching (decisions D24):** the dispatch search finds a freelancer only when they have a work area and the distance from the order's address to the base point is <= the search step radius (5, 7, then 10 km) **and** <= `radiusKm`. A freelancer with no work area is never offered a job. `PUT /me/location` and the check-in distance do not change.
 
