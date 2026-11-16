@@ -4,9 +4,10 @@ export interface EkycQueueItemResponse {
   fullName: string
   phoneNumber: string
   nationalId: string
-  frontCccdUrl: string
-  backCccdUrl: string
-  selfieUrl: string
+  /** The three photo addresses the worker submitted; null for a row older than the columns (contract workers.md §2.2.1, ADMIN-UAT-15). */
+  frontCccdUrl: string | null
+  backCccdUrl: string | null
+  selfieUrl: string | null
   /** null while the worker has no score (the backend column `ekyc_confidence` is nullable). */
   confidenceScore: number | null
   submittedAt: string
