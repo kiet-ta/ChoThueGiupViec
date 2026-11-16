@@ -11,6 +11,10 @@ class WorkerCancelPreview {
   /// False when the job starts within 30 minutes: the order is cancelled and refunded at once instead of re-dispatched.
   final bool substituteSearchPossible;
 
+  /// D38: the job is a rescue seat of a Premium order (a Super-Freelancer took over). Until its check-in deadline the worker may
+  /// cancel it with no penalty; the order is then cancelled and refunded. False when the server does not send the field.
+  final bool rescueFreeCancel;
+
   const WorkerCancelPreview({
     required this.assignmentId,
     required this.cancelCountInWindow,
@@ -20,6 +24,7 @@ class WorkerCancelPreview {
     required this.autoAcceptOn,
     required this.jobStartAt,
     required this.substituteSearchPossible,
+    this.rescueFreeCancel = false,
   });
 
   /// This cancel would be the n-th inside the window.
@@ -36,6 +41,7 @@ class WorkerCancelPreview {
     autoAcceptOn: json['autoAcceptOn'] as bool? ?? false,
     jobStartAt: DateTime.tryParse(json['jobStartAt'] as String? ?? ''),
     substituteSearchPossible: json['substituteSearchPossible'] as bool? ?? true,
+    rescueFreeCancel: json['rescueFreeCancel'] as bool? ?? false,
   );
 }
 
@@ -43,6 +49,9 @@ class WorkerCancelPreview {
 class WorkerCancelResult {
   static const String redispatching = 'REDISPATCHING';
   static const String cancelledRefunded = 'CANCELLED_REFUNDED';
+
+  /// The assignment status of a worker cancel that counts as a violation (Q15).
+  static const String cancelledByWorker = 'CANCELLED_BY_WORKER';
 
   final int assignmentId;
   final String status;
@@ -61,6 +70,10 @@ class WorkerCancelResult {
     required this.accountLocked,
     required this.orderOutcome,
   });
+
+  /// D38: the free cancel of a rescue seat ends as `CANCELLED`, not `CANCELLED_BY_WORKER`: no violation was counted.
+  bool get isFreeRescueCancel =>
+      status.isNotEmpty && status != cancelledByWorker;
 
   factory WorkerCancelResult.fromJson(Map<String, dynamic> json) =>
       WorkerCancelResult(

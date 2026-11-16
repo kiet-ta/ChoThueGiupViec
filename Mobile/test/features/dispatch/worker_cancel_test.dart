@@ -83,6 +83,7 @@ WorkerCancelPreview _preview({
   bool willLock = false,
   bool autoAccept = false,
   bool search = true,
+  bool rescue = false,
 }) => WorkerCancelPreview(
   assignmentId: 1001,
   cancelCountInWindow: count,
@@ -92,15 +93,17 @@ WorkerCancelPreview _preview({
   autoAcceptOn: autoAccept,
   jobStartAt: DateTime.utc(2026, 11, 20, 1),
   substituteSearchPossible: search,
+  rescueFreeCancel: rescue,
 );
 
 WorkerCancelResult _result({
   int count = 1,
   bool locked = false,
   String outcome = WorkerCancelResult.redispatching,
+  String status = 'CANCELLED_BY_WORKER',
 }) => WorkerCancelResult(
   assignmentId: 1001,
-  status: 'CANCELLED_BY_WORKER',
+  status: status,
   cancelCountInWindow: count,
   lockCount: 3,
   windowDays: 30,
@@ -259,6 +262,75 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a rescue seat (D38) says there is no penalty before and after, and the order is cancelled and refunded',
+    (tester) async {
+      final dispatch = _FakeDispatch(
+        preview: _preview(rescue: true, search: false),
+        result: _result(
+          count: 0,
+          status: 'CANCELLED',
+          outcome: WorkerCancelResult.cancelledRefunded,
+        ),
+      );
+      await _pump(tester, dispatch);
+
+      await _tap(tester, 'open-worker-cancel');
+      expect(
+        find.byKey(const Key('worker-cancel-rescue-free')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Đây là ca cứu hộ: huỷ trước giờ check-in thì không bị phạt và không tính vào số lần huỷ.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Đơn sẽ bị huỷ và gia chủ được hoàn tiền.'),
+        findsOneWidget,
+      );
+      // None of the usual violation lines.
+      expect(find.textContaining('lần huỷ thứ'), findsNothing);
+      expect(find.textContaining('tài khoản sẽ bị khoá'), findsNothing);
+      expect(find.textContaining('tìm thợ khác thay bạn'), findsNothing);
+
+      await tester.enterText(
+        find.byKey(const Key('worker-cancel-reason')),
+        'Không kịp đến',
+      );
+      await _tap(tester, 'submit-worker-cancel');
+
+      expect(find.byKey(const Key('worker-cancelled-title')), findsOneWidget);
+      expect(
+        find.text(
+          'Bạn huỷ ca cứu hộ trước giờ check-in nên không bị phạt. Đơn đã được huỷ và gia chủ được hoàn tiền.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('worker-cancelled-no-penalty')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Lần huỷ thứ'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'an ordinary job keeps the usual consequences (no rescue notice)',
+    (tester) async {
+      await _pump(tester, _FakeDispatch(preview: _preview()));
+
+      await _tap(tester, 'open-worker-cancel');
+
+      expect(find.byKey(const Key('worker-cancel-rescue-free')), findsNothing);
+      expect(
+        find.text('Hệ thống sẽ báo gia chủ và tìm thợ khác thay bạn.'),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('a job already checked in has no cancel button', (tester) async {
     await _pump(
       tester,
@@ -284,6 +356,17 @@ void main() {
       (p.nextCount, p.willLockAccount, p.substituteSearchPossible),
       (3, true, false),
     );
+    expect(
+      p.rescueFreeCancel,
+      isFalse,
+    ); // the field is absent on an ordinary job
+    expect(
+      WorkerCancelPreview.fromJson({
+        'assignmentId': 1,
+        'rescueFreeCancel': true,
+      }).rescueFreeCancel,
+      isTrue,
+    );
     expect(p.jobStartAt, DateTime.utc(2026, 11, 20, 1));
 
     final r = WorkerCancelResult.fromJson({
@@ -299,6 +382,18 @@ void main() {
     expect(
       (r.accountLocked, r.orderOutcome),
       (true, WorkerCancelResult.cancelledRefunded),
+    );
+    expect(
+      r.isFreeRescueCancel,
+      isFalse,
+    ); // CANCELLED_BY_WORKER counts as a violation
+    expect(
+      WorkerCancelResult.fromJson({
+        'assignmentId': 1001,
+        'status': 'CANCELLED',
+        'orderOutcome': 'CANCELLED_REFUNDED',
+      }).isFreeRescueCancel,
+      isTrue,
     );
     expect(validateWorkerCancelReason('a' * 256), isNotNull);
     expect(validateWorkerCancelReason(' ok '), isNull);

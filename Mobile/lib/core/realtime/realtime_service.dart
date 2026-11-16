@@ -47,6 +47,15 @@ class RealtimeTopics {
 
   /// A freelancer with "Tự động nhận đơn" on was given a job (decisions D33).
   static const autoAccepted = 'dispatch.auto_accepted';
+
+  /// A Premium order was cancelled because the partner did not bring enough workers on time: the customer's apology (D38).
+  static const premiumOrderCancelled = 'premium.order_cancelled';
+
+  /// A worker of a Premium order who has not checked in yet: time to move (D38).
+  static const checkInReminder = 'dispatch.checkin_reminder';
+
+  /// A Super-Freelancer was given a rescue seat: urgent, with the check-in deadline in `data.checkInBy` (D38).
+  static const rescueAssigned = 'dispatch.rescue_assigned';
 }
 
 /// The few calls the service makes on a hub connection, so tests can pass a fake instead of a socket.
