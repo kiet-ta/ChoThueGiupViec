@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:mobile/core/network/api_client.dart';
@@ -372,7 +373,7 @@ class FakeRebookAvailability implements IRebookAvailabilitySource {
   }
 }
 
-class FakeHttp implements HttpClient {
+class FakeHttp implements http.Client {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

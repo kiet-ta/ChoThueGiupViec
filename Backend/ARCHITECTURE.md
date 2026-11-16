@@ -292,6 +292,9 @@ dotnet test            # runs Tests/CommonService.Tests.csproj (xUnit); CommonSe
 - **FCM Push Notification**: DEFERRED per decision Q07b (not implemented in MVP).
 - Tests: `Tests/Infrastructure/SignalRNotificationTests.cs` (574 total tests passing).
 
+### 7.4d Dev CORS for the Flutter Web app (MOB-PLATFORM-01, #942, decisions D39)
+`Infrastructure/Modules/DevCors/DevCorsModule.cs` lets the Flutter app run in a browser (`flutter run -d chrome`) call the API. In the **Development** environment only, origins `http://localhost:<any port>` and `http://127.0.0.1:<any port>` get CORS headers (any method and header, credentials for the SignalR negotiate; `https`, other hosts and lookalikes such as `localhost.evil.com` get none). The middleware is added first in the pipeline by an `IStartupFilter` that the module registers, so `Program.cs` is untouched and a preflight is answered before authentication. Staging and Production add nothing: a hosted Web build needs its own decision on allowed origins. Tests: `Tests/DevCors/DevCorsTests.cs` (a real Kestrel host per case).
+
 ### 7.4b Disputes: filing, queue, case file, take (BE-M6-02a, contract `disputes.md`, PRD 4.3)
 - **Endpoints:** `POST/GET api/customers/me/disputes` (`CustomerOnly`), `POST/GET api/workers/me/disputes` (`WorkerOnly`) with `GET .../{disputeId}`, and for the Admin (`AdminOnly`) `GET api/admin/disputes` (queue), `GET api/admin/disputes/{disputeId}` (case file) and `POST api/admin/disputes/{disputeId}/take`. Ids come from `ICurrentUser`. The verdict (`POST .../resolve`) is section 7.4c.
 - **One ticket per order:** `DISPUTE_TICKET` has a UNIQUE index on `order_id`, so the first filing by either side wins and a second one is a 409; the database also decides two simultaneous filings (`EfDisputeRepository.TryAddAsync` turns SQL error 2601/2627 into `false`). The contract's earlier "one per order and raiser" was corrected.
