@@ -14,6 +14,17 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
     // SQL Server: 2601 = duplicate key in a unique index, 2627 = unique constraint violation.
     private static readonly int[] UniqueViolationNumbers = [2601, 2627];
 
+    /// <summary>Assignments that actually accepted, performed, or were absent on the job (excludes Offered, Cancelled, CancelledByWorker, Reassigned, Incident).</summary>
+    private static readonly JobAssignmentStatus[] ActiveVerdictStatuses =
+    [
+        JobAssignmentStatus.Assigned,
+        JobAssignmentStatus.CheckedIn,
+        JobAssignmentStatus.InProgress,
+        JobAssignmentStatus.AwaitingAcceptance,
+        JobAssignmentStatus.Completed,
+        JobAssignmentStatus.Absent,
+    ];
+
     public async Task<DisputeOrderInfo?> GetOrderAsync(long orderId, CancellationToken cancellationToken = default)
     {
         var order = await db.JobOrders.AsNoTracking()
@@ -62,7 +73,7 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
 
     public async Task<IReadOnlyList<DisputeTicket>> ListForWorkerAsync(int workerId, CancellationToken cancellationToken = default) =>
         await db.DisputeTickets.AsNoTracking()
-            .Where(d => db.JobAssignments.Any(a => a.OrderId == d.OrderId && a.WorkerId == workerId))
+            .Where(d => db.JobAssignments.Any(a => a.OrderId == d.OrderId && a.WorkerId == workerId && ActiveVerdictStatuses.Contains(a.AssignmentStatus)))
             .OrderByDescending(d => d.CreatedAt).ThenByDescending(d => d.DisputeId)
             .ToListAsync(cancellationToken);
 
@@ -74,7 +85,7 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
 
     public Task<DisputeTicket?> GetForWorkerAsync(int disputeId, int workerId, CancellationToken cancellationToken = default) =>
         db.DisputeTickets.AsNoTracking()
-            .Where(d => d.DisputeId == disputeId && db.JobAssignments.Any(a => a.OrderId == d.OrderId && a.WorkerId == workerId))
+            .Where(d => d.DisputeId == disputeId && db.JobAssignments.Any(a => a.OrderId == d.OrderId && a.WorkerId == workerId && ActiveVerdictStatuses.Contains(a.AssignmentStatus)))
             .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<(IReadOnlyList<DisputeTicket> Items, int Total)> SearchAsync(
@@ -100,7 +111,7 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
 
     public async Task<IReadOnlyList<DisputeVerdictAssignment>> GetVerdictAssignmentsAsync(long orderId, CancellationToken cancellationToken = default) =>
         await db.JobAssignments.AsNoTracking()
-            .Where(a => a.OrderId == orderId)
+            .Where(a => a.OrderId == orderId && ActiveVerdictStatuses.Contains(a.AssignmentStatus))
             .OrderBy(a => a.AssignmentId)
             .Select(a => new DisputeVerdictAssignment(a.AssignmentId, a.WorkerId, a.AgencyId, a.GrossAmount))
             .ToListAsync(cancellationToken);
@@ -164,7 +175,7 @@ public class EfDisputeRepository(AppDbContext db) : IDisputeRepository
             join w in db.Workers.AsNoTracking() on a.WorkerId equals w.WorkerId
             join ag in db.PartnerAgencies.AsNoTracking() on w.AgencyId equals ag.AgencyId into agencies
             from ag in agencies.DefaultIfEmpty()
-            where ids.Contains(a.OrderId)
+            where ids.Contains(a.OrderId) && ActiveVerdictStatuses.Contains(a.AssignmentStatus)
             select new { a.OrderId, w.WorkerId, w.FullName, w.WorkerType, AgencyName = ag == null ? null : ag.LegalName })
             .ToListAsync(cancellationToken);
 
