@@ -11,3 +11,28 @@ export interface UnlockResult {
 }
 
 export type WorkerAction = 'APPROVE_SUPER' | 'REVOKE_SUPER' | 'UNLOCK'
+
+/** One worker of GET /api/v1/admin/workers (contract admin.md 2.8, ADMIN-UAT-14). */
+export interface AdminWorker {
+  workerId: number
+  fullName: string
+  phoneNumber: string
+  nationalId: string
+  /** FREELANCER | AGENCY_STAFF */
+  workerType: string
+  agencyId: number | null
+  agencyName: string | null
+  /** PENDING | IDLE | BUSY | LOCKED | RETIRING | RETIRED */
+  workStatus: string
+  kycStatus: string
+  isSuperFreelancer: boolean
+  ratingAvg: number
+  completedJobs: number
+}
+
+export interface AdminWorkerPage {
+  items: AdminWorker[]
+  page: number
+  pageSize: number
+  total: number
+}

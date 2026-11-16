@@ -1,5 +1,5 @@
 // Pure logic of the "Cờ & mở khoá thợ" page (no React, so `node --test` covers it).
-import type { WorkerAction } from './types'
+import type { AdminWorker, WorkerAction } from './types'
 
 export const REASON_MAX_LENGTH = 255 // ADMIN_AUDIT_LOG.reason NVARCHAR(255), contract admin.md 2.5 and 2.6
 
@@ -135,4 +135,116 @@ export function successText(action: WorkerAction, workerId: number): string {
     case 'UNLOCK':
       return `Đã mở khoá thợ #${workerId}: thợ ở trạng thái sẵn sàng.`
   }
+}
+
+// ---- the worker picker (ADMIN-UAT-14, contract admin.md 2.8) ----------------------------------------------------------
+
+export const SEARCH_PAGE_SIZE = 8 // the picker lists the first matches; the Admin types more to narrow down
+export const SEARCH_DEBOUNCE_MS = 300
+export const SEARCH_MAX_LENGTH = 100 // contract admin.md 2.8: `q` at most 100 characters
+
+/** The query of the lookup call: the trimmed text (nothing when empty), the first page, a short page. */
+export function searchQuery(text: string): { q: string | undefined; page: number; pageSize: number } {
+  const q = text.trim()
+  return { q: q === '' ? undefined : q, page: 1, pageSize: SEARCH_PAGE_SIZE }
+}
+
+/** Whether the typed text is worth a call: something typed, and not longer than the server accepts. */
+export function searchTextProblem(text: string): string | null {
+  const length = text.trim().length
+  if (length > SEARCH_MAX_LENGTH) return `Tối đa ${SEARCH_MAX_LENGTH} ký tự (đang ${length}).`
+  return null
+}
+
+export function shouldSearch(text: string): boolean {
+  return text.trim().length > 0 && searchTextProblem(text) === null
+}
+
+const WORK_STATUS: Record<string, string> = {
+  PENDING: 'Chờ duyệt',
+  IDLE: 'Sẵn sàng',
+  BUSY: 'Đang làm ca',
+  LOCKED: 'Đang bị khoá',
+  RETIRING: 'Đang nghỉ việc',
+  RETIRED: 'Đã nghỉ việc',
+}
+
+const KYC_STATUS: Record<string, string> = {
+  PENDING: 'Chưa nộp eKYC',
+  MANUAL_REVIEW: 'eKYC chờ hậu kiểm',
+  AUDIT_PENDING: 'eKYC chờ lấy mẫu kiểm',
+  APPROVED: 'eKYC đã duyệt',
+  REJECTED: 'eKYC bị từ chối',
+}
+
+export function workStatusText(status: string): string {
+  return WORK_STATUS[status] ?? status
+}
+
+export function kycStatusText(status: string): string {
+  return KYC_STATUS[status] ?? status
+}
+
+export function workerTypeText(worker: Pick<AdminWorker, 'workerType' | 'agencyName'>): string {
+  if (worker.workerType === 'FREELANCER') return 'Freelancer'
+  if (worker.workerType === 'AGENCY_STAFF') return worker.agencyName ? `Thợ Agency (${worker.agencyName})` : 'Thợ Agency'
+  return worker.workerType
+}
+
+/** `4,85 sao`; a worker with no rating yet reads as such instead of `0,00`. */
+export function ratingText(ratingAvg: number): string {
+  return ratingAvg > 0 ? `${ratingAvg.toFixed(2).replace('.', ',')} sao` : 'Chưa có đánh giá'
+}
+
+/** `#12 Tran Van A`: what a result row and the selected worker are called. */
+export function workerTitle(worker: Pick<AdminWorker, 'workerId' | 'fullName'>): string {
+  return `#${worker.workerId} ${worker.fullName}`
+}
+
+/** The lines of the card of the selected worker: what the Admin checks before locking, unlocking or flagging. */
+export function workerDetails(worker: AdminWorker): { label: string; value: string }[] {
+  return [
+    { label: 'Số điện thoại', value: worker.phoneNumber },
+    { label: 'CCCD', value: worker.nationalId },
+    { label: 'Loại thợ', value: workerTypeText(worker) },
+    { label: 'Trạng thái', value: workStatusText(worker.workStatus) },
+    { label: 'eKYC', value: kycStatusText(worker.kycStatus) },
+    { label: 'Super-Freelancer', value: worker.isSuperFreelancer ? 'Có' : 'Không' },
+    { label: 'Đánh giá', value: ratingText(worker.ratingAvg) },
+    { label: 'Ca hoàn thành', value: String(worker.completedJobs) },
+  ]
+}
+
+/** One line under the results: how many matched, and that typing more narrows them when not all are shown. */
+export function resultsSummary(shown: number, total: number): string {
+  if (total === 0) return 'Không tìm thấy thợ nào khớp.'
+  if (total > shown) return `Hiện ${shown} trên ${total} thợ khớp. Gõ thêm để thu hẹp.`
+  return `${total} thợ khớp.`
+}
+
+/** What the Admin reads when the lookup fails (contract admin.md 2.8: 400, 401, 403). */
+export function searchError(e: FailedCall): string {
+  switch (e.status) {
+    case 0:
+      return 'Không kết nối được máy chủ.'
+    case 400:
+      return e.fieldErrors?.q?.[0] ?? (e.message || 'Từ khoá tìm kiếm không hợp lệ.')
+    case 404:
+      return 'Chưa có chức năng tìm thợ trên máy chủ.'
+    default:
+      return e.message || `Lỗi ${e.status}`
+  }
+}
+
+/** `?workerId=12` of the page address: the worker to preselect; empty text when there is none or it is not a worker number. */
+export function workerIdFromSearch(search: string): string {
+  const raw = new URLSearchParams(search).get('workerId') ?? ''
+  return 'id' in parseWorkerId(raw) ? raw.trim() : ''
+}
+
+/** Whether the selected worker is still the one whose number is in the field (typing another number drops the selection). */
+export function selectionMatches(selected: Pick<AdminWorker, 'workerId'> | null, workerText: string): boolean {
+  if (selected === null) return false
+  const parsed = parseWorkerId(workerText)
+  return 'id' in parsed && parsed.id === selected.workerId
 }
