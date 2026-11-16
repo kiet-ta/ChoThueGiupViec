@@ -23,7 +23,7 @@ public class EkycPhotoUrlTests
     }
 
     private static WorkerEkycService Service(SubmitRepository repository, RecordingProvider provider, ICurrentUser? user = null) =>
-        new(repository, provider, user ?? new WorkerUser(), Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        new(repository, provider, user ?? new WorkerUser(), Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
 
     private static SubmitEkycRequest Request(string front = "https://storage.local/f.jpg", string back = "https://storage.local/b.jpg", string selfie = "https://storage.local/s.jpg") =>
         new(front, back, selfie);

@@ -200,7 +200,7 @@ Submits CCCD photos and selfie for automated eKYC verification (`IEkycProvider`,
 #### 2.2.2 `GET /api/v1/admin/workers/ekyc-queue` (AdminOnly)
 Lists pending manual eKYC reviews for Admin.
 
-**Query Parameters:** `page=1&pageSize=20&status=PENDING`. `status` (ADMIN-UAT-06) selects the list of the Admin audit page: `PENDING` (default: `MANUAL_REVIEW`, `PENDING`, `AUDIT_PENDING`), `APPROVED` (`kyc_status = APPROVED` and `kyc_reviewed_by` set, that is approved by an Admin; a worker the provider approved is not in it) or `REJECTED`; any other value is a 400 with `errors.status`. The Web page sends the tab it shows.
+**Query Parameters:** `page=1&pageSize=20&status=PENDING`. `status` (ADMIN-UAT-06) selects the list of the Admin audit page: `PENDING` (default: `MANUAL_REVIEW` and `AUDIT_PENDING`; a worker whose `kyc_status` is still `PENDING` has not submitted eKYC yet, so it is not in the queue: ADMIN-UAT-13), `APPROVED` (`kyc_status = APPROVED` and `kyc_reviewed_by` set, that is approved by an Admin; a worker the provider approved is not in it) or `REJECTED`; any other value is a 400 with `errors.status`. The Web page sends the tab it shows.
 
 `frontCccdUrl`, `backCccdUrl` and `selfieUrl` are the addresses stored at the submit (2.2.1, ADMIN-UAT-15) so the Admin review dialog can show the photos. They are `null` for a worker whose row is older than the columns (it was submitted before the addresses were kept) and for an agency worker; the Web shows "Chưa có ảnh" for a `null` one.
 
@@ -238,6 +238,11 @@ Admin manual approval or rejection of a worker's eKYC.
   "rejectionReason": null
 }
 ```
+
+**Rules (ADMIN-UAT-13):**
+- `approved = false` needs a `rejectionReason` of 1 to 255 characters after trimming; a blank or longer one is a **400** with `errors.rejectionReason` and nothing changes.
+- `approved = true` may carry a `rejectionReason` (trimmed, at most 255 characters) as the reason of the approval; without one (or a longer one) the reason is `Admin duyệt hồ sơ eKYC thủ công.`.
+- Every review writes `ADMIN_AUDIT_LOG` rows in the same unit of work as the worker update (G-5; written before the save, so both commit or neither does): `entity_type = WORKER`, `entity_id` = the worker id, `field_name = kyc_status` (old and new status) and, when the worker's `work_status` changes (for example `PENDING -> IDLE` on approval, `LOCKED -> IDLE`, or `PENDING`/`IDLE`/`BUSY -> LOCKED` on rejection), a second row with `field_name = work_status`. `reason` is the reason above and `admin_id` the reviewing Admin.
 
 **Response 200 `data` (`EkycResultResponse`)**
 

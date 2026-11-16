@@ -25,6 +25,8 @@ export function entityLabel(entityType: string): string {
 /** A field an Admin cannot read from its column name; every other field is shown as the backend wrote it. */
 const FIELD_LABELS: Record<string, string> = {
   low_rating_flag: 'Cờ đánh giá thấp',
+  kyc_status: 'Trạng thái eKYC',
+  work_status: 'Trạng thái làm việc',
 }
 
 export function fieldLabel(fieldName: string): string {

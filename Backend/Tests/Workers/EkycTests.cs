@@ -62,7 +62,7 @@ public class EkycTests
         var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new WorkerEkycService(repository, fakeEkyc, currentUser, rules);
+        var handler = new WorkerEkycService(repository, fakeEkyc, currentUser, rules, null!);
         var req = new SubmitEkycRequest(
             FrontCccdUrl: "https://storage.local/ekyc/front.jpg",
             BackCccdUrl: "https://storage.local/ekyc/back.jpg",
@@ -107,7 +107,7 @@ public class EkycTests
         var rules = Microsoft.Extensions.Options.Options.Create(new BusinessRules());
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
 
-        var handler = new WorkerEkycService(repository, fakeEkyc, currentUser, rules);
+        var handler = new WorkerEkycService(repository, fakeEkyc, currentUser, rules, null!);
         var req = new SubmitEkycRequest(
             FrontCccdUrl: "https://storage.local/ekyc/front.jpg",
             BackCccdUrl: "https://storage.local/ekyc/back.jpg",
@@ -143,7 +143,7 @@ public class EkycTests
         await db.SaveChangesAsync();
 
         var handler = new WorkerEkycService(new EfWorkerRepository(db), new FakeEkycProvider { Confidence = 60.00m },
-            new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+            new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
 
         await handler.SubmitAsync(new SubmitEkycRequest("  https://storage.local/ekyc/front.jpg ", "https://storage.giupviec.local/ekyc/back.jpg", "/files/ekyc/selfie.jpg"), CancellationToken.None);
 
@@ -168,7 +168,7 @@ public class EkycTests
         await db.SaveChangesAsync();
 
         var handler = new WorkerEkycService(new EfWorkerRepository(db), new FakeEkycProvider(),
-            new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+            new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker }, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
 
         var error = await Assert.ThrowsAsync<CommonService.Application.Exceptions.ValidationException>(() =>
             handler.SubmitAsync(new SubmitEkycRequest("javascript:alert(1)", "https://storage.local/b.jpg", "https://storage.local/s.jpg"), CancellationToken.None));
@@ -199,7 +199,7 @@ public class EkycTests
         await db.SaveChangesAsync();
 
         var currentUser = new TestCurrentUser { UserId = worker.WorkerId, Role = UserRole.Worker };
-        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()));
+        var handler = new WorkerEkycService(repository, null!, currentUser, Microsoft.Extensions.Options.Options.Create(new BusinessRules()), null!);
 
         // Act
         var result = await handler.GetStatusAsync(CancellationToken.None);

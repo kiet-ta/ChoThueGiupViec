@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommonService.Application.Common.Models;
 using CommonService.Application.Common.Options;
 using CommonService.Application.Exceptions;
@@ -12,8 +13,11 @@ public class WorkerEkycService(
     IWorkerRepository workerRepository,
     IEkycProvider ekycProvider,
     ICurrentUser currentUser,
-    IOptions<BusinessRules> rulesOptions) : IWorkerEkycService
+    IOptions<BusinessRules> rulesOptions,
+    IAuditLog audit) : IWorkerEkycService
 {
+    private const int MaxReasonLength = 255; // ADMIN_AUDIT_LOG.reason
+    private const string DefaultApprovalReason = "Admin duyệt hồ sơ eKYC thủ công.";
     private const int MaxPhotoUrlLength = 500; // WORKER.ekyc_front_cccd_url, ekyc_back_cccd_url, ekyc_selfie_url
 
     private readonly BusinessRules _rules = rulesOptions.Value;
@@ -149,8 +153,24 @@ public class WorkerEkycService(
             throw new NotFoundException($"Worker profile with ID {workerId} not found.");
         }
 
+        var reason = ReviewReason(request);
+        var oldKycStatus = worker.KycStatus;
+        var oldWorkStatus = worker.WorkStatus;
+
         worker.ReviewKyc(request.Approved, adminId);
         workerRepository.Update(worker);
+
+        // The audit rows join the unit of work of the worker update (G-5): written BEFORE the save, so both commit or neither does.
+        await audit.WriteAsync(
+            new AuditEntry(AuditActorType.Admin, adminId, "WORKER", worker.WorkerId.ToString(CultureInfo.InvariantCulture), "kyc_status",
+                oldKycStatus, worker.KycStatus, reason), ct);
+        if (worker.WorkStatus != oldWorkStatus)
+        {
+            await audit.WriteAsync(
+                new AuditEntry(AuditActorType.Admin, adminId, "WORKER", worker.WorkerId.ToString(CultureInfo.InvariantCulture), "work_status",
+                    DbEnum.ToDb(oldWorkStatus), DbEnum.ToDb(worker.WorkStatus), reason), ct);
+        }
+
         await workerRepository.SaveChangesAsync(ct);
 
         var response = new EkycResultResponse(
@@ -159,7 +179,7 @@ public class WorkerEkycService(
             worker.KycStatus,
             false,
             worker.UpdatedAt,
-            request.Approved ? null : (request.RejectionReason ?? "Manual review rejected by Admin.")
+            request.Approved ? null : reason
         );
 
         string message = request.Approved
@@ -167,6 +187,29 @@ public class WorkerEkycService(
             : $"eKYC manually rejected for worker #{worker.WorkerId}. Account locked.";
 
         return ApiResponse<EkycResultResponse>.Ok(response, message);
+    }
+
+    /// <summary>
+    /// The reason of the audit rows (1-255 characters after trimming). A rejection must carry one (400 on <c>rejectionReason</c>); an approval
+    /// uses the given text when it fits, else a default, so the audit log always says why.
+    /// </summary>
+    private static string ReviewReason(ReviewEkycRequest request)
+    {
+        var text = request.RejectionReason?.Trim();
+        if (!request.Approved)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length > MaxReasonLength)
+            {
+                throw new ValidationException(new Dictionary<string, string[]>
+                {
+                    ["rejectionReason"] = [$"A rejection reason of 1 to {MaxReasonLength} characters is required."],
+                });
+            }
+
+            return text;
+        }
+
+        return string.IsNullOrEmpty(text) || text.Length > MaxReasonLength ? DefaultApprovalReason : text;
     }
 
     /// <summary>
