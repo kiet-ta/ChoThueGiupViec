@@ -64,6 +64,8 @@ describe('rows', () => {
     assert.equal(row.status, 'Chờ xử lý')
     assert.equal(appealStatusText('ACCEPTED'), 'Đã chấp nhận (hoàn lại)')
     assert.equal(noteProblem('x'.repeat(256)) !== null, true)
+    assert.equal(noteProblem('') !== null, true)
+    assert.equal(noteProblem('   ') !== null, true)
     assert.equal(noteProblem('ok'), null)
   })
 })

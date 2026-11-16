@@ -16,6 +16,8 @@ export const ENTITY_TYPES: { value: string; label: string }[] = [
   { value: 'PRICE_RULE', label: 'Bảng giá' },
   { value: 'SUBSCRIPTION_PACKAGE', label: 'Gói thuê bao' },
   { value: 'ESCROW_APPEAL', label: 'Khiếu nại ký quỹ' },
+  { value: 'WITHDRAWAL_REQUEST', label: 'Yêu cầu rút tiền' },
+  { value: 'WORKER_BANK_CHANGE', label: 'Đổi thông tin ngân hàng' },
 ]
 
 export function entityLabel(entityType: string): string {

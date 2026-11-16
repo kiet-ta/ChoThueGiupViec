@@ -68,6 +68,13 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, CancellationToken cancellationToken = default)
     {
+        if (_context.Database.CurrentTransaction != null)
+        {
+            var result = await action();
+            await _context.SaveChangesAsync(cancellationToken);
+            return result;
+        }
+
         var strategy = _context.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {

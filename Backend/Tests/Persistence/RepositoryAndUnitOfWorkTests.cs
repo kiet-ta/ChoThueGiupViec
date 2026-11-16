@@ -195,4 +195,59 @@ public class RepositoryAndUnitOfWorkTests
             Assert.Null(rolledBack);
         }
     }
+
+    [Fact]
+    public async Task UnitOfWork_ExecuteInTransactionAsync_Supports_Nested_Transactions_Without_Error()
+    {
+        if (!IsSqlServerAvailable()) return;
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlServer(ConnectionString)
+            .Options;
+
+        var phone = "099" + Random.Shared.Next(1000000, 9999999);
+
+        using (var context = new AppDbContext(options))
+        {
+            var uow = new UnitOfWork(context);
+            var repo = new CustomerRepository(context);
+
+            var result = await uow.ExecuteInTransactionAsync(async () =>
+            {
+                var customer = new Customer
+                {
+                    PhoneNumber = phone,
+                    FullName = "Outer Transaction Customer",
+                    AccountStatus = CustomerAccountStatus.Active,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                await repo.AddAsync(customer);
+
+                // Nested ExecuteInTransactionAsync reuses ambient transaction
+                var nestedResult = await uow.ExecuteInTransactionAsync(async () =>
+                {
+                    customer.FullName = "Inner Updated Customer";
+                    return 42;
+                });
+
+                Assert.Equal(42, nestedResult);
+                return customer;
+            });
+
+            Assert.Equal("Inner Updated Customer", result.FullName);
+        }
+
+        // Clean up or verify
+        using (var verifyContext = new AppDbContext(options))
+        {
+            var repo = new CustomerRepository(verifyContext);
+            var saved = await repo.GetByPhoneNumberAsync(phone);
+            Assert.NotNull(saved);
+            Assert.Equal("Inner Updated Customer", saved.FullName);
+
+            verifyContext.Customers.Remove(saved);
+            await verifyContext.SaveChangesAsync();
+        }
+    }
 }

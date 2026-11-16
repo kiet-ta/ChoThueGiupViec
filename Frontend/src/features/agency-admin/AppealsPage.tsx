@@ -96,7 +96,7 @@ export function AppealsPage() {
           {current.pending ? (
             <div className="mt-4 flex flex-col gap-3 text-sm">
               <label className="flex flex-col gap-1">
-                Ghi chú quyết định (tuỳ chọn)
+                Ghi chú quyết định (bắt buộc)
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="rounded-lg border border-border bg-background p-2" />
               </label>
               {message && <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">{message}</div>}
