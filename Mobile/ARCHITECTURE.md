@@ -107,6 +107,9 @@ The order detail passes the completed worker and previous order to the Economy b
 - `cd Mobile && flutter analyze`: Static linting and code quality.
 - `cd Mobile && flutter test`: Unit and widget test execution.
 
+### Android build when the project and the Pub cache are on different drives (MOB-ANDROID-BUILD-01)
+`android/gradle.properties` sets `kotlin.incremental=false`. With the project on one drive (for example `E:`) and the Pub cache with the plugin sources on another (`C:` under `AppData\Local\Pub\Cache`), the Kotlin incremental compiler failed `compileDebugKotlin` of `url_launcher_android`, `image_picker_android` and `package_info_plus` with `this and base files have different roots` and `Could not close incremental caches`, so `flutter run` stopped at `assembleDebug`. If an earlier failed build left broken caches, run `flutter clean` once.
+
 ## 5. Two-way rating (MOB-M6-01 customer rates the worker, MOB-M6-02 worker rates the customer)
 - Feature `lib/features/ratings/` (contract `.spec/contracts/ratings.md` 2.1-2.2, decision Q14): `models/rating_models.dart` (role, fixed criteria, window), `logic/rating_logic.dart` (pure: countdown text, reason messages, validation, request body, error mapping), `services/ratings_service.dart` (`IRatingsService` over the shared `ApiClient`), `screens/rating_screen.dart`.
 - **Route `/ratings`** takes `RatingScreenArgs(role, assignmentId, ratedName?)` as route arguments; whoever shows a completed job (booking or dispatch) pushes it. Without arguments a short note says ratings are given from a completed job. There is no ratings list screen: the API has no list and a worker's rating is internal only.
