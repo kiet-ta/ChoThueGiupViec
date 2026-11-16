@@ -228,5 +228,17 @@ void main() {
       expect(evening.windows, isEmpty);
       expect(evening.remainingHours, isNull);
     });
+
+    test('a second job can start right after the first in the same shift (SHIFT-MULTI-01, D42)', () {
+      const morning = ['08:00', '08:30', '09:00', '09:30', '10:00'];
+      expect(startsWorkerCanTake(morning, 2, busy([('08:00', '10:00')], 6)), [
+        '10:00',
+      ]);
+      // 08:00-10:30 leaves 1.5 h: no 2 h job fits any more.
+      expect(
+        startsWorkerCanTake(morning, 2, busy([('08:00', '10:30')], 5.5)),
+        isEmpty,
+      );
+    });
   });
 }

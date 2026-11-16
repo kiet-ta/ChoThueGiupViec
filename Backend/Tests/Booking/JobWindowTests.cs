@@ -77,11 +77,37 @@ public class JobWindowTests
     }
 
     [Fact]
-    public void Fits_RefusesAnOverlap_AndADayOverTheCap()
+    public void TheDefaultTravelBufferIsZero_SoTouchingJobsDoNotOverlap()
+    {
+        // SHIFT-MULTI-01 (decisions D42): a 2 h shortest job and a 4 h shift only fit two jobs when they may touch.
+        Assert.Equal(0, Rules.Booking.TravelBufferMinutes);
+        Assert.False(JobWindow.Overlaps(W(8, 0, 10, 0), W(10, 0, 12, 0), Rules.Booking.TravelBufferMinutes));
+        Assert.True(JobWindow.Overlaps(W(8, 0, 10, 0), W(9, 45, 12, 0), Rules.Booking.TravelBufferMinutes));
+    }
+
+    [Fact]
+    public void Fits_AcceptsTwoJobsOneAfterTheOtherInOneShift_AndRefusesAnOverlap()
     {
         var jobs = new List<(TimeOnly, TimeOnly)> { W(8, 0, 10, 0) };
-        Assert.True(WorkerJobTimes.Fits(jobs, W(10, 30, 12, 0), Rules));
-        Assert.False(WorkerJobTimes.Fits(jobs, W(10, 0, 12, 0), Rules));
+        Assert.True(WorkerJobTimes.Fits(jobs, W(10, 0, 12, 0), Rules));
+        Assert.False(WorkerJobTimes.Fits(jobs, W(9, 0, 11, 0), Rules));
+        Assert.False(WorkerJobTimes.Fits(jobs, W(8, 0, 10, 0), Rules));
+    }
+
+    [Fact]
+    public void Fits_StillKeepsAGapWhenTheBufferIsRaised()
+    {
+        var withGap = new BusinessRules();
+        withGap.Booking.TravelBufferMinutes = 30;
+        var jobs = new List<(TimeOnly, TimeOnly)> { W(8, 0, 10, 0) };
+
+        Assert.True(WorkerJobTimes.Fits(jobs, W(10, 30, 12, 0), withGap));
+        Assert.False(WorkerJobTimes.Fits(jobs, W(10, 0, 12, 0), withGap));
+    }
+
+    [Fact]
+    public void Fits_RefusesADayOverTheCap()
+    {
 
         // 4 h + 3 h already that day: one more hour is the 8 h cap, two more is over it.
         var day = new List<(TimeOnly, TimeOnly)> { W(8, 0, 12, 0), W(13, 0, 16, 0) };
