@@ -63,6 +63,7 @@ public class DevCorsTests
 
         Assert.Equal("http://localhost:5173", get.Headers.GetValues("Access-Control-Allow-Origin").Single());
         Assert.Equal("true", get.Headers.GetValues("Access-Control-Allow-Credentials").Single());
+        Assert.Contains("Retry-After", get.Headers.GetValues("Access-Control-Expose-Headers").Single());
         Assert.True(preflight.IsSuccessStatusCode);
         Assert.Equal("http://localhost:5173", preflight.Headers.GetValues("Access-Control-Allow-Origin").Single());
         Assert.Contains("POST", preflight.Headers.GetValues("Access-Control-Allow-Methods").Single());

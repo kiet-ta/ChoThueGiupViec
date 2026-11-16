@@ -26,7 +26,9 @@ public class DevCorsModule : IModule
             .SetIsOriginAllowed(IsLocalOrigin)
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials()));
+            .AllowCredentials()
+            // A browser hides every response header outside the CORS-safelisted ones from the app; the app reads the cooldown.
+            .WithExposedHeaders("Retry-After")));
         services.AddTransient<IStartupFilter, DevCorsStartupFilter>();
     }
 
