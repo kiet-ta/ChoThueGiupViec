@@ -185,7 +185,7 @@ Submits CCCD photos and selfie for automated eKYC verification (`IEkycProvider`,
 
 | Status | Condition |
 |---|---|
-| 400 | Photo URLs missing or malformed |
+| 400 | Photo URLs missing (`errors.ekycPhotos`) or not acceptable (`errors.frontCccdUrl`, `errors.backCccdUrl`, `errors.selfieUrl`, every bad one at once): see the address rules below |
 | 409 | eKYC already approved |
 
 **Rules:**
@@ -193,6 +193,7 @@ Submits CCCD photos and selfie for automated eKYC verification (`IEkycProvider`,
 - `confidenceScore >= 85.00` (`Ekyc.AutoApproveConfidence`) -> `kycStatus = APPROVED`, `workStatus = IDLE` immediately.
 - `confidenceScore < 85.00` or fraud flag -> `kycStatus = MANUAL_REVIEW`, added to Admin review queue.
 - Freelancer cannot receive job assignments until `kycStatus == APPROVED`.
+- **Photo addresses (ADMIN-UAT-15):** each of the three is trimmed and must be an absolute `http` or `https` address (dev addresses such as `https://storage.local/...` and `https://storage.giupviec.local/...` included) or a root-relative path starting with a single `/`, at most 500 characters, with no space or control character. `javascript:`, `data:`, `file:`, `ftp:`, a protocol-relative `//host/...` and a bare name are refused with a 400 naming the field, because the Admin page shows the address in an `img` tag. The three trimmed addresses are stored on the worker (`WORKER.ekyc_front_cccd_url`, `ekyc_back_cccd_url`, `ekyc_selfie_url`, `NVARCHAR(500) NULL`) together with the result, whether the worker is approved or sent to manual review; a later submit replaces them. The provider receives the trimmed front and selfie addresses.
 
 ---
 
@@ -201,7 +202,7 @@ Lists pending manual eKYC reviews for Admin.
 
 **Query Parameters:** `page=1&pageSize=20&status=PENDING`. `status` (ADMIN-UAT-06) selects the list of the Admin audit page: `PENDING` (default: `MANUAL_REVIEW`, `PENDING`, `AUDIT_PENDING`), `APPROVED` (`kyc_status = APPROVED` and `kyc_reviewed_by` set, that is approved by an Admin; a worker the provider approved is not in it) or `REJECTED`; any other value is a 400 with `errors.status`. The Web page sends the tab it shows.
 
-**Known gap:** `frontCccdUrl`, `backCccdUrl` and `selfieUrl` are always null: the worker's photo addresses are validated and passed to the provider but not stored (no column), so the Admin review dialog has no photo to compare. Needs a schema decision of M1/M4.
+`frontCccdUrl`, `backCccdUrl` and `selfieUrl` are the addresses stored at the submit (2.2.1, ADMIN-UAT-15) so the Admin review dialog can show the photos. They are `null` for a worker whose row is older than the columns (it was submitted before the addresses were kept) and for an agency worker; the Web shows "Chưa có ảnh" for a `null` one.
 
 **Response 200 `data` (`PagedList<EkycQueueItemResponse>`):**
 ```json
@@ -384,8 +385,9 @@ Up to 3 ways from the worker's position to the house of one of the worker's own 
 - The Customer's own route (single route) is `GET /api/v1/dispatch/assignments/{id}/route` in `dispatch.md`.
 ---
 
-### 2.3B Work area (WORKERS-AREA-01, #555, decisions D24)
+### 2.3B Work area (WORKERS-AREA-01, #555, decisions D24; wards: WORKERS-WARD-V2-01, #959, decisions D40)
 Where a freelancer works. The dispatch search matches on it (see below). Registering is mandatory to be offered jobs.
+The wards are the post-merger administrative units (34 provinces/cities, wards/communes/special zones, no district level) of https://provinces.open-api.vn/api/v2, bundled with the backend as a generated list (`scripts/gen-vn-wards.mjs`); the API never calls the public service at run time.
 
 #### 2.3B.1 `GET /api/v1/workers/me/work-area` (WorkerOnly)
 **Response 200 `data` (`WorkerWorkAreaResponse`)**
@@ -395,19 +397,27 @@ Where a freelancer works. The dispatch search matches on it (see below). Registe
   "latitude": 10.7769,
   "longitude": 106.7009,
   "radiusKm": 10,
-  "districts": ["Quận 1", "Quận 3"],
+  "wards": [
+    { "code": 26740, "name": "Phường Sài Gòn", "provinceCode": 79, "provinceName": "Thành phố Hồ Chí Minh" },
+    { "code": 26743, "name": "Phường Bến Thành", "provinceCode": 79, "provinceName": "Thành phố Hồ Chí Minh" }
+  ],
+  "unresolvedNames": [],
+  "districts": ["Phường Sài Gòn", "Phường Bến Thành"],
   "setAt": "2026-10-31T03:00:00Z"
 }
 ```
-Nothing registered yet: **200** with `isSet: false`, `latitude`, `longitude`, `radiusKm` and `setAt` null and `districts: []` (never 404).
+`wards` are in the order the worker chose them. `districts` is the same names as plain text, for apps built before ward codes. `unresolvedNames` lists old stored names that stand for no ward or for several (the worker must choose them again); it is empty for a row saved with codes.
+Nothing registered yet: **200** with `isSet: false`, `latitude`, `longitude`, `radiusKm` and `setAt` null and `wards`, `districts`, `unresolvedNames` all `[]` (never 404).
+
+**Old rows (names).** `WORKER.work_districts` held ward *names* before ward codes. A read turns each name into the ward it stands for now: a current ward name that exists once in the whole country, otherwise a pre-merger name that was merged into exactly one ward (e.g. `Phường Bến Nghé` -> `Phường Sài Gòn`, 26740). Repeats collapse; a name that stands for no ward or several goes to `unresolvedNames`. A read never writes: the next `PUT` stores codes.
 
 #### 2.3B.2 `PUT /api/v1/workers/me/work-area` (WorkerOnly)
-**Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009, "radiusKm": 10, "districts": ["Quận 1", "Quận 3"] }`
+**Request Body:** `{ "latitude": 10.7769, "longitude": 106.7009, "radiusKm": 10, "wardCodes": [26740, 26743] }`
 
 **Response 200 `data`:** the same `WorkerWorkAreaResponse` as the GET.
 
 **Rules:**
-- `latitude` -90..90, `longitude` -180..180 (rounded to 6 decimals, like `PUT /me/location`), `radiusKm` one of **5, 10, 15**, `districts` optional, at most **10**, each 1 to 100 characters after trimming and without `;`; duplicates (ignoring case) are dropped. Any failure is **400** with field errors (`latitude`, `longitude`, `radiusKm`, `districts`) and nothing is stored.
+- `latitude` -90..90, `longitude` -180..180 (rounded to 6 decimals, like `PUT /me/location`), `radiusKm` one of **5, 10, 15**, `wardCodes` optional, at most **10**, each a ward code of the bundled list, none repeated (stored in `WORKER.work_districts` as the codes joined by `;`, in order). The old `districts` (names) is accepted **only when `wardCodes` is absent** and every name stands for exactly one ward (a current or a pre-merger name, ignoring case and surrounding spaces); it is ignored when `wardCodes` is sent. Any failure is **400** with field errors (`latitude`, `longitude`, `radiusKm`, `wardCodes`, `districts`) and nothing is stored.
 - A new PUT replaces the previous area.
 - **Matching (decisions D24):** the dispatch search finds a freelancer only when they have a work area and the distance from the order's address to the base point is <= the search step radius (5, 7, then 10 km) **and** <= `radiusKm`. A freelancer with no work area is never offered a job. `PUT /me/location` and the check-in distance do not change.
 
@@ -713,3 +723,8 @@ public interface IWorkerProfileQuery
 - `GET /api/v1/workers/assignments/{assignmentId}` gains `continuation` (null for any other job): `{ "status": "STANDBY" | "OPEN" | "RELEASED", "shiftCode", "windowStartAt", "windowEndAt", "openedAt" }` (same shape as `booking.md` progress; the window is the extra hours after the shift end). The job's `grossAmount` / payout is the whole large-house price, whether the work ends in the first job or in the 2nd.
 - `POST /api/v1/customers/assignments/{assignmentId}/request-redo` (2.5.3): for an order with `isContinuousWork` whose 2nd job has not opened, the call opens the 2nd job instead of a redo: the assignment returns to `IN_PROGRESS`, `redo_count` is not raised, the D32 redo window does not apply and `message` is "The second job of this large house is open.". Afterwards, and for every other order, the usual redo applies.
 - After the shift end plus `Dispatch.ContinuationConfirmMinutes` (15) a job still `IN_PROGRESS` opens its 2nd job by itself.
+
+---
+
+## D38 addendum: the work of a Premium order starts when every seat is present (PREM-START-02, #952)
+- `POST /api/v1/workers/assignments/{assignmentId}/photos` (and the file variant), first `BEFORE` photo of a `CHECKED_IN` assignment of a PREMIUM order: **409** `data.code = PARTNER_NOT_CHECKED_IN`, message "Cho dong nghiep check-in: ca chi bat dau khi du nguoi co mat." while another seat of the order has no live assignment that is `CHECKED_IN` or later. Nothing is stored and the assignment stays `CHECKED_IN`. ECONOMY orders and a Premium order with one seat are never held.

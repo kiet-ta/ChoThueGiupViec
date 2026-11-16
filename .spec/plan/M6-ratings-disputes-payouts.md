@@ -38,3 +38,6 @@ Ticket `WEB-BASE-*`: `Frontend/**`, `.spec/plan/M6-*.md` (đụng `Frontend/AGEN
 
 ## Ghi chú nền tảng — PLATFORM-01 (ticket #586)
 - Toàn bộ API đổi tiền tố `/api/...` → `/api/v1/...` (Backend controllers, Mobile `lib/`, Web `src/` + proxy, contracts, openapi.json). Các đường dẫn M6 trong file này (`api/admin/...`, `api/workers/me/...`) nay là `api/v1/admin/...`, `api/v1/workers/me/...`. `/files/...` và `/hubs/...` nằm ngoài tiền tố.
+
+## Ghi chú — ADMIN-UAT-12 (ticket #868)
+- `/admin/login` đăng nhập xong vào thẳng `/admin/dashboard` (route con `login` trong `/admin` chuyển về dashboard, `Frontend/src/app/router.tsx`). Đã thử trên trình duyệt thật: chưa đăng nhập hiện form; đăng nhập Admin ở `/admin/login` -> `/admin/dashboard`; Admin đã đăng nhập mở `/admin/login` -> `/admin/dashboard`; khách hàng -> `/app`, đối tác -> `/partner`. L3: `.harness/evidence/20261114-213202-L3.log` (mọi bước qua, riêng `backend test` có 1 test fail sẵn trên main từ #864, không thuộc ticket này; xem PR).

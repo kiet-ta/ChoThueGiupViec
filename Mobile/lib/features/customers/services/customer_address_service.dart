@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:http/http.dart' as http;
 
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
@@ -13,7 +13,7 @@ import '../../../core/network/api_config.dart';
 /// [ApiException]; it is never replaced by mock data.
 class CustomerAddressService {
   final String baseUrl;
-  final HttpClient _httpClient;
+  final http.Client _httpClient;
   final TokenStorage _tokenStorage;
   final bool isMock;
 
@@ -27,11 +27,11 @@ class CustomerAddressService {
 
   CustomerAddressService({
     String? baseUrl,
-    HttpClient? httpClient,
+    http.Client? httpClient,
     TokenStorage? tokenStorage,
     this.isMock = false,
   }) : baseUrl = baseUrl ?? apiBaseUrl,
-       _httpClient = httpClient ?? HttpClient(),
+       _httpClient = httpClient ?? http.Client(),
        _tokenStorage = tokenStorage ?? TokenStorage() {
     if (isMock) _seedDefaultMockData();
   }

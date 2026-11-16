@@ -4,8 +4,10 @@
 Runs against a backend in the Development environment (Fake gateway, Fake OTP, dev payment tool):
   premium  an agency registers, is funded, imports workers, rosters them, buys Pro; a customer books a Premium
            shift; the agency worker does the job; the customer accepts; the agency is paid out.
-  economy  a freelancer registers (OTP), passes eKYC, opens a slot and shares a location; a customer books an
-           Economy shift; the freelancer gets the offer, accepts and does the job; the freelancer is paid out.
+  economy  a freelancer registers (OTP), passes eKYC, opens a slot, registers a work area (D24) and shares a location; a
+           customer books an Economy shift; the freelancer gets the offer, accepts and does the job.
+  payout   the month is settled from the ledger through the Development route (D28, no batch is built or confirmed by hand); the
+           agency and the freelancer are paid out and the freelancer sees the transfer.
 See scripts/e2e/README.md. Exit code 0 = every check passed.
 """
 import argparse
@@ -320,6 +322,9 @@ def economy():
     check('a position out of range is a 400', status == 400)
     status, _ = call('PUT', '/api/v1/workers/me/location', {'latitude': 10.7765, 'longitude': 106.7005}, worker)
     check('the location is shared', status == 200)
+    # D24: dispatch offers a job only to a freelancer with a work area whose radius reaches the order (10 km covers 10.7769, 106.7009).
+    status, response = call('PUT', '/api/v1/workers/me/work-area', {'latitude': 10.7765, 'longitude': 106.7005, 'radiusKm': 10, 'districts': ['Quan 1']}, worker)
+    check('the work area is registered', status == 200, str(response)[:200])
     status, _ = call('PUT', '/api/v1/workers/me/bank', {'bankName': 'Techcombank', 'bankAccountNo': '1903 4455 6677'}, worker)
     check('the payout account is saved', status == 200)
 
@@ -345,15 +350,24 @@ def economy():
     return {'worker_id': worker_id, 'assignment_id': assignment_id, 'worker_token': worker, 'worker_bank': ('Techcombank', '190344556677')}
 
 
+def vietnam_month():
+    """The current month, `yyyy-MM`, in Asia/Ho_Chi_Minh (UTC+7, no daylight saving; computed from UTC so no tz database is needed)."""
+    return (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=7)).strftime('%Y-%m')
+
+
 def payout(admin, results):
-    print('\n== PAYOUT: a finished month ==')
-    last = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
-    ids = ','.join(str(r['assignment_id']) for r in results.values())
-    # A month must be over before it can be paid: date the completions to last month (the only direct database change of this script).
-    sql(f"UPDATE JOB_ASSIGNMENT SET completed_at='{last.isoformat()}T05:00:00' WHERE assignment_id IN ({ids})")
-    status, response = call('POST', '/api/v1/admin/payout-batches', {'periodMonth': last.strftime('%Y-%m')}, admin)
-    check('the payout batch is built', status in (200, 201), str(response)[:200])
-    batch_id = data_of(response)['batchId']
+    print('\n== PAYOUT: monthly settlement from the ledger (D28) ==')
+    period = vietnam_month()
+    # D28: nobody builds or confirms a batch; the system settles a month from the ledger. The Development route settles the current month on
+    # demand, so no date is changed behind the API. A month settles once: run against a fresh database, or only once per month per database.
+    status, response = call('POST', f'/api/v1/dev/settlement/run?period={period}')
+    check('the month is settled from the ledger (CLOSED)', status in (200, 201) and data_of(response)['batchStatus'] == 'CLOSED', str(response)[:200])
+    _, response = call('GET', '/api/v1/admin/payout-batches', token=admin)
+    batches = [b for b in data_of(response)['items'] if b['periodMonth'] == period]
+    check('the closed batch of the month is listed', len(batches) == 1 and batches[0]['batchStatus'] == 'CLOSED', str(data_of(response))[:250])
+    if len(batches) != 1:
+        return
+    batch_id = batches[0]['batchId']
     _, response = call('GET', f'/api/v1/admin/payout-batches/{batch_id}', token=admin)
     items = data_of(response)['items']
     if 'premium' in results:
@@ -365,11 +379,8 @@ def payout(admin, results):
     if 'economy' in results:
         mine = [i for i in items if i['workerId'] == results['economy']['worker_id']]
         bank = results['economy']['worker_bank']
-        check('the freelancer item carries its bank account and 80 %', len(mine) == 1 and (mine[0]['bankName'], mine[0]['bankAccountNo']) == bank
-              and mine[0]['netAmount'] == 208000, str(mine)[:250])
-    status, response = call('POST', f'/api/v1/admin/payout-batches/{batch_id}/confirm', token=admin)
-    check('the batch is confirmed (CLOSED)', status == 200 and data_of(response)['batchStatus'] == 'CLOSED', str(response)[:200])
-    if 'economy' in results:
+        check('the freelancer item carries its bank account, 80 % and is TRANSFERRED', len(mine) == 1 and (mine[0]['bankName'], mine[0]['bankAccountNo']) == bank
+              and mine[0]['netAmount'] == 208000 and mine[0]['itemStatus'] == 'TRANSFERRED', str(mine)[:250])
         _, response = call('GET', '/api/v1/workers/me/payouts', token=results['economy']['worker_token'])
         check('the freelancer sees the transfer', any(i['itemStatus'] == 'TRANSFERRED' for i in data_of(response)['items']), str(response)[:200])
 
@@ -380,7 +391,7 @@ def main():
     parser.add_argument('--backend-log', required=True, help='file the backend writes its console to (the Fake OTP is read from it)')
     parser.add_argument('--admin-email', default='admin@dev.local', help='the dev admin email (Seed:Admin:Email)')
     parser.add_argument('--admin-password', default=os.environ.get('E2E_ADMIN_PASSWORD'), help='the dev admin password (Seed:Admin:Password); or env E2E_ADMIN_PASSWORD')
-    parser.add_argument('--sqlcmd', default=os.environ.get('SQLCMD', 'sqlcmd'), help='path of sqlcmd (needed to read worker ids and to date the payout month)')
+    parser.add_argument('--sqlcmd', default=os.environ.get('SQLCMD', 'sqlcmd'), help='path of sqlcmd (needed to read worker ids, free slot days and an assignment status; the script changes nothing in the database)')
     parser.add_argument('--sql-server', default='localhost')
     parser.add_argument('--database', default='ChoThueGiupViec')
     parser.add_argument('--sql-user', help='SQL login (default: Windows authentication)')

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:http/http.dart' as http;
 
 import '../../identity/services/api_error.dart';
 import '../../identity/services/token_storage.dart';
@@ -12,7 +12,7 @@ import '../../../core/network/api_config.dart';
 /// Off (the default, the real app): server or network errors are thrown as [ApiException], never hidden.
 class FavoriteWorkerService {
   final String baseUrl;
-  final HttpClient _httpClient;
+  final http.Client _httpClient;
   final TokenStorage _tokenStorage;
   final bool isMock;
 
@@ -21,11 +21,11 @@ class FavoriteWorkerService {
 
   FavoriteWorkerService({
     String? baseUrl,
-    HttpClient? httpClient,
+    http.Client? httpClient,
     TokenStorage? tokenStorage,
     this.isMock = false,
   }) : baseUrl = baseUrl ?? apiBaseUrl,
-       _httpClient = httpClient ?? HttpClient(),
+       _httpClient = httpClient ?? http.Client(),
        _tokenStorage = tokenStorage ?? TokenStorage() {
     if (isMock) _seedDefaultMockData();
   }

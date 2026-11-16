@@ -25,6 +25,12 @@ public class PremiumStartSweepWorker(IServiceScopeFactory scopeFactory, ILogger<
                 try
                 {
                     using var scope = scopeFactory.CreateScope();
+                    var reminded = await scope.ServiceProvider.GetRequiredService<PremiumCheckInReminderService>().SendDueRemindersAsync(stoppingToken);
+                    if (reminded > 0)
+                    {
+                        logger.LogInformation("Dispatch: {Count} Premium check-in reminder(s) sent.", reminded);
+                    }
+
                     var cancelled = await scope.ServiceProvider.GetRequiredService<PremiumShiftStartService>().CancelUnstaffedOrdersAsync(stoppingToken);
                     if (cancelled > 0)
                     {

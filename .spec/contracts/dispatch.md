@@ -437,3 +437,8 @@ Bảng theo dõi các sự cố hiện trường và tiến độ Re-dispatch.
 - A background sweep (every 30 s) cancels a PREMIUM order (any size) whose seats are not all present at the check-in time + 5 minutes. "Present" is `CHECKED_IN` or later; a worker whose GPS check-in failed and who waits for the customer's confirmation counts as present for 10 minutes after the attempt; a replacement seat has `max(assigned + 30 min, T + 5 min)`.
 - The cancel: `orderStatus = CANCELLED` with `cancelReason` "Đối tác chưa đủ người làm đúng giờ (đơn Premium <orderId>).", `AssignmentFailed` (100 % refund, hold released), every assignment `CANCELLED` (a `CHECKED_IN` one included), and the customer gets the notification `topic = premium.order_cancelled`, `data.orderId`, with the apology and the refunded amount (`GET /api/v1/notifications`, SignalR).
 - The agency of each absent seat gets `NO_SHOW_AT_START`: -30 SLA points per order and the gross amount of each absent seat from its escrow (an escrow ledger row `PENALTY` with the reason `NOSHOWATSTART: ...`).
+
+---
+
+## D38 addendum: the check-in reminder (PREM-START-02, #952)
+- A background sweep (the one of the shift-start cancel, every 30 s) sends each worker of a PREMIUM order whose assignment is still `ASSIGNED` ONE notification `Premium.ReminderMinutes` (30) minutes before the check-in time: `topic = dispatch.checkin_reminder`, title "Sap den gio lam", `data.assignmentId`, `data.orderId`, `data.shiftStartUtc`. `JOB_ASSIGNMENT.checkin_reminded_at` (new nullable column) is set first, so a restart never repeats it. A worker who has already checked in gets none.
