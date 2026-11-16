@@ -12,7 +12,10 @@ import '../../../core/widgets/pressable.dart';
 import '../../../core/widgets/stat_tile.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/status_state_widget.dart';
+import '../../dispatch/models/worker_cancel.dart';
 import '../../dispatch/routes.dart';
+import '../../dispatch/services/dispatch_service.dart';
+import '../../dispatch/widgets/worker_cancel_section.dart';
 import '../../payouts/logic/payout_logic.dart';
 import '../models/booking_slot_models.dart';
 import '../models/worker_assignment_models.dart';
@@ -34,6 +37,9 @@ class WorkerSlotsScreen extends StatefulWidget {
   final WorkersLocationService? locationService;
   final WorkersAssignmentsService? assignmentsService;
 
+  /// Cancels an accepted job from its sheet (`Huỷ ca`, MOB-SLOT-CANCEL-01); replaceable in tests.
+  final DispatchService? dispatchService;
+
   /// Opens the phone's map app for `Chỉ đường`.
   final IMapLauncher? mapLauncher;
   final DateTime? initialDate;
@@ -43,6 +49,7 @@ class WorkerSlotsScreen extends StatefulWidget {
     this.slotsService,
     this.locationService,
     this.assignmentsService,
+    this.dispatchService,
     this.mapLauncher,
     this.initialDate,
   });
@@ -55,6 +62,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
   late final WorkersSlotsService _service;
   late final WorkersLocationService _locationService;
   late final WorkersAssignmentsService _assignmentsService;
+  late final DispatchService _dispatchService;
   late final IMapLauncher _mapLauncher;
   late DateTime _weekStartDate;
 
@@ -96,6 +104,7 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
     _locationService = widget.locationService ?? WorkersLocationService();
     _assignmentsService =
         widget.assignmentsService ?? WorkersAssignmentsService();
+    _dispatchService = widget.dispatchService ?? DispatchService();
     _mapLauncher = widget.mapLauncher ?? const UrlMapLauncher();
 
     final now = widget.initialDate ?? DateTime.now();
@@ -799,12 +808,12 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
       backgroundColor: NordicColors.canvas,
       shape: const RoundedRectangleBorder(borderRadius: NordicRadius.sheetTop),
       builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
             NordicSpace.gutter,
             NordicSpace.md,
             NordicSpace.gutter,
-            NordicSpace.lg,
+            NordicSpace.lg + MediaQuery.of(sheetContext).viewInsets.bottom,
           ),
           child: Column(
             key: Key('order-sheet-${a.assignmentId}'),
@@ -864,6 +873,35 @@ class _WorkerSlotsScreenState extends State<WorkerSlotsScreen> {
                         .then((_) {
                           if (mounted) _loadWeeklySlots();
                         });
+                  },
+                ),
+              ],
+              // Decisions D35: an accepted job that has not started can be cancelled, here as well as on the check-in screen.
+              if (a.isNotStarted) ...[
+                const SizedBox(height: NordicSpace.md),
+                WorkerCancelSection(
+                  assignmentId: a.assignmentId,
+                  service: _dispatchService,
+                  onCancelled: (result) {
+                    Navigator.of(sheetContext).pop();
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          key: const Key('worker-cancelled-notice'),
+                          duration: const Duration(seconds: 8),
+                          content: Text(workerCancelNotice(result)),
+                        ),
+                      );
+                    _loadWeeklySlots();
+                  },
+                  onReportIncident: () {
+                    Navigator.of(sheetContext).pop();
+                    Navigator.of(context).pushNamed(
+                      DispatchRoutes.incidentReport,
+                      arguments: a.assignmentId,
+                    );
                   },
                 ),
               ],

@@ -162,3 +162,6 @@ The order detail passes the completed worker and previous order to the Economy b
 
 ## 11. The worker schedule shows every job of a shift (MOB-SLOT-MULTI-01, #972, decisions D42)
 - One shift can take several orders of the same worker, so `worker_slots_screen.dart` looks up **all** the assignments of a (date, shift) pair (`_assignmentsOf`, earliest start first) and draws one `NordicCard` per job (key `order-<assignmentId>`). The pill reads "Có đơn" for one job and "Có N đơn" for N >= 2 (key `shift-booked-<date>-<shift>`). Before, only the first job of a shift was drawn, so the others could not be opened from Lịch.
+
+## 12. "Huỷ ca" in the worker schedule (MOB-SLOT-CANCEL-01, #975, decisions D35)
+- The detail sheet of a job in Lịch (`worker_slots_screen.dart`, `_openOrder`) shows the existing `WorkerCancelSection` (the red "Huỷ ca", the preview, the reason, "Xác nhận huỷ ca") **under "Đến nơi"** for a job in `ASSIGNED` only. The backend is unchanged (`GET/POST /dispatch/assignments/{id}/cancel[-preview]`); `WorkerSlotsScreen` takes an optional `DispatchService` for tests. The sheet scrolls and rises above the keyboard. After a cancel the sheet closes, the schedule reloads and a SnackBar says what happened (`workerCancelNotice` in `worker_cancel.dart`); the check-in screen keeps its own result view.

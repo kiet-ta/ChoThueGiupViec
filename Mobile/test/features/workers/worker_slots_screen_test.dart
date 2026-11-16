@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
+import 'package:mobile/core/widgets/nordic_button.dart';
+import 'package:mobile/core/device/location_wrapper.dart';
 import 'package:mobile/core/network/api_response.dart';
+import 'package:mobile/features/dispatch/models/worker_cancel.dart';
+import 'package:mobile/features/dispatch/services/dispatch_service.dart';
 import 'package:mobile/features/workers/models/booking_slot_models.dart';
 import 'package:mobile/features/dispatch/routes.dart';
 import 'package:mobile/features/workers/models/worker_assignment_models.dart';
@@ -161,6 +165,56 @@ class FailingSlotsService extends MockWorkersSlotsService {
     return calls == 1
         ? Future.error(Exception('Mất kết nối'))
         : super.getSlots(startDate: startDate, endDate: endDate);
+  }
+}
+
+/// Answers the cancel preview and the cancel from values the test sets; records what was sent (MOB-SLOT-CANCEL-01).
+class FakeCancelDispatch extends DispatchService {
+  FakeCancelDispatch()
+    : super(
+        isMock: true,
+        locationWrapper: LocationWrapper(
+          mockLocation: GeoPoint(
+            latitude: 10.774,
+            longitude: 106.703,
+            timestamp: DateTime(2026, 10, 12),
+          ),
+        ),
+      );
+
+  bool willLock = false;
+  ApiException? cancelError;
+  final cancelled = <(int, String)>[];
+
+  @override
+  Future<WorkerCancelPreview> getCancelPreview(int assignmentId) async =>
+      WorkerCancelPreview(
+        assignmentId: assignmentId,
+        cancelCountInWindow: willLock ? 2 : 0,
+        lockCount: 3,
+        windowDays: 30,
+        willLockAccount: willLock,
+        autoAcceptOn: true,
+        jobStartAt: DateTime.utc(2026, 10, 13, 1),
+        substituteSearchPossible: true,
+      );
+
+  @override
+  Future<WorkerCancelResult> cancelAssignment(
+    int assignmentId,
+    String reason,
+  ) async {
+    cancelled.add((assignmentId, reason));
+    if (cancelError != null) throw cancelError!;
+    return WorkerCancelResult(
+      assignmentId: assignmentId,
+      status: 'CANCELLED_BY_WORKER',
+      cancelCountInWindow: 1,
+      lockCount: 3,
+      windowDays: 30,
+      accountLocked: false,
+      orderOutcome: WorkerCancelResult.redispatching,
+    );
   }
 }
 
@@ -347,9 +401,11 @@ void main() {
     group('booked orders in the schedule', () {
       late FakeAssignmentsService assignments;
       late FakeMapLauncher launcher;
+      late FakeCancelDispatch dispatch;
 
       setUp(() {
         launcher = FakeMapLauncher();
+        dispatch = FakeCancelDispatch();
         assignments = FakeAssignmentsService()
           ..jobs = [
             job(10002, '2026-10-12', 'SHIFT_MORNING', 'ASSIGNED'),
@@ -373,6 +429,9 @@ void main() {
               DispatchRoutes.checkIn: (c) => Scaffold(
                 body: Text('checkin:${ModalRoute.of(c)!.settings.arguments}'),
               ),
+              DispatchRoutes.incidentReport: (c) => Scaffold(
+                body: Text('incident:${ModalRoute.of(c)!.settings.arguments}'),
+              ),
               WorkerRoutes.execution: (c) => Scaffold(
                 body: Text('execution:${ModalRoute.of(c)!.settings.arguments}'),
               ),
@@ -384,6 +443,7 @@ void main() {
               slotsService: mockService,
               locationService: mockLocation,
               assignmentsService: assignments,
+              dispatchService: dispatch,
               mapLauncher: launcher,
               initialDate: fixedDate,
             ),
@@ -391,6 +451,225 @@ void main() {
         );
         await tester.pumpAndSettle();
       }
+
+      // MOB-SLOT-CANCEL-01 (decisions D35): "Huỷ ca" in the sheet of an accepted job, under "Đến nơi".
+      Future<void> openSheet(WidgetTester tester, int id) async {
+        await tapVisible(tester, find.byKey(Key('order-$id')));
+        expect(find.byKey(Key('order-sheet-$id')), findsOneWidget);
+      }
+
+      Future<void> openCancelForm(WidgetTester tester, int id) async {
+        await openSheet(tester, id);
+        await tapVisible(tester, find.byKey(const Key('open-worker-cancel')));
+        expect(find.byKey(const Key('worker-cancel-form')), findsOneWidget);
+      }
+
+      testWidgets(
+        'a red "Huỷ ca" sits under "Đến nơi" for an accepted job and for no other status',
+        (tester) async {
+          assignments.jobs = [
+            job(10002, '2026-10-12', 'SHIFT_MORNING', 'ASSIGNED'),
+            job(10003, '2026-10-12', 'SHIFT_AFTERNOON', 'CHECKED_IN'),
+            job(10006, '2026-10-12', 'SHIFT_EVENING', 'COMPLETED'),
+            job(
+              10007,
+              '2026-10-12',
+              'SHIFT_MORNING',
+              'AWAITING_ACCEPTANCE',
+              start: '10:00',
+              end: '12:00',
+            ),
+          ];
+          await pumpScreen(tester);
+
+          await openSheet(tester, 10002);
+          final cancel = find.byKey(const Key('open-worker-cancel'));
+          expect(cancel, findsOneWidget);
+          expect(
+            tester.getTopLeft(cancel).dy,
+            greaterThan(
+              tester
+                  .getBottomLeft(find.byKey(const Key('order-sheet-action')))
+                  .dy,
+            ),
+          );
+          expect(
+            tester.widget<NordicButton>(cancel).variant,
+            NordicButtonVariant.danger,
+          );
+          await tester.tapAt(
+            const Offset(10, 10),
+          ); // the barrier closes the sheet
+          await tester.pumpAndSettle();
+
+          for (final id in [10003, 10006, 10007]) {
+            await openSheet(tester, id);
+            expect(cancel, findsNothing, reason: 'job $id');
+            await tester.tapAt(const Offset(10, 10));
+            await tester.pumpAndSettle();
+          }
+        },
+      );
+
+      testWidgets('opening it reads the consequences and warns before a lock', (
+        tester,
+      ) async {
+        dispatch.willLock = true;
+        await pumpScreen(tester);
+
+        await openCancelForm(tester, 10002);
+
+        expect(
+          find.text(
+            'Đây là lần huỷ thứ 3 trong 30 ngày. Huỷ 3 lần, tài khoản sẽ bị khoá.',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('worker-cancel-lock-warning')),
+          findsOneWidget,
+        );
+        expect(dispatch.cancelled, isEmpty);
+      });
+
+      testWidgets(
+        'confirming cancels the job that was tapped, closes the sheet, reloads and says what happened',
+        (tester) async {
+          assignments.jobs = [
+            job(
+              10011,
+              '2026-10-12',
+              'SHIFT_MORNING',
+              'ASSIGNED',
+              start: '08:00',
+              end: '10:00',
+            ),
+            job(
+              10012,
+              '2026-10-12',
+              'SHIFT_MORNING',
+              'ASSIGNED',
+              start: '10:00',
+              end: '12:00',
+            ),
+          ];
+          await pumpScreen(tester);
+          final loadsBefore = assignments.calls;
+
+          await openCancelForm(tester, 10012); // the second job of the shift
+          await tester.enterText(
+            find.byKey(const Key('worker-cancel-reason')),
+            '  Ốm đột xuất  ',
+          );
+          await tapVisible(
+            tester,
+            find.byKey(const Key('submit-worker-cancel')),
+          );
+          await tester.pumpAndSettle();
+
+          expect(dispatch.cancelled, [(10012, 'Ốm đột xuất')]);
+          expect(find.byKey(const Key('order-sheet-10012')), findsNothing);
+          expect(assignments.calls, greaterThan(loadsBefore));
+          expect(
+            find.textContaining(
+              'Đã huỷ ca. Hệ thống đã báo gia chủ và đang tìm thợ khác thay bạn.',
+            ),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        'the open form scrolls above the keyboard and the confirm button stays reachable',
+        (tester) async {
+          dispatch.willLock = true; // the longest form: the lock warning too
+          await pumpScreen(tester);
+          await openCancelForm(tester, 10002);
+
+          // A 300 px keyboard on the 390x844 frame.
+          tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+          addTearDown(tester.view.resetViewInsets);
+          await tester.pumpAndSettle();
+
+          expect(tester.takeException(), isNull);
+          await tester.enterText(
+            find.byKey(const Key('worker-cancel-reason')),
+            'Bận việc',
+          );
+          await tapVisible(
+            tester,
+            find.byKey(const Key('submit-worker-cancel')),
+          );
+          await tester.pumpAndSettle();
+
+          expect(dispatch.cancelled, [(10002, 'Bận việc')]);
+        },
+      );
+
+      testWidgets('an empty reason is refused and nothing is sent', (
+        tester,
+      ) async {
+        await pumpScreen(tester);
+
+        await openCancelForm(tester, 10002);
+        await tapVisible(tester, find.byKey(const Key('submit-worker-cancel')));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Bạn cho gia chủ biết lý do huỷ ca nhé.'),
+          findsOneWidget,
+        );
+        expect(dispatch.cancelled, isEmpty);
+        expect(find.byKey(const Key('order-sheet-10002')), findsOneWidget);
+      });
+
+      testWidgets(
+        'a job that already started is explained and the sheet stays',
+        (tester) async {
+          dispatch.cancelError = const ApiException(
+            409,
+            'x',
+            code: 'JOB_ALREADY_STARTED',
+          );
+          await pumpScreen(tester);
+
+          await openCancelForm(tester, 10002);
+          await tester.enterText(
+            find.byKey(const Key('worker-cancel-reason')),
+            'Bận',
+          );
+          await tapVisible(
+            tester,
+            find.byKey(const Key('submit-worker-cancel')),
+          );
+          await tester.pumpAndSettle();
+
+          expect(
+            find.text(
+              'Ca này không huỷ được nữa: đã tới giờ làm hoặc đã check-in.',
+            ),
+            findsOneWidget,
+          );
+          expect(find.byKey(const Key('order-sheet-10002')), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '"Báo sự cố" closes the sheet and opens the incident report',
+        (tester) async {
+          await pumpScreen(tester);
+
+          await openCancelForm(tester, 10002);
+          await tapVisible(
+            tester,
+            find.byKey(const Key('worker-cancel-report-incident')),
+          );
+          await tester.pumpAndSettle();
+
+          expect(find.text('incident:10002'), findsOneWidget);
+          expect(dispatch.cancelled, isEmpty);
+        },
+      );
 
       // SHIFT-MULTI-01 (decisions D42): one shift takes several orders, so the schedule shows every one of them.
       testWidgets(
