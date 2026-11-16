@@ -143,7 +143,12 @@ Default address rules: the customer's **first** address becomes default automati
 ```json
 [{ "date": "2026-10-15", "shiftCode": "SHIFT_MORNING" }]
 ```
-The shifts the favorite worker is free for: `BOOKING_SLOT` rows in `AVAILABLE` (blocked, held by an offer or booked = not free), read through the Workers port `IWorkerFreeShiftQuery`; Customers never reads `BOOKING_SLOT`. `from` defaults to today, `to` to today + `Booking.MaxDaysAhead` (the days the booking form offers). The booking form greys out the other shifts when the customer picks this worker (`booking.md` 3.3 `preferredWorkerId`).
+The shifts the favorite worker is free for: `BOOKING_SLOT` rows in `AVAILABLE` (blocked, held by an offer or booked = not free), read through the Workers port `IWorkerFreeShiftQuery`; Customers never reads `BOOKING_SLOT`. A timed job keeps its shift `AVAILABLE` (decisions D34), so each item also says what the worker's jobs already take of that day (BOOK-BUSY-01, decisions D41):
+```json
+[{ "date": "2026-10-15", "shiftCode": "SHIFT_MORNING",
+   "busyWindows": [{ "startTime": "07:30", "endTime": "11:00" }], "remainingHours": 5.5 }]
+```
+`busyWindows`: the times of that day (local) taken by the worker's live jobs, **each already widened by `Booking.TravelBufferMinutes`** (a job 08:00-10:30 is 07:30-11:00); a new job must not overlap them. `remainingHours`: `Worker.MaxJobHoursPerDay` minus the hours of the live jobs that day, never below 0. A cancelled, cancelled-by-worker or reassigned job takes no time. Older clients ignore both fields. `from` defaults to today, `to` to today + `Booking.MaxDaysAhead` (the days the booking form offers). The booking form greys out the other shifts when the customer picks this worker (`booking.md` 3.3 `preferredWorkerId`).
 
 | Status | Condition |
 |---|---|

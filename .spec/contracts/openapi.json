@@ -17490,6 +17490,20 @@
         },
         "additionalProperties": false
       },
+      "BusyWindow": {
+        "type": "object",
+        "properties": {
+          "startTime": {
+            "type": "string",
+            "nullable": true
+          },
+          "endTime": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CallLoggedDto": {
         "type": "object",
         "properties": {
@@ -19058,6 +19072,18 @@
           },
           "shiftCode": {
             "type": "string",
+            "nullable": true
+          },
+          "busyWindows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusyWindow"
+            },
+            "nullable": true
+          },
+          "remainingHours": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         },
@@ -22635,6 +22661,18 @@
           },
           "shiftCode": {
             "type": "string",
+            "nullable": true
+          },
+          "busyWindows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusyWindow"
+            },
+            "nullable": true
+          },
+          "remainingHours": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         },

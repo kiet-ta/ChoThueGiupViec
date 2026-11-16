@@ -1,6 +1,7 @@
 import '../../../core/network/api_client.dart';
 import '../../customers/models/customer_address.dart';
 import '../../customers/models/favorite_worker.dart';
+import '../../customers/models/worker_free_shift.dart';
 import '../../customers/services/customer_address_service.dart';
 import '../../customers/services/favorite_worker_service.dart';
 import '../../identity/services/api_error.dart' as identity;
@@ -29,12 +30,26 @@ abstract class IBookingAddressSource {
 abstract class IBookingFavoriteSource {
   Future<List<FavoriteWorker>> getFavorites();
 
-  /// The [freeShiftKey]s of the shifts the worker is free for over the booking window.
-  Future<Set<String>> getFreeShifts(int workerId);
+  /// The shifts the worker is free for over the booking window ([freeShiftKey]) and what their jobs already take of each.
+  Future<WorkerFreeShifts> getFreeShifts(int workerId);
+}
+
+/// The server's free shifts of a worker as the screen reads them: the keys and, per shift, the busy times (BOOK-BUSY-01).
+WorkerFreeShifts workerFreeShiftsOf(List<WorkerFreeShift> shifts) {
+  final keys = <String>{};
+  final busy = <String, ShiftBusy>{};
+  for (final s in shifts) {
+    final key = freeShiftKey(s.date, s.shiftCode);
+    keys.add(key);
+    busy[key] = ShiftBusy.fromTimes([
+      for (final w in s.busyWindows) (start: w.startTime, end: w.endTime),
+    ], s.remainingHours);
+  }
+  return WorkerFreeShifts(keys, busy);
 }
 
 abstract class IRebookAvailabilitySource {
-  Future<Set<String>> getFreeShifts(int orderId, int workerId);
+  Future<WorkerFreeShifts> getFreeShifts(int orderId, int workerId);
 }
 
 class RebookAvailabilitySource implements IRebookAvailabilitySource {
@@ -43,17 +58,14 @@ class RebookAvailabilitySource implements IRebookAvailabilitySource {
     : _client = client ?? ApiClient();
 
   @override
-  Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
-    final response = await _client.get<Set<String>>(
+  Future<WorkerFreeShifts> getFreeShifts(int orderId, int workerId) async {
+    final response = await _client.get<WorkerFreeShifts>(
       '/api/v1/workers/$workerId/availability',
       queryParams: {'orderId': '$orderId'},
-      fromJson: (json) => {
+      fromJson: (json) => workerFreeShiftsOf([
         for (final item in json as List)
-          freeShiftKey(
-            (item as Map<String, dynamic>)['date'] as String,
-            item['shiftCode'] as String,
-          ),
-      },
+          WorkerFreeShift.fromJson(item as Map<String, dynamic>),
+      ]),
     );
     final data = response.data;
     if (data == null) {
@@ -173,10 +185,9 @@ class CustomerFavoriteSource implements IBookingFavoriteSource {
   }
 
   @override
-  Future<Set<String>> getFreeShifts(int workerId) async {
+  Future<WorkerFreeShifts> getFreeShifts(int workerId) async {
     try {
-      final free = await _favorites.getFreeShifts(workerId);
-      return {for (final s in free) freeShiftKey(s.date, s.shiftCode)};
+      return workerFreeShiftsOf(await _favorites.getFreeShifts(workerId));
     } on identity.ApiException catch (e) {
       throw _shared(e);
     }

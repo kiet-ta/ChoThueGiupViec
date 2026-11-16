@@ -1,9 +1,19 @@
 // Wire shapes of .spec/contracts/booking.md and customers.md (camelCase, UTC ISO-8601).
 export type ServiceTier = 'ECONOMY' | 'PREMIUM'
 
+/** A time (local HH:mm) range in which the worker cannot start a job: one of their live jobs widened by the travel buffer (BOOK-BUSY-01). */
+export interface BusyWindow {
+  startTime: string
+  endTime: string
+}
+
 export interface FreeShift {
   date: string
   shiftCode: string
+  /** The worker's live jobs that day (a timed job keeps the shift open, D34). Absent from older servers. */
+  busyWindows?: BusyWindow[] | null
+  /** What is left of the worker's daily hours that day; absent or null = not known. */
+  remainingHours?: number | null
 }
 
 export interface ShiftOption {

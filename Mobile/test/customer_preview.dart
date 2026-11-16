@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/network/api_response.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/features/booking/logic/booking_logic.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/services/order_service.dart';
 import 'package:mobile/features/booking/services/fallback_service.dart';
@@ -349,17 +350,24 @@ class FakeAddresses implements IBookingAddressSource {
 class FakeFavorites implements IBookingFavoriteSource {
   List<FavoriteWorker> list;
   Set<String> free;
+
+  /// What the worker's live jobs already take, per shift key (BOOK-BUSY-01).
+  Map<String, ShiftBusy> busy;
   final freeAsked = <int>[];
 
-  FakeFavorites([this.list = const [], this.free = const {}]);
+  FakeFavorites([
+    this.list = const [],
+    this.free = const {},
+    this.busy = const {},
+  ]);
 
   @override
   Future<List<FavoriteWorker>> getFavorites() => Future.value(list);
 
   @override
-  Future<Set<String>> getFreeShifts(int workerId) {
+  Future<WorkerFreeShifts> getFreeShifts(int workerId) {
     freeAsked.add(workerId);
-    return Future.value(free);
+    return Future.value(WorkerFreeShifts(free, busy));
   }
 }
 
@@ -367,9 +375,9 @@ class FakeRebookAvailability implements IRebookAvailabilitySource {
   final requested = <(int, int)>[];
 
   @override
-  Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
+  Future<WorkerFreeShifts> getFreeShifts(int orderId, int workerId) async {
     requested.add((orderId, workerId));
-    return {'2026-10-15|SHIFT_MORNING'};
+    return const WorkerFreeShifts({'2026-10-15|SHIFT_MORNING'});
   }
 }
 
@@ -385,7 +393,8 @@ class PreviewFallback implements IFallbackService {
 
 class PreviewRebook implements IRebookAvailabilitySource {
   @override
-  Future<Set<String>> getFreeShifts(int orderId, int workerId) async => {};
+  Future<WorkerFreeShifts> getFreeShifts(int orderId, int workerId) async =>
+      const WorkerFreeShifts({});
 }
 
 class PreviewBooking implements IBookingService {

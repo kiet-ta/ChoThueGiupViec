@@ -95,7 +95,15 @@ void main() {
       await answer(200, {
         'success': true,
         'data': [
-          {'date': '2026-10-15', 'shiftCode': 'SHIFT_MORNING'},
+          {
+            'date': '2026-10-15',
+            'shiftCode': 'SHIFT_MORNING',
+            // BOOK-BUSY-01: a 08:00-10:30 job of the worker, widened by the 30-minute buffer.
+            'busyWindows': [
+              {'startTime': '07:30', 'endTime': '11:00'},
+            ],
+            'remainingHours': 5.5,
+          },
         ],
       });
       final source = RebookAvailabilitySource(
@@ -106,7 +114,10 @@ void main() {
       final shifts = await source.getFreeShifts(100, 42);
       expect(seen.single.path, '/api/v1/workers/42/availability');
       expect(seen.single.query, {'orderId': '100'});
-      expect(shifts, {'2026-10-15|SHIFT_MORNING'});
+      expect(shifts.keys, {'2026-10-15|SHIFT_MORNING'});
+      final busy = shifts.busy['2026-10-15|SHIFT_MORNING']!;
+      expect(busy.windows, [(start: 450, end: 660)]);
+      expect(busy.remainingHours, 5.5);
     });
 
     test(

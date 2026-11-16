@@ -106,9 +106,10 @@ public class OrderCreationServiceTests
         public Fixture(decimal areaM2 = 50m) =>
             Addresses.Add(CustomerId, new CustomerAddressInfo(AddressId, areaM2, 10.76m, 106.66m));
 
-        public OrderCreationService Service(ICustomerFavoriteQuery? favorites = null, IOrderTrackingQuery? tracking = null) =>
+        public OrderCreationService Service(
+            ICustomerFavoriteQuery? favorites = null, IOrderTrackingQuery? tracking = null, IWorkerFreeShiftQuery? freeShifts = null) =>
             new(Addresses, new StubPricing(), Orders, Capacity, Orders, new VietnamClock(NowUtc), Microsoft.Extensions.Options.Options.Create(Rules),
-                Availability, favorites, tracking);
+                Availability, favorites, tracking, freeShifts);
     }
 
     private class RecordingAvailability : IWorkerAvailabilityQuery
@@ -626,5 +627,78 @@ public class OrderCreationServiceTests
         Assert.Null(saved.StartTime);
         Assert.Null(saved.EndTime);
         Assert.Equal(260000m, order.TotalAmount);
+    }
+
+    // ---- BOOK-BUSY-01 (decisions D41): a preferred worker who is busy at the chosen time is refused ----
+
+    private static FakeWorkerFreeShiftQuery FreeWorker(int workerId, params BusyWindow[] busy)
+    {
+        var free = new FakeWorkerFreeShiftQuery();
+        free.Add(workerId, new WorkerFreeShift(ShiftDate, BookingShifts.Morning, busy, 8m));
+        return free;
+    }
+
+    [Fact]
+    public async Task PreferredWorker_BusyAtTheTime_Is409AndNothingIsWritten()
+    {
+        var f = new Fixture(50m);
+        // A live job 08:00-10:30 widened by 30 minutes: 07:30-11:00.
+        var free = FreeWorker(42, new BusyWindow("07:30", "11:00"));
+
+        var error = await ConflictAsync(f.Service(new StubFavorites(42), freeShifts: free).CreateAsync(
+            Timed("09:00", 2m) with { PreferredWorkerId = 42 }));
+
+        Assert.Equal(BookingErrorCodes.PreferredWorkerBusy, error.Code);
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Theory]
+    [InlineData("08:00")] // the same time as the other job
+    [InlineData("10:00")] // overlaps its end
+    public async Task PreferredWorker_OverlappingAnyPartOfTheirJob_IsRefused(string start)
+    {
+        var f = new Fixture(50m);
+        var free = FreeWorker(42, new BusyWindow("07:30", "11:00"));
+
+        var error = await ConflictAsync(f.Service(new StubFavorites(42), freeShifts: free).CreateAsync(
+            Timed(start, 2m) with { PreferredWorkerId = 42 }));
+
+        Assert.Equal(BookingErrorCodes.PreferredWorkerBusy, error.Code);
+    }
+
+    [Fact]
+    public async Task PreferredWorker_FreeAtTheTime_GetsTheOrder()
+    {
+        var f = new Fixture(50m);
+        // The shift is open and the worker has no live job that day.
+        var free = FreeWorker(42);
+
+        await f.Service(new StubFavorites(42), freeShifts: free).CreateAsync(Timed("09:00", 2m) with { PreferredWorkerId = 42 });
+
+        Assert.Equal(42, Assert.Single(f.Orders.Saved).PreferredWorkerId);
+    }
+
+    [Fact]
+    public async Task PreferredWorker_WithoutThatShiftOpen_IsRefused()
+    {
+        var f = new Fixture(50m);
+        var free = new FakeWorkerFreeShiftQuery(); // the worker has no free shift at all
+
+        var error = await ConflictAsync(f.Service(new StubFavorites(42), freeShifts: free).CreateAsync(
+            Request(preferredWorkerId: 42)));
+
+        Assert.Equal(BookingErrorCodes.PreferredWorkerBusy, error.Code);
+        Assert.Empty(f.Orders.Saved);
+    }
+
+    [Fact]
+    public async Task NoPreferredWorker_IsNeverChecked()
+    {
+        var f = new Fixture(50m);
+        var free = new FakeWorkerFreeShiftQuery();
+
+        await f.Service(freeShifts: free).CreateAsync(Timed("09:00", 2m));
+
+        Assert.Single(f.Orders.Saved);
     }
 }

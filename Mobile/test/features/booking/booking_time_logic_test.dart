@@ -2,6 +2,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/booking/logic/booking_logic.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
+import 'package:mobile/features/booking/services/booking_service.dart';
+import 'package:mobile/features/customers/models/worker_free_shift.dart';
 
 const _options = BookingOptions(
   serviceTiers: ['ECONOMY', 'PREMIUM'],
@@ -148,5 +150,83 @@ void main() {
     final options = BookingOptions.fromJson({'economyMinLeadMinutes': 90});
     expect(options.economyMinLeadMinutes, 90);
     expect(options.startStepMinutes, 30);
+  });
+
+  // ---- BOOK-BUSY-01 (decisions D41): the chosen worker's own jobs ----
+
+  group('a chosen worker who is busy', () {
+    const afternoon = ['13:00', '13:30', '14:00', '14:30', '15:00'];
+    ShiftBusy busy(List<(String, String)> times, [double? left]) =>
+        ShiftBusy.fromTimes([
+          for (final t in times) (start: t.$1, end: t.$2),
+        ], left);
+
+    test(
+      'keeps every start when nothing is known or the worker has no job',
+      () {
+        expect(startsWorkerCanTake(afternoon, 2, null), afternoon);
+        expect(startsWorkerCanTake(afternoon, 2, busy([])), afternoon);
+        expect(startsWorkerCanTake(afternoon, 2, busy([], 8)), afternoon);
+      },
+    );
+
+    test('drops the starts that overlap a live job (already widened by the buffer)', () {
+      // A job until 13:00 and the 30 minutes after it: nothing may start before 13:30.
+      expect(startsWorkerCanTake(afternoon, 2, busy([('11:30', '13:30')], 6)), [
+        '13:30',
+        '14:00',
+        '14:30',
+        '15:00',
+      ]);
+    });
+
+    test('drops a start whose job would run into the next live job', () {
+      // A 2 h job from 13:30 ends at 15:30, where the busy time begins; from 14:00 it overlaps.
+      expect(startsWorkerCanTake(afternoon, 2, busy([('15:30', '17:00')])), [
+        '13:00',
+        '13:30',
+      ]);
+    });
+
+    test('offers nothing when the shift is taken or the day has too few hours left', () {
+      expect(
+        startsWorkerCanTake(afternoon, 2, busy([('07:30', '17:30')])),
+        isEmpty,
+      );
+      expect(startsWorkerCanTake(afternoon, 2, busy([], 1.5)), isEmpty);
+      expect(startsWorkerCanTake(afternoon, 2, busy([], 2)), afternoon);
+    });
+
+    test('ignores a pair that is not a time', () {
+      expect(startsWorkerCanTake(afternoon, 2, busy([('x', 'y')])), afternoon);
+    });
+
+    test('reads the server shift: windows, the hours left, and the older shape without them', () {
+      final shifts = workerFreeShiftsOf([
+        WorkerFreeShift.fromJson({
+          'date': '2026-10-15',
+          'shiftCode': 'SHIFT_MORNING',
+          'busyWindows': [
+            {'startTime': '07:30', 'endTime': '11:00'},
+          ],
+          'remainingHours': 5.5,
+        }),
+        WorkerFreeShift.fromJson({
+          'date': '2026-10-16',
+          'shiftCode': 'SHIFT_EVENING',
+        }),
+      ]);
+
+      expect(shifts.keys, {
+        '2026-10-15|SHIFT_MORNING',
+        '2026-10-16|SHIFT_EVENING',
+      });
+      final morning = shifts.busy['2026-10-15|SHIFT_MORNING']!;
+      expect(morning.windows, [(start: 450, end: 660)]);
+      expect(morning.remainingHours, 5.5);
+      final evening = shifts.busy['2026-10-16|SHIFT_EVENING']!;
+      expect(evening.windows, isEmpty);
+      expect(evening.remainingHours, isNull);
+    });
   });
 }

@@ -13,6 +13,9 @@ public static class BookingErrorCodes
 
     /// <summary>Decisions D34: a timed Economy job starts sooner than <c>Booking.EconomyMinLeadMinutes</c> from now.</summary>
     public const string LeadTimeTooShort = "LEAD_TIME_TOO_SHORT";
+
+    /// <summary>BOOK-BUSY-01 (decisions D41): the customer's preferred worker has no room at the chosen time.</summary>
+    public const string PreferredWorkerBusy = "PREFERRED_WORKER_BUSY";
 }
 
 /// <summary>

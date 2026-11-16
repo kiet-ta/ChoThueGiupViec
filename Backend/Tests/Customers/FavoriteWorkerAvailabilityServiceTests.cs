@@ -31,11 +31,16 @@ public class FavoriteWorkerAvailabilityServiceTests
             Calls.Add((workerId, from, to));
             IReadOnlyList<WorkerFreeShift> free =
             [
-                new(new DateOnly(2026, 10, 15), "SHIFT_MORNING"),
+                // BOOK-BUSY-01: a timed job 08:00-10:30 keeps the morning open; its widened time and the hours left come with the shift.
+                new(new DateOnly(2026, 10, 15), "SHIFT_MORNING", [new BusyWindow("07:30", "11:00")], 5.5m),
                 new(new DateOnly(2026, 10, 16), "SHIFT_EVENING"),
             ];
             return Task.FromResult(free);
         }
+
+        public Task<bool> IsFreeForJobAsync(
+            int workerId, DateOnly date, string shiftCode, TimeOnly? startTime, TimeOnly? endTime, CancellationToken cancellationToken = default) =>
+            Task.FromResult(true);
     }
 
     private static (FavoriteWorkerAvailabilityService Service, StubShifts Shifts) Create()
@@ -59,6 +64,22 @@ public class FavoriteWorkerAvailabilityServiceTests
         Assert.Equal(new DateOnly(2026, 10, 15), free[0].Date);
         Assert.Equal("SHIFT_MORNING", free[0].ShiftCode);
         Assert.Equal((FavoriteId, Today, Today.AddDays(14)), Assert.Single(shifts.Calls));
+    }
+
+    [Fact]
+    public async Task Favorite_FreeShifts_CarryTheBusyTimesAndTheHoursLeft()
+    {
+        var (service, _) = Create();
+
+        var free = await service.GetFreeShiftsAsync(CustomerId, FavoriteId, null, null);
+
+        // The morning stays free but 07:30-11:00 (a 08:00-10:30 job plus the buffer) is taken, and 5.5 h of the day are left.
+        var busy = Assert.Single(free[0].BusyWindows);
+        Assert.Equal(("07:30", "11:00"), (busy.StartTime, busy.EndTime));
+        Assert.Equal(5.5m, free[0].RemainingHours);
+        // A shift without busy times answers an empty list, never null.
+        Assert.Empty(free[1].BusyWindows);
+        Assert.Null(free[1].RemainingHours);
     }
 
     [Fact]

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/core/theme/nordic_colors.dart';
 import 'package:mobile/core/theme/nordic_theme.dart';
+import 'package:mobile/features/booking/logic/booking_logic.dart';
 import 'package:mobile/features/booking/models/booking_models.dart';
 import 'package:mobile/features/booking/screens/booking_screen.dart';
 import 'package:mobile/features/booking/services/booking_service.dart';
@@ -133,17 +134,24 @@ class FakeAddresses implements IBookingAddressSource {
 class FakeFavorites implements IBookingFavoriteSource {
   List<FavoriteWorker> list;
   Set<String> free;
+
+  /// What the worker's live jobs already take, per shift key (BOOK-BUSY-01).
+  Map<String, ShiftBusy> busy;
   final freeAsked = <int>[];
 
-  FakeFavorites([this.list = const [], this.free = const {}]);
+  FakeFavorites([
+    this.list = const [],
+    this.free = const {},
+    this.busy = const {},
+  ]);
 
   @override
   Future<List<FavoriteWorker>> getFavorites() => Future.value(list);
 
   @override
-  Future<Set<String>> getFreeShifts(int workerId) {
+  Future<WorkerFreeShifts> getFreeShifts(int workerId) {
     freeAsked.add(workerId);
-    return Future.value(free);
+    return Future.value(WorkerFreeShifts(free, busy));
   }
 }
 
@@ -151,9 +159,9 @@ class FakeRebookAvailability implements IRebookAvailabilitySource {
   final requested = <(int, int)>[];
 
   @override
-  Future<Set<String>> getFreeShifts(int orderId, int workerId) async {
+  Future<WorkerFreeShifts> getFreeShifts(int orderId, int workerId) async {
     requested.add((orderId, workerId));
-    return {'2026-10-15|SHIFT_MORNING'};
+    return const WorkerFreeShifts({'2026-10-15|SHIFT_MORNING'});
   }
 }
 
@@ -1110,5 +1118,120 @@ void main() {
 
       expect(find.byKey(const Key('address-more')), findsNothing);
     });
+  });
+
+  group('a favorite worker with a job of their own (BOOK-BUSY-01, D41)', () {
+    // The worker has a job that takes 07:30-09:30 of the morning (the buffer included) and the whole evening.
+    const morningKey = '2026-10-15|SHIFT_MORNING';
+    const eveningKey = '2026-10-15|SHIFT_EVENING';
+    final busy = {
+      morningKey: const ShiftBusy(
+        windows: [(start: 450, end: 570)],
+        remainingHours: 6,
+      ),
+      eveningKey: const ShiftBusy(
+        windows: [(start: 1020, end: 1260)], // 17:00-21:00
+        remainingHours: 6,
+      ),
+    };
+
+    Finder faded(String key) => find.descendant(
+      of: find.byKey(Key(key)),
+      matching: find.byWidgetPredicate((w) => w is Opacity && w.opacity < 0.5),
+    );
+
+    testWidgets(
+      'only the times after their job are offered; a shift they are busy all through is greyed out',
+      (tester) async {
+        final service = FakeBookingService();
+        final favorites = FakeFavorites([_mai], {morningKey, eveningKey}, busy);
+        await pumpBooking(tester, service, favorites: favorites);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'favorite-42');
+        await tapKey(tester, 'duration-2.0');
+        await tapKey(tester, 'day-2026-10-15');
+
+        expect(faded('shift-SHIFT_MORNING'), findsNothing);
+        expect(faded('shift-SHIFT_EVENING'), findsOneWidget);
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        // 08:00, 08:30 and 09:00 overlap the job; 09:30 and 10:00 do not.
+        expect(find.byKey(const Key('start-08:00')), findsNothing);
+        expect(find.byKey(const Key('start-09:00')), findsNothing);
+        expect(find.byKey(const Key('start-09:30')), findsOneWidget);
+        expect(find.byKey(const Key('start-10:00')), findsOneWidget);
+
+        await tapKey(tester, 'start-09:30');
+        await tapKey(tester, 'submit-order');
+        expect(service.created.single.preferredWorkerId, 42);
+        expect(service.created.single.startTime, '09:30');
+      },
+    );
+
+    testWidgets('without a favorite chosen every time stays on offer', (
+      tester,
+    ) async {
+      final service = FakeBookingService();
+      final favorites = FakeFavorites([_mai], {morningKey}, busy);
+      await pumpBooking(tester, service, favorites: favorites);
+
+      await tapKey(tester, 'tier-ECONOMY');
+      await tapKey(tester, 'duration-2.0');
+      await tapKey(tester, 'day-2026-10-15');
+      await tapKey(tester, 'shift-SHIFT_MORNING');
+
+      expect(find.byKey(const Key('start-08:00')), findsOneWidget);
+      expect(faded('shift-SHIFT_EVENING'), findsNothing);
+    });
+
+    testWidgets(
+      'a longer job that no longer fits between their jobs drops the chosen day and greys it out',
+      (tester) async {
+        final service = FakeBookingService();
+        final favorites = FakeFavorites([_mai], {morningKey}, busy);
+        await pumpBooking(tester, service, favorites: favorites);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'favorite-42');
+        await tapKey(tester, 'duration-2.0');
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        expect(find.byKey(const Key('start-09:30')), findsOneWidget);
+
+        // 4 h would have to start at 08:00, on top of their job.
+        await tapKey(tester, 'duration-4.0');
+
+        // The day has no time left for this worker, so it is forgotten and dimmed; the start times wait for a new day.
+        expect(find.byKey(const Key('start-empty')), findsOneWidget);
+        expect(faded('day-2026-10-15'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a refusal from the server is shown in words and keeps the form',
+      (tester) async {
+        final service = FakeBookingService()
+          ..createError = const ApiException(
+            409,
+            'busy',
+            code: 'PREFERRED_WORKER_BUSY',
+          );
+        final favorites = FakeFavorites([_mai], {morningKey});
+        await pumpBooking(tester, service, favorites: favorites);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'favorite-42');
+        await tapKey(tester, 'day-2026-10-15');
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+        await tapKey(tester, 'start-08:00');
+        await tapKey(tester, 'submit-order');
+
+        expect(
+          find.textContaining('Thợ bạn chọn đã bận giờ này'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('start-08:00')), findsOneWidget);
+      },
+    );
   });
 }

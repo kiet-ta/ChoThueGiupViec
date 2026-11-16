@@ -132,7 +132,7 @@ Decisions D34: optional `durationHours` (ECONOMY only, 2 to 4 in 0.5 steps; else
 
 ### 3.3 `POST /api/v1/booking/orders` (BE-M2-01, BE-M2-02, BE-M2-03)
 
-For rebooking, `GET /api/v1/workers/{workerId}/availability?orderId={orderId}` (`CustomerOnly`; 400 without `orderId`) returns `data` as an array of `{ "date": "yyyy-MM-dd", "shiftCode": "string" }` for the booking window. The order must belong to the caller and have a COMPLETED assignment for that worker; either mismatch returns 404. This read does not add a favorite.
+For rebooking, `GET /api/v1/workers/{workerId}/availability?orderId={orderId}` (`CustomerOnly`; 400 without `orderId`) returns `data` as an array of `{ "date": "yyyy-MM-dd", "shiftCode": "string", "busyWindows": [{ "startTime": "HH:mm", "endTime": "HH:mm" }], "remainingHours": 5.5 }` for the booking window. `busyWindows` and `remainingHours` are the same as in `customers.md` 2.3 (BOOK-BUSY-01, decisions D41): a timed job keeps the shift open, so they say which times of that day the worker's live jobs take and how many hours of the day are left. The order must belong to the caller and have a COMPLETED assignment for that worker; either mismatch returns 404. This read does not add a favorite.
 Request
 ```json
 {
@@ -144,7 +144,7 @@ Request
 }
 ```
 `startTime` + `durationHours` (decisions D34, optional, ECONOMY only, both or neither): a timed job inside the shift. Start on a 30-minute step, duration 2 to 4 h in 0.5 steps, `[start, start + duration]` inside `shiftCode`'s times (400 on `startTime` / `durationHours` otherwise; PREMIUM + a time is 400). The job must start at least `Booking.EconomyMinLeadMinutes` (60) after now (409 `LEAD_TIME_TOO_SHORT`). Price per hour as in 3.2. Stored in `JOB_ORDER.start_time` / `end_time`; the response's `shiftStartAt` / `shiftEndAt` are the job's start and end. Without a time the order is the whole shift, exactly as before.
-`preferredWorkerId` (optional, ECONOMY only): one of the caller's favorite workers (`customers.md` 2.3), or a worker with a COMPLETED assignment on the caller's `previousOrderId`. The latter does not change the caller's favorites. Dispatch offers that worker the first open seat before the 5 -> 7 -> 10 km scan, when they have not had the order yet, are free for the shift, within 10 km and pass the usual eligibility; otherwise (or after a decline / timeout) dispatch goes on as usual. It is a wish, not a guarantee. Stored in `JOB_ORDER.preferred_worker_id` (INT NULL, plain id).
+`preferredWorkerId` (optional, ECONOMY only): one of the caller's favorite workers (`customers.md` 2.3), or a worker with a COMPLETED assignment on the caller's `previousOrderId`. The latter does not change the caller's favorites. **The worker must be free at the chosen time** (decisions D41, BOOK-BUSY-01): the slot of that shift is `AVAILABLE`, no live job of theirs that day overlaps the job widened by `Booking.TravelBufferMinutes` (30) on each side, and their live jobs plus this one total at most `Worker.MaxJobHoursPerDay` (8); a whole-shift order counts as the whole shift window. Otherwise **409** `PREFERRED_WORKER_BUSY` and no order is created. Dispatch then offers that worker the first open seat before the 5 -> 7 -> 10 km scan, when they have not had the order yet, are within 10 km and pass the usual eligibility; otherwise (or after a decline / timeout, or when they became busy after the order was created) dispatch goes on as usual. Distance, rating and eligibility stay a wish, not a guarantee. Stored in `JOB_ORDER.preferred_worker_id` (INT NULL, plain id).
 Response **201** `data`: `Order` (`orderStatus = PENDING_PAYMENT`). The client then asks for the QR (`payments.md` §2.1).
 
 Rules (in this order; nothing is written when one fails):
@@ -160,7 +160,7 @@ Rules (in this order; nothing is written when one fails):
 |---|---|
 | 400 | validation (O5) |
 | 404 | address not found / not owned; `preferredWorkerId` is neither a favorite nor a completed worker on the caller's previous order |
-| 409 | `data.code` = `SHIFT_IN_PAST` \| `PREMIUM_LEAD_TIME` \| `LEAD_TIME_TOO_SHORT` (D34) \| `FULLY_BOOKED` |
+| 409 | `data.code` = `SHIFT_IN_PAST` \| `PREMIUM_LEAD_TIME` \| `LEAD_TIME_TOO_SHORT` (D34) \| `PREFERRED_WORKER_BUSY` (D41) \| `FULLY_BOOKED` |
 
 Business 409s carry `data: { "code": "<CODE>" }` so clients branch on the code, never on `message` (same pattern as `admin.md` `failedCriteria`).
 
