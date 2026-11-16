@@ -151,7 +151,7 @@ public class FreeShiftBusyWindowsSqlServerTests
     private static TimeOnly T(int h, int m = 0) => new(h, m);
 
     [Fact]
-    public async Task ATimedJob_LeavesTheShiftListed_WithItsTimeWidenedByTheBufferAndTheHoursLeft()
+    public async Task ATimedJob_LeavesTheShiftListed_WithItsOwnTimeAndTheHoursLeft()
     {
         if (!Available()) return;
         await using var db = NewDb();
@@ -164,7 +164,7 @@ public class FreeShiftBusyWindowsSqlServerTests
         var morning = Assert.Single(shifts);
         Assert.Equal(Morning, morning.ShiftCode);
         var busy = Assert.Single(morning.BusyWindows!);
-        Assert.Equal(("07:30", "11:00"), (busy.StartTime, busy.EndTime)); // 08:00-10:30 and 30 minutes on each side
+        Assert.Equal(("08:00", "10:30"), (busy.StartTime, busy.EndTime)); // no travel buffer by default (D42): the job's own time
         Assert.Equal(5.5m, morning.RemainingHours); // 8 h a day - 2.5 h
     }
 
@@ -172,8 +172,9 @@ public class FreeShiftBusyWindowsSqlServerTests
     [InlineData(8, 0, 10, 0, false)]    // the same time
     [InlineData(9, 0, 11, 0, false)]    // overlaps the middle
     [InlineData(10, 0, 12, 0, false)]   // overlaps the end
-    [InlineData(10, 30, 12, 0, false)]  // only the buffer apart: 10:30 is still inside 07:30-11:00
-    [InlineData(11, 0, 12, 0, true)]    // 30 minutes after the job: free (a 1 h job is not a bookable length, the rule is only about the overlap)
+    [InlineData(10, 15, 12, 0, false)]  // 15 minutes before the job ends
+    [InlineData(10, 30, 12, 0, true)]   // right after the job: free (1.5 h is not a bookable length, the rule is only about the overlap)
+    [InlineData(7, 0, 8, 0, true)]      // right before the job
     public async Task IsFreeForJob_RefusesATimeThatOverlapsALiveJob(int h1, int m1, int h2, int m2, bool free)
     {
         if (!Available()) return;
@@ -255,5 +256,40 @@ public class FreeShiftBusyWindowsSqlServerTests
         Assert.Equal(3, shifts.Count);
         Assert.All(shifts, x => Assert.Equal(0m, x.RemainingHours));
         Assert.False(await query.IsFreeForJobAsync(s.WorkerId, _day, Evening, T(18), T(20)));
+    }
+
+    [Fact]
+    public async Task AWorkerWith8To10_CanTakeAnother10To12InTheSameShift_AndTheShiftStaysListed()
+    {
+        // SHIFT-MULTI-01 (decisions D42): one shift, several orders; only an overlap is refused.
+        if (!Available()) return;
+        await using var db = NewDb();
+        var s = await SeedAsync(db);
+        var slot = await SlotAsync(db, s, Morning);
+        await JobAsync(db, s, slot, Morning, T(8), T(10));
+        var query = new WorkerFreeShiftQuery(db);
+
+        Assert.True(await query.IsFreeForJobAsync(s.WorkerId, _day, Morning, T(10), T(12)));
+        Assert.False(await query.IsFreeForJobAsync(s.WorkerId, _day, Morning, T(9), T(11)));
+        var morning = Assert.Single(await query.GetFreeShiftsAsync(s.WorkerId, _day, _day));
+        Assert.Equal(6m, morning.RemainingHours);
+    }
+
+    [Fact]
+    public async Task ARaisedTravelBuffer_WidensTheBusyTimeAgain()
+    {
+        if (!Available()) return;
+        await using var db = NewDb();
+        var s = await SeedAsync(db);
+        var slot = await SlotAsync(db, s, Morning);
+        await JobAsync(db, s, slot, Morning, T(8), T(10, 30));
+        var rules = new CommonService.Application.Common.Options.BusinessRules();
+        rules.Booking.TravelBufferMinutes = 30;
+        var query = new WorkerFreeShiftQuery(db, Microsoft.Extensions.Options.Options.Create(rules));
+
+        var busy = Assert.Single(Assert.Single(await query.GetFreeShiftsAsync(s.WorkerId, _day, _day)).BusyWindows!);
+
+        Assert.Equal(("07:30", "11:00"), (busy.StartTime, busy.EndTime));
+        Assert.False(await query.IsFreeForJobAsync(s.WorkerId, _day, Morning, T(10, 30), T(12)));
     }
 }

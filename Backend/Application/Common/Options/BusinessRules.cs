@@ -212,8 +212,12 @@ public class BookingRules
     /// <summary>Area one worker cleans in one hour; the suggested duration is area per worker / this, rounded up to 0.5 h (D34).</summary>
     public decimal M2PerHour { get; set; } = 20m;
 
-    /// <summary>Free time kept before and after every timed job of a worker for travel (decisions D34).</summary>
-    public int TravelBufferMinutes { get; set; } = 30;
+    /// <summary>
+    /// Free time kept before and after every timed job of a worker for travel (decisions D34). 0 by default since SHIFT-MULTI-01 (decisions D42):
+    /// with a 2 h shortest job and a 4 h shift, any buffer above 0 leaves room for one job per shift, so two jobs may touch (10:00 ends, 10:00 starts)
+    /// and only an overlap is refused. Raise it to keep a gap again.
+    /// </summary>
+    public int TravelBufferMinutes { get; set; } = 0;
 }
 
 public class RatingMinAvgAfterJobsRules

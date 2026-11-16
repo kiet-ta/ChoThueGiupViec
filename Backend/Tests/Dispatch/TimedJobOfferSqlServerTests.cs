@@ -137,13 +137,14 @@ public class TimedJobOfferSqlServerTests
     }
 
     [Fact]
-    public async Task TwoTimedJobsWithTravelTime_ShareOneShift_AndTheSlotStaysOpen()
+    public async Task TwoTimedJobsOneAfterTheOther_ShareOneShift_AndTheSlotStaysOpen()
     {
+        // SHIFT-MULTI-01 (decisions D42): no travel buffer by default, so 08:00-10:00 and 10:00-12:00 are two jobs of one 4 h shift.
         if (!Available()) return;
         await using var db = NewDb();
         var s = await SeedAsync(db);
         var first = await OrderAsync(db, s, new TimeOnly(8, 0), new TimeOnly(10, 0));
-        var second = await OrderAsync(db, s, new TimeOnly(10, 30), new TimeOnly(12, 0));
+        var second = await OrderAsync(db, s, new TimeOnly(10, 0), new TimeOnly(12, 0));
         var repo = new EfDispatchRepository(db);
 
         var a = await repo.TryCreateOfferAsync(Offer(s, first));
@@ -157,7 +158,7 @@ public class TimedJobOfferSqlServerTests
 
     [Theory]
     [InlineData(9, 0, 11, 0)]   // overlaps 08:00-10:00
-    [InlineData(10, 15, 12, 0)] // only 15 minutes to travel
+    [InlineData(9, 45, 12, 0)]  // 15 minutes before the first job ends
     public async Task AnOverlappingTimedJob_IsNotOffered(int h1, int m1, int h2, int m2)
     {
         if (!Available()) return;

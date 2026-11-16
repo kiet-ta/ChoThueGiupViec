@@ -701,4 +701,16 @@ public class OrderCreationServiceTests
 
         Assert.Single(f.Orders.Saved);
     }
+
+    [Fact]
+    public async Task PreferredWorker_WithAJobUntil10_GetsAnotherOrderFrom10InTheSameShift()
+    {
+        // SHIFT-MULTI-01 (decisions D42): one shift, several orders; the first job ends at 10:00 and the new one starts at 10:00.
+        var f = new Fixture(50m);
+        var free = FreeWorker(42, new BusyWindow("08:00", "10:00"));
+
+        await f.Service(new StubFavorites(42), freeShifts: free).CreateAsync(Timed("10:00", 2m) with { PreferredWorkerId = 42 });
+
+        Assert.Equal(new TimeOnly(10, 0), Assert.Single(f.Orders.Saved).StartTime);
+    }
 }

@@ -1233,5 +1233,35 @@ void main() {
         expect(find.byKey(const Key('start-08:00')), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'after their 08:00-10:00 job the same morning is still offered from 10:00 (SHIFT-MULTI-01, D42)',
+      (tester) async {
+        final service = FakeBookingService();
+        final favorites = FakeFavorites([_mai], {morningKey}, {
+          morningKey: const ShiftBusy(
+            windows: [(start: 480, end: 600)], // 08:00-10:00, no travel buffer
+            remainingHours: 6,
+          ),
+        });
+        await pumpBooking(tester, service, favorites: favorites);
+
+        await tapKey(tester, 'tier-ECONOMY');
+        await tapKey(tester, 'favorite-42');
+        await tapKey(tester, 'duration-2.0');
+        await tapKey(tester, 'day-2026-10-15');
+        expect(faded('shift-SHIFT_MORNING'), findsNothing);
+        await tapKey(tester, 'shift-SHIFT_MORNING');
+
+        for (final taken in ['08:00', '08:30', '09:00', '09:30']) {
+          expect(find.byKey(Key('start-$taken')), findsNothing, reason: taken);
+        }
+        expect(find.byKey(const Key('start-10:00')), findsOneWidget);
+        await tapKey(tester, 'start-10:00');
+        await tapKey(tester, 'submit-order');
+        expect(service.created.single.startTime, '10:00');
+        expect(service.created.single.preferredWorkerId, 42);
+      },
+    );
   });
 }

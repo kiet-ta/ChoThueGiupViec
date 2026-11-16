@@ -157,4 +157,13 @@ describe('a favorite worker who is busy (BOOK-BUSY-01, decisions D41)', () => {
       'Thợ bạn chọn đã bận giờ này. Chọn giờ khác hoặc để hệ thống chọn thợ.',
     )
   })
+
+  it('lets a second job start right after the first in the same shift (SHIFT-MULTI-01, decisions D42)', () => {
+    const morningStarts = ['08:00', '08:30', '09:00', '09:30', '10:00']
+    const first = free({ shiftCode: 'SHIFT_MORNING', busyWindows: [{ startTime: '08:00', endTime: '10:00' }], remainingHours: 6 })
+    assert.deepEqual(startsWorkerCanTake(morningStarts, 2, first), ['10:00'])
+    // 08:00-10:30 leaves 1.5 h: no 2 h job fits any more.
+    const longer = free({ shiftCode: 'SHIFT_MORNING', busyWindows: [{ startTime: '08:00', endTime: '10:30' }], remainingHours: 5.5 })
+    assert.deepEqual(startsWorkerCanTake(morningStarts, 2, longer), [])
+  })
 })

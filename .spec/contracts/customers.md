@@ -148,7 +148,7 @@ The shifts the favorite worker is free for: `BOOKING_SLOT` rows in `AVAILABLE` (
 [{ "date": "2026-10-15", "shiftCode": "SHIFT_MORNING",
    "busyWindows": [{ "startTime": "07:30", "endTime": "11:00" }], "remainingHours": 5.5 }]
 ```
-`busyWindows`: the times of that day (local) taken by the worker's live jobs, **each already widened by `Booking.TravelBufferMinutes`** (a job 08:00-10:30 is 07:30-11:00); a new job must not overlap them. `remainingHours`: `Worker.MaxJobHoursPerDay` minus the hours of the live jobs that day, never below 0. A cancelled, cancelled-by-worker or reassigned job takes no time. Older clients ignore both fields. `from` defaults to today, `to` to today + `Booking.MaxDaysAhead` (the days the booking form offers). The booking form greys out the other shifts when the customer picks this worker (`booking.md` 3.3 `preferredWorkerId`).
+`busyWindows`: the times of that day (local) taken by the worker's live jobs, **each already widened by `Booking.TravelBufferMinutes`** (0 by default since decisions D42, so a job 08:00-10:30 is 08:00-10:30; with a 30-minute buffer it would be 07:30-11:00); a new job must not overlap them. `remainingHours`: `Worker.MaxJobHoursPerDay` minus the hours of the live jobs that day, never below 0. A cancelled, cancelled-by-worker or reassigned job takes no time. Older clients ignore both fields. `from` defaults to today, `to` to today + `Booking.MaxDaysAhead` (the days the booking form offers). The booking form greys out the other shifts when the customer picks this worker (`booking.md` 3.3 `preferredWorkerId`).
 
 | Status | Condition |
 |---|---|
