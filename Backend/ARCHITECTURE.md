@@ -208,6 +208,15 @@ HTTP → ErrorHandlingMiddleware → RequestResponseLoggingMiddleware → Respon
 - **Atomicity**: Changes across one or multiple repositories are saved atomically via `IUnitOfWork.SaveChangesAsync()` or transaction blocks via `IUnitOfWork.ExecuteInTransactionAsync()` / `BeginTransactionAsync()` / `CommitTransactionAsync()`.
 - Tests: `Backend/Tests/Persistence/RepositoryAndUnitOfWorkTests.cs`.
 
+### 5.2 One type per file (SPLIT-00)
+- **Rule**: every production `.cs` file under `Backend/` holds exactly ONE top-level type (class, interface, record, struct, enum) and its file name is the type name (`OrderService` lives in `OrderService.cs`). A generic type keeps the bare name (`Result<T>` in `Result.cs`). Why: a reviewer and an agent find a type by file name, and a diff touches one type instead of a bundle.
+- **Namespace does not change on a split.** The namespace of every new file is the namespace of the file it came from, so no `using` elsewhere changes and the type set of the assembly stays the same.
+- **Layout per module** (inside `Application/Features/<Module>/`): `Services/` (service interfaces and implementations), `Repositories/` (repository interfaces), `Dtos/` (request/response records and enums of the module), `Constants/` (error codes, status strings, limits), `Handlers/` (domain-event handlers). Controller request/response bodies live in `WebAPI/Contracts/<Module>/`, not inside the controller file.
+- **Scope**: production code only. `Backend/Tests/`, `Migrations/` and generated files (`*.Designer.cs`, `*.g.cs`) are excluded for now.
+- **Enforcement (ratchet)**: `node harness/check-one-type-per-file.mjs` (verify L1, step "one type per file") fails when a multi-type file is NOT listed in `harness/one-type-per-file-baseline.txt`, and also when a listed file is already split (so it cannot be merged back unnoticed). The baseline lists the files that held several types when the rule was introduced; it may shrink, never grow. After a split, run `node harness/check-one-type-per-file.mjs --update` (it refuses to add a file).
+- **Splitting**: `node harness/split-types.mjs <file.cs>... [--dry-run]` writes one file per type, keeps the `using` lines and each type's XML docs / attributes / comments, and checks that the non-whitespace text is unchanged. A file it cannot split safely (`#if`/`#region`, block-scoped namespace, two types with the same name) is skipped and reported, never half-split. `node harness/split-types.mjs --types <dir>` prints the sorted fully-qualified type names; run it before and after a split and diff the two lists.
+- Moving a split type into the folders above is a separate, later step; the splitter only separates files in place.
+
 ## 6. Configuration & secrets (IMPORTANT)
 - `appsettings.json` contains **placeholders only** (`Stripe:PublishableKey = pk_test_xxx`, `Stripe:SecretKey = sk_test_xxx`). **Never commit real keys.**
 - Provide real values via:

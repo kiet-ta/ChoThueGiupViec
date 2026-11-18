@@ -34,6 +34,7 @@ step() { # $1=name $2=dir $3...=command
 
 # ---- L1 -------------------------------------------------------------------
 step "agent config"   .       sh harness/check-agent-config.sh
+step "one type per file" .    node harness/check-one-type-per-file.mjs
 step "backend format" Backend dotnet format CommonService.sln whitespace --verify-no-changes
 step "frontend lint"  Frontend npx --no-install oxlint
 step "mobile toolchain" Mobile sh -c 'command -v flutter >/dev/null 2>&1 || { echo "error: flutter not found on PATH. Install Flutter stable (Dart >= 3.13.3, Mobile/pubspec.yaml) and put its bin/ on PATH."; exit 1; }; flutter --version'
